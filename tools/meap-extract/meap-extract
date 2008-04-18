@@ -43,7 +43,24 @@ class MeapOptionParser
       end
 
       # List of arguments.
-      opts.on("-f f1,f2,f3", "--features f1,f2,f3", Array, "features") do |arg|
+      opts.on(
+        "-f f1,f2,f3", "--features f1,f2,f3", Array,
+        "Valid features:", *%w(
+          AvgChroma
+          AvgChromaScalar
+          AvgChunkPower
+          AvgFreqSimple
+          AvgMelSpec
+          AvgMFCC
+          AvgPitchSimple
+          AvgSpec
+          AvgSpecCentroid
+          AvgSpecFlatness
+          ChunkLength
+          ChunkStartTime
+          Likelihood
+          SpectralStability
+      )) do |arg|
         @options.features = arg.sort
       end
 
