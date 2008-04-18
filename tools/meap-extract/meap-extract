@@ -1,0 +1,165 @@
+#!/usr/bin/env ruby
+
+require 'fileutils'
+require 'optparse'
+require 'ostruct'
+
+JAR = File.join(File.dirname(__FILE__), "MEAPsoft.jar")
+SEGMENTER = "com.meapsoft.Segmenter"
+EXTRACTOR = "com.meapsoft.FeatExtractor"
+
+class MeapOptionParser
+  def initialize
+    @options = OpenStruct.new
+    @options.features = []
+    @opts = OptionParser.new do |opts|
+      opts.banner = "Usage: #{File.basename($0)} [options] INPUT_FILE OUTPUT_FILE"
+
+      opts.separator ""
+      opts.separator "Specific options:"
+
+      opts.on("-t", "--tempo-scale [N]", Float, "tempo scale") do |arg|
+        @options.tempo_scale = arg
+      end
+
+      opts.on("-s", "--smoothing-window [N]", Float, "smoothing window") do |arg|
+        @options.smoothing_window = arg
+      end
+
+      opts.on("-d", "--[no-]old-onset-detector") do |arg|
+        @options.old_onset_detector = arg
+      end
+
+      opts.on("-0", "--[no-]initial-onset") do |arg|
+        @options.initial_onset = arg
+      end
+
+      opts.on("-w", "--fft-size [SIZE]", Integer, "FFT size") do |arg|
+        @options.fft_size = arg
+      end
+
+      opts.on("-H", "--fft-hop [HOP]", Integer, "FFT hop") do |arg|
+        @options.fft_hop = arg
+      end
+
+      # List of arguments.
+      opts.on("-f f1,f2,f3", "--features f1,f2,f3", Array, "features") do |arg|
+        @options.features = arg.sort
+      end
+
+      opts.separator ""
+      opts.separator "Common options:"
+
+      # No argument, shows at tail.  This will print an options summary.
+      # Try it and see!
+      opts.on_tail("-h", "--help", "Show this message") do
+        self.help!
+      end
+    end
+  end
+  
+  def help
+    puts @opts
+  end
+  
+  def help!
+    self.help
+    exit(0)
+  end
+  
+  def parse(args)
+    # The options specified on the command line will be collected in *options*.
+    # We set default values here.
+    @opts.parse!(args)
+    @options
+  end
+end
+
+class Cache
+  def initialize(file, values)
+    @file = file
+    @values = values
+  end
+  def valid?(i)
+    @values[i] == @cache[i]
+  end
+  def do
+    begin
+      @cache = File.readlines(@file).collect { |x| x.strip }
+    rescue
+      @cache = Array.new(@values.size)
+    end
+    yield self
+    File.open(@file, "w") { |io|
+      io.write(@values.join("\n"))
+    }
+  end
+end
+
+def mk_file(path, ext)
+  path + ".com.meapsoft." + ext
+end
+
+def java(klass, args)
+  system("java", "-mx1000m", "-cp", JAR, klass, *args)
+end
+
+def opt(flag, value)
+  value ? [flag, value.to_s] : []
+end
+
+option_parser = MeapOptionParser.new
+options = option_parser.parse(ARGV)
+if ARGV.size < 2
+  option_parser.help!
+end
+
+input_file    = ARGV[0]
+output_file   = ARGV[1]
+segment_file  = mk_file(input_file, "seg")
+feat_file     = mk_file(input_file, "feat")
+cache_file    = mk_file(input_file, "cache")
+
+segmenter_options = [
+  opt("-t", options.tempo_scale),
+  opt("-s", options.smoothing_window),
+  opt("-d", options.old_onset_detector),
+  opt("-0", options.initial_onset)].flatten
+
+extractor_options = [
+  opt("-w", options.fft_size),
+  opt("-h", options.fft_hop),
+  options.features.collect { |f| ["-f", f] }].flatten
+
+Cache.new(
+  cache_file,
+  [segmenter_options, extractor_options].collect { |x| ":" + x.join(":") + ":" }
+).do { |cache|
+  unless cache.valid?(0)
+    puts "Running segmenter ..."
+    unless java(SEGMENTER, [
+      opt("-t", options.tempo_scale),
+      opt("-s", options.smoothing_window),
+      opt("-d", options.old_onset_detector),
+      opt("-0", options.initial_onset),
+      "-o", segment_file, input_file].flatten)
+      raise "segmenter failed"
+    end
+  end
+
+  unless cache.valid?(0) && cache.valid?(1)
+    puts "Running extractor ..."
+    unless java(EXTRACTOR, [
+      opt("-w", options.fft_size),
+      opt("-h", options.fft_hop),
+      options.features.collect { |f| ["-f", f] },
+      "-o", feat_file,
+      segment_file].flatten)
+      raise "extractor failed"
+    end
+  end
+
+  FileUtils.copy(feat_file, output_file)
+}
+
+# EOF
