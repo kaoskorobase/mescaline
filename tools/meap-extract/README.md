@@ -9,7 +9,7 @@ distribution.
 
 ## Usage
 
-    $ /path/to/meap-extract --help
+> $ /path/to/meap-extract --help
 
 ## Issues
 

@@ -1,8 +1,12 @@
-# ok so here we go:
+# Mescaline
 
-the ultimate 'mosaicing' (what a word) framework.
+Audio mosaicing on drugs.
 
-## hierarchical structure of units
+## Prototype
+
+See [Prototype](doc/Prototype)
+
+## Hierarchical structure of units
 
 * patterns, sentences
 * beats, words, syllables
@@ -10,12 +14,13 @@ the ultimate 'mosaicing' (what a word) framework.
 * regular subdivision
 * zerocrossings
 
-## UNIT
+## Unit database 
 
-* start, duration
-* parent
-* parent index
-* children
+    Unit
+      uuid              :: UUID
+      begin_seconds     :: Float
+      end_seconds       :: Float
+
 * features
   * MFCC
   * HCPC
@@ -57,3 +62,7 @@ the ultimate 'mosaicing' (what a word) framework.
 * resynthesize patterns
   * max deviation from prototype (kNN)
   * reassignment of sounds
+
+## Tools
+
+* [meap-extract](tools/meap-extract/README)
