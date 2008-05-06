@@ -2,11 +2,6 @@
 
 Automate the MEAPsoft segmenter and feature extractor....
 
-## Installation
-
-Copy `meap-extract` to the `bin` directory of the MEAPsoft source
-distribution.
-
 ## Usage
 
 > $ /path/to/meap-extract --help
