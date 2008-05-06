@@ -16,15 +16,7 @@ See [Prototype](doc/Prototype)
 
 ## Unit database 
 
-    Unit
-      uuid              :: UUID
-      begin_seconds     :: Float
-      end_seconds       :: Float
-
-* features
-  * MFCC
-  * HCPC
-  * ...
+See [Database](doc/Database)
 
 ## TOOLS
 
