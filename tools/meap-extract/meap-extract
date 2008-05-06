@@ -1,19 +1,39 @@
 #!/usr/bin/env ruby
 
 require 'fileutils'
+require 'find'
 require 'optparse'
 require 'ostruct'
 
-JAR = File.join(File.dirname(__FILE__), "MEAPsoft.jar")
+CLASS_PATH = Dir.glob(File.join(File.dirname(__FILE__), "meap/*.jar"))
 SEGMENTER = "com.meapsoft.Segmenter"
 EXTRACTOR = "com.meapsoft.FeatExtractor"
+
+FEATURES = %w(
+  AvgChroma
+  AvgChromaScalar
+  AvgChunkPower
+  AvgFreqSimple
+  AvgMelSpec
+  AvgMFCC
+  AvgPitchSimple
+  AvgSpec
+  AvgSpecCentroid
+  AvgSpecFlatness
+  ChunkLength
+  ChunkStartTime
+  Likelihood
+  SpectralStability
+)
+
+SOUNDFILE_REGEXP = /\.(wav|aif*)$/
 
 class MeapOptionParser
   def initialize
     @options = OpenStruct.new
     @options.features = []
     @opts = OptionParser.new do |opts|
-      opts.banner = "Usage: #{File.basename($0)} [options] INPUT_FILE [OUTPUT_FILE]"
+      opts.banner = "Usage: #{File.basename($0)} [options] INPUT_FILE_OR_DIRECTORY"
 
       opts.separator ""
       opts.separator "Specific options:"
@@ -45,22 +65,7 @@ class MeapOptionParser
       # List of arguments.
       opts.on(
         "-f f1,f2,f3", "--features f1,f2,f3", Array,
-        "Valid features:", *%w(
-          AvgChroma
-          AvgChromaScalar
-          AvgChunkPower
-          AvgFreqSimple
-          AvgMelSpec
-          AvgMFCC
-          AvgPitchSimple
-          AvgSpec
-          AvgSpecCentroid
-          AvgSpecFlatness
-          ChunkLength
-          ChunkStartTime
-          Likelihood
-          SpectralStability
-      )) do |arg|
+        "Valid features:", *FEATURES) do |arg|
         @options.features = arg.sort
       end
 
@@ -118,11 +123,62 @@ def mk_file(path, ext)
 end
 
 def java(klass, args)
-  system("java", "-mx1000m", "-cp", JAR, klass, *args)
+  system("java", "-mx1000m", "-cp", CLASS_PATH.join(":"), klass, *args)
 end
 
 def opt(flag, value)
   value ? [flag, value.to_s] : []
+end
+
+def process_one_file(options, input_file)
+  segment_file  = mk_file(input_file, "seg")
+  feat_file     = mk_file(input_file, "feat")
+  cache_file    = mk_file(input_file, "cache")
+
+  segmenter_options = [
+    opt("-t", options.tempo_scale),
+    opt("-s", options.smoothing_window),
+    opt("-d", options.old_onset_detector),
+    opt("-0", options.initial_onset)].flatten
+
+  extractor_options = [
+    opt("-w", options.fft_size),
+    opt("-h", options.fft_hop),
+    options.features.collect { |f| ["-f", f] }].flatten
+
+  Cache.new(
+    cache_file,
+    [segmenter_options, extractor_options].collect { |x| ":" + x.join(":") + ":" }
+  ).do { |cache|
+    unless cache.valid?(0)
+      puts "Running segmenter on #{input_file}..."
+      unless java(SEGMENTER, [
+        opt("-t", options.tempo_scale),
+        opt("-s", options.smoothing_window),
+        opt("-d", options.old_onset_detector),
+        opt("-0", options.initial_onset),
+        "-o", segment_file, input_file].flatten)
+        raise "segmenter failed"
+      end
+    end
+
+    unless cache.valid?(0) && cache.valid?(1)
+      puts "Running extractor on #{input_file}..."
+      features = options.features.empty? ? FEATURES : options.features
+      unless java(EXTRACTOR, [
+        opt("-w", options.fft_size),
+        opt("-h", options.fft_hop),
+        features.collect { |f| ["-f", f] },
+        "-o", feat_file,
+        segment_file].flatten)
+        raise "extractor failed"
+      end
+    end
+
+    if output_file
+      FileUtils.copy(feat_file, output_file)
+    end
+  }
 end
 
 option_parser = MeapOptionParser.new
@@ -131,54 +187,16 @@ if ARGV.size < 1
   option_parser.help!
 end
 
-input_file    = ARGV[0]
-output_file   = ARGV[1]
-segment_file  = mk_file(input_file, "seg")
-feat_file     = mk_file(input_file, "feat")
-cache_file    = mk_file(input_file, "cache")
+input_path = ARGV[0]
 
-segmenter_options = [
-  opt("-t", options.tempo_scale),
-  opt("-s", options.smoothing_window),
-  opt("-d", options.old_onset_detector),
-  opt("-0", options.initial_onset)].flatten
-
-extractor_options = [
-  opt("-w", options.fft_size),
-  opt("-h", options.fft_hop),
-  options.features.collect { |f| ["-f", f] }].flatten
-
-Cache.new(
-  cache_file,
-  [segmenter_options, extractor_options].collect { |x| ":" + x.join(":") + ":" }
-).do { |cache|
-  unless cache.valid?(0)
-    puts "Running segmenter ..."
-    unless java(SEGMENTER, [
-      opt("-t", options.tempo_scale),
-      opt("-s", options.smoothing_window),
-      opt("-d", options.old_onset_detector),
-      opt("-0", options.initial_onset),
-      "-o", segment_file, input_file].flatten)
-      raise "segmenter failed"
+if File.directory?(input_path)
+  Find.find(input_path) do |file|
+    if File.file?(file) && SOUNDFILE_REGEXP =~ file
+      process_one_file(options, file)
     end
   end
-
-  unless cache.valid?(0) && cache.valid?(1)
-    puts "Running extractor ..."
-    unless java(EXTRACTOR, [
-      opt("-w", options.fft_size),
-      opt("-h", options.fft_hop),
-      options.features.collect { |f| ["-f", f] },
-      "-o", feat_file,
-      segment_file].flatten)
-      raise "extractor failed"
-    end
-  end
-
-  if output_file
-    FileUtils.copy(feat_file, output_file)
-  end
-}
+else
+  process_one_file(options, input_path)
+end
 
 # EOF
