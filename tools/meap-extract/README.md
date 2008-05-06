@@ -10,7 +10,7 @@ Automate the MEAPsoft segmenter and feature extractor....
 
 * The feature vectors are normalized for each file, which prevents combining
   feature vectors from independent runs of the program.  
-  *TODO*: Remove the normalization from `FeatExtractor.java`.
+  <strike>*TODO*: Remove the normalization from `FeatExtractor.java`.</strike> **Done.**
 * The feature file is a plain text file with a flat format.  
   *TODO*: Write the segmentation and feature vectors into a SQL database.
 * Caching is very ad-hoc, writing the cache information in the same directory
