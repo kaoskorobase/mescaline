@@ -1,6 +1,6 @@
 # meap-extract
 
-Automate the MEAPsoft segmenter and feature extractor.
+Automate the MEAPsoft segmenter and feature extractor....
 
 ## Installation
 
