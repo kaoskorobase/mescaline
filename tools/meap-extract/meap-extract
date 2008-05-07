@@ -9,7 +9,7 @@ CLASS_PATH = Dir.glob(File.join(File.dirname(__FILE__), "meap/*.jar"))
 SEGMENTER = "com.meapsoft.Segmenter"
 EXTRACTOR = "com.meapsoft.FeatExtractor"
 
-FEATURES = %w(
+DEFAULT_FEATURES = %w(
   AvgChroma
   AvgChromaScalar
   AvgChunkPower
@@ -20,6 +20,9 @@ FEATURES = %w(
   AvgSpec
   AvgSpecCentroid
   AvgSpecFlatness
+)
+
+FEATURES = DEFAULT_FEATURES + %w(
   ChunkLength
   ChunkStartTime
   Likelihood
@@ -32,11 +35,12 @@ class MeapOptionParser
   def initialize
     @options = OpenStruct.new
     @options.features = []
+    @options.cache = true
     @opts = OptionParser.new do |opts|
       opts.banner = "Usage: #{File.basename($0)} [options] INPUT_FILE_OR_DIRECTORY"
 
       opts.separator ""
-      opts.separator "Specific options:"
+      opts.separator "Segmenter options:"
 
       opts.on("-t", "--tempo-scale [N]", Float, "tempo scale") do |arg|
         @options.tempo_scale = arg
@@ -54,6 +58,9 @@ class MeapOptionParser
         @options.initial_onset = arg
       end
 
+      opts.separator ""
+      opts.separator "Extractor options:"
+
       opts.on("-w", "--fft-size [SIZE]", Integer, "FFT size") do |arg|
         @options.fft_size = arg
       end
@@ -65,12 +72,16 @@ class MeapOptionParser
       # List of arguments.
       opts.on(
         "-f f1,f2,f3", "--features f1,f2,f3", Array,
-        "Valid features:", *FEATURES) do |arg|
+        *["Valid features:", FEATURES, " ", "Default features:", DEFAULT_FEATURES].flatten) do |arg|
         @options.features = arg.sort
       end
 
       opts.separator ""
-      opts.separator "Common options:"
+      opts.separator "Other options:"
+
+      opts.on("-c", "--[no-]cache") do |arg|
+        @options.cache = arg
+      end
 
       # No argument, shows at tail.  This will print an options summary.
       # Try it and see!
@@ -150,7 +161,7 @@ def process_one_file(options, input_file)
     cache_file,
     [segmenter_options, extractor_options].collect { |x| ":" + x.join(":") + ":" }
   ).do { |cache|
-    unless cache.valid?(0)
+    if !options.cache || !cache.valid?(0)
       puts "Running segmenter on #{input_file}..."
       unless java(SEGMENTER, [
         opt("-t", options.tempo_scale),
@@ -162,9 +173,9 @@ def process_one_file(options, input_file)
       end
     end
 
-    unless cache.valid?(0) && cache.valid?(1)
+    if !options.cache || !(cache.valid?(0) && cache.valid?(1))
       puts "Running extractor on #{input_file}..."
-      features = options.features.empty? ? FEATURES : options.features
+      features = options.features.empty? ? DEFAULT_FEATURES : options.features
       unless java(EXTRACTOR, [
         opt("-w", options.fft_size),
         opt("-h", options.fft_hop),
@@ -174,12 +185,10 @@ def process_one_file(options, input_file)
         raise "extractor failed"
       end
     end
-
-  
   }
   
   readfiles = File.dirname(__FILE__)+ "/../readfiles.rb"
-  system("ruby", readfiles, segment_file,feat_file,cache_file)
+  system("ruby", readfiles, segment_file, feat_file, cache_file)
 end
 
 option_parser = MeapOptionParser.new
@@ -194,7 +203,6 @@ if File.directory?(input_path)
   Find.find(input_path) do |file|
     if File.file?(file) && SOUNDFILE_REGEXP =~ file
       process_one_file(options, file)
-      
     end
   end
 else
