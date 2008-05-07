@@ -17,8 +17,8 @@ sql = <<SQL
     create table unit (
       id integer primary key,
       sfid int,
-      start_seconds float(16),
-      end_seconds float(16)
+      onset_time float(16),
+      chunk_length float(16)
     );
     drop table if exists feature;
     create table feature (
@@ -32,28 +32,13 @@ sql = <<SQL
       intval int4,
       realval float8,
       textval text,
-      arrayval float8 array[1024]
+      arrayval BLOB 
     );
 SQL
 
 
   
 db.execute_batch(sql)
-
-db.transaction do
-  (1..16).each { |i|
-    db.execute(
-      "insert into source_file values(null,?,?)",
-      "/path/to/testpath_#{i}",
-      Digest::SHA1.hexdigest("testhash_#{i}")
-    )
-    db.execute(
-      "insert into unit_feature values(?,?,null,null,null,?)",
-      12, 16,
-      "array[#{rand(i)}, #{rand(i)}, #{rand(i)}, #{rand(i)}]"
-    )
-  }
-end
 
 features = ["AvgChroma",
  "AvgChromaScalar",
@@ -75,18 +60,5 @@ features.each {|feature|
 }
 
 puts "feature"
-db.execute("select * from feature") do |row|
-  puts row.join("|")
-end
-  
-puts "source_file"
-db.execute("select * from source_file") do |row|
-  puts row.join("|")
-end
-
-puts "unit_feature"
-db.execute("select * from unit_feature") do |row|
-  puts row.join("|")
-end
 
 # EOF
