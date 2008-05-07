@@ -175,10 +175,11 @@ def process_one_file(options, input_file)
       end
     end
 
-    if output_file
-      FileUtils.copy(feat_file, output_file)
-    end
+  
   }
+  
+  readfiles = File.dirname(__FILE__)+ "/../readfiles.rb"
+  system("ruby", readfiles, segment_file,feat_file,cache_file)
 end
 
 option_parser = MeapOptionParser.new
@@ -193,6 +194,7 @@ if File.directory?(input_path)
   Find.find(input_path) do |file|
     if File.file?(file) && SOUNDFILE_REGEXP =~ file
       process_one_file(options, file)
+      
     end
   end
 else

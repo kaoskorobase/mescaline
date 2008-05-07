@@ -37,6 +37,7 @@ sql = <<SQL
 SQL
 
 
+  
 db.execute_batch(sql)
 
 db.transaction do
@@ -54,6 +55,30 @@ db.transaction do
   }
 end
 
+features = ["AvgChroma",
+ "AvgChromaScalar",
+ "AvgChunkPower",
+ "AvgFreqSimple",
+ "AvgMelSpec",
+ "AvgMFCC",
+ "AvgPitchSimple",
+ "AvgSpec",
+ "AvgSpecCentroid",
+ "AvgSpecFlatness",
+ "ChunkLength",
+ "ChunkStartTime",
+ "Likelihood",
+ "SpectralStability"]
+
+features.each {|feature|
+  db.execute("insert into feature values(null,?)",feature)
+}
+
+puts "feature"
+db.execute("select * from feature") do |row|
+  puts row.join("|")
+end
+  
 puts "source_file"
 db.execute("select * from source_file") do |row|
   puts row.join("|")
