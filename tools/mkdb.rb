@@ -1,12 +1,104 @@
 #!/usr/bin/env ruby
 
 require 'rubygems'
-require 'sqlite3'
 require 'digest/sha1'
+require 'enumerator'
+require 'find'
+require 'sqlite3'
+require 'uri'
+require 'progress-meter'
 
-db = SQLite3::Database.new("mescaline.db")
+Feature = Struct.new("Feature", :name, :slice, :id)
 
-sql = <<SQL
+def make_features(db)
+  offset = 0
+  features = [
+    ["AvgChroma", 12],
+    ["AvgChromaScalar", 1],
+    ["AvgChunkPower", 1],
+    ["AvgFreqSimple", 1],
+    ["AvgMelSpec", 40],
+    ["AvgMFCC", 13],
+    ["AvgPitchSimple", 1],
+    ["AvgSpec", 513],
+    ["AvgSpecCentroid", 1],
+    ["AvgSpecFlatness", 1]
+  ].enum_for(:each_with_index).collect { |a,i|
+    size = a[1]
+    feature = Feature.new(a[0], (offset..offset+size-1), -1)
+    offset += size
+    feature
+  }
+  features.each { |feature|
+    db.execute("insert into feature values(null,?)", feature.name)
+    feature.id = db.last_insert_row_id()
+  }
+  features
+end
+
+def print_features(features)
+  $stdout << "Features:\n"
+  features.each { |f|
+    $stdout \
+      <<  ("%2d " % f.id) << f.name << "\n" \
+      << "  " << f.slice << "\n"
+  }
+end
+
+def make_file_hash(file)
+  Digest::SHA1.hexdigest(File.read(file))
+end
+
+# insert features from featfile into db
+# assumptions:
+# * only one source file per feature file
+def insert_features(db, features, featfile)
+  sfid = nil
+  
+  file = File.open(featfile)
+  Progress.monitor(File.basename(featfile))
+  
+  file.each { |line|
+    unless /^#/ =~ line
+      line = line.split
+      
+      filename = URI.unescape(line.shift)
+      onset_time = line.shift
+      chunk_length = line.shift
+      values = line.collect { |x| x.to_f }
+
+      if sfid.nil?
+        # insert source file
+        db.execute("insert into source_file values(null,?,?)", filename, make_file_hash(filename))
+        sfid = db.last_insert_row_id()
+      end
+      
+      # insert unit
+      db.execute("insert into unit values(null,?,?,?)", sfid, onset_time.to_f, chunk_length.to_f)
+      uid = db.last_insert_row_id()
+      
+      # insert features
+      features.each { |f|
+        fvalue = values.slice(f.slice)
+        if fvalue.size == 1
+          # scalar value
+          db.execute(
+            "insert into unit_feature values(?,?,null,?,null,null)",
+            uid, f.id, fvalue[0])
+        else
+          # vector value
+          db.execute(
+            "insert into unit_feature values(?,?,null,null,null,?)",
+            uid, f.id, SQLite3::Blob.new(fvalue.pack('G'*fvalue.size)))
+        end        
+      }
+    end # if
+  }
+  
+  file.close
+end
+
+MAKE_SQL_TABLES = <<SQL
     drop table if exists source_file;
     create table source_file (
       id integer primary key,
@@ -17,8 +109,8 @@ sql = <<SQL
     create table unit (
       id integer primary key,
       sfid int,
-      onset_time float(16),
-      chunk_length float(16)
+      onset_time float8,
+      chunk_length float8
     );
     drop table if exists feature;
     create table feature (
@@ -32,33 +124,26 @@ sql = <<SQL
       intval int4,
       realval float8,
       textval text,
-      arrayval BLOB 
+      arrayval BLOB
     );
 SQL
 
+if ARGV.size < 2
+  puts "Usage: #{File.basename($0)} DATABASE DIRECTORY..."
+  exit(1)
+end
 
-  
-db.execute_batch(sql)
+db = SQLite3::Database.new(ARGV.shift)
+db.execute_batch(MAKE_SQL_TABLES)
+FEATURES = make_features(db)
+print_features(FEATURES)
 
-features = ["AvgChroma",
- "AvgChromaScalar",
- "AvgChunkPower",
- "AvgFreqSimple",
- "AvgMelSpec",
- "AvgMFCC",
- "AvgPitchSimple",
- "AvgSpec",
- "AvgSpecCentroid",
- "AvgSpecFlatness",
- "ChunkLength",
- "ChunkStartTime",
- "Likelihood",
- "SpectralStability"]
-
-features.each {|feature|
-  db.execute("insert into feature values(null,?)",feature)
+ARGV.each { |dir|
+  Find.find(dir) { |file|
+    if File.file?(file) && /\.com\.meapsoft\.feat$/ =~ file
+      insert_features(db, FEATURES, file)
+    end
+  }
 }
-
-puts "feature"
 
 # EOF
