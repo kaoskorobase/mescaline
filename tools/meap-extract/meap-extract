@@ -29,13 +29,15 @@ FEATURES = DEFAULT_FEATURES + %w(
   SpectralStability
 )
 
-SOUNDFILE_REGEXP = /\.(wav|aif*)$/
+MEAP_FILE_REGEXP = /\.com\.meapsoft\.(cache|feat|seg)$/
+SOUND_FILE_REGEXP = /\.(wav|aif*)$/
 
 class MeapOptionParser
   def initialize
     @options = OpenStruct.new
     @options.features = []
     @options.cache = true
+    @options.clean = false
     @opts = OptionParser.new do |opts|
       opts.banner = "Usage: #{File.basename($0)} [options] INPUT_FILE_OR_DIRECTORY"
 
@@ -79,7 +81,11 @@ class MeapOptionParser
       opts.separator ""
       opts.separator "Other options:"
 
-      opts.on("-c", "--[no-]cache") do |arg|
+      opts.on("-c", "--[no-]clean") do |arg|
+        @options.clean = arg
+      end
+
+      opts.on("-C", "--[no-]cache") do |arg|
         @options.cache = arg
       end
 
@@ -141,7 +147,7 @@ def opt(flag, value)
   value ? [flag, value.to_s] : []
 end
 
-def process_one_file(options, input_file)
+def process_file(options, input_file)
   segment_file  = mk_file(input_file, "seg")
   feat_file     = mk_file(input_file, "feat")
   cache_file    = mk_file(input_file, "cache")
@@ -187,8 +193,30 @@ def process_one_file(options, input_file)
     end
   }
   
-  readfiles = File.dirname(__FILE__)+ "/../readfiles.rb"
-  system("ruby", readfiles, segment_file, feat_file, cache_file)
+  # readfiles = File.dirname(__FILE__)+ "/../readfiles.rb"
+  # system("ruby", readfiles, segment_file, feat_file, cache_file)
+end
+
+def process_files(options, input_path)
+  if File.directory?(input_path)
+    Find.find(input_path) do |file|
+      if File.file?(file) && SOUND_FILE_REGEXP =~ file
+        process_file(options, file)
+      end
+    end
+  else
+    process_file(options, input_path)
+  end
+end
+
+def clean(input_path)
+  if File.directory?(input_path)
+    Find.find(input_path) do |file|
+      if File.file?(file) && MEAP_FILE_REGEXP =~ file
+        FileUtils.rm(file)
+      end
+    end
+  end
 end
 
 option_parser = MeapOptionParser.new
@@ -198,15 +226,10 @@ if ARGV.size < 1
 end
 
 input_path = ARGV[0]
-
-if File.directory?(input_path)
-  Find.find(input_path) do |file|
-    if File.file?(file) && SOUNDFILE_REGEXP =~ file
-      process_one_file(options, file)
-    end
-  end
+if options.clean then
+  clean(input_path)
 else
-  process_one_file(options, input_path)
+  process_files(options, input_path)
 end
 
 # EOF
