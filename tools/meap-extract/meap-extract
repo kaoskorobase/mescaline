@@ -225,11 +225,12 @@ if ARGV.size < 1
   option_parser.help!
 end
 
-input_path = ARGV[0]
-if options.clean then
-  clean(input_path)
-else
-  process_files(options, input_path)
-end
+ARGV.each { |input_path|
+  if options.clean then
+    clean(input_path)
+  else
+    process_files(options, input_path)
+  end
+}
 
 # EOF
