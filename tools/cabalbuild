@@ -1,0 +1,33 @@
+#!/usr/bin/env ruby
+
+SETUP = ["Setup.hs", "Setup.lhs"].find { |x| File.exists?(x) }
+SETUP_CONFIG = ["dist/setup-config", ".setup-configXXX"].find { |x| File.exists?(x) }
+CABAL = Dir.glob("*.cabal").first
+
+def run(*args)
+  system("runhaskell", SETUP, *args) or exit(1)
+end
+
+def error(msg)
+  puts "#{File.basename($0)}: #{msg}"
+  exit(1)
+end
+
+if CABAL.nil? then
+  error("cabal file not found")
+end
+
+if SETUP.nil? then
+  error("Setup.(hs|lhs) not found")
+end
+
+if ARGV.size > 0 then
+  run(*ARGV)
+else
+  if SETUP_CONFIG.nil? || (File.stat(CABAL).mtime > File.stat(SETUP_CONFIG).mtime) then
+    run("configure", *ARGV)
+  end
+  run("build")
+end
+
+# EOF
