@@ -39,7 +39,7 @@ class MeapOptionParser
     @options.cache = true
     @options.clean = false
     @opts = OptionParser.new do |opts|
-      opts.banner = "Usage: #{File.basename($0)} [options] INPUT_FILE_OR_DIRECTORY"
+      opts.banner = "Usage: #{File.basename($0)} [options] FILE_OR_DIRECTORY..."
 
       opts.separator ""
       opts.separator "Segmenter options:"

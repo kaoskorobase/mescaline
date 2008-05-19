@@ -1,0 +1,15 @@
+name:               mescaline
+version:            0.0
+synopsis:           <Project description>
+description:        <Project description>
+category:           Sound
+license:            GPL
+license-file:       LICENSE
+author:             Globero.es
+maintainer:         drecksau@globero.es
+Build-Depends:      base, mtl, Takusen
+Exposed-Modules:    Mescaline.Database.SourceFile
+
+executable:          mescaline
+main-is:             Mescaline.hs
+ghc-options:         
