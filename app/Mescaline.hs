@@ -33,6 +33,7 @@ main = do
     [dbPath] <- getArgs
     withSession (connect dbPath) ( do
     -- simple query, returning reversed list of rows.
+    -- select sf.id, sf.path, u.id from source_file sf, unit u left join unit on u.sfid=sf.id;
     sourceFiles <- doQuery (sql "select * from source_file") querySourceFileIteratee []
     featureDescs <- doQuery (sql "select * from feature") queryFeatureDescIteratee []
     liftIO $ putStrLn $ show sourceFiles
