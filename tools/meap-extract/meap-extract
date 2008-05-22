@@ -17,7 +17,6 @@ DEFAULT_FEATURES = %w(
   AvgMelSpec
   AvgMFCC
   AvgPitchSimple
-  AvgSpec
   AvgSpecCentroid
   AvgSpecFlatness
 )

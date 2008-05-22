@@ -54,7 +54,7 @@ def make_features(db)
     ["AvgMelSpec", 40],
     ["AvgMFCC", 13],
     ["AvgPitchSimple", 1],
-    ["AvgSpec", 513],
+#    ["AvgSpec", 513],
     ["AvgSpecCentroid", 1],
     ["AvgSpecFlatness", 1]
   ].enum_for(:each_with_index).collect { |a,i|
