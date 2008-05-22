@@ -15,6 +15,7 @@ MAKE_SQL_TABLES = <<SQL
       path varchar(256),
       hash varchar(40)
     );
+    CREATE INDEX idx_source_file ON source_file(id);
     drop table if exists unit;
     create table unit (
       id integer primary key,
@@ -22,11 +23,13 @@ MAKE_SQL_TABLES = <<SQL
       onset_time float8,
       chunk_length float8
     );
+    CREATE INDEX idx_unit ON unit(id,sfid);
     drop table if exists feature;
     create table feature (
       id integer primary key,
       name varchar(32)
     );
+    CREATE INDEX idx_feature ON feature(id);
     drop table if exists unit_feature;
     create table unit_feature (
       unit_id int,
@@ -36,6 +39,7 @@ MAKE_SQL_TABLES = <<SQL
       textval text,
       arrayval BLOB
     );
+    CREATE INDEX idx_unit_feature ON unit_feature(unit_id,feature_id);
 SQL
 
 Feature = Struct.new("Feature", :name, :slice, :id)
