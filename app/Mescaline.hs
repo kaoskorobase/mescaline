@@ -17,16 +17,17 @@ querySourceFileIteratee a b c accum = result' (SourceFile a b c:accum)
 queryFeatureDescIteratee :: (Monad m) => Int -> String -> IterAct m [FeatureDescriptor]
 queryFeatureDescIteratee a b accum = result' (FeatureDescriptor a b:accum)
 
--- non-query actions.
-otherActions session = do
-    execDDL (sql "create table blah")
-    execDML (sql "insert into blah ...")
-    commit
-    -- Use withTransaction to delimit a transaction.
-    -- It will commit at the end, or rollback if an error occurs.
-    withTransaction Serialisable $ do
-        execDML (sql "update blah ...")
-        execDML (sql "insert into blah ...")
+
+bindShortcutExample sfid = do
+  let
+    iter :: (Monad m) => Int -> String -> Int -> IterAct m [(Int, String, Int)]
+    iter a b c acc = result $ (a, b, c):acc
+    bindVals = [bindP (sfid::Int)]
+    query = prefetch 1000 "select sf.id, sf.path, u.id from source_file sf, unit u, feature_unit fu left join unit on u.sfid=sf.id where sf.id = ?" bindVals
+  actual <- doQuery query iter []
+  liftIO (print actual)
+
+
 
 main :: IO ()
 main = do
@@ -36,7 +37,8 @@ main = do
     -- select sf.id, sf.path, u.id from source_file sf, unit u left join unit on u.sfid=sf.id;
     sourceFiles <- doQuery (sql "select * from source_file") querySourceFileIteratee []
     featureDescs <- doQuery (sql "select * from feature") queryFeatureDescIteratee []
-    liftIO $ putStrLn $ show sourceFiles
-    liftIO $ putStrLn $ show featureDescs
+    mapM_ (bindShortcutExample . SourceFile.id) sourceFiles
+    --liftIO $ putStrLn $ show featureDescs
     --otherActions session
+	-- bindShortcutExample 
     )
