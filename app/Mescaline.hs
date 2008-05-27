@@ -18,12 +18,12 @@ queryFeatureDescIteratee :: (Monad m) => Int -> String -> IterAct m [FeatureDesc
 queryFeatureDescIteratee a b accum = result' (FeatureDescriptor a b:accum)
 
 
-bindShortcutExample sfid = do
+fetchDetails sfid = do
   let
-    iter :: (Monad m) => Int -> String -> Int -> IterAct m [(Int, String, Int)]
-    iter a b c acc = result $ (a, b, c):acc
-    bindVals = [bindP (sfid::Int)]
-    query = prefetch 1000 "select sf.id, sf.path, u.id from source_file sf, unit u, feature_unit fu left join unit on u.sfid=sf.id where sf.id = ?" bindVals
+    iter :: (Monad m) => Int -> String -> Int -> Float -> Float -> IterAct m [(Int, String, Int, Float, Float)]
+    iter a b c d e acc = result $ (a, b, c, d, e):acc
+    bindVals = [bindP (sfid::Int), bindP(2::Int)]
+    query = prefetch 1000 "select sf.id, sf.path, u.id, u.onset_time, u.chunk_length, uf.* from source_file sf, unit u, unit_feature uf left join unit on u.sfid=sf.id left join unit_feature on uf.unit_id=u.id where sf.id = ? and uf.feature_id = ?" bindVals
   actual <- doQuery query iter []
   liftIO (print actual)
 
@@ -37,7 +37,7 @@ main = do
     -- select sf.id, sf.path, u.id from source_file sf, unit u left join unit on u.sfid=sf.id;
     sourceFiles <- doQuery (sql "select * from source_file") querySourceFileIteratee []
     featureDescs <- doQuery (sql "select * from feature") queryFeatureDescIteratee []
-    mapM_ (bindShortcutExample . SourceFile.id) sourceFiles
+    mapM_ (fetchDetails . SourceFile.id) sourceFiles
     --liftIO $ putStrLn $ show featureDescs
     --otherActions session
 	-- bindShortcutExample 
