@@ -1,47 +1,69 @@
 -- sample code, doesn't necessarily compile
 module Main where
 
+
+import Database.HDBC
+import Database.HDBC.Sqlite3
+import Control.Monad
+import Control.Exception
+
 import Control.Monad.Trans
-import Database.Sqlite.Enumerator
-import Database.Enumerator
+--import Database.Sqlite.Enumerator
+--import Database.Enumerator
 import System.Environment
-import Data.Binary
+--import Data.Binary
 
 
 import Mescaline.Database.Feature (FeatureDescriptor(..), Feature(..))
-
+import qualified Mescaline.Database.Feature as Feature
 import Mescaline.Database.SourceFile (SourceFile(..))
 import qualified Mescaline.Database.SourceFile as SourceFile
 
+connect :: IO Connection 
+connect = handleSqlError $
+    do 
+		let 
+			fp = "/Users/z/work/mescaline/trunk/tools/mescaline.db"
+       		dbh <- connectSqlite3 fp
+       		setBusyTimeout dbh 5000
+       		prepDB dbh
+       		liftIO (print  "DB preparation complete") 
+       		return dbh
 
-querySourceFileIteratee :: (Monad m) => Int -> FilePath -> String -> IterAct m [SourceFile]
-querySourceFileIteratee a b c accum = result' (SourceFile a b c:accum)
+prepDB dbh =
+    do tables <- getTables dbh
+       evaluate (length tables)
+       getSourcefiles dbh
+       getFeatures dbh
 
-queryFeatureDescIteratee :: (Monad m) => Int -> String -> IterAct m [FeatureDescriptor]
-queryFeatureDescIteratee a b accum = result' (FeatureDescriptor a b:accum)
+    
+getSourcefiles dbh =
+    do
+        res <- quickQuery dbh "select * from source_file" []
+        sourcefiles <- return $ map getDetail res 
+        liftIO (print sourcefiles )
+    where 
+        getDetail [sfid, path, hash] =
+            SourceFile {
+                SourceFile.id = fromSql sfid,
+                path = fromSql path,
+                hash = fromSql hash
+            }
 
-
-fetchDetails sfid fid = do
-    let
-        iter :: (Monad m) => Int -> Int -> Float -> Float -> Int -> Float -> Maybe String -> Maybe String -> IterAct m [(Int, Int, Float, Float, Int, Float, Maybe String, Maybe String)]
-        iter a b c d e f g h acc = result $ (a, b, c, d, e, f, g, h):acc
-        bindVals = [bindP (sfid::Int), bindP(fid::Int)]
-        query = prefetch 1000 "select sf.id, u.id, u.onset_time, u.chunk_length, uf.intval, uf.realval, uf.textval, uf.arrayval from source_file sf, unit u, unit_feature uf where sf.id=u.sfid and sf.id = ? and uf.unit_id=u.id and uf.feature_id=? " bindVals
-    actual <- doQuery query iter []
-    liftIO (print actual)
-
-test = do
-	putStrLn "Please enter your name: "
-	name <- getLine
-	liftIO (print name)
-	
-
-main :: IO ()
+getFeatures dbh =
+    do
+        res <- quickQuery dbh "select * from feature" []
+        features <- return $ map getDetail res 
+        liftIO (print features )
+    where 
+        getDetail [fid,name] =
+            FeatureDescriptor {
+                Feature.id = fromSql fid,
+                name = fromSql name
+            }
+        
+--main :: IO ()
 main = do
     [dbPath] <- getArgs
-    putStrLn "Please enter feature id [1..7]: "
-    fid <- getLine >>= return . read
-    withSession (connect dbPath) ( do
-        sourceFiles <- doQuery (sql "select * from source_file") querySourceFileIteratee []
-        featureDescs <- doQuery (sql "select * from feature") queryFeatureDescIteratee [] 
-        mapM_ (flip fetchDetails fid . SourceFile.id) sourceFiles)
+    --fid <- getLine >>= return . read
+    connect 
