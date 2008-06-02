@@ -7,7 +7,7 @@ license:            GPL
 license-file:       LICENSE
 author:             Globero.es
 maintainer:         drecksau@globero.es
-Build-Depends:      base, mtl, Takusen
+Build-Depends:      base, mtl, Takusen, binary
 Exposed-Modules:    Mescaline.Database.SourceFile
 
 executable:          mescaline
