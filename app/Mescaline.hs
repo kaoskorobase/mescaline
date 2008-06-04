@@ -8,17 +8,28 @@ import Control.Exception
 import Control.Monad.Trans
 import System.Environment
 import Data.Binary
-import Mescaline.Database.Feature (FeatureDescriptor(..), Feature(..))
+
+import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString as BS
+import Mescaline.Database.Feature (FeatureDescriptor(..), Feature(..), FeatureData(..))
 import qualified Mescaline.Database.Feature as Feature
+--import qualified Mescaline.Database.FeatureData as FeatureData
 import Mescaline.Database.SourceFile (SourceFile(..))
 import qualified Mescaline.Database.SourceFile as SourceFile
 
-connect :: IO Connection 
-connect = handleSqlError $
+
+instance SqlType (B.ByteString) where
+    toSql _ = undefined
+    fromSql (SqlByteString x) =  B.pack (BS.unpack x)
+    fromSql (SqlString s) =  B.pack (map (toEnum . fromEnum) s)
+    fromSql _ = error "fromSql: cannot convert to ByteString"
+
+
+connect :: String -> IO Connection 
+connect p = handleSqlError $
     do 
 		let 
-			fp = "/Users/z/work/mescaline/trunk/tools/mescaline.db"
-       		dbh <- connectSqlite3 fp
+       		dbh <- connectSqlite3 p
        		setBusyTimeout dbh 5000
        		prepDB dbh
        		--liftIO (print  "DB preparation complete") 
@@ -29,7 +40,9 @@ prepDB dbh =
        evaluate (length tables)
        getSourcefiles dbh
        getFeatures dbh
-       getFeaturedetail dbh 2 1
+       -- example für feature unit call für ein bestimmtest soundfile mit einem bestimmten feature
+       getFeaturedetail dbh 1 5
+      
     
 getSourcefiles dbh =
     do  
@@ -58,6 +71,9 @@ getFeatures dbh =
                 name = fromSql name
             }
 
+
+
+
 getFeaturedetail :: Connection -> Int -> Int -> IO ()
 getFeaturedetail dbh sf_id f_id =
     do
@@ -67,9 +83,23 @@ getFeaturedetail dbh sf_id f_id =
         \from source_file sf, unit u, unit_feature uf \
         \where sfid=u.sfid and sfid = ? \
         \and uf.unit_id=u.id and feature_id=?" [toSql sf_id, toSql f_id]
-        liftIO (print res)
+        featureunits <- return $ map getDetail res 
+        liftIO (print featureunits)
+    where 
+        getDetail [sfid,uid,onset_time,chunck_length,feature_id, intval, realval, textval, arrayval] =
+            FeatureData {
+                sfid = fromSql sfid,
+                uid = fromSql uid,
+                onset_time = fromSql onset_time,
+                chunck_length = fromSql chunck_length,
+                feature_id = fromSql feature_id,
+                intval = fromSql intval,
+                realval = fromSql realval,
+                textval = fromSql textval,
+                arrayval = fromSql arrayval
+            }
             
 --main :: IO ()
 main = do
     [dbPath] <- getArgs
-    connect 
+    connect dbPath
