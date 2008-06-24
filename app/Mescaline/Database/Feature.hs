@@ -1,4 +1,10 @@
-module Mescaline.Database.Feature where
+module Mescaline.Database.Feature (
+    FeatureDescriptor(..),
+    FeatureData(..),
+    Feature(..),
+    Vector
+) where
+
 import qualified Data.ByteString.Lazy as B
 
 data FeatureDescriptor = FeatureDescriptor {
@@ -18,7 +24,7 @@ data FeatureData = FeatureData {
     intval :: Maybe Int, 
     realval :: Maybe Double, 
     textval :: Maybe String, 
-    arrayval :: Maybe B.ByteString
+    arrayval :: Maybe (Vector Double)
 } deriving (Show)
 
 data Feature =

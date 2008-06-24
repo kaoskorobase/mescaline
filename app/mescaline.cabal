@@ -7,7 +7,7 @@ license:            GPL
 license-file:       LICENSE
 author:             Globero.es
 maintainer:         drecksau@globero.es
-Build-Depends:      base, mtl, HDBC>=1.1.0, HDBC-sqlite3>=1.1.0, binary, bytestring
+Build-Depends:      base, containers, mtl, HDBC>=1.1.0, HDBC-sqlite3>=1.1.0, binary, bytestring, hosc >= 0.4
 Exposed-Modules:    Mescaline.Database.SourceFile
 
 executable:          mescaline
