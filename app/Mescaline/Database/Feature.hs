@@ -1,31 +1,22 @@
 module Mescaline.Database.Feature (
     FeatureDescriptor(..),
-    FeatureData(..),
     Feature(..),
     Vector
 ) where
 
 import qualified Data.ByteString.Lazy as B
+import Mescaline.Database.Unique as Unique
+import Prelude hiding (id)
 
 data FeatureDescriptor = FeatureDescriptor {
-    id :: Int,
+    id   :: Id,
     name :: String
 } deriving (Show)
 
+instance Unique (FeatureDescriptor) where
+    uid = id
 
 type Vector a = [a]
-
-data FeatureData = FeatureData {
-    sfid :: Int,
-    uid :: Int,
-    onset_time :: Double,
-    chunck_length :: Double,
-    feature_id :: Int, 
-    intval :: Maybe Int, 
-    realval :: Maybe Double, 
-    textval :: Maybe String, 
-    arrayval :: Maybe (Vector Double)
-} deriving (Show)
 
 data Feature =
     AvgChroma (Vector Double)
@@ -38,3 +29,5 @@ data Feature =
  |  AvgSpec (Vector Double)
  |  AvgSpecCentroid Double
  |  AvgSpecFlatness Double
+ deriving (Show)
+ 

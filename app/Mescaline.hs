@@ -1,26 +1,30 @@
--- sample code, doesn't necessarily compile
 module Main where
 
 import Data.Binary
 import Database.HDBC
 import Database.HDBC.Sqlite3
 import Data.Int (Int64)
+import Data.List (groupBy, intersperse)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Maybe (mapMaybe)
 import Control.Monad
 import Control.Exception
 import Control.Monad.Trans
 import Sound.OpenSoundControl.Byte (decode_f64)
 import System.Environment
+import Text.Printf (printf)
 
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString as BS
-import Mescaline.Database.Feature (FeatureDescriptor(..), Feature(..), FeatureData(..), Vector)
+import Mescaline.Database.Feature (FeatureDescriptor(..), Feature(..), Vector)
+import Mescaline.Database.FeatureData (FeatureData(..))
+import Mescaline.Database.Unit (Unit(..))
+import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Database.Feature as Feature
---import qualified Mescaline.Database.FeatureData as FeatureData
 import Mescaline.Database.SourceFile (SourceFile(..))
 import qualified Mescaline.Database.SourceFile as SourceFile
-
+import Mescaline.Database.Unique as Unique
 
 instance SqlType (B.ByteString) where
     toSql _ = undefined
@@ -32,28 +36,22 @@ instance SqlType (B.ByteString) where
 connect :: String -> IO Connection 
 connect p = handleSqlError $
     do 
-		let 
-       		dbh <- connectSqlite3 p
-       		setBusyTimeout dbh 5000
-       		prepDB dbh
-       		--liftIO (print  "DB preparation complete") 
-       		return dbh
+        dbh <- connectSqlite3 p
+        setBusyTimeout dbh 5000
+        return dbh
 
-prepDB dbh =
-    do tables <- getTables dbh
-       evaluate (length tables)
-       getSourcefiles dbh
-       getFeatures dbh
-       -- example für feature unit call für ein bestimmtest soundfile mit einem bestimmten feature
-       getFeaturedetail dbh 1 [1,2,3] >>= print
+withConnection :: (Connection -> IO a) -> String -> IO a
+withConnection f p = do
+    dbh <- connect p
+    res <- f dbh
+    disconnect dbh
+    return res
 
-getSourcefiles :: Connection -> IO [SourceFile]
-getSourcefiles dbh =
-    do  
-        res <- quickQuery dbh "select * from source_file" []
-        return $ map getDetail res 
+getSourceFiles :: Connection -> IO [SourceFile]
+getSourceFiles dbh =
+        map get `fmap` quickQuery' dbh "select * from source_file" []
     where 
-        getDetail [sfid, path, hash] =
+        get [sfid, path, hash] =
             SourceFile {
                 SourceFile.id = fromSql sfid,
                 path = fromSql path,
@@ -62,11 +60,9 @@ getSourcefiles dbh =
 
 getFeatures :: Connection -> IO [FeatureDescriptor]
 getFeatures dbh =
-    do
-        res <- quickQuery dbh "select * from feature" []
-        return $ map getDetail res 
+        map get `fmap` quickQuery' dbh "select * from feature" []
     where 
-        getDetail [fid,name] =
+        get [fid,name] =
             FeatureDescriptor {
                 Feature.id = fromSql fid,
                 name = fromSql name
@@ -81,43 +77,69 @@ segment n b =
 doubleVectorFromByteString :: B.ByteString -> Vector Double
 doubleVectorFromByteString = map decode_f64 . segment 8
 
--- unitFromFeatureData :: Map Int SourceFile -> Map Int Feature -> FeatureData -> Maybe Unit
--- unitFromFeatureData sfMap fMap fd = do
---     sf    <- Map.lookup (sfid fd) sfMap
---     fdesc <- Map.lookup (fid fd) fMap
---     Unit {
---         id = uid fd,
---         sourceFile = sf,
---         onsetTime = onset_time fd,
---         chunkLength = chunk_length fd,
---         features = fs
---     }
+featureFromFeatureData :: FeatureDescriptor -> FeatureData -> Maybe Feature
+featureFromFeatureData (FeatureDescriptor _ "AvgChroma")        = fmap AvgChroma        . arrayval
+featureFromFeatureData (FeatureDescriptor _ "AvgChromaScalar")  = fmap AvgChromaScalar  . realval 
+featureFromFeatureData (FeatureDescriptor _ "AvgChunkPower")    = fmap AvgChunkPower    . realval 
+featureFromFeatureData (FeatureDescriptor _ "AvgFreqSimple")    = fmap AvgFreqSimple    . realval 
+featureFromFeatureData (FeatureDescriptor _ "AvgMelSpec")       = fmap AvgMelSpec       . arrayval 
+featureFromFeatureData (FeatureDescriptor _ "AvgMFCC")          = fmap AvgMFCC          . arrayval 
+featureFromFeatureData (FeatureDescriptor _ "AvgPitchSimple")   = fmap AvgPitchSimple   . realval 
+featureFromFeatureData (FeatureDescriptor _ "AvgSpecCentroid")  = fmap AvgSpecCentroid  . realval 
+featureFromFeatureData (FeatureDescriptor _ "AvgSpecFlatness")  = fmap AvgSpecFlatness  . realval 
 
-getFeaturedetail :: Connection -> Int -> [Int] -> IO [FeatureData]
-getFeaturedetail dbh sf_id f_id =
+unitFromFeatureData :: Map Int SourceFile -> Map Int FeatureDescriptor -> [FeatureData] -> Maybe Unit
+unitFromFeatureData _ _ [] = Nothing
+unitFromFeatureData sfMap fMap fds@(fd:_) = do
+    sf    <- Map.lookup (sourceFileId fd) sfMap
+    fdesc <- Map.lookup (featureId fd)    fMap
+    return $ Unit {
+        Unit.id     = unitId fd,
+        sourceFile  = sf,
+        onsetTime   = onset_time fd,
+        chunkLength = chunk_length fd,
+        features    = mapMaybe (featureFromFeatureData fdesc) fds
+    }
+
+getFeatureData :: Connection -> [Int] -> [Int] -> IO [FeatureData]
+getFeatureData dbh sf_id f_id =
     do
-        res <- quickQuery dbh "select sf.id as sfid, \
+        res <- quickQuery' dbh (printf "select sf.id as sfid, \
         \u.id, u.onset_time, u.chunk_length, uf.feature_id as feature_id, \
         \uf.intval, uf.realval, uf.textval, uf.arrayval \
         \from source_file sf, unit u, unit_feature uf \
         \where sfid=u.sfid and sf.id = ? \
-        \and uf.unit_id=u.id and feature_id in (?)" [toSql sf_id, toSql f_id]
-        return $ map getDetail res 
+        \and uf.unit_id=u.id and feature_id in (%s) order by u.id asc" f_ids) [toSql (head sf_id)]
+        return $ map getDetail res
     where 
+        f_ids = concat (intersperse "," (map show f_id))
         getDetail [sfid,uid,onset_time,chunck_length,feature_id, intval, realval, textval, arrayval] =
             FeatureData {
-                sfid = fromSql sfid,
-                uid = fromSql uid,
-                onset_time = fromSql onset_time,
-                chunck_length = fromSql chunck_length,
-                feature_id = fromSql feature_id,
-                intval = fromSql intval,
-                realval = fromSql realval,
-                textval = fromSql textval,
-                arrayval = doubleVectorFromByteString `fmap` fromSql arrayval
+                sourceFileId = fromSql sfid,
+                unitId       = fromSql uid,
+                onset_time   = fromSql onset_time,
+                chunk_length = fromSql chunck_length,
+                featureId    = fromSql feature_id,
+                intval       = fromSql intval,
+                realval      = fromSql realval,
+                textval      = fromSql textval,
+                arrayval     = doubleVectorFromByteString `fmap` fromSql arrayval
             }
-            
---main :: IO ()
+
+getUnits :: Connection -> [Int] -> [Int] -> IO [Unit]
+getUnits dbh sfids fids =
+    do
+        sfMap <- Unique.mapFromList `fmap` getSourceFiles dbh
+        fdMap <- Unique.mapFromList `fmap` getFeatures dbh
+        fdata <- getFeatureData dbh sfids fids
+        return (mapMaybe (unitFromFeatureData sfMap fdMap)
+                         (groupBy (\x1 x2 -> unitId x1 == unitId x2)
+                         fdata))
+      
+main :: IO ()
 main = do
     [dbPath] <- getArgs
-    connect dbPath
+    -- dbh <- connect dbPath
+    -- getUnits dbh [1] [1,2,3] >>= print
+    -- disconnect dbh
+    withConnection (\dbh -> getUnits dbh [1] [1,2,3]) dbPath >>= print

@@ -1,15 +1,21 @@
-name:               mescalinen
+name:               mescaline
 version:            0.0
+
 synopsis:           <Project description>
 description:        <Project description>
 category:           Sound
 license:            GPL
-license-file:       LICENSE
+
 author:             Globero.es
 maintainer:         drecksau@globero.es
-Build-Depends:      base, containers, mtl, HDBC>=1.1.0, HDBC-sqlite3>=1.1.0, binary, bytestring, hosc >= 0.4
-Exposed-Modules:    Mescaline.Database.SourceFile
 
-executable:          mescaline
-main-is:             Mescaline.hs
+build-type:         Simple
+build-depends:      base, containers, mtl, HDBC>=1.1.0, HDBC-sqlite3>=1.1.0, binary, bytestring, hosc >= 0.4
+exposed-modules:    
+                    Mescaline.Database.Feature
+                    Mescaline.Database.SourceFile
+                    Mescaline.Database.Unique
+                    Mescaline.Database.Unit
+executable:         mescaline
+main-is:            Mescaline.hs
 ghc-options:         

@@ -1,7 +1,9 @@
 module Mescaline.Database.Unit where
 
-import Mescaline.Database.SourceFile (SourceFile)
 import Mescaline.Database.Feature (Feature)
+import Mescaline.Database.SourceFile (SourceFile)
+import Mescaline.Database.Unique as Unique
+import Prelude hiding (id)
 
 -- create table unit (
 --   id integer primary key,
@@ -11,9 +13,12 @@ import Mescaline.Database.Feature (Feature)
 -- );
 
 data Unit = Unit {
-    id :: Int,
+    id :: Id,
     sourceFile :: SourceFile,
     onsetTime :: Double,
     chunkLength :: Double,
     features :: [Feature]
-}
+} deriving (Show)
+
+instance Unique (Unit) where
+    uid = id
