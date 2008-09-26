@@ -5,6 +5,10 @@ require 'find'
 require 'optparse'
 require 'ostruct'
 
+$: << File.join(File.dirname(__FILE__), 'lib')
+
+require 'threadpool'
+
 CLASS_PATH = Dir.glob(File.join(File.dirname(__FILE__), "meap/*.jar"))
 SEGMENTER = "com.meapsoft.Segmenter"
 EXTRACTOR = "com.meapsoft.FeatExtractor"
@@ -37,6 +41,7 @@ class MeapOptionParser
     @options.features = []
     @options.cache = true
     @options.clean = false
+    @options.jobs  = 1
     @opts = OptionParser.new do |opts|
       opts.banner = "Usage: #{File.basename($0)} [options] FILE_OR_DIRECTORY..."
 
@@ -88,6 +93,10 @@ class MeapOptionParser
         @options.cache = arg
       end
 
+      opts.on("-j", "--jobs [N]", Integer, "Allow N jobs at once") do |arg|
+        @options.jobs = [1, arg].max
+      end
+      
       # No argument, shows at tail.  This will print an options summary.
       # Try it and see!
       opts.on_tail("-h", "--help", "Show this message") do
@@ -198,11 +207,19 @@ end
 
 def process_files(options, input_path)
   if File.directory?(input_path)
+    pool = ThreadPool.new(options.jobs)
     Find.find(input_path) do |file|
       if File.file?(file) && SOUND_FILE_REGEXP =~ file
-        process_file(options, file)
+        pool.process {
+          begin
+            process_file(options, file)
+          rescue
+            puts $!.backtrace
+          end
+        }
       end
     end
+    pool.join()
   else
     process_file(options, input_path)
   end
