@@ -33,7 +33,7 @@ FEATURES = DEFAULT_FEATURES + %w(
 )
 
 MEAP_FILE_REGEXP = /\.com\.meapsoft\.(cache|feat|seg)$/
-SOUND_FILE_REGEXP = /\.(wav|aif*)$/
+SOUND_FILE_REGEXP = /\.(aif*|mp3|wav)$/i
 
 class MeapOptionParser
   def initialize
