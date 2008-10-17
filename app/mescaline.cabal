@@ -10,12 +10,17 @@ author:             Globero.es
 maintainer:         drecksau@globero.es
 
 build-type:         Simple
-build-depends:      base, containers, mtl, HDBC>=1.1.0, HDBC-sqlite3>=1.1.0, binary, bytestring, hosc >= 0.4
-exposed-modules:    
+cabal-version:      >= 1.2
+
+library
+    build-depends:  base, containers, mtl, HDBC>=1.1.0, HDBC-sqlite3>=1.1.0, binary, bytestring, hosc >= 0.4, hsc3 >= 0.3, process
+    exposed-modules:
+                    Mescaline.Database
                     Mescaline.Database.Feature
                     Mescaline.Database.SourceFile
                     Mescaline.Database.Unique
                     Mescaline.Database.Unit
-executable:         mescaline
-main-is:            Mescaline.hs
-ghc-options:         
+
+executable mescaline
+    main-is:        Mescaline.hs
+    ghc-options:    -threaded
