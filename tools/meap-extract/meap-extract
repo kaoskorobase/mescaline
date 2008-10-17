@@ -199,10 +199,7 @@ def process_file(options, input_file)
         raise "extractor failed"
       end
     end
-  }
-  
-  # readfiles = File.dirname(__FILE__)+ "/../readfiles.rb"
-  # system("ruby", readfiles, segment_file, feat_file, cache_file)
+  }  
 end
 
 def process_files(options, input_path)
