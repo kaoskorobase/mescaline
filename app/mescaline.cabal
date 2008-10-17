@@ -7,7 +7,7 @@ category:           Sound
 license:            GPL
 
 author:             Globero.es
-maintainer:         drecksau@globero.es
+maintainer:         devot@globero.es
 
 build-type:         Simple
 cabal-version:      >= 1.2
