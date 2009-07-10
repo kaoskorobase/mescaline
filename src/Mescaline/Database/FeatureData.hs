@@ -8,8 +8,8 @@ import Mescaline.Database.Unique (Id)
 data FeatureData = FeatureData {
     sourceFileId  :: Id,
     unitId        :: Id,
-    onset_time    :: Double,
-    chunk_length  :: Double,
+    onset         :: Double,
+    duration      :: Double,
     featureId     :: Id, 
     intval        :: Maybe Int, 
     realval       :: Maybe Double, 

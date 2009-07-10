@@ -1,0 +1,67 @@
+name:               mescaline
+version:            0.0
+
+synopsis:           <Project description>
+description:        <Project description>
+category:           Sound
+license:            GPL
+
+author:             Globero.es
+maintainer:         devot@globero.es
+
+build-type:         Simple
+cabal-version:      >= 1.2
+
+library
+    hs-source-dirs: src
+    extensions:     GeneralizedNewtypeDeriving
+
+    build-depends:  base >= 3,
+                    binary,
+                    bytestring,
+                    bytestring-lexing == 0.2.*,
+                    Cabal == 1.6.*,
+                    containers,
+                    directory,
+                    filepath,
+                    FileManip == 0.3.*,
+                    HDBC == 1.1.*,
+                    HDBC-sqlite3 == 1.1.*,
+                    hosc == 0.8.*,
+                    hsc3 == 0.8.*,
+                    hsndfile >= 0.2.0,
+                    mtl,
+                    process,
+                    Stream >= 0.2.6,
+                    uvector,
+                    Control-Engine == 0.0.*
+    exposed-modules:
+                    Mescaline.Control.Concurrent
+                    Mescaline.Control.Concurrent.Pool
+                    Mescaline.Data.Array.Vector
+                    Mescaline.Data.ByteString
+                    Mescaline.Data.ListReader
+                    Mescaline.Database
+                    Mescaline.Database.Create
+                    Mescaline.Database.Feature
+                    Mescaline.Database.FeatureData
+                    Mescaline.Database.FeatureDescriptor
+                    Mescaline.Database.SourceFile
+                    Mescaline.Database.SqlRow
+                    Mescaline.Database.Unique
+                    Mescaline.Database.Unit
+                    Mescaline.Meap.Chain
+                    Mescaline.Meap.Extractor
+                    Mescaline.Meap.Feature
+                    Mescaline.Meap.File
+                    Mescaline.Meap.Process
+                    Mescaline.Meap.Segmenter
+
+-- executable mescaline
+--     main-is:        Mescaline.hs
+--     ghc-options:    -threaded
+
+executable mkdb
+    main-is:        mkdb.hs
+    ghc-options:    -threaded
+    hs-source-dirs: src, tools
