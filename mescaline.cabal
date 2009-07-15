@@ -10,7 +10,7 @@ author:             Globero.es
 maintainer:         devot@globero.es
 
 build-type:         Simple
-cabal-version:      >= 1.2
+cabal-version:      >= 1.6
 
 library
     hs-source-dirs: src
@@ -22,19 +22,21 @@ library
                     bytestring-lexing == 0.2.*,
                     Cabal == 1.6.*,
                     containers,
+                    Control-Engine == 0.0.*,
                     directory,
-                    filepath,
                     FileManip == 0.3.*,
+                    filepath,
                     HDBC == 1.1.*,
                     HDBC-sqlite3 == 1.1.*,
                     hosc == 0.8.*,
                     hsc3 == 0.8.*,
+                    hsc3-process == 0.1.*,
                     hsndfile >= 0.2.0,
                     mtl,
                     process,
+                    stm == 2.1.*,
                     Stream >= 0.2.6,
-                    uvector,
-                    Control-Engine == 0.0.*
+                    uvector
     exposed-modules:
                     Mescaline.Control.Concurrent
                     Mescaline.Control.Concurrent.Pool
@@ -56,6 +58,10 @@ library
                     Mescaline.Meap.File
                     Mescaline.Meap.Process
                     Mescaline.Meap.Segmenter
+                    Sound.SC3.Server
+                    Sound.SC3.Server.Allocator
+                    Sound.SC3.Server.Monad
+                    Sound.SC3.Server.State
 
 -- executable mescaline
 --     main-is:        Mescaline.hs
