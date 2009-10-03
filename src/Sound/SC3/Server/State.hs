@@ -6,7 +6,7 @@
 
 module Sound.SC3.Server.State where
 
-import           Control.Concurrent.STM             (STM, TMVar, newTMVarIO)
+import           Control.Concurrent.STM             (STM, TVar, newTVarIO, readTVar, writeTVar)
 
 import           Sound.SC3                          (Rate(..))
 import           Sound.SC3.Server.Allocator         (IdAllocator, SimpleAllocator)
@@ -17,34 +17,59 @@ newtype NodeId   = NodeId   Int deriving (Bounded, Enum, Eq, Integral, Num, Ord,
 newtype BusId    = BusId    Int deriving (Bounded, Enum, Eq, Integral, Num, Ord, Real, Show)
 newtype BufferId = BufferId Int deriving (Bounded, Enum, Eq, Integral, Num, Ord, Real, Show)
 
+type IntIdAllocator    = SimpleAllocator Int
 type NodeIdAllocator   = SimpleAllocator NodeId
 type BufferIdAllocator = SimpleAllocator BufferId
 type BusIdAllocator    = SimpleAllocator BusId
 
-data State t = State {
-    rootNode          :: NodeId,
-    transport         :: t,
-    nodeIdAlloc       :: TMVar NodeIdAllocator,
-    bufferIdAlloc     :: TMVar BufferIdAllocator,
-    controlBusIdAlloc :: TMVar BusIdAllocator,
-    audioBusIdAlloc   :: TMVar BusIdAllocator
+type Allocator a = TVar a
+
+data State = State {
+   options      :: ServerOptions
+ , syncId       :: Allocator IntIdAllocator
+ , nodeId       :: Allocator NodeIdAllocator
+ , bufferId     :: Allocator BufferIdAllocator
+ , controlBusId :: Allocator BusIdAllocator
+ , audioBusId   :: Allocator BusIdAllocator
 }
 
 -- $( nameDeriveAccessors ''State (Just . (++"_")) )
 
-newState :: ServerOptions -> t -> IO (State t)
-newState opts transport = do
-        nodeIdAlloc         <- newTMVarIO (Alloc.newSimpleAllocator 1) -- FIXME
-        bufferIdAlloc       <- newTMVarIO (Alloc.newSimpleAllocator 0)
-        controlBusIdAlloc   <- newTMVarIO (Alloc.newSimpleAllocator 0)
-        audioBusIdAlloc     <- newTMVarIO (Alloc.newSimpleAllocator (BusId numHardwareChannels))
+rootNode :: State -> NodeId
+rootNode = const (NodeId 0)
+
+newState :: ServerOptions -> IO State
+newState opts = do
+        syncId       <- newTVarIO (Alloc.newSimpleAllocator 0)
+        nodeId       <- newTVarIO (Alloc.newSimpleAllocator 1) -- FIXME
+        bufferId     <- newTVarIO (Alloc.newSimpleAllocator 0)
+        controlBusId <- newTVarIO (Alloc.newSimpleAllocator 0)
+        audioBusId   <- newTVarIO (Alloc.newSimpleAllocator (BusId numHardwareChannels))
         return $ State {
-            rootNode            = NodeId 0
-          , transport           = transport
-          , nodeIdAlloc         = nodeIdAlloc
-          , bufferIdAlloc       = bufferIdAlloc
-          , controlBusIdAlloc   = controlBusIdAlloc
-          , audioBusIdAlloc     = audioBusIdAlloc
+            options      = opts
+          , syncId       = syncId
+          , nodeId       = nodeId
+          , bufferId     = bufferId
+          , controlBusId = controlBusId
+          , audioBusId   = audioBusId
         }
     where numHardwareChannels = numberOfInputBusChannels opts
                               + numberOfOutputBusChannels opts
+
+swap :: (a, b) -> (b, a)
+swap (a, b) = (b, a)
+
+modifyTVar :: TVar a -> (a -> STM (a, b)) -> STM b
+modifyTVar var f = do
+    (a', b) <- readTVar var >>= f
+    writeTVar var a'
+    return b
+
+alloc :: IdAllocator i a => Allocator a -> STM i
+alloc allocator = modifyTVar allocator (fmap swap . Alloc.alloc)
+
+allocMany :: IdAllocator i a => Allocator a -> Int -> STM [i]
+allocMany allocator n = modifyTVar allocator (fmap swap . Alloc.allocMany n)
+
+allocConsecutive :: IdAllocator i a => Allocator a -> Int -> STM [i]
+allocConsecutive allocator n = modifyTVar allocator (fmap swap . Alloc.allocConsecutive n)

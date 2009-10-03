@@ -38,6 +38,7 @@ library
                     Stream >= 0.2.6,
                     uvector
     exposed-modules:
+                    Mescaline
                     Mescaline.Control.Concurrent
                     Mescaline.Control.Concurrent.Pool
                     Mescaline.Data.Array.Vector
@@ -58,10 +59,12 @@ library
                     Mescaline.Meap.File
                     Mescaline.Meap.Process
                     Mescaline.Meap.Segmenter
+                    Mescaline.Synth.Concat
                     Sound.SC3.Server
                     Sound.SC3.Server.Allocator
                     Sound.SC3.Server.Monad
                     Sound.SC3.Server.State
+                    Sound.SC3.Server.Transport
 
 -- executable mescaline
 --     main-is:        Mescaline.hs
