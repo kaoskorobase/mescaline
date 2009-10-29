@@ -11,7 +11,7 @@ data SourceFile = SourceFile {
     path        :: FilePath,
     hash        :: String
     -- frames      :: Count,
-    -- sampleRate  :: Int,
+    -- sampleRate  :: Double,
     -- numChannels :: Int
 } deriving (Show)
 

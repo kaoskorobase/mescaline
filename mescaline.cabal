@@ -15,8 +15,9 @@ cabal-version:      >= 1.6
 library
     hs-source-dirs: src
     extensions:     GeneralizedNewtypeDeriving
+    ghc-options:    -Wall
 
-    build-depends:  base >= 3,
+    build-depends:  base >= 4,
                     binary,
                     bytestring,
                     bytestring-lexing == 0.2.*,
@@ -28,10 +29,13 @@ library
                     filepath,
                     HDBC == 1.1.*,
                     HDBC-sqlite3 == 1.1.*,
+                    hmeap,
                     hosc == 0.8.*,
                     hsc3 == 0.8.*,
+                    hsc3-lang,
                     hsc3-process == 0.1.*,
                     hsndfile >= 0.2.0,
+                    monad-loops,
                     mtl,
                     process,
                     stm == 2.1.*,
@@ -59,16 +63,24 @@ library
                     Mescaline.Meap.File
                     Mescaline.Meap.Process
                     Mescaline.Meap.Segmenter
+                    Mescaline.Synth.BufferCache
                     Mescaline.Synth.Concat
                     Sound.SC3.Server
                     Sound.SC3.Server.Allocator
+                    Sound.SC3.Server.BufferedTransport
+                    Sound.SC3.Server.Command.Completion
+                    Sound.SC3.Server.Connection
                     Sound.SC3.Server.Monad
                     Sound.SC3.Server.State
-                    Sound.SC3.Server.Transport
 
 -- executable mescaline
 --     main-is:        Mescaline.hs
 --     ghc-options:    -threaded
+
+executable sampler
+    main-is:        sampler.hs
+    ghc-options:    -threaded
+    hs-source-dirs: src, tools
 
 executable mkdb
     main-is:        mkdb.hs

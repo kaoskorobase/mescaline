@@ -6,7 +6,7 @@
 
 module Sound.SC3.Server.State where
 
-import           Control.Concurrent.STM             (STM, TVar, newTVarIO, readTVar, writeTVar)
+import           Control.Concurrent.STM             (STM, TVar, newTVar, readTVar, writeTVar)
 
 import           Sound.SC3                          (Rate(..))
 import           Sound.SC3.Server.Allocator         (IdAllocator, SimpleAllocator)
@@ -38,13 +38,13 @@ data State = State {
 rootNode :: State -> NodeId
 rootNode = const (NodeId 0)
 
-newState :: ServerOptions -> IO State
+newState :: ServerOptions -> STM State
 newState opts = do
-        syncId       <- newTVarIO (Alloc.newSimpleAllocator 0)
-        nodeId       <- newTVarIO (Alloc.newSimpleAllocator 1) -- FIXME
-        bufferId     <- newTVarIO (Alloc.newSimpleAllocator 0)
-        controlBusId <- newTVarIO (Alloc.newSimpleAllocator 0)
-        audioBusId   <- newTVarIO (Alloc.newSimpleAllocator (BusId numHardwareChannels))
+        syncId       <- newTVar (Alloc.newSimpleAllocator 0)
+        nodeId       <- newTVar (Alloc.newSimpleAllocator 1000) -- FIXME
+        bufferId     <- newTVar (Alloc.newSimpleAllocator 0)
+        controlBusId <- newTVar (Alloc.newSimpleAllocator 0)
+        audioBusId   <- newTVar (Alloc.newSimpleAllocator (BusId numHardwareChannels))
         return $ State {
             options      = opts
           , syncId       = syncId
