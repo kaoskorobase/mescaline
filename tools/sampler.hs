@@ -11,14 +11,13 @@ import System.Environment (getArgs)
 import Control.Exception
 import Sound.SC3
 import Sound.OpenSoundControl.Transport
+import Sound.OpenSoundControl.Transport.UDP (UDP)
 import System.FilePath
 import Prelude hiding (catch)
 
-main :: IO ()
-main = do
-    [dbDir, patternFile] <- getArgs
+main' :: FilePath -> FilePath -> Sampler UDP -> IO ()
+main' dbDir patternFile sampler = do
     db <- DB.open dbDir
-    -- print db
     ps <- P.loadFile patternFile
     case ps of
         Left err ->
@@ -26,8 +25,10 @@ main = do
 				WontCompile es -> putStrLn $ unlines $ map errMsg es
 				e              -> print e
         Right (P.PCons pfunc) -> do
-            sampler <- newSampler
             let pattern = pfunc db
-            (playPattern sampler pattern)
-                `catch` \(ex :: AsyncException) ->
-                    freeSampler sampler >> putStrLn "Servas."
+            playPattern sampler pattern
+
+main :: IO ()
+main = do
+    [dbDir, patternFile] <- getArgs
+    bracket newSampler freeSampler (main' dbDir patternFile)
