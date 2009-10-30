@@ -1,8 +1,11 @@
 module Mescaline.Synth.Concat where
 
-import Mescaline
+import           Mescaline
+import qualified Mescaline.Database.Unit as Unit
+import qualified Mescaline.Database.SourceFile as SourceFile
 import           Mescaline.Synth.BufferCache (Buffer, BufferCache)
 import qualified Mescaline.Synth.BufferCache as BC
+import qualified Mescaline.Synth.Pattern as P
 
 import Sound.SC3 hiding (free, sync, uid)
 import qualified Sound.SC3.Server.State as State
@@ -27,24 +30,12 @@ import qualified Sound.Analysis.Meapsoft as Meap
 
 import Data.IORef
 
-data SoundFile = SoundFile FilePath SF.Info
-
 data Voice = Voice State.NodeId Buffer
 
-data Segment = Segment {
-    seg_onset :: Double,
-    seg_duration :: Double
-} deriving (Show)
-
-readSegments :: FilePath -> IO (Either String [Segment])
-readSegments path = do
-    m <- Meap.read_meap path
-    return $ map (uncurry Segment) `fmap` Meap.segments_l `fmap` m
-
-allocVoice :: Transport t => Connection t -> BufferCache -> SoundFile -> (Voice -> Maybe OSC) -> IO Voice
-allocVoice conn cache sf@(SoundFile path info) completion = do
+allocVoice :: Transport t => Connection t -> BufferCache -> Unit.Unit -> (Voice -> Maybe OSC) -> IO Voice
+allocVoice conn cache unit completion = do
     nid <- atomically (State.alloc (State.nodeId $ C.state conn))
-    buf <- BC.allocBuffer conn cache (SF.channels info) (\buf -> completion (Voice nid buf))
+    buf <- BC.allocBuffer conn cache (SourceFile.numChannels $ Unit.sourceFile unit) (\buf -> completion (Voice nid buf))
     return $ Voice nid buf
 
 freeVoice :: Transport t => Connection t -> BufferCache -> Voice -> IO ()
@@ -95,14 +86,14 @@ initSampler conn = do
                                   d_recv (synthdef (voiceDefName 2) (voiceDef 2))])
     BC.newWith conn diskBufferSize (replicate 4 1 ++ replicate 4 2)
 
-playSegment :: Transport t => Connection t -> BufferCache -> SoundFile -> Segment -> Double -> IO ()
-playSegment conn cache sf@(SoundFile path info) seg@(Segment onset dur) t = do
-    voice@(Voice nid buf) <- allocVoice conn cache sf (\voice ->
+playUnit :: Transport t => Connection t -> BufferCache -> Unit.Unit -> Double -> IO ()
+playUnit conn cache unit t = do
+    voice@(Voice nid buf) <- allocVoice conn cache unit (\voice ->
             Just $ b_read'
                     (startVoice voice t)
                     (fromIntegral $ BC.uid $ buffer voice)
-                    path
-                    (truncate $ fromIntegral (SF.samplerate info) * onset)
+                    (SourceFile.path sourceFile)
+                    (truncate $ SourceFile.sampleRate sourceFile * Unit.onset unit)
                     (-1) 0 1)
     -- C.send conn (startVoice voice t)
     pauseThreadUntil (t + dur)
@@ -111,18 +102,11 @@ playSegment conn cache sf@(SoundFile path info) seg@(Segment onset dur) t = do
     freeVoice conn cache voice
     return ()
     where
+        dur = Unit.duration unit
+        sourceFile = Unit.sourceFile unit
         nodeEnded i (Message "/n_end" [Int j, _, _, _, _]) = j == i
         nodeEnded _ _                                      = False
         
-
-sfInfo :: FilePath -> IO SF.Info
-sfInfo path = do
-    h <- SF.openFile path SF.ReadMode SF.defaultInfo
-    SF.hClose h
-    return (SF.hInfo h)
-
-openSoundFile :: FilePath -> IO SoundFile
-openSoundFile path = SoundFile path `fmap` sfInfo path
 
 eitherToIO :: Either String a -> IO a
 eitherToIO e = case e of
@@ -151,59 +135,49 @@ freeSampler (Sampler conn cache) = do
     BC.free conn cache
 
 -- Disk based sampler    
-playFileDisk :: Sampler UDP -> FilePath -> IO ()
-playFileDisk (Sampler conn cache) path = do
-    sf <- openSoundFile path
-    segs <- eitherToIO =<< readSegments (path ++ ".seg")
-    time <- utcr >>= newIORef
-    mapM_ (\seg@(Segment _ dur) -> do
-            -- print seg
-            utc <- readIORef time
-            C.fork conn (\c -> playSegment c cache sf seg utc)
-            pauseThreadUntil (utc+dur)
-            writeIORef time (utc+dur))
-        -- (cycle $ p1 segs ++ p2 segs)
-        segs
+playPatternDisk :: Sampler UDP -> P.Pattern -> IO ()
+playPatternDisk (Sampler conn cache) = P.execute f
     where
         opts = Process.defaultRTOptionsUDP
+        f e t = C.fork conn (\conn' -> playUnit conn' cache (P.unit e) t) >> return ()
 
 -- Memory based sampler
-fixSegDur segs = (zipWith (\(Segment o _) d -> Segment o d) segs (zipWith (\(Segment o1 _) (Segment o2 _) -> o2 - o1) segs (tail segs)))
+-- fixSegDur segs = (zipWith (\(Segment o _) d -> Segment o d) segs (zipWith (\(Segment o1 _) (Segment o2 _) -> o2 - o1) segs (tail segs)))
+-- 
+-- playFileMem :: Sampler UDP -> FilePath -> IO ()
+-- playFileMem (Sampler conn cache) path = do
+--     C.send conn (notify True) -- FIXME: Race condition!
+--     bid <- atomically $ (State.alloc (State.bufferId $ C.state conn) :: STM State.BufferId)
+--     C.sync conn (Bundle (NTPi 1) [d_recv (synthdef (voiceDefName 1) (voiceDefMem 1)),
+--                                   d_recv (synthdef (voiceDefName 2) (voiceDefMem 2)),
+--                                   b_allocRead (fromIntegral bid) path 0 (-1)])
+-- 
+--     putStrLn "playFileMem: Buffers loaded"
+-- 
+--     sf@(SoundFile _ info) <- openSoundFile path
+--     segs <- eitherToIO =<< readSegments (path ++ ".seg")
+--     utc0 <- utcr
+--     time <- newIORef utc0
+--     let onset0 = seg_onset (head segs)
+-- 
+--     mapM_ (\seg@(Segment onset dur) -> do
+--             utc <- readIORef time
+--             -- let utc = utc0 + onset - onset0
+--             -- print (utc - utc0 + onset0)
+--             -- print (round ((seg_onset seg - (utc - utc0 + onset0)) * 1000))
+--             nid <- atomically $ (State.alloc (State.nodeId $ C.state conn) :: STM State.NodeId)
+--             C.send conn $ Bundle (UTCr (utc+latency)) [
+--                             s_new (voiceDefName (SF.channels info)) (fromIntegral nid) AddToTail 0
+--                                   [("bufnum", fromIntegral bid), ("start", fromIntegral (SF.samplerate info) * onset),("dur", dur)]
+--                                   ]
+--             pauseThreadUntil (utc+dur)
+--             C.send conn $ Bundle (UTCr (utc+dur+latency)) [
+--                             n_set1 (fromIntegral nid) "gate" 0
+--                             ]
+--             modifyIORef time (+dur)
+--             )
+--         (segs)
+--     where
+--         opts = Process.defaultRTOptionsUDP
 
-playFileMem :: Sampler UDP -> FilePath -> IO ()
-playFileMem (Sampler conn cache) path = do
-    C.send conn (notify True) -- FIXME: Race condition!
-    bid <- atomically $ (State.alloc (State.bufferId $ C.state conn) :: STM State.BufferId)
-    C.sync conn (Bundle (NTPi 1) [d_recv (synthdef (voiceDefName 1) (voiceDefMem 1)),
-                                  d_recv (synthdef (voiceDefName 2) (voiceDefMem 2)),
-                                  b_allocRead (fromIntegral bid) path 0 (-1)])
-
-    putStrLn "playFileMem: Buffers loaded"
-
-    sf@(SoundFile _ info) <- openSoundFile path
-    segs <- eitherToIO =<< readSegments (path ++ ".seg")
-    utc0 <- utcr
-    time <- newIORef utc0
-    let onset0 = seg_onset (head segs)
-
-    mapM_ (\seg@(Segment onset dur) -> do
-            utc <- readIORef time
-            -- let utc = utc0 + onset - onset0
-            -- print (utc - utc0 + onset0)
-            -- print (round ((seg_onset seg - (utc - utc0 + onset0)) * 1000))
-            nid <- atomically $ (State.alloc (State.nodeId $ C.state conn) :: STM State.NodeId)
-            C.send conn $ Bundle (UTCr (utc+latency)) [
-                            s_new (voiceDefName (SF.channels info)) (fromIntegral nid) AddToTail 0
-                                  [("bufnum", fromIntegral bid), ("start", fromIntegral (SF.samplerate info) * onset),("dur", dur)]
-                                  ]
-            pauseThreadUntil (utc+dur)
-            C.send conn $ Bundle (UTCr (utc+dur+latency)) [
-                            n_set1 (fromIntegral nid) "gate" 0
-                            ]
-            modifyIORef time (+dur)
-            )
-        (segs)
-    where
-        opts = Process.defaultRTOptionsUDP
-
-playFile = playFileDisk
+playPattern = playPatternDisk

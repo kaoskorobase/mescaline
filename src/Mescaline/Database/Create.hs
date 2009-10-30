@@ -1,5 +1,7 @@
 module Mescaline.Database.Create where
 
+{-
+
 import Data.List                        (intersperse, intercalate)
 import Data.Maybe                       (maybeToList)
 import Text.Printf                      (printf)
@@ -105,3 +107,5 @@ createDatabase path = do
     createFeatureDescriptors h
     DB.commit h
     DB.disconnect h
+
+-}

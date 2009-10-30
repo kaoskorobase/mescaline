@@ -29,6 +29,7 @@ library
                     filepath,
                     HDBC == 1.1.*,
                     HDBC-sqlite3 == 1.1.*,
+                    hint == 0.3.*,
                     hmeap,
                     hosc == 0.8.*,
                     hsc3 == 0.8.*,
@@ -36,10 +37,10 @@ library
                     hsc3-process == 0.1.*,
                     hsndfile >= 0.2.0,
                     monad-loops,
+                    MissingH == 1.0.*,
                     mtl,
                     process,
                     stm == 2.1.*,
-                    Stream >= 0.2.6,
                     uvector
     exposed-modules:
                     Mescaline
@@ -53,6 +54,8 @@ library
                     Mescaline.Database.Feature
                     Mescaline.Database.FeatureData
                     Mescaline.Database.FeatureDescriptor
+                    Mescaline.Database.Query
+                    Mescaline.Database.SoundFile
                     Mescaline.Database.SourceFile
                     Mescaline.Database.SqlRow
                     Mescaline.Database.Unique
@@ -65,6 +68,8 @@ library
                     Mescaline.Meap.Segmenter
                     Mescaline.Synth.BufferCache
                     Mescaline.Synth.Concat
+                    Mescaline.Synth.Pattern
+                    Mescaline.Synth.Pattern.Load
                     Sound.SC3.Server
                     Sound.SC3.Server.Allocator
                     Sound.SC3.Server.BufferedTransport
@@ -82,7 +87,7 @@ executable sampler
     ghc-options:    -threaded
     hs-source-dirs: src, tools
 
-executable mkdb
-    main-is:        mkdb.hs
-    ghc-options:    -threaded
-    hs-source-dirs: src, tools
+-- executable mkdb
+--     main-is:        mkdb.hs
+--     ghc-options:    -threaded
+--     hs-source-dirs: src, tools

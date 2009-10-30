@@ -1,5 +1,36 @@
 {-# LANGUAGE ExistentialQuantification, FlexibleInstances, UndecidableInstances #-}
 
+module Mescaline.Database.Feature where
+
+data Feature = Feature {
+    name   :: String,
+    degree :: Int,
+    column :: Int
+} deriving (Eq, Show)
+
+-- features :: [Feature]
+-- features = zipWith ($) [
+--     Feature "Onset"             1
+--   , Feature "Duration"          1
+--   , Feature "AvgChroma"         12
+--   , Feature "AvgChromaScalar"   1
+--   , Feature "AvgChunkPower"     1
+--   , Feature "AvgFreqSimple"     1
+--   , Feature "AvgMelSpec"        13
+--   , Feature "AvgMFCC"           13
+--   , Feature "AvgPitch"          1
+--   -- , Feature "AvgSpec"           1
+--   , Feature "AvgSpecCentroid"   1
+--   , Feature "AvgSpecFlatness"   1
+--   , Feature "AvgTonalCentroid"  1
+--   , Feature "ChunkLength"       1
+--   , Feature "ChunkStartTime"    1
+--   , Feature "Entropy"           1
+--   , Feature "RMSAmplitude"      1
+--   , Feature "SpectralStability" 1 ]
+--   [0..]
+
+{-
 module Mescaline.Database.Feature (
     FeatureDescriptor,
     Feature(..),
@@ -22,7 +53,6 @@ import Data.List                                        (intercalate)
 import Data.Map                                         (Map)
 import qualified Data.Map                               as Map
 import Data.Maybe                                       (fromJust)
-import Data.Stream                                      (Stream)
 import Mescaline.Data.Array.Vector                      (UA, Vector, fromU, toU, lengthU)
 import Mescaline.Data.ListReader                        (ListReader, get, runListReader)
 import Mescaline.Database                               (DB)
@@ -322,3 +352,4 @@ insertUnit env sf (onset:dur:row) = do
         Right fs -> putSql env unit fs >> DB.commit (DB.handle env)
     -- where sql = (printf "SELECT id FROM unit WHERE source_file_id = %d" (SourceFile.id sf))
 insertUnit _ _ _ = fail "BUG(insertUnit): missing onset and duration"
+-}

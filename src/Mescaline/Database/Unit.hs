@@ -22,21 +22,8 @@ data Unit = Unit {
 instance Unique Unit where
     uid = id
 
--- avgSpecCentroid :: Unit -> Double
--- avgSpecCentroid u = maybe 0 v (find p (features u))
---     where
---         p (AvgSpecCentroid _) = True
---         p _                   = False
---         v (AvgSpecCentroid x) = x
---         v _                   = error "fuck you bitch"
--- 
--- avgChroma :: Unit -> Vector Double
--- avgChroma u = maybe [] v (find p (features u))
---     where
---         p (AvgChroma _) = True
---         p _             = False
---         v (AvgChroma x) = x
---         v _             = error "fuck you bitch"
+instance Eq Unit where
+    a == b = id a == id b
 
 unitFromSqlRow :: SourceFile -> [SqlValue] -> Unit
 unitFromSqlRow sourceFile

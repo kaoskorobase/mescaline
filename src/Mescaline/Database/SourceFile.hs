@@ -9,10 +9,11 @@ import Sound.File.Sndfile           (Count)
 data SourceFile = SourceFile {
     id          :: Id,
     path        :: FilePath,
-    hash        :: String
-    -- frames      :: Count,
-    -- sampleRate  :: Double,
-    -- numChannels :: Int
+    hash        :: String,
+
+    numChannels :: Int,
+    sampleRate  :: Double,
+    frames      :: Count
 } deriving (Show)
 
 instance Eq (SourceFile) where
@@ -32,10 +33,11 @@ instance SqlRow (SourceFile) where
     --                         -- toSql.sampleRate,
     --                         -- toSql.numChannels
     --                         ]
-    fromSqlRow [ _id,
-                 _path,
-                 _hash ] = SourceFile
-                            (fromSql _id)
-                            (fromSql _path)
-                            (fromSql _hash)
-    fromSqlRow _ = error "SqlRow (SourceFile) conversion failure"
+
+    -- fromSqlRow [ _id,
+    --              _path,
+    --              _hash ] = SourceFile
+    --                         (fromSql _id)
+    --                         (fromSql _path)
+    --                         (fromSql _hash)
+    -- fromSqlRow _ = error "SqlRow (SourceFile) conversion failure"

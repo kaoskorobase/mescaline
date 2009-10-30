@@ -4,7 +4,7 @@
 
 module Sound.SC3.Server.Allocator where
 
-import           Control.Monad.State        (MonadState, get, put, runState)
+import Control.Monad.State (MonadState, get, put, runState)
 
 class IdAllocator i a where
     alloc :: Monad m => a -> m (i, a)

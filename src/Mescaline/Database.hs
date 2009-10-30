@@ -2,6 +2,60 @@
 
 module Mescaline.Database where
 
+import           Control.Monad (zipWithM)
+import qualified Mescaline.Database.SoundFile as SF
+import           Mescaline.Database.SourceFile
+import qualified Mescaline.Database.SourceFile as SourceFile
+import qualified Mescaline.Database.Unit as Unit
+import           Mescaline.Database.Unit (Unit)
+import qualified Sound.Analysis.Meapsoft as Meap
+import           System.FilePath
+import qualified System.FilePath.Find as Find
+
+newtype Database = Database [Unit] deriving (Show)
+data Query = Query (Unit -> Bool)
+newtype Result = Result [Unit] deriving (Show)
+
+readSegments :: FilePath -> IO [(Double, Double)]
+readSegments path = do
+    m <- Meap.read_meap path
+    case m of
+        Left err -> fail err
+        Right xs -> return $ Meap.segments_l xs
+
+open :: FilePath -> IO Database
+open path = do
+    files <- Find.find
+                Find.always
+                (fmap (== ".seg") Find.extension)
+                path
+    units <- zipWithM newSourceFile [0..] files
+    return $ Database $ concat units
+    where
+        newSourceFile i f = do
+            let sfPath = dropExtension f
+            info <- SF.getInfo sfPath
+            let sf = SourceFile.SourceFile
+                        i sfPath (show i)
+                        (SF.channels info) (fromIntegral $ SF.samplerate info) (SF.frames info)
+            print sf
+            segs <- readSegments f
+            return $ map mkUnit (zip3 [0..] (repeat sf) segs)
+        mkUnit (i, sf, (o, d)) = Unit.Unit i sf o d
+
+query :: Database -> Query -> Result
+query (Database db) (Query q) = Result $ filter q db
+
+sort :: Ord a => (Unit -> a) -> Result -> Result
+sort = undefined
+
+group :: Eq a => (Unit -> a) -> Result -> [Result]
+group = undefined
+
+units :: Result -> [Unit]
+units (Result us) = us
+
+{-
 import Data.Binary
 import qualified Database.HDBC		    as DB
 import qualified Database.HDBC.Sqlite3	as DB
@@ -87,6 +141,9 @@ getFeatureDescriptors h = do
                                                 (DB.fromSql _id)
                                                 (DB.fromSql _name)
                                                 (DB.fromSql _desc)
+-}
+
+-----------------------------------------------------------------------------
 
 {-
 data ScalarType =

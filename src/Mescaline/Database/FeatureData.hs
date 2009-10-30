@@ -1,7 +1,7 @@
 module Mescaline.Database.FeatureData (
-    FeatureData(..)
+    -- FeatureData(..)
 ) where
-
+{-
 import Mescaline.Database.Feature (Vector)
 import Mescaline.Database.Unique (Id)
 
@@ -16,3 +16,4 @@ data FeatureData = FeatureData {
     textval       :: Maybe String, 
     arrayval      :: Maybe (Vector Double)
 } deriving (Show)
+-}
