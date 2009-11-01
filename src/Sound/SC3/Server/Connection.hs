@@ -6,7 +6,7 @@ module Sound.SC3.Server.Connection (
   , dup
   , fork
   , send
-  , waitFor, wait, sync
+  , waitFor, wait, sync, unsafeSync
 ) where
 
 import           Control.Concurrent (ThreadId, forkIO)
@@ -34,12 +34,6 @@ dup (Connection s t) = Connection s `fmap` T.dup t
 fork :: Connection t -> (Connection t -> IO ()) -> IO ThreadId
 fork c f = dup c >>= forkIO . f
 
-appendOSC :: OSC -> OSC -> OSC
-appendOSC m1@(Message _ _) m2@(Message _ _)  = Bundle (NTPi 1) [m1, m2]
-appendOSC m@(Message _ _)     (Bundle t xs)  = Bundle t        (m:xs)
-appendOSC   (Bundle t xs)   m@(Message _ _)  = Bundle t        (xs++[m])
-appendOSC   (Bundle t xs1)    (Bundle _ xs2) = Bundle t        (xs1++xs2)
-
 send :: Transport t => Connection t -> OSC -> IO ()
 send conn = OSC.send (transport conn)
 
@@ -52,12 +46,26 @@ waitFor = T.waitFor . transport
 wait :: Transport t => Connection t -> String -> IO OSC
 wait = T.wait . transport
 
-sync :: Transport t => Connection t -> OSC -> IO ()
-sync conn osc = do
+syncWith :: Transport t => Connection t -> (OSC -> OSC) -> IO ()
+syncWith conn f = do
     i  <- (atomically . State.alloc . State.syncId . state) conn
-    send conn (appendOSC osc $ Message "/sync" [Int i])
+    send conn $ f $ Message "/sync" [Int i]
     waitFor conn (synced i)
     return ()
     where
         synced i (Message "/synced" [Int j]) = j == i
         synced _ _                           = False
+
+appendOSC :: OSC -> OSC -> OSC
+appendOSC m1@(Message _ _) m2@(Message _ _)  = Bundle (NTPi 1) [m1, m2]
+appendOSC m@(Message _ _)     (Bundle t xs)  = Bundle t        (m:xs)
+appendOSC   (Bundle t xs)   m@(Message _ _)  = Bundle t        (xs++[m])
+appendOSC   (Bundle t xs1)    (Bundle _ xs2) = Bundle t        (xs1++xs2)
+
+sync :: Transport t => Connection t -> OSC -> IO ()
+sync conn = syncWith conn . appendOSC
+
+-- NOTE: This is only guaranteed to work with a transport that preserves
+-- packet order.
+unsafeSync :: Transport t => Connection t -> IO ()
+unsafeSync conn = syncWith conn id
