@@ -13,8 +13,8 @@ import           System.FilePath
 import qualified System.FilePath.Find as Find
 
 newtype Database = Database [Unit] deriving (Show)
-data Query = Query (Unit -> Bool)
-newtype Result = Result [Unit] deriving (Show)
+data Query       = Query (Unit -> Bool)
+type Result      = [Unit]
 
 readSegments :: FilePath -> IO [(Double, Double)]
 readSegments path = do
@@ -43,17 +43,8 @@ open path = do
             return $ map mkUnit (zip3 [0..] (repeat sf) segs)
         mkUnit (i, sf, (o, d)) = Unit.Unit i sf o d
 
-query :: Database -> Query -> Result
-query (Database db) (Query q) = Result $ filter q db
-
-sort :: Ord a => (Unit -> a) -> Result -> Result
-sort = undefined
-
-group :: Eq a => (Unit -> a) -> Result -> [Result]
-group = undefined
-
-units :: Result -> [Unit]
-units (Result us) = us
+query :: Database -> Query -> [Unit]
+query (Database db) (Query q) = filter q db
 
 {-
 import Data.Binary
