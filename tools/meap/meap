@@ -1,0 +1,38 @@
+#!/usr/bin/env ruby
+
+MEAP_VERSION = "2.0"
+CLASSES = ["Segmenter", "FeatExtractor"]
+
+def usage
+  puts "#{File.basename($0)} segment|extract [OPTION..]"
+end
+
+case ARGV.shift
+when /segment/
+  java_class = "Segmenter"
+when /extract/
+  java_class = "FeatExtractor"
+else
+  usage
+  exit(1)
+end
+
+java_class_path = [ File.join(File.dirname(__FILE__), "jar/meap-#{MEAP_VERSION}/*.jar"),
+                    File.expand_path("~/lib/meap") ] \
+                  .collect { |x| Dir.glob(File.join(x, "*.jar")) } \
+                  .find { |x| !x.empty? }
+
+unless java_class_path
+    puts("Couldn't find Meap Java classes in #{CLASS_PATHS.inspect}")
+    exit(1)
+end
+
+exit_code = system(
+  "java",
+  "-mx1000m",
+  "-cp",
+  java_class_path.join(":"),
+  "com.meapsoft.#{java_class}",
+  *ARGV) ? 0 : 1
+  
+exit(exit_code)
