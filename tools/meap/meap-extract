@@ -14,7 +14,7 @@ CLASS_PATH   = Dir.glob(File.join(File.dirname(__FILE__), "jar/meap-#{MEAP_VERSI
 SEGMENTER    = "com.meapsoft.Segmenter"
 EXTRACTOR    = "com.meapsoft.FeatExtractor"
 
-MEAP_FILE_REGEXP  = /\.com\.meapsoft\.(cache|feat|seg)$/
+MEAP_FILE_REGEXP  = /\.com\.meapsoft\.(feat|seg)\.(beats|events)$/
 SOUND_FILE_REGEXP = /\.(aif*|mp3|wav)$/i
 
 FEATURES = %w(
@@ -229,6 +229,7 @@ def clean(input_path)
     Find.find(input_path) do |file|
       if File.file?(file) && MEAP_FILE_REGEXP =~ file
         FileUtils.rm(file)
+        puts "Removed #{file}"
       end
     end
   end
