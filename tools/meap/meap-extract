@@ -32,10 +32,13 @@ AvgTonalCentroid
 ChunkLength
 ChunkStartTime
 Entropy
-Likelihood
-MedianBeatLengthOffset
 RMSAmplitude
 SpectralStability
+)
+
+META_FEATURES = %w(
+Likelihood
+MedianBeatLengthOffset
 )
 
 EXTRACTED_FEATURES = FEATURES
