@@ -7,7 +7,7 @@ import           Mescaline.Synth.BufferCache (Buffer, BufferCache)
 import qualified Mescaline.Synth.BufferCache as BC
 import qualified Mescaline.Synth.Pattern as P
 
-import Sound.SC3 hiding (free, sync, uid)
+import Sound.SC3 hiding (free, gate, sync, uid)
 import qualified Sound.SC3.Server.State as State
 import qualified Sound.SC3.Server.Process as Process
 
@@ -28,9 +28,42 @@ import qualified Sound.File.Sndfile as SF
 
 import qualified Sound.Analysis.Meapsoft as Meap
 
-import Data.IORef
-
 data Voice = Voice State.NodeId Buffer
+
+buffer :: Voice -> Buffer
+buffer (Voice _ b) = b
+
+diskBufferSize :: Int
+diskBufferSize = 8192*8*4
+
+-- | Attack-sustain-release envelope parameter constructor.
+asr :: UGen -> UGen -> UGen -> [EnvCurve] -> [UGen]
+asr aT sL rT c = env [0, sL, 0] [aT, rT] c 1 (-1)
+
+voiceEnv :: UGen
+voiceEnv = envGen AR gate 1 0 1 RemoveSynth (asr attackTime sustainLevel releaseTime [curve])
+    where gate         = control KR "gate" 1
+          sustainLevel = control KR "sustainLevel" 1
+          attackTime   = control KR "attackTime" 0
+          releaseTime  = control KR "releaseTime" 0
+          curve        = EnvLin
+
+voiceDef :: Int -> UGen
+voiceDef n = offsetOut 0 (diskIn n (control KR "bufnum" (-1)) NoLoop * voiceEnv)
+
+voiceDefMem :: Int -> UGen
+voiceDefMem n = offsetOut 0 (playBuf n (control KR "bufnum" (-1)) 1 1 (control KR "start" (0)) NoLoop DoNothing * voiceEnv)
+
+voiceDefName :: Int -> String
+voiceDefName 1  = "es.globero.mescaline.voice_1"
+voiceDefName 2  = "es.globero.mescaline.voice_2"
+voiceDefName nc = "es.globero.mescaline.voice_" ++ (show nc)
+
+bundle :: Double -> [OSC] -> OSC
+bundle  = Bundle . UTCr
+
+bundle' :: [OSC] -> OSC
+bundle' = Bundle (NTPi 1)
 
 allocVoice :: Transport t => Connection t -> BufferCache -> Unit.Unit -> (Voice -> Maybe OSC) -> IO Voice
 allocVoice conn cache unit completion = do
@@ -40,65 +73,42 @@ allocVoice conn cache unit completion = do
 
 freeVoice :: Transport t => Connection t -> BufferCache -> Voice -> IO ()
 freeVoice conn cache (Voice _ buf) = do
-    forkIO $ do
-        C.sync conn (b_close (fromIntegral $ BC.uid buf))
-        BC.freeBuffer conn cache buf
-    return ()
+    C.sync conn $ b_close (fromIntegral $ BC.uid buf)
+    BC.freeBuffer conn cache buf
 
-buffer :: Voice -> Buffer
-buffer (Voice _ b) = b
+startVoice :: Voice -> P.SynthParams -> Double -> OSC
+startVoice (Voice nid buf) params time =
+    bundle (time + P.latency params)
+        [s_new (voiceDefName $ BC.numChannels buf) (fromIntegral nid) AddToTail 0
+            [ ("bufnum", fromIntegral $ BC.uid buf),
+              ("attackTime", P.attackTime params),
+              ("releaseTime", P.attackTime params),
+              ("sustainLevel", P.sustainLevel params) ]
+            ]
 
-voiceDefName :: Int -> String
-voiceDefName 1  = "es.globero.mescaline.voice_1"
-voiceDefName 2  = "es.globero.mescaline.voice_2"
-voiceDefName nc = "es.globero.mescaline.voice_" ++ (show nc)
+stopVoice :: Voice -> P.SynthParams -> Double -> OSC
+stopVoice (Voice nid _) params time =
+    bundle (time + P.latency params)
+        [n_set1 (fromIntegral nid) "gate" (P.gateLevel params)]
 
-diskBufferSize :: Int
-diskBufferSize = 8192*8*4
-    
-latency :: Double
-latency = 0.05
-
-startVoice :: Voice -> Double -> OSC
-startVoice (Voice nid buf) time =
-    Bundle (UTCr (time+latency)) [s_new (voiceDefName $ BC.numChannels buf) (fromIntegral nid) AddToTail 0 [("bufnum", fromIntegral $ BC.uid buf)]]
-
-stopVoice :: Voice -> Double -> OSC
-stopVoice (Voice nid _) time =
-    Bundle (UTCr (time+latency)) [n_set1 (fromIntegral nid) "gate" 0]
-
--- | Attack-sustain-release envelope parameter constructor.
-asr :: UGen -> UGen -> UGen -> [EnvCurve] -> [UGen]
-asr aT sL rT c = env [0, sL, 0] [aT, rT] c 1 (-1)
-
-attack = 0.0
-release = 0.0
-curve = EnvLin
-envelope = envGen AR (control KR "gate" 1) 1 0 1 RemoveSynth (asr attack 1 release [curve])
-
-voiceDef n    = offsetOut 0 (vDiskIn n (control KR "bufnum" (-1)) 1 NoLoop * envelope)
-voiceDefMem n = offsetOut 0 (playBuf n (control KR "bufnum" (-1)) 1 1 (control KR "start" (0)) NoLoop DoNothing * envelope)
-    
-initSampler :: Transport t => Connection t -> IO BufferCache
-initSampler conn = do
-    C.send conn (notify True) -- FIXME: Race condition!
-    C.sync conn (Bundle (NTPi 1) [d_recv (synthdef (voiceDefName 1) (voiceDef 1)),
-                                  d_recv (synthdef (voiceDefName 2) (voiceDef 2))])
-    BC.newWith conn diskBufferSize (replicate 4 1 ++ replicate 4 2)
-
-playUnit :: Transport t => Connection t -> BufferCache -> Unit.Unit -> Double -> IO ()
-playUnit conn cache unit t = do
+playUnit :: Transport t => Connection t -> BufferCache -> Unit.Unit -> P.SynthParams -> Double -> IO ()
+playUnit conn cache unit params t = do
     voice@(Voice nid buf) <- allocVoice conn cache unit (\voice ->
             Just $ b_read'
-                    (startVoice voice t)
+                    (startVoice voice params t)
                     (fromIntegral $ BC.uid $ buffer voice)
                     (SourceFile.path sourceFile)
                     (truncate $ SourceFile.sampleRate sourceFile * Unit.onset unit)
                     (-1) 0 1)
+    -- tu <- utcr
+    C.unsafeSync conn -- Why is this necessary?!
     -- C.send conn (startVoice voice t)
+    -- print (t-tu, t+dur-tu)
     pauseThreadUntil (t + dur)
-    C.send conn $ stopVoice voice (t + dur)
+    C.send conn $ stopVoice voice params (t + dur)
     C.waitFor conn $ nodeEnded $ fromIntegral nid
+    -- tu' <- utcr
+    -- putStrLn ("node end: " ++ show (tu' - tu))
     freeVoice conn cache voice
     return ()
     where
@@ -118,6 +128,14 @@ p2 l = (take 4 l') ++ (reverse $ take 4 $ drop 4 l')
     where l' = drop (length l `div` 3 * 2) l
 
 data Sampler t = Sampler (Connection t) BufferCache
+
+initSampler :: Transport t => Connection t -> IO BufferCache
+initSampler conn = do
+    C.send conn $ bundle' [notify True]
+                            -- , dumpOSC TextPrinter]
+    C.sync conn $ bundle' [d_recv (synthdef (voiceDefName 1) (voiceDef 1)),
+                           d_recv (synthdef (voiceDefName 2) (voiceDef 2))]
+    BC.newWith conn diskBufferSize (replicate 4 1 ++ replicate 4 2)
 
 newSampler :: IO (Sampler UDP)
 newSampler = do
@@ -139,7 +157,7 @@ playPatternDisk :: Sampler UDP -> P.Pattern -> IO ()
 playPatternDisk (Sampler conn cache) = P.execute f
     where
         opts = Process.defaultRTOptionsUDP
-        f e t = C.fork conn (\conn' -> playUnit conn' cache (P.unit e) t) >> return ()
+        f e t = C.fork conn (\conn' -> playUnit conn' cache (P.unit e) (P.synth e) t) >> return ()
 
 -- Memory based sampler
 -- fixSegDur segs = (zipWith (\(Segment o _) d -> Segment o d) segs (zipWith (\(Segment o1 _) (Segment o2 _) -> o2 - o1) segs (tail segs)))
