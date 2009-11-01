@@ -42,13 +42,15 @@ interpretModule expr modPath = do
 interpretFile :: FilePath -> Interpreter PCons
 interpretFile path = do
     Interp.setImportsQ [
-        ("Prelude", Nothing),
-        ("Sound.SC3.Lang.Pattern", Nothing),
-        ("Mescaline.Synth.Pattern", Nothing),
-        ("Mescaline.Database", Nothing),
-        ("Mescaline.Database.Query", Nothing),
-        ("Mescaline.Database.SourceFile", Just "SourceFile"),
-        ("Mescaline.Database.Unit", Just "Unit")
+        ("Prelude", Nothing)
+      , ("Data.List", Nothing)
+      , ("Sound.SC3.Lang.Pattern", Nothing)
+      , ("Mescaline.Synth.Pattern", Nothing)
+      , ("Mescaline.Database", Nothing)
+      , ("Mescaline.Database.Query", Nothing)
+      , ("Mescaline.Database.SourceFile", Just "SourceFile")
+      , ("Mescaline.Database.Unit", Just "Unit")
+      , ("Sound.SC3.Lang.Collection", Nothing)
         ]
 
     -- Interp.loadModules [modPath]
