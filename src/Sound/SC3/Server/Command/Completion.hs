@@ -18,3 +18,7 @@ b_read' osc nid p f n f' z = Message "/b_read" [Int nid, String p, Int f, Int n,
 -- | Allocate buffer space and read a sound file. (Asynchronous)
 b_allocRead' :: OSC -> Int -> String -> Int -> Int -> OSC
 b_allocRead' osc nid p f n = Message "/b_allocRead" [Int nid, String p, Int f, Int n, encode_osc_blob osc]
+
+-- | Close attached soundfile and write header information.
+b_close' :: OSC -> Int -> OSC
+b_close' osc nid = Message "/b_close" [Int nid, encode_osc_blob osc]
