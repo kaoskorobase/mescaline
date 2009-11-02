@@ -1,53 +1,85 @@
 {-# LANGUAGE FlexibleContexts, GeneralizedNewtypeDeriving #-}
 
-module Mescaline.Database where
+module Mescaline.Database (
+    Database(..)
+  , Result
+  , open
+  , query
+  , module Mescaline.Database.Query
+) where
 
 import           Control.Monad (zipWithM)
 import           Data.List (group)
+import qualified Data.Map as Map
+
+import           Mescaline.Data.Array.Vector
+import           Mescaline.Database.Feature (Feature)
+import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.SoundFile as SF
-import           Mescaline.Database.SourceFile
+import           Mescaline.Database.SourceFile (SourceFile)
 import qualified Mescaline.Database.SourceFile as SourceFile
+import           Mescaline.Database.Query
 import qualified Mescaline.Database.Unit as Unit
 import           Mescaline.Database.Unit (Unit)
 import qualified Sound.Analysis.Meapsoft as Meap
 import           System.FilePath
 import qualified System.FilePath.Find as Find
 
-newtype Database = Database [Unit] deriving (Show)
-data Query       = Query (Unit -> Bool)
-type Result      = [Unit]
+type FeatureMap = Map.Map String Feature
 
-readSegments :: FilePath -> IO [(Double, Double)]
-readSegments path = do
-    m <- Meap.read_meap path
-    case m of
+data Database = Database {
+    features    :: FeatureMap,
+    sourceFiles :: [SourceFile],
+    units       :: [Unit]
+} deriving (Show)
+
+type Result = [Unit]
+
+meapFeatureData :: Meap.MEAP -> [Vector Double]
+meapFeatureData m = map (toU.drop 2.Meap.frame_l m) [0..Meap.n_frames m - 1]
+
+readUnits :: FilePath -> IO [((Double, Double), Vector Double)]
+readUnits path = do
+    res <- Meap.read_meap path
+    case res of
         Left err -> fail err
-        Right xs -> return $ Meap.segments_l xs
+        Right m  -> let ss = Meap.segments_l m
+                        vs = meapFeatureData m
+                    in if length ss /= length vs
+                        then fail "Ooops."
+                        else return $ zip ss vs
+
+featuresFromFile :: FilePath -> IO FeatureMap
+featuresFromFile path = do
+    fs <- (Feature.mkFeatures.lines) `fmap` readFile path
+    return $ Map.fromList $ zip (map Feature.name fs) fs
 
 open :: FilePath -> IO Database
 open path = do
+    features <- featuresFromFile $ joinPath [path, "meap.db"]
     files <- Find.find
                 Find.always
-                (fmap (== ".seg_beats") Find.extension)
+                (fmap (== ".feat_beats") Find.extension)
                 path
-    units <- zipWithM newSourceFile [0..] files
-    return $ Database $ concat units
+    assocs <- zipWithM newSourceFile [0..] files
+    let sourceFiles = map fst assocs
+        units       = concat $ map snd assocs
+    return $ Database features sourceFiles units
     where
         newSourceFile i f = do
             let sfPath = dropExtension f
             info <- SF.getInfo sfPath
             let sf = SourceFile.SourceFile
                         i sfPath (show i)
-                        (SF.channels info) (fromIntegral $ SF.samplerate info) (SF.frames info)
-            segs <- readSegments f
-            return $ map mkUnit (zip3 [0..] (repeat sf) segs)
-        mkUnit (i, sf, (o, d)) = Unit.Unit i sf o d
-
-sourceFiles :: Database -> [SourceFile]
-sourceFiles (Database us) = (map head . group . map Unit.sourceFile) us
+                        (SF.channels info)
+                        (fromIntegral $ SF.samplerate info)
+                        (SF.frames info)
+            assocs <- readUnits f
+            return (sf, map mkUnit (zip3 [0..] (repeat sf) assocs))
+        mkUnit (i, sf, ((o, d), vs)) = Unit.Unit i sf o d vs
 
 query :: Query -> Database -> [Unit]
-query (Query q) (Database db) = filter q db
+query (Query q) = filter q . units
 
 {-
 import Data.Binary

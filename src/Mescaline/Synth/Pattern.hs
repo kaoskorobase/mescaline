@@ -83,10 +83,11 @@ execute :: (Event -> Double -> IO ()) -> Pattern -> IO ()
 execute f p = do
     t0 <- utcr
     let es = P.evalP 0 p
-        ts = (map (+t0) . scanl1 (+) . map (getVal delta)) es
-    -- sequence_ (zipWith g es ts)
-    loop es t0
+        ts = (scanl (+) t0 . map (getVal delta)) es
+    sequence_ (zipWith3 perform es ts (tail ts))
+    -- loop es t0
     where
+        perform e t t' = f e t >> pauseThreadUntil t'
         loop [] _     = return ()
         loop (e:es) t = do
             f e t

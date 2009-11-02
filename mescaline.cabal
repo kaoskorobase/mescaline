@@ -43,7 +43,7 @@ library
                     mtl,
                     process,
                     stm == 2.1.*,
-                    uvector
+                    uvector == 0.1.*
     exposed-modules:
                     Mescaline
                     Mescaline.Control.Concurrent

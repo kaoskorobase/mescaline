@@ -2,33 +2,39 @@
 
 module Mescaline.Database.Feature where
 
+import Data.Maybe (fromJust)
+
 data Feature = Feature {
     name   :: String,
     degree :: Int,
     column :: Int
 } deriving (Eq, Show)
 
--- features :: [Feature]
--- features = zipWith ($) [
---     Feature "Onset"             1
---   , Feature "Duration"          1
---   , Feature "AvgChroma"         12
---   , Feature "AvgChromaScalar"   1
---   , Feature "AvgChunkPower"     1
---   , Feature "AvgFreqSimple"     1
---   , Feature "AvgMelSpec"        13
---   , Feature "AvgMFCC"           13
---   , Feature "AvgPitch"          1
---   -- , Feature "AvgSpec"           1
---   , Feature "AvgSpecCentroid"   1
---   , Feature "AvgSpecFlatness"   1
---   , Feature "AvgTonalCentroid"  1
---   , Feature "ChunkLength"       1
---   , Feature "ChunkStartTime"    1
---   , Feature "Entropy"           1
---   , Feature "RMSAmplitude"      1
---   , Feature "SpectralStability" 1 ]
---   [0..]
+featureDegrees :: [(String, Int)]
+featureDegrees = [
+    ( "AvgChroma"         , 12  ),
+    ( "AvgChromaScalar"   , 1   ),
+    ( "AvgChunkPower"     , 1   ),
+    ( "AvgFreqSimple"     , 1   ),
+    ( "AvgMelSpec"        , 40  ),
+    ( "AvgMFCC"           , 13  ),
+    ( "AvgPitch"          , 1   ),
+    ( "AvgSpec"           , 513 ),
+    ( "AvgSpecCentroid"   , 1   ),
+    ( "AvgSpecFlatness"   , 1   ),
+    ( "AvgTonalCentroid"  , 6   ),
+    ( "ChunkLength"       , 1   ),
+    ( "ChunkStartTime"    , 1   ),
+    ( "Entropy"           , 1   ),
+    ( "RMSAmplitude"      , 1   ),
+    ( "SpectralStability" , 1   )
+    ]
+
+mkFeatures :: [String] -> [Feature]
+mkFeatures fs = zipWith3 Feature fs ds cs
+    where
+        ds = fromJust $ mapM (flip lookup featureDegrees) fs
+        cs = scanl (+) 0 ds
 
 {-
 module Mescaline.Database.Feature (

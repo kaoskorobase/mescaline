@@ -1,6 +1,6 @@
 module Mescaline.Database.Query where
 
-import 			 Mescaline.Database
+import           Mescaline.Database.Unit (Unit)
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Database.SourceFile as SourceFile
 
@@ -9,6 +9,8 @@ import			 Prelude as Prelude
 
 import 			 System.Path.WildMatch
 import 			 System.FilePath
+
+data Query = Query (Unit -> Bool)
 
 liftQ1 :: (Bool -> Bool) -> Query -> Query
 liftQ1 f (Query a) = Query (\x -> f (a x))
