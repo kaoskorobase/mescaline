@@ -41,13 +41,27 @@ diskBufferSize = 8192*8*4
 asr :: UGen -> UGen -> UGen -> [EnvCurve] -> [UGen]
 asr aT sL rT c = env [0, sL, 0] [aT, rT] c 1 (-1)
 
-voiceEnv :: UGen
-voiceEnv = envGen AR gate 1 0 1 RemoveSynth (asr attackTime sustainLevel releaseTime [curve])
+voiceGateEnvelope :: Bool
+voiceGateEnvelope = False
+
+voiceEnvGate :: UGen
+voiceEnvGate = envGen AR gate 1 0 1 RemoveSynth (asr attackTime sustainLevel releaseTime [curve])
     where gate         = control KR "gate" 1
           sustainLevel = control KR "sustainLevel" 1
           attackTime   = control KR "attackTime" 0
           releaseTime  = control KR "releaseTime" 0
           curve        = EnvLin
+
+voiceEnvFixed :: UGen
+voiceEnvFixed = envGen AR 1 1 0 1 RemoveSynth (envLinen attackTime dur releaseTime sustainLevel [curve])
+    where dur          = control KR "dur" 0
+          sustainLevel = control KR "sustainLevel" 1
+          attackTime   = control KR "attackTime" 0
+          releaseTime  = control KR "releaseTime" 0
+          curve        = EnvLin
+
+voiceEnv :: UGen
+voiceEnv = if voiceGateEnvelope then voiceEnvGate else voiceEnvFixed
 
 voiceDef :: Int -> UGen
 voiceDef n = offsetOut 0 (diskIn n (control KR "bufnum" (-1)) NoLoop * voiceEnv)
@@ -77,26 +91,32 @@ freeVoice conn cache (Voice _ buf) = do
     C.sync conn $ b_close (fromIntegral $ BC.uid buf)
     BC.freeBuffer conn cache buf
 
-startVoice :: Voice -> P.SynthParams -> Double -> OSC
-startVoice (Voice nid buf) params time =
+startVoice :: Voice -> Unit.Unit -> P.SynthParams -> Double -> OSC
+startVoice (Voice nid buf) unit params time =
     bundle (time + params ^. P.latency)
         [s_new (voiceDefName $ BC.numChannels buf) (fromIntegral nid) AddToTail 0
-            [ ("bufnum", fromIntegral $ BC.uid buf),
+            ([ ("bufnum", fromIntegral $ BC.uid buf),
               ("attackTime",   params ^. P.attackTime),
               ("releaseTime",  params ^. P.attackTime),
               ("sustainLevel", params ^. P.sustainLevel) ]
+              ++
+              if voiceGateEnvelope
+                then []
+                else [("dur", Unit.duration unit)])
             ]
 
 stopVoice :: Voice -> P.SynthParams -> Double -> OSC
 stopVoice (Voice nid _) params time =
-    bundle (time + params ^. P.latency)
-        [n_set1 (fromIntegral nid) "gate" (params ^. P.gateLevel)]
+    if voiceGateEnvelope
+        then bundle (time + params ^. P.latency)
+                [n_set1 (fromIntegral nid) "gate" (params ^. P.gateLevel)]
+        else bundle' []
 
 playUnit :: Transport t => Connection t -> BufferCache -> Unit.Unit -> P.SynthParams -> Double -> IO ()
 playUnit conn cache unit params t = do
     voice@(Voice nid buf) <- allocVoice conn cache unit (\voice ->
             Just $ b_read'
-                    (startVoice voice params t)
+                    (startVoice voice unit params t)
                     (fromIntegral $ BC.uid $ buffer voice)
                     (SourceFile.path sourceFile)
                     (truncate $ SourceFile.sampleRate sourceFile * Unit.onset unit)
