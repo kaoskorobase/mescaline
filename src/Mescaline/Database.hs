@@ -49,12 +49,6 @@ sourceFiles (Database us) = (map head . group . map Unit.sourceFile) us
 query :: Query -> Database -> [Unit]
 query (Query q) (Database db) = filter q db
 
-everything :: Query
-everything = Query (const True)
-
-nothing :: Query
-nothing = Query (const False)
-
 {-
 import Data.Binary
 import qualified Database.HDBC		    as DB

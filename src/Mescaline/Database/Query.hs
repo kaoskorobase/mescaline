@@ -25,6 +25,12 @@ liftQ2 f (Query a) (Query b) = Query (\x -> a x `f` b x)
 not :: Query -> Query
 not = liftQ1 Prelude.not
 
+everything :: Query
+everything = Query (const True)
+
+nothing :: Query
+nothing = Query (const False)
+
 withPath :: FilePath -> Query
 withPath p = Query ((==) p . SourceFile.path . Unit.sourceFile)
 
