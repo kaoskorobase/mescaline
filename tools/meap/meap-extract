@@ -14,7 +14,7 @@ CLASS_PATH   = Dir.glob(File.join(File.dirname(__FILE__), "jar/meap-#{MEAP_VERSI
 SEGMENTER    = "com.meapsoft.Segmenter"
 EXTRACTOR    = "com.meapsoft.FeatExtractor"
 
-MEAP_FILE_REGEXP  = /\.com\.meapsoft\.(feat|seg)\.(beats|events)$/
+MEAP_FILE_REGEXP  = /\.(feat|seg)_(beats|events)$/
 SOUND_FILE_REGEXP = /\.(aif*|mp3|wav)$/i
 
 FEATURES = %w(
@@ -152,7 +152,8 @@ class Cache
 end
 
 def mk_file(path, ext)
-  path + ".com.meapsoft." + ext
+  # path + ".com.meapsoft." + ext
+  path + "." + ext
 end
 
 def java(klass, args)
@@ -164,8 +165,8 @@ def opt(flag, value)
 end
 
 def process_file(type, options, input_file)
-  segment_file  = mk_file(input_file, "seg." + type.to_s)
-  feat_file     = mk_file(input_file, "feat." + type.to_s)
+  segment_file  = mk_file(input_file, "seg_" + type.to_s)
+  feat_file     = mk_file(input_file, "feat_" + type.to_s)
   cache_file    = mk_file(input_file, "cache")
 
   segmenter_options = [

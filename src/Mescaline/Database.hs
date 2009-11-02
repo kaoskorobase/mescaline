@@ -3,6 +3,7 @@
 module Mescaline.Database where
 
 import           Control.Monad (zipWithM)
+import           Data.List (group)
 import qualified Mescaline.Database.SoundFile as SF
 import           Mescaline.Database.SourceFile
 import qualified Mescaline.Database.SourceFile as SourceFile
@@ -27,7 +28,7 @@ open :: FilePath -> IO Database
 open path = do
     files <- Find.find
                 Find.always
-                (fmap (== ".seg") Find.extension)
+                (fmap (== ".seg_beats") Find.extension)
                 path
     units <- zipWithM newSourceFile [0..] files
     return $ Database $ concat units
@@ -38,10 +39,12 @@ open path = do
             let sf = SourceFile.SourceFile
                         i sfPath (show i)
                         (SF.channels info) (fromIntegral $ SF.samplerate info) (SF.frames info)
-            print sf
             segs <- readSegments f
             return $ map mkUnit (zip3 [0..] (repeat sf) segs)
         mkUnit (i, sf, (o, d)) = Unit.Unit i sf o d
+
+sourceFiles :: Database -> [SourceFile]
+sourceFiles (Database us) = (map head . group . map Unit.sourceFile) us
 
 query :: Database -> Query -> [Unit]
 query (Database db) (Query q) = filter q db
