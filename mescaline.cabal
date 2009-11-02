@@ -24,6 +24,8 @@ library
                     Cabal == 1.6.*,
                     containers,
                     Control-Engine == 0.0.*,
+                    data-accessor == 0.2.*,
+                    data-accessor-template == 0.2.*,
                     directory,
                     FileManip == 0.3.*,
                     filepath,
