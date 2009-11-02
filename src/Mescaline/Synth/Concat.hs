@@ -1,5 +1,6 @@
 module Mescaline.Synth.Concat where
 
+import           Data.Accessor ((^.))
 import           Mescaline
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Database.SourceFile as SourceFile
@@ -78,18 +79,18 @@ freeVoice conn cache (Voice _ buf) = do
 
 startVoice :: Voice -> P.SynthParams -> Double -> OSC
 startVoice (Voice nid buf) params time =
-    bundle (time + P.latency params)
+    bundle (time + params ^. P.latency)
         [s_new (voiceDefName $ BC.numChannels buf) (fromIntegral nid) AddToTail 0
             [ ("bufnum", fromIntegral $ BC.uid buf),
-              ("attackTime", P.attackTime params),
-              ("releaseTime", P.attackTime params),
-              ("sustainLevel", P.sustainLevel params) ]
+              ("attackTime",   params ^. P.attackTime),
+              ("releaseTime",  params ^. P.attackTime),
+              ("sustainLevel", params ^. P.sustainLevel) ]
             ]
 
 stopVoice :: Voice -> P.SynthParams -> Double -> OSC
 stopVoice (Voice nid _) params time =
-    bundle (time + P.latency params)
-        [n_set1 (fromIntegral nid) "gate" (P.gateLevel params)]
+    bundle (time + params ^. P.latency)
+        [n_set1 (fromIntegral nid) "gate" (params ^. P.gateLevel)]
 
 playUnit :: Transport t => Connection t -> BufferCache -> Unit.Unit -> P.SynthParams -> Double -> IO ()
 playUnit conn cache unit params t = do
@@ -157,7 +158,7 @@ playPatternDisk :: Sampler UDP -> P.Pattern -> IO ()
 playPatternDisk (Sampler conn cache) = P.execute f
     where
         opts = Process.defaultRTOptionsUDP
-        f e t = C.fork conn (\conn' -> playUnit conn' cache (P.unit e) (P.synth e) t) >> return ()
+        f e t = C.fork conn (\conn' -> playUnit conn' cache (e ^. P.unit) (e ^. P.synth) t) >> return ()
 
 -- Memory based sampler
 -- fixSegDur segs = (zipWith (\(Segment o _) d -> Segment o d) segs (zipWith (\(Segment o1 _) (Segment o2 _) -> o2 - o1) segs (tail segs)))
