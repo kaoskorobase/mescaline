@@ -161,7 +161,13 @@ def java(klass, args)
 end
 
 def opt(flag, value)
-  value ? [flag, value.to_s] : []
+  if value === true
+    [flag]
+  elsif value === false
+    []
+  else
+    value.nil? ? [] : [flag, value.to_s]
+  end
 end
 
 def process_file(type, options, input_file)
