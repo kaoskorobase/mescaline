@@ -3,6 +3,7 @@
 import Language.Haskell.Interpreter (InterpreterError(..), GhcError(..))
 
 import qualified  Mescaline.Database as DB
+import Mescaline.Database.SourceFile as SourceFile
 import Mescaline.Synth.Concat
 import Mescaline.Synth.Pattern as P
 import Mescaline.Synth.Pattern.Load as P
@@ -18,6 +19,7 @@ import Prelude hiding (catch)
 main' :: FilePath -> FilePath -> Sampler UDP -> IO ()
 main' dbDir patternFile sampler = do
     db <- DB.open dbDir
+    mapM_ putStrLn (map SourceFile.path $ DB.sourceFiles db)
     ps <- P.loadFile patternFile
     case ps of
         Left err ->
