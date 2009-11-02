@@ -46,8 +46,14 @@ open path = do
 sourceFiles :: Database -> [SourceFile]
 sourceFiles (Database us) = (map head . group . map Unit.sourceFile) us
 
-query :: Database -> Query -> [Unit]
-query (Database db) (Query q) = filter q db
+query :: Query -> Database -> [Unit]
+query (Query q) (Database db) = filter q db
+
+everything :: Query
+everything = Query (const True)
+
+nothing :: Query
+nothing = Query (const False)
 
 {-
 import Data.Binary
