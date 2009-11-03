@@ -193,7 +193,7 @@ freeSampler (Sampler conn cache) = do
     C.send conn (g_freeAll [0])
     BC.free conn cache
 
--- Disk based sampler    
+-- Disk based sampler
 playPatternDisk :: Sampler UDP -> P.Pattern -> IO ()
 playPatternDisk (Sampler conn cache) = P.execute f
     where
