@@ -21,6 +21,7 @@ import Control.Monad            (join)
 import Sound.OpenSoundControl
 import Sound.OpenSoundControl.Transport
 
+import           Sound.SC3.Lang.Collection
 import           Sound.SC3.Lang.Pattern
 import           Sound.SC3.Server.Command.Completion
 import           Sound.SC3.Server.Connection (Connection)
@@ -63,11 +64,30 @@ voiceEnvFixed = envGen AR 1 1 0 1 RemoveSynth (envLinen attackTime dur releaseTi
 voiceEnv :: UGen
 voiceEnv = if voiceGateEnvelope then voiceEnvGate else voiceEnvFixed
 
+toStereo :: UGen -> UGen
+toStereo u =
+    case mceChannels u of
+        [x]    -> pan2 x pan amp
+        [x, y] -> balance2 x y pan amp
+        xs     -> sum (map (\[x, y] -> balance2 x y pan amp) $ clump 2 xs)
+    where
+        pan = control KR "pan" 0
+        amp = control KR "amp" 1
+
+output :: UGen -> UGen
+output = offsetOut (control KR "out" 0)
+
 voiceDef :: Int -> UGen
-voiceDef n = offsetOut 0 (diskIn n (control KR "bufnum" (-1)) NoLoop * voiceEnv)
+voiceDef n = output $ toStereo $ vDiskIn n bufnum rate NoLoop * voiceEnv
+    where
+        bufnum = control KR "bufnum" (-1)
+        rate   = bufRateScale KR bufnum
 
 voiceDefMem :: Int -> UGen
-voiceDefMem n = offsetOut 0 (playBuf n (control KR "bufnum" (-1)) 1 1 (control KR "start" (0)) NoLoop DoNothing * voiceEnv)
+voiceDefMem n = output $ toStereo $ playBuf n bufnum rate 1 (control KR "start" (0)) NoLoop DoNothing * voiceEnv
+    where
+        bufnum = control KR "bufnum" (-1)
+        rate   = bufRateScale KR bufnum
 
 voiceDefName :: Int -> String
 voiceDefName 1  = "es.globero.mescaline.voice_1"
