@@ -26,7 +26,7 @@ data SynthParams = SynthParams {
     sustainLevel_ :: Double,
     gateLevel_    :: Double,
     latency_      :: Double
-} deriving (Eq, Show, Typeable)
+} deriving (Eq, Show)
 
 defaultSynth :: SynthParams
 defaultSynth = SynthParams {
@@ -55,7 +55,7 @@ data Event = Event {
     delta_ :: Double,
     unit_  :: Unit.Unit,
     synth_ :: SynthParams
-} deriving (Eq, Show, Typeable)
+} deriving (Eq, Show)
 
 $(deriveAccessors ''Event)
 
@@ -82,7 +82,7 @@ ptrace = fmap f
 execute :: (Event -> Double -> IO ()) -> Pattern -> IO ()
 execute f p = do
     t0 <- utcr
-    let es = P.evalP 0 p
+    let es = P.evalP p
         ts = (scanl (+) t0 . map (getVal delta)) es
     sequence_ (zipWith3 perform es ts (tail ts))
     -- loop es t0
