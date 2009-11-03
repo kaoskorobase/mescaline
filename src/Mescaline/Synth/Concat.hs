@@ -46,20 +46,18 @@ voiceGateEnvelope :: Bool
 voiceGateEnvelope = False
 
 voiceEnvGate :: UGen
-voiceEnvGate = envGen AR gate 1 0 1 RemoveSynth (asr attackTime sustainLevel releaseTime [curve])
+voiceEnvGate = envGen AR gate 1 0 1 RemoveSynth (asr attackTime sustainLevel releaseTime [EnvLin])
     where gate         = control KR "gate" 1
           sustainLevel = control KR "sustainLevel" 1
           attackTime   = control KR "attackTime" 0
           releaseTime  = control KR "releaseTime" 0
-          curve        = EnvLin
 
 voiceEnvFixed :: UGen
-voiceEnvFixed = envGen AR 1 1 0 1 RemoveSynth (envLinen attackTime dur releaseTime sustainLevel [curve])
+voiceEnvFixed = envGen AR 1 1 0 1 RemoveSynth (envLinen attackTime dur releaseTime sustainLevel)
     where dur          = control KR "dur" 0
           sustainLevel = control KR "sustainLevel" 1
           attackTime   = control KR "attackTime" 0
           releaseTime  = control KR "releaseTime" 0
-          curve        = EnvLin
 
 voiceEnv :: UGen
 voiceEnv = if voiceGateEnvelope then voiceEnvGate else voiceEnvFixed
