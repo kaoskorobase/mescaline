@@ -1,11 +1,19 @@
-module Mescaline.Database.Create where
+module Mescaline.Database.Create (
+    newDatabase
+  , getFeatures
+  , getFeature
+  , hasFeature
+  , addFeature
+) where
 
-{-
+import           Data.List (intercalate)
+import           Control.Monad (unless)
+import           Text.Printf (printf)
 
-import Data.List                        (intersperse, intercalate)
-import Data.Maybe                       (maybeToList)
-import Text.Printf                      (printf)
-import qualified Mescaline.Database     as DB
+import           Mescaline.Database.Feature (Feature)
+import qualified Mescaline.Database.Feature as Feature
+
+import           Database.HDBC (IConnection)
 import qualified Database.HDBC          as DB
 import qualified Database.HDBC.Sqlite3  as DB
 
@@ -31,81 +39,66 @@ instance SqlQuery (SqlCreate) where
     toSqlQuery (SqlCreateIndex f name cols) =
         printf "create index %s on %s(%s);" (f name) name (intercalate ", " cols)
 
-createTable :: SqlTableName -> [(SqlColumnName, SqlColumnType)] -> [SqlColumnName] -> [String]
-createTable name cols idxs =
-    [ toSqlQuery (SqlDrop name),
-      toSqlQuery (SqlCreateTable name cols) ]
+table :: SqlTableName -> [(SqlColumnName, SqlColumnType)] -> [SqlColumnName] -> [String]
+table name cols idxs =
+    [ toSqlQuery (SqlDrop name)
+    , toSqlQuery (SqlCreateTable name cols) ]
     ++ if null idxs
        then []
        else [ toSqlQuery (SqlCreateIndex ("idx_"++) name idxs) ]
 
-maxVectorSize :: Int
-maxVectorSize = 40
+featureTable :: Feature -> [String]
+featureTable f =
+    [ toSqlQuery (SqlDrop name)
+    , toSqlQuery (SqlCreateTable name cols) ]
+    where
+        name = Feature.sqlTableName f
+        cols = map (\i -> ("value_" ++ show i, "float8")) [0..Feature.degree f - 1]
 
 schema :: [String]
 schema =
-    createTable "source_file"           [ ("id"  ,              "integer primary key"),
-                                          ("path",              "varchar(256)"),
-                                          ("hash",              "varchar(40)") ]
-                                        [ "id" ]
- ++ createTable "unit"                  [ ("id"            ,    "integer primary key"),
-                                          ("source_file_id",    "int"),
-                                          ("onset"         ,    "float8"),
-                                          ("duration"      ,    "float8") ]
-                                        [ "id",                 "source_file_id" ]
- ++ createTable "feature_descriptor"    [ ("id"         ,       "integer primary key"),
-                                          ("name"       ,       "varchar(32)"),
-                                          ("description",       "text")]
-                                        [ "id" ]
+    table "source_file"
+        [ ("id"   , "integer primary key")
+        , ("path" , "varchar(256)")
+        , ("hash" , "varchar(40)") ]
+        [ "id" ]
+ ++ table "unit"
+        [ ("id"             , "integer primary key")
+        , ("source_file_id" , "integer")
+        , ("onset"          , "float8")
+        , ("duration"       , "float8") ]
+        [ "id", "source_file_id" ]
+ ++ table "feature"
+        [ ("name"   , "varchar(32)")
+        , ("degree" , "integer")
+        ]
+        [ ]
 
- ++ createTable "unit_feature"          ([ ("unit_id"   ,       "int"),
-                                           ("feature_id",       "int"),
-                                           ("int_value" ,       "int4 default NULL"),
-                                           ("text_value",       "text") ]
-                                        ++ map (\i -> (printf "'%d'" i, "float8 default NULL")) [0..maxVectorSize-1])
-                                        [ "unit_id", "feature_id" ]
+run' :: IConnection c => c -> String -> IO Integer
+run' c = flip (DB.run c) []
 
- ++ createTable "unit_feature_power"    [ ("unit_id"    ,       "int"),
-                                           ("value"     ,       "float8") ]
-                                        [ "unit_id" ]
- ++ createTable "unit_feature_mfcc"     [ ("unit_id"    ,       "int"),
-                                           ("value0"    ,       "float8"),
-                                           ("value1"    ,       "float8"),
-                                           ("value2"    ,       "float8"),
-                                           ("value3"    ,       "float8"),
-                                           ("value4"    ,       "float8"),
-                                           ("value5"    ,       "float8"),
-                                           ("value6"    ,       "float8"),
-                                           ("value7"    ,       "float8"),
-                                           ("value8"    ,       "float8"),
-                                           ("value9"    ,       "float8"),
-                                           ("value10"   ,       "float8"),
-                                           ("value11"   ,       "float8"),
-                                           ("value12"   ,       "float8") ]
-                                        [ "unit_id" ]
- ++ createTable "unit_feature_spectral_centroid"
-                                        [ ("unit_id"    ,       "int"),
-                                           ("value"     ,       "float8") ]
-                                        [ "unit_id" ]
-                                        
-createFeatureDescriptors :: DB.Connection -> IO ()
-createFeatureDescriptors h = do
-    mapM_ f ["Chroma",
-             "ChromaCentroid",
-             "Power",
-             "SpectralPeakFrequency",
-             "MelSpectrum",
-             "MFCC",
-             "SpectralCentroid",
-             "SpectralFlatness"]
-    where f name = DB.run h "insert into feature_descriptor values(null,?,null)" [DB.toSql name]
+newDatabase :: FilePath -> IO ()
+newDatabase path = do
+    c <- DB.connectSqlite3 path
+    mapM_ (run' c) schema
+    DB.commit c
+    DB.disconnect c
 
-createDatabase :: FilePath -> IO ()
-createDatabase path = do
-    h <- DB.connectSqlite3 path
-    mapM_ (flip (DB.run h) []) schema
-    createFeatureDescriptors h
-    DB.commit h
-    DB.disconnect h
+getFeatures :: IConnection c => c -> IO [Feature]
+getFeatures _ = return []
 
--}
+getFeature :: IConnection c => String -> c -> IO (Maybe Feature)
+getFeature s c = do
+    fs <- getFeatures c
+    return $ lookup s $ zip (map Feature.name fs) fs
+
+hasFeature :: IConnection c => String -> c -> IO Bool
+hasFeature s c = getFeatures c >>= (return . any ((s==).Feature.name))
+
+addFeature :: IConnection c => Feature -> c -> IO ()
+addFeature f = flip DB.withTransaction action
+    where
+        action c = hasFeature (Feature.name f) c >>= flip unless (do
+                    DB.run c "insert into feature values(?,?)" [DB.toSql (Feature.name f), DB.toSql (Feature.degree f)]
+                    mapM_ (run' c) (featureTable f))
+

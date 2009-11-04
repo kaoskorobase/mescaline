@@ -7,7 +7,7 @@ import Data.Maybe (fromJust)
 data Feature = Feature {
     name   :: String,
     degree :: Int,
-    column :: Int
+    column :: Int -- obsolete
 } deriving (Eq, Show)
 
 featureDegrees :: [(String, Int)]
@@ -35,6 +35,12 @@ mkFeatures fs = zipWith3 Feature fs ds cs
     where
         ds = fromJust $ mapM (flip lookup featureDegrees) fs
         cs = scanl (+) 0 ds
+
+sqlTableName :: Feature -> String
+sqlTableName f = "feature_" ++ (map tr $ name f)
+    where
+        tr '.' = '_'
+        tr c   = c
 
 {-
 module Mescaline.Database.Feature (

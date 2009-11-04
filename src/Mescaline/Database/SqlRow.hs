@@ -1,9 +1,10 @@
 module Mescaline.Database.SqlRow (
-    SqlRow(..),
-    SqlType(..)
+    SqlRow(..)
+  , fromSql
+  , toSql
 ) where
 
-import Database.HDBC		(SqlValue, SqlType(..))
+import Database.HDBC (SqlValue, fromSql, toSql)
 -- import Mescaline.Database    (DB)
 
 class SqlRow a where
