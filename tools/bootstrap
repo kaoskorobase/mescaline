@@ -1,0 +1,44 @@
+#!/usr/bin/env ruby
+
+require 'fileutils'
+
+class UpstreamSource
+  UPSTREAM_DIR = "upstream"
+  attr_reader :name, :url
+  def initialize(name, url)
+    @name = name
+    @url = url
+  end
+  def upstream_dir
+    File.join(UPSTREAM_DIR, name)
+  end
+end
+
+def install_tool(pkg, cmd)
+  if `which #{cmd}`.empty?
+    system("cabal install #{pkg}")
+  end
+end
+
+UPSTREAM_SOURCES = [
+ UpstreamSource.new("hosc", "http://www.slavepianos.org/rd/sw/hosc"),
+ UpstreamSource.new("hsc3", "http://www.slavepianos.org/rd/sw/hsc3"),
+ UpstreamSource.new("hsc3-lang", "http://www.slavepianos.org/rd/sw/hsc3-lang"),
+ UpstreamSource.new("hmeap", "http://www.slavepianos.org/rd/sw/hmeap")
+]
+
+TOOLS = ["alex", "happy", "c2hs"]
+
+system("cabal update")
+TOOLS.each { |t| install_tool(t, t) }
+
+FileUtils.mkdir_p(UpstreamSource::UPSTREAM_DIR)
+
+UPSTREAM_SOURCES.each { |s|
+  if File.directory?(s.upstream_dir)
+    system("cd #{s.upstream_dir} && darcs pull -a")
+  else
+    system("darcs get --partial #{s.url} #{s.upstream_dir}")
+  end
+  system("cd #{s.upstream_dir} && cabal install")
+}
