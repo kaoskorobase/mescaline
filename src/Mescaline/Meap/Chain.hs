@@ -6,15 +6,18 @@ module Mescaline.Meap.Chain (
 ) where
 
 import qualified Data.ByteString                    as ByteString
-import Data.Char                                    (toUpper)
-import qualified Mescaline.Control.Concurrent.Pool  as Pool
-import Control.ThreadPool                           (threadPoolIO)
+import           Data.Char                          (toUpper)
+import           Control.ThreadPool                 (threadPoolIO)
 import qualified Control.Concurrent.Chan            as Chan
+
 import qualified Mescaline.Meap.Extractor           as Extractor
 import qualified Mescaline.Meap.Feature             as Feature
-import qualified Mescaline.Meap.File                as File
 import Mescaline.Meap.Process                       (withTempFile)
 import qualified Mescaline.Meap.Segmenter           as Segmenter
+
+import           Sound.Analysis.Meapsoft (MEAP)
+import qualified Sound.Analysis.Meapsoft as Meap
+
 import System.Exit                                  (ExitCode)
 import qualified System.FilePath.Find               as Find
 import System.IO                                    (hClose)
@@ -47,7 +50,12 @@ runSegmenter = Segmenter.run -- TODO: heuristics
 runExtractor :: Extractor.Options -> FilePath -> FilePath -> IO ExitCode
 runExtractor = Extractor.run
 
-run :: Options -> FilePath -> IO (Maybe File.Content)
+eitherToIO :: Either String a -> IO a
+eitherToIO e = case e of
+                Left err -> fail err
+                Right x  -> return x
+
+run :: Options -> FilePath -> IO Meap.MEAP
 run opts audioFile =
     withTempFile
         "es.globero.mescaline.segmenter.XXXX.seg"
@@ -61,26 +69,14 @@ run opts audioFile =
                     -- TODO: error handling
                     runExtractor (extractor opts) segFile featFile
                     -- TODO: error handling
-                    ByteString.readFile featFile >>= return . File.parse))
+                    Meap.read_meap featFile >>= eitherToIO))
 
 audioFileExtensions :: [String]
 audioFileExtensions = map ("."++) (xs ++ (map (map toUpper) xs))
     where xs = ["aif", "aiff", "mp3", "wav"]
 
-mapDirectoryParOld :: (FilePath -> File.Content -> IO ()) -> Int -> Options -> FilePath -> IO ()
-mapDirectoryParOld f np opts path = do
-    pool <- Pool.new np
-    files <- Find.find
-                Find.always
-                (fmap (flip elem audioFileExtensions) Find.extension)
-                path
-    mapM_ (Pool.schedule pool . proc) files
-    Pool.close pool
-    where
-        proc path = run opts path >>= maybe (return ()) (f path)
-
-mapDirectoryPar :: Int -> (FilePath -> File.Content -> IO ()) -> Options -> FilePath -> IO ()
-mapDirectoryPar np f opts path = do
+mapDirectory :: Int -> (FilePath -> MEAP -> IO ()) -> Options -> FilePath -> IO ()
+mapDirectory np f opts path = do
     (ichan, ochan) <- threadPoolIO np proc
     files <- Find.find
                 Find.always
@@ -91,19 +87,6 @@ mapDirectoryPar np f opts path = do
     -- Pull results from output channel (and discard them)
     mapM_ (\_ -> Chan.readChan ochan >>= consume) [1..length files]
     where
-        proc path = run opts path >>= maybe (return ()) (f path)
+        proc path = run opts path >>= f path
         consume a = a `seq` return a
 
-mapDirectorySeq :: (FilePath -> File.Content -> IO ()) -> Options -> FilePath -> IO ()
-mapDirectorySeq f opts path = do
-    files <- Find.find
-                Find.always
-                (fmap (flip elem audioFileExtensions) Find.extension)
-                path
-    mapM_ proc files
-    where
-        proc path = run opts path >>= maybe (return ()) (f path)
-
-mapDirectory :: Int -> (FilePath -> File.Content -> IO ()) -> Options -> FilePath -> IO ()
-mapDirectory np | np <= 1 = mapDirectorySeq
-mapDirectory np           = mapDirectoryPar np

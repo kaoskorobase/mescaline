@@ -11,10 +11,9 @@ module Mescaline.Database (
 import           Control.Monad (zipWithM)
 import           Data.List (group)
 import qualified Data.Map as Map
+import           Data.Maybe (fromJust)
 
 import           Mescaline.Data.Array.Vector
-import           Mescaline.Database.Feature (Feature)
-import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.SoundFile as SF
 import           Mescaline.Database.SourceFile (SourceFile)
 import qualified Mescaline.Database.SourceFile as SourceFile
@@ -25,6 +24,12 @@ import qualified Sound.Analysis.Meapsoft as Meap
 import           System.FilePath
 import qualified System.FilePath.Find as Find
 
+data Feature = Feature {
+    f_name :: String
+  , f_degree :: Int
+  , f_column :: Int
+} deriving (Eq, Show)
+
 type FeatureMap = Map.Map String Feature
 
 data Database = Database {
@@ -34,6 +39,32 @@ data Database = Database {
 } deriving (Show)
 
 type Result = [Unit]
+
+featureDegrees :: [(String, Int)]
+featureDegrees = [
+    ( "AvgChroma"         , 12  ),
+    ( "AvgChromaScalar"   , 1   ),
+    ( "AvgChunkPower"     , 1   ),
+    ( "AvgFreqSimple"     , 1   ),
+    ( "AvgMelSpec"        , 40  ),
+    ( "AvgMFCC"           , 13  ),
+    ( "AvgPitch"          , 1   ),
+    ( "AvgSpec"           , 513 ),
+    ( "AvgSpecCentroid"   , 1   ),
+    ( "AvgSpecFlatness"   , 1   ),
+    ( "AvgTonalCentroid"  , 6   ),
+    ( "ChunkLength"       , 1   ),
+    ( "ChunkStartTime"    , 1   ),
+    ( "Entropy"           , 1   ),
+    ( "RMSAmplitude"      , 1   ),
+    ( "SpectralStability" , 1   )
+    ]
+
+mkFeatures :: [String] -> [Feature]
+mkFeatures fs = zipWith3 Feature fs ds cs
+    where
+        ds = fromJust $ mapM (flip lookup featureDegrees) fs
+        cs = scanl (+) 0 ds
 
 meapFeatureData :: Meap.MEAP -> [Vector Double]
 meapFeatureData m = map (toU.drop 2.Meap.frame_l m) [0..Meap.n_frames m - 1]
@@ -51,8 +82,8 @@ readUnits path = do
 
 featuresFromFile :: FilePath -> IO FeatureMap
 featuresFromFile path = do
-    fs <- (Feature.mkFeatures.lines) `fmap` readFile path
-    return $ Map.fromList $ zip (map Feature.name fs) fs
+    fs <- (mkFeatures.lines) `fmap` readFile path
+    return $ Map.fromList $ zip (map f_name fs) fs
 
 open :: FilePath -> IO Database
 open path = do
@@ -76,7 +107,7 @@ open path = do
                         (SF.frames info)
             assocs <- readUnits f
             return (sf, map mkUnit (zip3 [0..] (repeat sf) assocs))
-        mkUnit (i, sf, ((o, d), vs)) = Unit.Unit i sf o d vs
+        mkUnit (i, sf, ((o, d), vs)) = Unit.Unit i sf o d
 
 query :: Query -> Database -> [Unit]
 query (Query q) = filter q . units

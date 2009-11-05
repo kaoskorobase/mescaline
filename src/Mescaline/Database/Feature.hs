@@ -2,41 +2,36 @@
 
 module Mescaline.Database.Feature where
 
-import Data.Maybe (fromJust)
+import Prelude hiding (id)
 
-data Feature = Feature {
-    name   :: String,
-    degree :: Int,
-    column :: Int -- obsolete
-} deriving (Eq, Show)
+newtype Descriptor = Descriptor (Int, String, Int) deriving (Eq, Show) 
+newtype Feature    = Feature (Descriptor, Int) deriving (Eq, Show)
 
-featureDegrees :: [(String, Int)]
-featureDegrees = [
-    ( "AvgChroma"         , 12  ),
-    ( "AvgChromaScalar"   , 1   ),
-    ( "AvgChunkPower"     , 1   ),
-    ( "AvgFreqSimple"     , 1   ),
-    ( "AvgMelSpec"        , 40  ),
-    ( "AvgMFCC"           , 13  ),
-    ( "AvgPitch"          , 1   ),
-    ( "AvgSpec"           , 513 ),
-    ( "AvgSpecCentroid"   , 1   ),
-    ( "AvgSpecFlatness"   , 1   ),
-    ( "AvgTonalCentroid"  , 6   ),
-    ( "ChunkLength"       , 1   ),
-    ( "ChunkStartTime"    , 1   ),
-    ( "Entropy"           , 1   ),
-    ( "RMSAmplitude"      , 1   ),
-    ( "SpectralStability" , 1   )
-    ]
+mkDescriptor :: Int -> String -> Int -> Descriptor
+mkDescriptor i n d = Descriptor (i, n, d)
 
-mkFeatures :: [String] -> [Feature]
-mkFeatures fs = zipWith3 Feature fs ds cs
-    where
-        ds = fromJust $ mapM (flip lookup featureDegrees) fs
-        cs = scanl (+) 0 ds
+id :: Descriptor -> Int
+id (Descriptor (i, _, _)) = i
 
-sqlTableName :: Feature -> String
+name :: Descriptor -> String
+name (Descriptor (_, n, _)) = n
+
+degree :: Descriptor -> Int
+degree (Descriptor (_, _, d)) = d
+
+indices :: Descriptor -> [Int]
+indices d = [0..degree d - 1]
+
+descriptor :: Feature -> Descriptor
+descriptor (Feature (d, _)) = d
+
+column :: Feature -> Int
+column (Feature (_, c)) = c
+
+slice :: Feature -> (Int, Int)
+slice f = (column f, (degree.descriptor)f)
+
+sqlTableName :: Descriptor -> String
 sqlTableName f = "feature_" ++ (map tr $ name f)
     where
         tr '.' = '_'

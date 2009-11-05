@@ -17,11 +17,15 @@ type Time  = Double
 type DTime = Double
 
 data Unit = Unit {
-    id            :: Id,
-    sourceFile    :: SourceFile,
-    onset         :: Time,
-    duration      :: DTime,
-    featureValues :: Vector Double
+    id         :: Id,
+    sourceFile :: SourceFile,
+    onset      :: Time,
+    duration   :: DTime
+} deriving (Show)
+
+data FeatureTable = FeatureTable {
+    features :: [Feature],
+    table    :: [(Unit, Vector Double)]
 } deriving (Show)
 
 instance Unique Unit where
@@ -30,11 +34,14 @@ instance Unique Unit where
 instance Eq Unit where
     a == b = id a == id b
 
-feature :: Feature -> Unit -> Double
-feature f u = indexU (featureValues u) (Feature.column f)
+descriptors :: FeatureTable -> [Feature.Descriptor]
+descriptors = map (Feature.descriptor) . features
 
-featureVector :: Feature -> Unit -> Vector Double
-featureVector f u = sliceU (featureValues u) (Feature.column f) (Feature.degree f)
+--feature :: Feature -> Unit -> Double
+--feature f u = indexU (featureValues u) (Feature.column f)
+--
+--featureVector :: Feature -> Unit -> Vector Double
+--featureVector f u = sliceU (featureValues u) (Feature.column f) (Feature.degree f)
 
 unitFromSqlRow :: SourceFile -> [SqlValue] -> Unit
 unitFromSqlRow sourceFile
@@ -48,5 +55,4 @@ unitFromSqlRow sourceFile
                     sourceFile
                     (fromSql _onset)
                     (fromSql _duration)
-                    undefined
 unitFromSqlRow _ _ = error "SqlRow (SourceFile) conversion failure"

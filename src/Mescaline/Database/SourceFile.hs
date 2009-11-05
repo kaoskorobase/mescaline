@@ -8,13 +8,16 @@ import Sound.File.Sndfile           (Count)
 -- | Sourcefile.
 data SourceFile = SourceFile {
     id          :: Id,
-    path        :: FilePath,
+    url         :: FilePath,
     hash        :: String,
 
     numChannels :: Int,
     sampleRate  :: Double,
     frames      :: Count
 } deriving (Show)
+
+path :: SourceFile -> FilePath
+path = url
 
 instance Eq (SourceFile) where
     a == b = id a == id b

@@ -5,7 +5,6 @@ module Mescaline.Meap.Extractor (
 ) where
 
 import Data.List                (intersperse)
-import Mescaline.Meap.Feature   (Type)
 import Mescaline.Meap.Process   (runMeap, withTempFile)
 import System.Exit              (ExitCode)
 
@@ -14,7 +13,7 @@ data UnitBoundary = Onset | Beat
 data Options = Options {
     windowSize  :: Int,
     hopSize     :: Int,
-    features    :: [Type]
+    features    :: [String]
 }
 
 defaultOptions :: Options

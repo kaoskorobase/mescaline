@@ -56,6 +56,7 @@ library
                     Mescaline.Database.Feature
                     Mescaline.Database.FeatureData
                     Mescaline.Database.FeatureDescriptor
+                    Mescaline.Database.Model
                     Mescaline.Database.Query
                     Mescaline.Database.SoundFile
                     Mescaline.Database.SourceFile

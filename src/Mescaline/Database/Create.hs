@@ -12,6 +12,11 @@ import           Text.Printf (printf)
 
 import           Mescaline.Database.Feature (Feature)
 import qualified Mescaline.Database.Feature as Feature
+import           Mescaline.Database.Unit (Unit)
+import qualified Mescaline.Database.Unit as Unit
+import           Mescaline.Database.SourceFile (SourceFile)
+import qualified Mescaline.Database.SourceFile as SourceFile
+import           Mescaline.Data.Array.Vector
 
 import           Database.HDBC (IConnection)
 import qualified Database.HDBC          as DB
@@ -26,6 +31,7 @@ data SqlCreate =
     SqlCreateTable SqlTableName [(SqlColumnName, SqlColumnType)]
   | SqlCreateIndex (SqlTableName -> String) SqlTableName [SqlColumnName]
 
+
 class SqlQuery a where
     toSqlQuery :: a -> String
     
@@ -34,7 +40,7 @@ instance SqlQuery (SqlDrop) where
 
 instance SqlQuery (SqlCreate) where
     toSqlQuery (SqlCreateTable name cols) =
-        printf "create table %s (%s);" name (argList cols)
+        printf "create table if not exists %s (%s);" name (argList cols)
         where argList = intercalate ", " . map (\(c, t) -> c ++ " " ++ t)
     toSqlQuery (SqlCreateIndex f name cols) =
         printf "create index %s on %s(%s);" (f name) name (intercalate ", " cols)
@@ -47,7 +53,7 @@ table name cols idxs =
        then []
        else [ toSqlQuery (SqlCreateIndex ("idx_"++) name idxs) ]
 
-featureTable :: Feature -> [String]
+featureTable :: Feature.Descriptor -> [String]
 featureTable f =
     [ toSqlQuery (SqlDrop name)
     , toSqlQuery (SqlCreateTable name cols) ]
@@ -84,10 +90,10 @@ newDatabase path = do
     DB.commit c
     DB.disconnect c
 
-getFeatures :: IConnection c => c -> IO [Feature]
+getFeatures :: IConnection c => c -> IO [Feature.Descriptor]
 getFeatures _ = return []
 
-getFeature :: IConnection c => String -> c -> IO (Maybe Feature)
+getFeature :: IConnection c => String -> c -> IO (Maybe Feature.Descriptor)
 getFeature s c = do
     fs <- getFeatures c
     return $ lookup s $ zip (map Feature.name fs) fs
@@ -95,7 +101,7 @@ getFeature s c = do
 hasFeature :: IConnection c => String -> c -> IO Bool
 hasFeature s c = getFeatures c >>= (return . any ((s==).Feature.name))
 
-addFeature :: IConnection c => Feature -> c -> IO ()
+addFeature :: IConnection c => Feature.Descriptor -> c -> IO ()
 addFeature f = flip DB.withTransaction action
     where
         action c = hasFeature (Feature.name f) c >>= flip unless (do
