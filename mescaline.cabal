@@ -24,6 +24,7 @@ library
                     Cabal == 1.6.*,
                     containers,
                     Control-Engine == 0.0.*,
+                    Crypto >= 4.2,
                     data-accessor == 0.2.*,
                     data-accessor-template == 0.2.*,
                     directory,

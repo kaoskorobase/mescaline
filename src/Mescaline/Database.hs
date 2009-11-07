@@ -106,7 +106,7 @@ open path = do
             let sfPath = dropExtension f
             info <- SF.getInfo sfPath
             let sf = SourceFile.SourceFile
-                        i sfPath (show i)
+                        i sfPath SourceFile.noHash
                         (SF.channels info)
                         (fromIntegral $ SF.samplerate info)
                         (SF.frames info)

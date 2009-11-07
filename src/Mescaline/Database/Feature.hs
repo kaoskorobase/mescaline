@@ -2,10 +2,14 @@
 
 module Mescaline.Database.Feature where
 
-import Prelude hiding (id)
+import qualified Mescaline.Data.Unique as Unique
+import           Prelude hiding (id)
 
 newtype Descriptor = Descriptor (Int, String, Int) deriving (Eq, Show) 
 newtype Feature    = Feature (Descriptor, Int) deriving (Eq, Show)
+
+namespace :: Unique.Namespace
+namespace = Unique.mkNamespace "be38ae7f-da19-4df8-99b7-e4ca78b28d92"
 
 mkDescriptor :: Int -> String -> Int -> Descriptor
 mkDescriptor i n d = Descriptor (i, n, d)
