@@ -69,7 +69,7 @@ instance SqlModel Feature.Descriptor b where
         where sqlRow f = [undefined, (DB.toSql.Feature.name)f, (DB.toSql.Feature.degree)f]
     sqlQuery c _ = quickQuery' c "select * from feature_descriptor" [] >>= mapM f
         where
-            f [x1,x2,x3] = return $ Feature.mkDescriptor (DB.fromSql x1) (DB.fromSql x2) (DB.fromSql x3) 0 0 0
+            f [x1,x2,x3] = return $ Feature.mkDescriptor (DB.fromSql x1) (DB.fromSql x2) (DB.fromSql x3)
             f _          = fail "WTF"
 
 maxFeatureDegree :: Int

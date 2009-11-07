@@ -14,6 +14,7 @@ import qualified Data.Map as Map
 import           Data.Maybe (fromJust)
 
 import           Mescaline.Data.Array.Vector
+import qualified Mescaline.Data.Unique as Unique
 import qualified Mescaline.Database.SoundFile as SF
 import           Mescaline.Database.SourceFile (SourceFile)
 import qualified Mescaline.Database.SourceFile as SourceFile
@@ -23,6 +24,7 @@ import           Mescaline.Database.Unit (Unit)
 import qualified Sound.Analysis.Meapsoft as Meap
 import           System.FilePath
 import qualified System.FilePath.Find as Find
+import qualified System.Random as Random
 
 data Feature = Feature {
     f_name :: String
@@ -85,6 +87,9 @@ featuresFromFile path = do
     fs <- (mkFeatures.lines) `fmap` readFile path
     return $ Map.fromList $ zip (map f_name fs) fs
 
+zipWithIds :: [a] -> IO [(Unique.Id, a)]
+zipWithIds = mapM (\a -> flip (,) a `fmap` Random.randomIO)
+
 open :: FilePath -> IO Database
 open path = do
     features <- featuresFromFile $ joinPath [path, "meap.db"]
@@ -92,7 +97,7 @@ open path = do
                 Find.always
                 (fmap (== ".feat_beats") Find.extension)
                 path
-    assocs <- zipWithM newSourceFile [0..] files
+    assocs <- zipWithIds files >>= mapM (uncurry newSourceFile)
     let sourceFiles = map fst assocs
         units       = concat $ map snd assocs
     return $ Database features sourceFiles units
@@ -106,8 +111,9 @@ open path = do
                         (fromIntegral $ SF.samplerate info)
                         (SF.frames info)
             assocs <- readUnits f
-            return (sf, map mkUnit (zip3 [0..] (repeat sf) assocs))
-        mkUnit (i, sf, ((o, d), vs)) = Unit.Unit i sf o d
+            specs <- zipWithIds (zip (repeat sf) assocs)
+            return (sf, map mkUnit specs)
+        mkUnit (i, (sf, ((o, d), vs))) = Unit.Unit i sf o d
 
 query :: Query -> Database -> [Unit]
 query (Query q) = filter q . units

@@ -42,7 +42,9 @@ library
                     MissingH >= 1.0,
                     mtl,
                     process,
+                    random,
                     stm == 2.1.*,
+                    uuid >= 1.0,
                     uvector == 0.1.*
     exposed-modules:
                     Mescaline
@@ -51,17 +53,17 @@ library
                     Mescaline.Data.Array.Vector
                     Mescaline.Data.ByteString
                     Mescaline.Data.ListReader
+                    Mescaline.Data.Unique
                     Mescaline.Database
                     Mescaline.Database.Create
                     Mescaline.Database.Feature
-                    Mescaline.Database.FeatureData
-                    Mescaline.Database.FeatureDescriptor
+                    -- Mescaline.Database.FeatureData
+                    -- Mescaline.Database.FeatureDescriptor
                     Mescaline.Database.Model
                     Mescaline.Database.Query
                     Mescaline.Database.SoundFile
                     Mescaline.Database.SourceFile
                     Mescaline.Database.SqlRow
-                    Mescaline.Database.Unique
                     Mescaline.Database.Unit
                     Mescaline.Meap.Chain
                     Mescaline.Meap.Extractor

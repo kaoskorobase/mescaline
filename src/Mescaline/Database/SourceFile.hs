@@ -1,9 +1,9 @@
 module Mescaline.Database.SourceFile where
 
-import Mescaline.Database.SqlRow    (SqlRow(..), fromSql)
-import Mescaline.Database.Unique    as Unique
-import Prelude hiding               (id)
-import Sound.File.Sndfile           (Count)
+import Mescaline.Data.Unique as Unique
+import Mescaline.Database.SqlRow (SqlRow(..), fromSql)
+import Prelude hiding (id)
+import Sound.File.Sndfile (Count)
 
 -- | Sourcefile.
 data SourceFile = SourceFile {
@@ -26,7 +26,7 @@ instance Ord (SourceFile) where
     a `compare` b = id a `compare` id b
 
 instance Unique (SourceFile) where
-    uid = id
+    uuid = id
 
 instance SqlRow (SourceFile) where
     -- toSqlRow x = map ($x) [ toSql.id,

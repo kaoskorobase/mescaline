@@ -2,15 +2,13 @@ module Mescaline.Database.Unit where
 
 import           Data.List (find)
 import           Database.HDBC (SqlValue, fromSql)
-
+import           Mescaline.Data.Unique as Unique
 import           Mescaline.Database.Feature (Feature)
 import qualified Mescaline.Database.Feature as Feature
 import           Mescaline.Data.Array.Vector
 import           Mescaline.Database.SourceFile (SourceFile)
 import qualified Mescaline.Database.SourceFile as SourceFile
 import           Mescaline.Database.SqlRow (SqlRow(..), fromSql, toSql)
-import           Mescaline.Database.Unique as Unique
-
 import           Prelude hiding(id)
 
 type Time  = Double
@@ -29,7 +27,7 @@ data FeatureTable = FeatureTable {
 } deriving (Show)
 
 instance Unique Unit where
-    uid = id
+    uuid = id
 
 instance Eq Unit where
     a == b = id a == id b
