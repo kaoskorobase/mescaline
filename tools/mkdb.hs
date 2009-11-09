@@ -4,16 +4,11 @@ import           Mescaline.Database.Model ()
 import           Mescaline.Meap.Chain (Options(..), defaultOptions, mapDirectory)
 import qualified Mescaline.Meap.Extractor as Extractor
 import           Mescaline.Meap.Feature (defaultFeatures)
-import           Mescaline.Meap.Import (insertFile)
+import           Mescaline.Meap.Import (importDirectory)
 import           System.Environment (getArgs)
 
-options = defaultOptions {
-            extractor = Extractor.defaultOptions {
-                Extractor.features = defaultFeatures
-            }
-        }
-
-doit np dir c = mapDirectory np (insertFile c) options dir
+-- doit np dir c = mapDirectory np (Import.insertFile c) Import.options dir
+doit = importDirectory
 
 main :: IO ()
 main = do

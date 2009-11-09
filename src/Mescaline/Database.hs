@@ -1,5 +1,6 @@
 module Mescaline.Database (
     withDatabase
+  , DB.Connection
 ) where
 
 import qualified Database.HDBC as DB

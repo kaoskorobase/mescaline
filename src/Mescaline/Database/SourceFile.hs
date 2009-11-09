@@ -11,9 +11,9 @@ import           Database.HDBC (SqlType(..))
 import           Mescaline.Data.ByteString as BS
 import           Mescaline.Data.Unique (Unique)
 import qualified Mescaline.Data.Unique as Unique
--- import           Mescaline.Database.SqlRow (SqlRow(..), fromSql)
+import qualified Mescaline.Database.SoundFile as SF
 import           Prelude hiding (id)
-import           Sound.File.Sndfile (Count)
+-- import           Sound.File.Sndfile (Count)
 
 type URL = String
 type Hash = Word160
@@ -26,7 +26,7 @@ data SourceFile = SourceFile {
 
     numChannels :: Int,
     sampleRate  :: Double,
-    frames      :: Count
+    frames      :: SF.Count
 } deriving (Show)
 
 $(nameDeriveAccessors ''SourceFile (return.(++"_")))
@@ -65,29 +65,27 @@ instance Ord (SourceFile) where
 instance Unique (SourceFile) where
     uuid = id
 
+-- | Placeholder for a zero hash.
 noHash :: Hash
 noHash = Word160 0 0 0 0 0
 
-unsafeCons :: Unique.Id -> URL -> Hash -> Int -> Double -> Count -> SourceFile
+-- | Construct a SourceFile.
+-- The id is expected to be valid.
+unsafeCons :: Unique.Id -> URL -> Hash -> Int -> Double -> SF.Count -> SourceFile
 unsafeCons = SourceFile
 
-cons :: URL -> Hash -> Int -> Double -> Count -> SourceFile
+-- | Construct a SourceFile.
+-- The id is generated from the SourceFile contents
+cons :: URL -> Hash -> Int -> Double -> SF.Count -> SourceFile
 cons u h nc sr nf = unsafeCons (Unique.fromBinary namespace p) u h nc sr nf
     where p = Binary.put u >> Binary.put h
 
--- instance SqlRow (SourceFile) where
-    -- toSqlRow x = map ($x) [ toSql.id,
-    --                         toSql.path,
-    --                         toSql.hash
-    --                         -- toSql.frames,
-    --                         -- toSql.sampleRate,
-    --                         -- toSql.numChannels
-    --                         ]
-
-    -- fromSqlRow [ _id,
-    --              _path,
-    --              _hash ] = SourceFile
-    --                         (fromSql _id)
-    --                         (fromSql _path)
-    --                         (fromSql _hash)
-    -- fromSqlRow _ = error "SqlRow (SourceFile) conversion failure"
+-- | Create a new SourceFile from a locally available sound file.
+newLocal :: FilePath -> IO SourceFile
+newLocal path = do
+    info <- SF.getInfo path
+    hash <- BS.sha1DigestFromFile path
+    return $ cons path hash
+                (SF.channels info)
+                (fromIntegral $ SF.samplerate info)
+                (SF.frames info)

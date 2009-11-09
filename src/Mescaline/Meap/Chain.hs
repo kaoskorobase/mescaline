@@ -5,22 +5,23 @@ module Mescaline.Meap.Chain (
   , mapDirectory
 ) where
 
-import qualified Data.ByteString                    as ByteString
-import           Data.Char                          (toUpper)
-import           Control.ThreadPool                 (threadPoolIO)
-import qualified Control.Concurrent.Chan            as Chan
+import qualified Data.ByteString as ByteString
+import           Data.Char (toUpper)
+import           Control.ThreadPool (threadPoolIO)
+import qualified Control.Concurrent.Chan as Chan
 
-import qualified Mescaline.Meap.Extractor           as Extractor
-import qualified Mescaline.Meap.Feature             as Feature
-import Mescaline.Meap.Process                       (withTempFile)
-import qualified Mescaline.Meap.Segmenter           as Segmenter
+import qualified Mescaline.Meap.Extractor as Extractor
+import qualified Mescaline.Meap.Feature as Feature
+import           Mescaline.Meap.Process (withTempFile)
+import qualified Mescaline.Meap.Segmenter as Segmenter
 
 import           Sound.Analysis.Meapsoft (MEAP)
 import qualified Sound.Analysis.Meapsoft as Meap
 
-import System.Exit                                  (ExitCode)
-import qualified System.FilePath.Find               as Find
-import System.IO                                    (hClose)
+import           System.Directory (doesFileExist)
+import           System.Exit (ExitCode)
+import qualified System.FilePath.Find as Find
+import           System.IO (hClose)
 
 -- Processing chain:
 -- run segmenter
@@ -37,12 +38,17 @@ import System.IO                                    (hClose)
 -- schwurbel features into database
 
 data Options = Options {
-    segmenter :: Segmenter.Options,
-    extractor :: Extractor.Options
+    segmenter :: Segmenter.Options
+  , extractor :: Extractor.Options
+  , useCache  :: Bool
 }
 
 defaultOptions :: Options
-defaultOptions = Options Segmenter.defaultOptions Extractor.defaultOptions
+defaultOptions = Options {
+    segmenter = Segmenter.defaultOptions
+  , extractor = Extractor.defaultOptions
+  , useCache  = True
+}
 
 runSegmenter :: Segmenter.Options -> FilePath -> FilePath -> IO ExitCode
 runSegmenter = Segmenter.run -- TODO: heuristics
@@ -54,6 +60,12 @@ eitherToIO :: Either String a -> IO a
 eitherToIO e = case e of
                 Left err -> fail err
                 Right x  -> return x
+
+segmenterExtension :: String
+segmenterExtension = ".seg_beats"
+
+extractorExtension :: String
+extractorExtension = ".feat_beats"
 
 run :: Options -> FilePath -> IO Meap.MEAP
 run opts audioFile =

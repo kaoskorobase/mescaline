@@ -13,7 +13,6 @@ import qualified Mescaline.Data.Unique as Unique
 import           Mescaline.Data.Array.Vector
 import           Mescaline.Database.SourceFile (SourceFile)
 import qualified Mescaline.Database.SourceFile as SourceFile
--- import           Mescaline.Database.SqlRow (SqlRow(..), fromSql, toSql)
 import           Prelude hiding(id)
 
 type Time  = Double
@@ -57,17 +56,3 @@ cons sf o d = unsafeCons (Unique.fromBinary namespace p) sf o d
 --
 --featureVector :: Feature -> Unit -> Vector Double
 --featureVector f u = sliceU (featureValues u) (Feature.column f) (Feature.degree f)
-
--- unitFromSqlRow :: SourceFile -> [SqlValue] -> Unit
--- unitFromSqlRow sourceFile
---             (  _id
---              : _
---              : _onset
---              : _duration
---              : [] ) =
---                  Unit
---                     (fromSql _id)
---                     sourceFile
---                     (fromSql _onset)
---                     (fromSql _duration)
--- unitFromSqlRow _ _ = error "SqlRow (SourceFile) conversion failure"

@@ -45,8 +45,11 @@ degree (Descriptor (_, _, d)) = d
 indices :: Descriptor -> [Int]
 indices d = [0..degree d - 1]
 
+cons :: Unit -> Descriptor -> Value -> Feature
+cons u d v = Feature (u, d, v)
+
 mkFeature :: Unit -> Descriptor -> Value -> Feature
-mkFeature u d v = Feature (u, d, v)
+mkFeature = cons
 
 unit :: Feature -> Unit
 unit (Feature (u, _, _)) = u
