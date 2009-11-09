@@ -29,8 +29,8 @@ library
                     directory,
                     FileManip == 0.3.*,
                     filepath,
-                    HDBC == 1.1.*,
-                    HDBC-sqlite3 == 1.1.*,
+                    HDBC >= 1.1 && < 2,
+                    HDBC-sqlite3 >= 1.1 && < 2,
                     hint == 0.3.*,
                     hmeap,
                     hosc == 0.8.*,
@@ -39,7 +39,7 @@ library
                     hsc3-process == 0.2.*,
                     hsndfile >= 0.2.0,
                     monad-loops,
-                    MissingH == 1.0.*,
+                    MissingH >= 1.0,
                     mtl,
                     process,
                     stm == 2.1.*,
@@ -75,7 +75,6 @@ library
                     Sound.SC3.Server
                     Sound.SC3.Server.Allocator
                     Sound.SC3.Server.BufferedTransport
-                    Sound.SC3.Server.Command.Completion
                     Sound.SC3.Server.Connection
                     Sound.SC3.Server.Monad
                     Sound.SC3.Server.State
