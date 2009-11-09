@@ -18,7 +18,7 @@ java = "java" -- get from config file
 getLibraryDirectory :: IO FilePath
 getLibraryDirectory = do
     home <- getHomeDirectory
-    return (joinPath [home, "lib", "meap"])
+    return (joinPath [home, "lib", "meap-2.0"])
 
 getClassPath :: IO [FilePath]
 getClassPath = do
@@ -32,7 +32,7 @@ runMeap mainClass args = do
                   "-cp",
                   intercalate ":" classPath,
                   mainClass ] ++ args
-    -- print args'
+    print args'
     runProcess java
         args'
         Nothing Nothing

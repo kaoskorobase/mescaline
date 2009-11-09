@@ -1,20 +1,39 @@
-{-# LANGUAGE ExistentialQuantification, FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE ExistentialQuantification, FlexibleInstances, TemplateHaskell #-}
 
 module Mescaline.Database.Feature where
 
+import           Data.Accessor.Template (nameDeriveAccessors)
+import           Data.Accessor (Accessor, (.>))
+import           Data.Accessor.Tuple
+import qualified Data.Binary as Binary
+import           Mescaline.Data.Array.Vector (Vector)
 import qualified Mescaline.Data.Unique as Unique
+import           Mescaline.Database.Unit (Unit)
+import qualified Mescaline.Database.Unit as Unit
 import           Prelude hiding (id)
 
-newtype Descriptor = Descriptor (Int, String, Int) deriving (Eq, Show) 
-newtype Feature    = Feature (Descriptor, Int) deriving (Eq, Show)
+newtype Descriptor = Descriptor { unDescriptor :: (Unique.Id, String, Int) } deriving (Eq, Show) 
+newtype Feature    = Feature    { unFeature :: (Unit, Descriptor, Value) } deriving (Eq, Show)
+type    Value      = Vector Double
+
+$(nameDeriveAccessors ''Descriptor (return.(++"_")))
+$(nameDeriveAccessors ''Feature (return.(++"_")))
+
+id_     = unDescriptor_ .> first3
+name_   = unDescriptor_ .> second3
+degree_ = unDescriptor_ .> third3
 
 namespace :: Unique.Namespace
 namespace = Unique.mkNamespace "be38ae7f-da19-4df8-99b7-e4ca78b28d92"
 
-mkDescriptor :: Int -> String -> Int -> Descriptor
+mkDescriptor :: Unique.Id -> String -> Int -> Descriptor
 mkDescriptor i n d = Descriptor (i, n, d)
 
-id :: Descriptor -> Int
+consDescriptor :: String -> Int -> Descriptor
+consDescriptor n d = mkDescriptor (Unique.fromBinary namespace p) n d
+    where p = Binary.put n >> Binary.put d
+
+id :: Descriptor -> Unique.Id
 id (Descriptor (i, _, _)) = i
 
 name :: Descriptor -> String
@@ -26,14 +45,23 @@ degree (Descriptor (_, _, d)) = d
 indices :: Descriptor -> [Int]
 indices d = [0..degree d - 1]
 
+mkFeature :: Unit -> Descriptor -> Value -> Feature
+mkFeature u d v = Feature (u, d, v)
+
+unit :: Feature -> Unit
+unit (Feature (u, _, _)) = u
+
 descriptor :: Feature -> Descriptor
-descriptor (Feature (d, _)) = d
+descriptor (Feature (_, d, _)) = d
 
-column :: Feature -> Int
-column (Feature (_, c)) = c
+value :: Feature -> Value
+value (Feature (_, _, v)) = v
 
-slice :: Feature -> (Int, Int)
-slice f = (column f, (degree.descriptor)f)
+-- column :: Feature -> Int
+-- column (Feature (_, c)) = c
+-- 
+-- slice :: Feature -> (Int, Int)
+-- slice f = (column f, (degree.descriptor)f)
 
 sqlTableName :: Descriptor -> String
 sqlTableName f = "feature_" ++ (map tr $ name f)

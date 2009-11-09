@@ -30,5 +30,5 @@ run opts infile outfile = runMeap "com.meapsoft.FeatExtractor" olist
             "-o", outfile,
             "-w", show (windowSize opts),
             "-h", show (hopSize opts)]
-            ++ map (("-f"++).show) (features opts)
+            ++ map ("-f"++) (features opts)
             ++ [infile]

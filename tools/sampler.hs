@@ -2,11 +2,11 @@
 
 import Language.Haskell.Interpreter (InterpreterError(..), GhcError(..))
 
-import qualified  Mescaline.Database as DB
-import Mescaline.Database.SourceFile as SourceFile
-import Mescaline.Synth.Concat
-import Mescaline.Synth.Pattern as P
-import Mescaline.Synth.Pattern.Load as P
+import qualified Mescaline.Database.FlatFile as DB
+import           Mescaline.Database.SourceFile as SourceFile
+import           Mescaline.Synth.Concat
+import           Mescaline.Synth.Pattern as P
+import           Mescaline.Synth.Pattern.Load as P
 
 import System.Environment (getArgs)
 import Control.Exception

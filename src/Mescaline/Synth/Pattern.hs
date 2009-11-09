@@ -8,7 +8,7 @@ import           Data.List (scanl1)
 import           Data.Typeable (Typeable)
 import           Debug.Trace (traceShow)
 import qualified Sound.SC3.Lang.Pattern as P
-import           Mescaline.Database (Database)
+import           Mescaline.Database.FlatFile (Database)
 import qualified Mescaline.Database.Unit as Unit
 
 import           Sound.OpenSoundControl

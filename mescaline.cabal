@@ -58,18 +58,19 @@ library
                     Mescaline.Database
                     Mescaline.Database.Create
                     Mescaline.Database.Feature
-                    -- Mescaline.Database.FeatureData
-                    -- Mescaline.Database.FeatureDescriptor
+                    Mescaline.Database.FlatFile
                     Mescaline.Database.Model
                     Mescaline.Database.Query
                     Mescaline.Database.SoundFile
                     Mescaline.Database.SourceFile
-                    Mescaline.Database.SqlRow
+                    Mescaline.Database.Sql
+                    Mescaline.Database.Table
                     Mescaline.Database.Unit
                     Mescaline.Meap.Chain
                     Mescaline.Meap.Extractor
                     Mescaline.Meap.Feature
                     Mescaline.Meap.File
+                    Mescaline.Meap.Import
                     Mescaline.Meap.Process
                     Mescaline.Meap.Segmenter
                     Mescaline.Synth.BufferCache
@@ -79,7 +80,7 @@ library
                     Sound.SC3.Server
                     Sound.SC3.Server.Allocator
                     Sound.SC3.Server.BufferedTransport
-                    Sound.SC3.Server.Command.Completion
+                    --Sound.SC3.Server.Command.Completion
                     Sound.SC3.Server.Connection
                     Sound.SC3.Server.Monad
                     Sound.SC3.Server.State
@@ -93,7 +94,7 @@ executable sampler
     ghc-options:    -threaded
     hs-source-dirs: src, tools
 
--- executable mkdb
---     main-is:        mkdb.hs
---     ghc-options:    -threaded
---     hs-source-dirs: src, tools
+executable mkdb
+    main-is:        mkdb.hs
+    ghc-options:    -threaded
+    hs-source-dirs: src, tools

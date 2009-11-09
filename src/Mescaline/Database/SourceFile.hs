@@ -1,13 +1,17 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Mescaline.Database.SourceFile where
 
+import           Data.Accessor.Template (nameDeriveAccessors)
 import           Data.Binary (Binary)
 import qualified Data.Binary as Binary
 import           Data.Digest.SHA1 (Word160(..))
+import           Data.Map as Map
 import           Database.HDBC (SqlType(..))
 import           Mescaline.Data.ByteString as BS
 import           Mescaline.Data.Unique (Unique)
 import qualified Mescaline.Data.Unique as Unique
-import           Mescaline.Database.SqlRow (SqlRow(..), fromSql)
+-- import           Mescaline.Database.SqlRow (SqlRow(..), fromSql)
 import           Prelude hiding (id)
 import           Sound.File.Sndfile (Count)
 
@@ -24,6 +28,8 @@ data SourceFile = SourceFile {
     sampleRate  :: Double,
     frames      :: Count
 } deriving (Show)
+
+$(nameDeriveAccessors ''SourceFile (return.(++"_")))
 
 instance Binary Word160 where
     put (Word160 w0 w1 w2 w3 w4) = do
@@ -67,9 +73,9 @@ unsafeCons = SourceFile
 
 cons :: URL -> Hash -> Int -> Double -> Count -> SourceFile
 cons u h nc sr nf = unsafeCons (Unique.fromBinary namespace p) u h nc sr nf
-    where p = Binary.put h
-        
-instance SqlRow (SourceFile) where
+    where p = Binary.put u >> Binary.put h
+
+-- instance SqlRow (SourceFile) where
     -- toSqlRow x = map ($x) [ toSql.id,
     --                         toSql.path,
     --                         toSql.hash

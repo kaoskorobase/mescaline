@@ -9,7 +9,8 @@ module Mescaline.Data.Unique (
   , unsafeFromString
   , toString
   , fromBinary
-  , mapFromList
+  , Map
+  , toMap
 ) where
 
 import           Data.Binary (Binary, Put)
@@ -17,8 +18,6 @@ import qualified Data.Binary as Binary
 import qualified Data.Binary.Put as Binary
 import           Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as ByteString
-
-import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.UUID (UUID, fromString, toString)
 import qualified Data.UUID as UUID
@@ -37,18 +36,6 @@ instance SqlType UUID where
                     Just u  -> u
     toSql = toSql . UUID.toString
 
--- class Binary a where
---     put :: a -> Binary.Put
--- 
--- instance Binary Int where
---     put = Binary.put
--- 
--- instance Binary Double where
---     put = Binary.put
--- 
--- instance Binary String where
---     put = Binary.put
-
 unsafeFromString :: String -> Id
 unsafeFromString s = maybe e id (fromString s)
     where e = error ("Couldn't convert String to UUID: " ++ s)
@@ -56,11 +43,10 @@ unsafeFromString s = maybe e id (fromString s)
 mkNamespace :: String -> Namespace
 mkNamespace = unsafeFromString
 
-toMap :: Unique a => [a] -> Map Id a
-toMap xs = Map.fromList (zip (map uuid xs) xs)
-
-mapFromList :: Unique a => [a] -> Map Id a
-mapFromList = toMap
-
 fromBinary :: Namespace -> Put -> Id
 fromBinary ns = generateNamed ns . ByteString.unpack . Binary.runPut
+
+type Map a = Map.Map Id a
+
+toMap :: Unique a => [a] -> Map a
+toMap xs = Map.fromList (zip (map uuid xs) xs)
