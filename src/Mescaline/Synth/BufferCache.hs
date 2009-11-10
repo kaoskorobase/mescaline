@@ -17,8 +17,9 @@ import           Sound.OpenSoundControl (OSC, Transport)
 
 import           Sound.SC3 hiding (free, uid)
 import           Sound.SC3.Server.Command.Completion
-import           Sound.SC3.Server.Connection (Connection)
-import qualified Sound.SC3.Server.Connection  as C
+-- import           Sound.SC3.Server.Connection (Connection)
+-- import qualified Sound.SC3.Server.Connection  as C
+import           Sound.SC3.Server.Monad as S
 import qualified Sound.SC3.Server.State as State
 
 data Buffer = Buffer {
@@ -45,8 +46,8 @@ insertTVar tv b = readTVar tv >>= writeTVar tv . Set.insert b
 deleteTVar :: TVar BufferSet -> Buffer -> STM ()
 deleteTVar tv b = readTVar tv >>= writeTVar tv . Set.delete b
 
-newEmpty :: IO BufferCache
-newEmpty = atomically $ do
+newEmpty :: Server BufferCache
+newEmpty = liftSTM $ do
     fb <- newTVar Set.empty
     ub <- newTVar Set.empty
     return (BufferCache fb ub)
@@ -60,51 +61,51 @@ allocFrames = Alloc
 allocBytes :: Int -> Int -> Alloc
 allocBytes nc = Alloc nc . bytesToFrames nc
 
-newWith :: Transport t => Connection t -> [Alloc] -> IO BufferCache
-newWith conn as = do
+newWith :: [Alloc] -> Server BufferCache
+newWith as = do
     cache <- newEmpty
     mapM (\a -> do
-            bid <- atomically $ (State.alloc (State.bufferId (C.state conn)) :: STM State.BufferId)
+            bid <- S.alloc bufferId
             let buf = Buffer bid (alloc_numChannels a) (alloc_numFrames a)
-            atomically $ insertTVar (freeBuffers cache) buf
-            C.sync conn (b_alloc (fromIntegral bid) (numFrames buf) (numChannels buf)))
+            liftSTM $ insertTVar (freeBuffers cache) buf
+            S.sync (b_alloc (fromIntegral bid) (numFrames buf) (numChannels buf)))
         as
     return cache
 
-free :: Transport t => Connection t -> BufferCache -> IO ()
-free conn cache = do
-    b1 <- atomically $ readTVar $ usedBuffers cache
-    b2 <- atomically $ readTVar $ freeBuffers cache
+free :: BufferCache -> Server ()
+free cache = do
+    b1 <- liftSTM $ readTVar $ usedBuffers cache
+    b2 <- liftSTM $ readTVar $ freeBuffers cache
     mapM_
-        (\b -> C.sync conn (b_free (fromIntegral $ uid b)))
+        (\b -> S.sync (b_free (fromIntegral $ uid b)))
         (Set.elems b1 ++ Set.elems b2)
 
 matchBuffer :: Alloc -> Buffer -> Bool
 matchBuffer (Alloc nc nf) b = nc == numChannels b && nf == numFrames b
 
-allocBuffer :: Transport t => Connection t -> BufferCache -> Alloc -> (Buffer -> Maybe OSC) -> IO Buffer
-allocBuffer conn cache alloc completion = do
-    fb <- Set.filter (matchBuffer alloc) `fmap` (atomically $ readTVar $ freeBuffers cache)
+allocBuffer :: BufferCache -> Alloc -> (Buffer -> Maybe OSC) -> Server Buffer
+allocBuffer cache alloc completion = do
+    fb <- Set.filter (matchBuffer alloc) `fmap` (liftSTM $ readTVar $ freeBuffers cache)
     if Set.null fb
         then do
             -- Allocate buffer id
-            bid <- atomically $ (State.alloc (State.bufferId $ C.state conn) :: STM State.BufferId)
+            bid <- S.alloc bufferId
             let buf   = Buffer bid (alloc_numChannels alloc) (alloc_numFrames alloc)
                 msg   = maybe b_alloc (($) b_alloc') (completion buf)
             -- Allocate buffer
-            C.sync conn (msg (fromIntegral bid) (numFrames buf) (numChannels buf))
+            S.sync (msg (fromIntegral bid) (numFrames buf) (numChannels buf))
             -- Insert into used
-            atomically $ insertTVar (usedBuffers cache) buf
+            liftSTM $ insertTVar (usedBuffers cache) buf
             return buf
         else do
             let buf = Set.findMin fb
-            atomically $ do
+            liftSTM $ do
                 deleteTVar (freeBuffers cache) buf
                 insertTVar (usedBuffers cache) buf
-            maybe (return ()) (C.send conn) (completion buf)
+            maybe (return ()) S.send (completion buf)
             return buf
         
-freeBuffer :: Transport t => Connection t -> BufferCache -> Buffer -> IO ()
-freeBuffer _ cache buf = atomically $ do
+freeBuffer :: BufferCache -> Buffer -> Server ()
+freeBuffer cache buf = liftSTM $ do
     deleteTVar (usedBuffers cache) buf
     insertTVar (freeBuffers cache) buf

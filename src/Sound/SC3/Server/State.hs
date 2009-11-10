@@ -8,7 +8,6 @@ module Sound.SC3.Server.State where
 
 import           Control.Concurrent.STM             (STM, TVar, newTVar, readTVar, writeTVar)
 
-import           Sound.SC3                          (Rate(..))
 import           Sound.SC3.Server.Allocator         (IdAllocator, SimpleAllocator)
 import qualified Sound.SC3.Server.Allocator         as Alloc
 import           Sound.SC3.Server.Process.Options   (ServerOptions, numberOfInputBusChannels, numberOfOutputBusChannels)
@@ -39,22 +38,22 @@ rootNode :: State -> NodeId
 rootNode = const (NodeId 0)
 
 newState :: ServerOptions -> STM State
-newState opts = do
-        syncId       <- newTVar (Alloc.newSimpleAllocator 0)
-        nodeId       <- newTVar (Alloc.newSimpleAllocator 1000) -- FIXME
-        bufferId     <- newTVar (Alloc.newSimpleAllocator 0)
-        controlBusId <- newTVar (Alloc.newSimpleAllocator 0)
-        audioBusId   <- newTVar (Alloc.newSimpleAllocator (BusId numHardwareChannels))
+newState os = do
+        sid <- newTVar (Alloc.newSimpleAllocator 0)
+        nid <- newTVar (Alloc.newSimpleAllocator 1000) -- FIXME
+        bid <- newTVar (Alloc.newSimpleAllocator 0)
+        cid <- newTVar (Alloc.newSimpleAllocator 0)
+        aid <- newTVar (Alloc.newSimpleAllocator (BusId numHardwareChannels))
         return $ State {
-            options      = opts
-          , syncId       = syncId
-          , nodeId       = nodeId
-          , bufferId     = bufferId
-          , controlBusId = controlBusId
-          , audioBusId   = audioBusId
+            options      = os
+          , syncId       = sid
+          , nodeId       = nid
+          , bufferId     = bid
+          , controlBusId = cid
+          , audioBusId   = aid
         }
-    where numHardwareChannels = numberOfInputBusChannels opts
-                              + numberOfOutputBusChannels opts
+    where numHardwareChannels = numberOfInputBusChannels os
+                              + numberOfOutputBusChannels os
 
 swap :: (a, b) -> (b, a)
 swap (a, b) = (b, a)

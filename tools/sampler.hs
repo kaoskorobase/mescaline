@@ -16,7 +16,7 @@ import Sound.OpenSoundControl.Transport.UDP (UDP)
 import System.FilePath
 import Prelude hiding (catch)
 
-main' :: FilePath -> FilePath -> Sampler UDP -> IO ()
+main' :: FilePath -> FilePath -> Sampler -> IO ()
 main' dbDir patternFile sampler = do
     db <- DB.open dbDir
     mapM_ putStrLn (map SourceFile.path $ DB.sourceFiles db)

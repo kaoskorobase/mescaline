@@ -1,3 +1,4 @@
+{-# LANGUAGE ExistentialQuantification #-}
 module Sound.SC3.Server.BufferedTransport (
     BufferedTransport
   , new
@@ -8,21 +9,18 @@ module Sound.SC3.Server.BufferedTransport (
 ) where
 
 import Control.Concurrent
-import Control.Concurrent.STM
-import Control.Monad (join)
 import Control.Monad.Loops (iterateUntil)
-import Data.Unique
 import Sound.OpenSoundControl (OSC(..), Transport(..))
 
-data BufferedTransport t = BufferedTransport t (Chan OSC)
+data BufferedTransport = forall t . Transport t => BufferedTransport t (Chan OSC)
 
-instance Transport t => Transport (BufferedTransport t) where
+instance Transport BufferedTransport where
    -- send  (BufferedTransport _ _ c) = atomically . writeTChan c
    send  (BufferedTransport t _) = send t
    recv  (BufferedTransport _ c) = readChan c
    close (BufferedTransport t _) = close t
 
-new :: Transport t => t -> IO (BufferedTransport t)
+new :: Transport t => t -> IO BufferedTransport
 new t = do
     c <- newChan
     forkIO $ recvLoop c
@@ -32,20 +30,20 @@ new t = do
         recvLoop c = recv t >>= writeChan c >> recvLoop c
 
 -- | Duplicate the transport so that subsequent reads don't affect the original transport.
-dup :: BufferedTransport t -> IO (BufferedTransport t)
+dup :: BufferedTransport -> IO BufferedTransport
 dup (BufferedTransport t c) = BufferedTransport t `fmap` dupChan c
 
 -- | Fork a thread with a duplicate transport.
-fork :: BufferedTransport t -> (BufferedTransport t -> IO ()) -> IO ThreadId
+fork :: BufferedTransport -> (BufferedTransport -> IO ()) -> IO ThreadId
 fork t f = dup t >>= forkIO . f
 
 -- | Wait for an OSC message where the supplied function does not give
 --   Nothing, discarding intervening messages.
-waitFor :: Transport t => BufferedTransport t -> (OSC -> Bool) -> IO OSC
+waitFor :: BufferedTransport -> (OSC -> Bool) -> IO OSC
 waitFor t@(BufferedTransport _ c) = flip iterateUntil (readChan c)
 
 -- | Wait for an OSC message matching a specific address.
-wait :: Transport t => BufferedTransport t -> String -> IO OSC
+wait :: BufferedTransport -> String -> IO OSC
 wait t s = waitFor t (has_address s)
     where
         has_address x (Message y _) = x == y

@@ -8,8 +8,9 @@ import           Mescaline.Synth.BufferCache (Buffer, BufferCache)
 import qualified Mescaline.Synth.BufferCache as BC
 import qualified Mescaline.Synth.Pattern as P
 
-import Sound.SC3 hiding (free, gate, sync, uid)
+import           Sound.SC3 hiding (free, gate, sync, uid)
 import qualified Sound.SC3.Server.State as State
+import           Sound.SC3.Server.Monad as S
 import qualified Sound.SC3.Server.Process as Process
 
 import qualified Data.Set as Set
@@ -25,12 +26,12 @@ import           Sound.SC3.Lang.Collection
 import           Sound.SC3.Lang.Pattern
 import           Sound.SC3.Server.Command.Completion
 import           Sound.SC3.Server.Connection (Connection)
-import qualified Sound.SC3.Server.Connection  as C
+import qualified Sound.SC3.Server.Connection as Conn
 import qualified Sound.File.Sndfile as SF
 
 import qualified Sound.Analysis.Meapsoft as Meap
 
-data Voice = Voice State.NodeId Buffer
+data Voice = Voice NodeId Buffer
 
 buffer :: Voice -> Buffer
 buffer (Voice _ b) = b
@@ -98,19 +99,19 @@ bundle  = Bundle . UTCr
 bundle' :: [OSC] -> OSC
 bundle' = Bundle (NTPi 1)
 
-allocVoice :: Transport t => Connection t -> BufferCache -> Unit.Unit -> (Voice -> Maybe OSC) -> IO Voice
-allocVoice conn cache unit completion = do
-    nid <- atomically (State.alloc (State.nodeId $ C.state conn))
-    buf <- BC.allocBuffer conn cache
+allocVoice :: BufferCache -> Unit.Unit -> (Voice -> Maybe OSC) -> Server Voice
+allocVoice cache unit completion = do
+    nid <- alloc nodeId
+    buf <- BC.allocBuffer cache
                           (BC.allocBytes (SourceFile.numChannels $ Unit.sourceFile unit)
                                          diskBufferSize)
                           (\buf -> completion (Voice nid buf))
     return $ Voice nid buf
 
-freeVoice :: Transport t => Connection t -> BufferCache -> Voice -> IO ()
-freeVoice conn cache (Voice _ buf) = do
-    C.sync conn $ b_close (fromIntegral $ BC.uid buf)
-    BC.freeBuffer conn cache buf
+freeVoice :: BufferCache -> Voice -> Server ()
+freeVoice cache (Voice _ buf) = do
+    S.sync $ b_close (fromIntegral $ BC.uid buf)
+    BC.freeBuffer cache buf
 
 startVoice :: Voice -> Unit.Unit -> P.SynthParams -> Double -> OSC
 startVoice (Voice nid buf) unit params time =
@@ -133,9 +134,9 @@ stopVoice (Voice nid _) params time =
                 [n_set1 (fromIntegral nid) "gate" (params ^. P.gateLevel)]
         else bundle' []
 
-playUnit :: Transport t => Connection t -> BufferCache -> Unit.Unit -> P.SynthParams -> Double -> IO ()
-playUnit conn cache unit params t = do
-    voice@(Voice nid buf) <- allocVoice conn cache unit (\voice ->
+playUnit :: BufferCache -> Unit.Unit -> P.SynthParams -> Double -> Server ()
+playUnit cache unit params t = do
+    voice@(Voice nid buf) <- allocVoice cache unit (\voice ->
             Just $ b_read'
                     (startVoice voice unit params t)
                     (fromIntegral $ BC.uid $ buffer voice)
@@ -143,15 +144,15 @@ playUnit conn cache unit params t = do
                     (truncate $ SourceFile.sampleRate sourceFile * Unit.onset unit)
                     (-1) 0 1)
     -- tu <- utcr
-    C.unsafeSync conn -- Why is this necessary?!
+    S.unsafeSync -- Why is this necessary?!
     -- C.send conn (startVoice voice t)
     -- print (t-tu, t+dur-tu)
-    pauseThreadUntil (t + dur)
-    C.send conn $ stopVoice voice params (t + dur)
-    C.waitFor conn $ nodeEnded $ fromIntegral nid
+    liftIO $ pauseThreadUntil (t + dur)
+    S.send $ stopVoice voice params (t + dur)
+    S.waitFor $ nodeEnded $ fromIntegral nid
     -- tu' <- utcr
     -- putStrLn ("node end: " ++ show (tu' - tu))
-    freeVoice conn cache voice
+    freeVoice cache voice
     return ()
     where
         dur = Unit.duration unit
@@ -169,37 +170,36 @@ p1 l = reverse $ take 8 $ drop (length l `div` 3) l
 p2 l = (take 4 l') ++ (reverse $ take 4 $ drop 4 l')
     where l' = drop (length l `div` 3 * 2) l
 
-data Sampler t = Sampler (Connection t) BufferCache
+data Sampler = Sampler Connection BufferCache
 
-initSampler :: Transport t => Connection t -> IO BufferCache
-initSampler conn = do
-    C.send conn $ bundle' [notify True]
+initSampler :: Server BufferCache
+initSampler = do
+    S.send $ bundle' [notify True]
                             -- , dumpOSC TextPrinter]
-    C.sync conn $ bundle' [d_recv (synthdef (voiceDefName 1) (voiceDef 1)),
+    S.sync $ bundle' [d_recv (synthdef (voiceDefName 1) (voiceDef 1)),
                            d_recv (synthdef (voiceDefName 2) (voiceDef 2))]
-    BC.newWith conn (replicate 4 (BC.allocBytes 1 diskBufferSize) ++ replicate 4 (BC.allocBytes 1 diskBufferSize))
+    BC.newWith (replicate 4 (BC.allocBytes 1 diskBufferSize) ++ replicate 4 (BC.allocBytes 1 diskBufferSize))
 
-newSampler :: IO (Sampler UDP)
+newSampler :: IO Sampler
 newSampler = do
     s <- atomically (State.newState Process.defaultServerOptions)
     t <- Process.openTransport opts "127.0.0.1" :: IO UDP
-    conn <- C.new s t
-    cache <- initSampler conn
+    conn <- Conn.new s t
+    cache <- runServer initSampler conn
     return (Sampler conn cache)
     where
         opts = Process.defaultRTOptionsUDP
     
-freeSampler :: Transport t => Sampler t -> IO ()
-freeSampler (Sampler conn cache) = do
-    C.send conn (g_freeAll [0])
-    BC.free conn cache
+freeSampler :: Sampler -> IO ()
+freeSampler (Sampler conn cache) = flip runServer conn $ do
+    S.send (g_freeAll [0])
+    BC.free cache
 
 -- Disk based sampler
-playPatternDisk :: Sampler UDP -> P.Pattern -> IO ()
+playPatternDisk :: Sampler -> P.Pattern -> IO ()
 playPatternDisk (Sampler conn cache) = P.execute f
     where
-        opts = Process.defaultRTOptionsUDP
-        f e t = C.fork conn (\conn' -> playUnit conn' cache (e ^. P.unit) (e ^. P.synth) t) >> return ()
+        f e t = runServer (fork (playUnit cache (e ^. P.unit) (e ^. P.synth) t) >> return ()) conn
 
 -- Memory based sampler
 -- fixSegDur segs = (zipWith (\(Segment o _) d -> Segment o d) segs (zipWith (\(Segment o1 _) (Segment o2 _) -> o2 - o1) segs (tail segs)))

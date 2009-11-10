@@ -47,7 +47,7 @@ interpretFile path = do
       , ("Data.List", Nothing)
       , ("Sound.SC3.Lang.Pattern", Nothing)
       , ("Mescaline.Synth.Pattern", Nothing)
-      , ("Mescaline.Database", Nothing)
+      , ("Mescaline.Database.FlatFile", Nothing)
       , ("Mescaline.Database.Query", Nothing)
       , ("Mescaline.Database.SourceFile", Just "SourceFile")
       , ("Mescaline.Database.Unit", Just "Unit")

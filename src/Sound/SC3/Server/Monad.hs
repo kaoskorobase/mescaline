@@ -1,37 +1,72 @@
-{-# LANGUAGE
-    ExistentialQuantification
-  , RankNTypes
-  , GeneralizedNewtypeDeriving
-  , TemplateHaskell #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+module Sound.SC3.Server.Monad (
+  -- *Server Monad
+    Server
+  , runServer
+  , lift
+  , liftIO
+  , liftSTM
+  , rootNode
+  -- *Allocators
+  , BufferId
+  , BusId
+  , NodeId
+  , nodeId
+  , bufferId
+  , busId
+  , alloc
+  , allocMany
+  , allocConsecutive
+  -- *Synchronization
+  , fork
+  , send
+  , waitFor
+  , wait
+  , sync
+  , unsafeSync
+) where
 
-module Sound.SC3.Server.Monad where
+import           Control.Concurrent (ThreadId)
+import           Control.Concurrent.STM (STM, atomically)
+import           Control.Monad (join)
+import           Control.Monad.Reader (MonadReader, ReaderT(..), ask, asks, lift)
+import           Control.Monad.Trans (MonadIO, liftIO)
 
-import           Control.Concurrent.STM             (STM, TVar, atomically, newTVarIO, readTVar, writeTVar)
-import           Control.Monad.Reader               (MonadReader, MonadTrans, ReaderT(..), asks, lift)
+import           Sound.SC3 (Rate(..))
+import           Sound.SC3.Server.Allocator (IdAllocator)
+import           Sound.SC3.Server.Connection (Connection)
+import qualified Sound.SC3.Server.Connection as Conn
+-- import           Sound.SC3.Server.Process.Options (ServerOptions, numberOfInputBusChannels, numberOfOutputBusChannels)
+import           Sound.SC3.Server.State (BufferId, BufferIdAllocator, BusId, BusIdAllocator, NodeId, NodeIdAllocator, State)
+import qualified Sound.SC3.Server.State as State
 
-import           Sound.SC3                          (Rate(..))
-import           Sound.SC3.Server.Allocator         (IdAllocator, SimpleAllocator)
-import qualified Sound.SC3.Server.Allocator         as Alloc
-import           Sound.SC3.Server.Process.Options   (ServerOptions, numberOfInputBusChannels, numberOfOutputBusChannels)
-import           Sound.SC3.Server.State             (BufferIdAllocator, BusIdAllocator, NodeId, NodeIdAllocator, State)
-import qualified Sound.SC3.Server.State             as State
+import           Sound.OpenSoundControl (OSC)
 
-newtype Server a = Server (ReaderT State STM a)
-    deriving (Functor, Monad, MonadReader State)
+newtype Server a = Server (ReaderT Connection IO a)
+    deriving (Functor, Monad, MonadReader Connection, MonadIO)
 
-type Allocator a = State -> TVar a
+type Allocator a = State -> State.Allocator a
 
-runServer :: Server a -> State -> STM a
-runServer (Server r) = runReaderT r
-
-runServerIO :: Server a -> State -> IO a
-runServerIO m = atomically . runServer m
-
-rootNode :: Server NodeId
-rootNode = asks State.rootNode
 
 liftSTM :: STM a -> Server a
-liftSTM = Server . lift
+liftSTM = liftIO . atomically
+
+liftConnIO :: (Connection -> IO a) -> Server a
+liftConnIO f = ask >>= liftIO . f
+
+liftState :: (State -> a) -> Server a
+liftState f = asks Conn.state >>= return . f
+
+liftStateSTM :: (State -> STM a) -> Server a
+liftStateSTM = join . fmap liftSTM . liftState
+
+
+runServer :: Server a -> Connection -> IO a
+runServer (Server r) = runReaderT r
+
+rootNode :: Server NodeId
+rootNode = liftState State.rootNode
+
 
 nodeId :: Allocator NodeIdAllocator
 nodeId = State.nodeId
@@ -44,26 +79,31 @@ busId AR = State.audioBusId
 busId KR = State.controlBusId
 busId r  = error ("No bus allocator for rate " ++ show r)
 
-modifyTVar :: TVar a -> (a -> STM (a, b)) -> STM b
-modifyTVar var f = do
-    (a', b) <- readTVar var >>= f
-    writeTVar var a'
-    return b
-
-swap :: (a, b) -> (b, a)
-swap (a, b) = (b, a)
 
 alloc :: IdAllocator i a => Allocator a -> Server i
-alloc allocator = do
-    mvar <- asks allocator
-    liftSTM $ modifyTVar mvar (fmap swap . Alloc.alloc)
+alloc a = liftStateSTM (State.alloc . a)
 
 allocMany :: IdAllocator i a => Allocator a -> Int -> Server [i]
-allocMany allocator n = do
-    mvar <- asks allocator
-    liftSTM $ modifyTVar mvar (fmap swap . Alloc.allocMany n)
+allocMany a n = liftStateSTM (flip State.allocMany n . a)
 
 allocConsecutive :: IdAllocator i a => Allocator a -> Int -> Server [i]
-allocConsecutive allocator n = do
-    mvar <- asks allocator
-    liftSTM $ modifyTVar mvar (fmap swap . Alloc.allocConsecutive n)
+allocConsecutive a n = liftStateSTM (flip State.allocConsecutive n . a)
+
+fork :: Server () -> Server ThreadId
+fork = liftConnIO . flip Conn.fork . runServer
+
+send :: OSC -> Server ()
+send = liftConnIO . flip Conn.send
+
+waitFor :: (OSC -> Bool) -> Server OSC
+waitFor = liftConnIO . flip Conn.waitFor
+
+-- | Wait for an OSC message matching a specific address.
+wait :: String -> Server OSC
+wait = liftConnIO . flip Conn.wait
+
+sync :: OSC -> Server ()
+sync = liftConnIO . flip Conn.sync
+
+unsafeSync :: Server ()
+unsafeSync = liftConnIO Conn.unsafeSync
