@@ -80,7 +80,6 @@ library
                     Sound.SC3.Server
                     Sound.SC3.Server.Allocator
                     Sound.SC3.Server.BufferedTransport
-                    --Sound.SC3.Server.Command.Completion
                     Sound.SC3.Server.Connection
                     Sound.SC3.Server.Monad
                     Sound.SC3.Server.State

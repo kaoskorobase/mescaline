@@ -1,7 +1,8 @@
 module Mescaline.Synth.BufferCache (
     Buffer(..)
   , BufferCache
-  , bufferSize
+  , allocFrames
+  , allocBytes
   , newEmpty
   , newWith
   , free
@@ -21,17 +22,22 @@ import qualified Sound.SC3.Server.Connection  as C
 import qualified Sound.SC3.Server.State as State
 
 data Buffer = Buffer {
-    uid         :: State.BufferId,
-    numChannels :: Int
+    uid         :: State.BufferId
+  , numChannels :: Int
+  , numFrames   :: Int
 } deriving (Eq, Ord, Show)
 
 type BufferSet = Set.Set Buffer
 
 data BufferCache = BufferCache {
-    bufferSize  :: Int,
-    freeBuffers :: TVar BufferSet,
-    usedBuffers :: TVar BufferSet
+    freeBuffers :: TVar BufferSet
+  , usedBuffers :: TVar BufferSet
 }
+
+data Alloc = Alloc {
+    alloc_numChannels :: Int
+  , alloc_numFrames   :: Int
+} deriving (Eq, Show)
 
 insertTVar :: TVar BufferSet -> Buffer -> STM ()
 insertTVar tv b = readTVar tv >>= writeTVar tv . Set.insert b
@@ -39,28 +45,30 @@ insertTVar tv b = readTVar tv >>= writeTVar tv . Set.insert b
 deleteTVar :: TVar BufferSet -> Buffer -> STM ()
 deleteTVar tv b = readTVar tv >>= writeTVar tv . Set.delete b
 
-newEmpty :: Int -> IO BufferCache
-newEmpty bs = atomically $ do
+newEmpty :: IO BufferCache
+newEmpty = atomically $ do
     fb <- newTVar Set.empty
     ub <- newTVar Set.empty
-    return (BufferCache bs fb ub)
+    return (BufferCache fb ub)
 
 bytesToFrames :: Int -> Int -> Int
-bytesToFrames b nc = b `div` 4 `div` nc
+bytesToFrames nc b = b `div` 4 `div` nc
 
-bufferFrameSize :: BufferCache -> Int -> Int
-bufferFrameSize b = bytesToFrames (bufferSize b)
+allocFrames :: Int -> Int -> Alloc
+allocFrames = Alloc
 
-newWith :: Transport t => Connection t -> Int -> [Int] -> IO BufferCache
-newWith conn nb ncs = do
-    cache <- newEmpty nb
-    mapM (\nc -> do
+allocBytes :: Int -> Int -> Alloc
+allocBytes nc = Alloc nc . bytesToFrames nc
+
+newWith :: Transport t => Connection t -> [Alloc] -> IO BufferCache
+newWith conn as = do
+    cache <- newEmpty
+    mapM (\a -> do
             bid <- atomically $ (State.alloc (State.bufferId (C.state conn)) :: STM State.BufferId)
-            let numFrames = bytesToFrames nb nc
-                buf       = Buffer bid nc
+            let buf = Buffer bid (alloc_numChannels a) (alloc_numFrames a)
             atomically $ insertTVar (freeBuffers cache) buf
-            C.sync conn (b_alloc (fromIntegral bid) numFrames nc))
-        ncs
+            C.sync conn (b_alloc (fromIntegral bid) (numFrames buf) (numChannels buf)))
+        as
     return cache
 
 free :: Transport t => Connection t -> BufferCache -> IO ()
@@ -71,17 +79,20 @@ free conn cache = do
         (\b -> C.sync conn (b_free (fromIntegral $ uid b)))
         (Set.elems b1 ++ Set.elems b2)
 
-allocBuffer :: Transport t => Connection t -> BufferCache -> Int -> (Buffer -> Maybe OSC) -> IO Buffer
-allocBuffer conn cache nc completion = do
-    fb <- Set.filter ((==) nc . numChannels) `fmap` (atomically $ readTVar $ freeBuffers cache)
+matchBuffer :: Alloc -> Buffer -> Bool
+matchBuffer (Alloc nc nf) b = nc == numChannels b && nf == numFrames b
+
+allocBuffer :: Transport t => Connection t -> BufferCache -> Alloc -> (Buffer -> Maybe OSC) -> IO Buffer
+allocBuffer conn cache alloc completion = do
+    fb <- Set.filter (matchBuffer alloc) `fmap` (atomically $ readTVar $ freeBuffers cache)
     if Set.null fb
         then do
             -- Allocate buffer id
             bid <- atomically $ (State.alloc (State.bufferId $ C.state conn) :: STM State.BufferId)
-            let buf   = Buffer bid nc 
-                alloc = maybe b_alloc (($) b_alloc') (completion buf)
+            let buf   = Buffer bid (alloc_numChannels alloc) (alloc_numFrames alloc)
+                msg   = maybe b_alloc (($) b_alloc') (completion buf)
             -- Allocate buffer
-            C.sync conn (alloc (fromIntegral bid) (bufferFrameSize cache nc) nc)
+            C.sync conn (msg (fromIntegral bid) (numFrames buf) (numChannels buf))
             -- Insert into used
             atomically $ insertTVar (usedBuffers cache) buf
             return buf

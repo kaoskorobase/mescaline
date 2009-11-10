@@ -101,7 +101,10 @@ bundle' = Bundle (NTPi 1)
 allocVoice :: Transport t => Connection t -> BufferCache -> Unit.Unit -> (Voice -> Maybe OSC) -> IO Voice
 allocVoice conn cache unit completion = do
     nid <- atomically (State.alloc (State.nodeId $ C.state conn))
-    buf <- BC.allocBuffer conn cache (SourceFile.numChannels $ Unit.sourceFile unit) (\buf -> completion (Voice nid buf))
+    buf <- BC.allocBuffer conn cache
+                          (BC.allocBytes (SourceFile.numChannels $ Unit.sourceFile unit)
+                                         diskBufferSize)
+                          (\buf -> completion (Voice nid buf))
     return $ Voice nid buf
 
 freeVoice :: Transport t => Connection t -> BufferCache -> Voice -> IO ()
@@ -174,7 +177,7 @@ initSampler conn = do
                             -- , dumpOSC TextPrinter]
     C.sync conn $ bundle' [d_recv (synthdef (voiceDefName 1) (voiceDef 1)),
                            d_recv (synthdef (voiceDefName 2) (voiceDef 2))]
-    BC.newWith conn diskBufferSize (replicate 4 1 ++ replicate 4 2)
+    BC.newWith conn (replicate 4 (BC.allocBytes 1 diskBufferSize) ++ replicate 4 (BC.allocBytes 1 diskBufferSize))
 
 newSampler :: IO (Sampler UDP)
 newSampler = do
