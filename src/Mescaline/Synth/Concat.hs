@@ -8,10 +8,21 @@ import           Mescaline.Synth.BufferCache (Buffer, BufferCache)
 import qualified Mescaline.Synth.BufferCache as BC
 import qualified Mescaline.Synth.Pattern as P
 
+import qualified Sound.Analysis.Meapsoft as Meap
+import qualified Sound.File.Sndfile as SF
+
 import           Sound.SC3 hiding (free, gate, sync, uid)
-import qualified Sound.SC3.Server.State as State
+
+import           Sound.SC3.Lang.Collection
+import           Sound.SC3.Lang.Pattern
+
+import           Sound.SC3.Server.Command.Completion
+import           Sound.SC3.Server.Connection (Connection)
+import qualified Sound.SC3.Server.Connection as Conn
+import qualified Sound.SC3.Server.Iteratee as I
 import           Sound.SC3.Server.Monad as S
 import qualified Sound.SC3.Server.Process as Process
+import qualified Sound.SC3.Server.State as State
 
 import qualified Data.Set as Set
 
@@ -21,15 +32,6 @@ import Control.Monad            (join)
 
 import Sound.OpenSoundControl
 import Sound.OpenSoundControl.Transport
-
-import           Sound.SC3.Lang.Collection
-import           Sound.SC3.Lang.Pattern
-import           Sound.SC3.Server.Command.Completion
-import           Sound.SC3.Server.Connection (Connection)
-import qualified Sound.SC3.Server.Connection as Conn
-import qualified Sound.File.Sndfile as SF
-
-import qualified Sound.Analysis.Meapsoft as Meap
 
 data Voice = Voice NodeId Buffer
 
@@ -148,8 +150,9 @@ playUnit cache unit params t = do
     -- C.send conn (startVoice voice t)
     -- print (t-tu, t+dur-tu)
     liftIO $ pauseThreadUntil (t + dur)
-    S.send $ stopVoice voice params (t + dur)
-    S.waitFor $ nodeEnded $ fromIntegral nid
+    S.communicate $ do
+        S.send $ stopVoice voice params (t + dur)
+        return $ I.waitFor (nodeEnded (fromIntegral nid))
     -- tu' <- utcr
     -- putStrLn ("node end: " ++ show (tu' - tu))
     freeVoice cache voice

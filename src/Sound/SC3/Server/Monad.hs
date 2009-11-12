@@ -20,8 +20,7 @@ module Sound.SC3.Server.Monad (
   -- *Synchronization
   , fork
   , send
-  , waitFor
-  , wait
+  , communicate
   , sync
   , unsafeSync
 ) where
@@ -34,7 +33,7 @@ import           Control.Monad.Trans (MonadIO, liftIO)
 
 import           Sound.SC3 (Rate(..))
 import           Sound.SC3.Server.Allocator (IdAllocator)
-import           Sound.SC3.Server.Connection (Connection)
+import           Sound.SC3.Server.Connection (Connection, Consumer)
 import qualified Sound.SC3.Server.Connection as Conn
 -- import           Sound.SC3.Server.Process.Options (ServerOptions, numberOfInputBusChannels, numberOfOutputBusChannels)
 import           Sound.SC3.Server.State (BufferId, BufferIdAllocator, BusId, BusIdAllocator, NodeId, NodeIdAllocator, State)
@@ -95,12 +94,10 @@ fork = liftConnIO . flip Conn.fork . runServer
 send :: OSC -> Server ()
 send = liftConnIO . flip Conn.send
 
-waitFor :: (OSC -> Bool) -> Server OSC
-waitFor = liftConnIO . flip Conn.waitFor
-
--- | Wait for an OSC message matching a specific address.
-wait :: String -> Server OSC
-wait = liftConnIO . flip Conn.wait
+communicate :: Server (Consumer a) -> Server a
+communicate a = do
+    c <- ask
+    liftIO $ Conn.communicate c (runServer a c)
 
 sync :: OSC -> Server ()
 sync = liftConnIO . flip Conn.sync

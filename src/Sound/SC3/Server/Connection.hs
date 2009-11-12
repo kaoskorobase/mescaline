@@ -2,57 +2,71 @@
 module Sound.SC3.Server.Connection (
     Connection
   , state
-  , transport
   , new
-  , dup
+  , close
   , fork
   , send
-  , waitFor, wait, sync, unsafeSync
+  , Consumer
+  , communicate
+  , sync
+  , unsafeSync
 ) where
 
-import           Control.Concurrent (ThreadId, forkIO)
+import           Control.Concurrent (ThreadId, forkIO, killThread)
 import           Control.Concurrent.STM
+
+import           Foreign (void)
+
 import           Sound.OpenSoundControl (Datum(..), OSC(..), Transport)
 import qualified Sound.OpenSoundControl as OSC
 import           Sound.OpenSoundControl.Time (Time(..))
 
+import           Sound.SC3.Server.Broadcast (Broadcast)
+import qualified Sound.SC3.Server.Broadcast as B
+import           Sound.SC3.Server.Iteratee as It
 import           Sound.SC3.Server.State (State)
 import qualified Sound.SC3.Server.State as State
-import           Sound.SC3.Server.BufferedTransport (BufferedTransport)
-import qualified Sound.SC3.Server.BufferedTransport as T
 
-data Connection = Connection {
-    state     :: State,
-    transport :: BufferedTransport
-}
+data Connection = forall t . Transport t => Connection State t (Broadcast OSC) ThreadId
+
+type Consumer a = B.Consumer OSC a
+
+state :: Connection -> State
+state (Connection s _ _ _) = s
+
+broadcast :: Connection -> Broadcast OSC
+broadcast (Connection _ _ d _) = d
 
 new :: Transport t => State -> t -> IO Connection
-new s t = Connection s `fmap` T.new t
-    
-dup :: Connection -> IO Connection
-dup (Connection s t) = Connection s `fmap` T.dup t
+new s t = do
+    d <- B.new
+    r <- forkIO $ recvLoop d
+    return $ Connection s t d r
+    where
+        recvLoop d = OSC.recv t >>= return . flatten >>= B.broadcastList d >> recvLoop d
+        flatten m@(Message _ _) = [m]
+        flatten b@(Bundle _ xs) = concatMap flatten xs
+        
+close :: Connection -> IO ()
+close (Connection _ t d r) = do
+    killThread r
+    B.close d
+    OSC.close t
 
 fork :: Connection -> (Connection -> IO ()) -> IO ThreadId
-fork c f = dup c >>= forkIO . f
+fork c f = forkIO (f c)
 
 send :: Connection -> OSC -> IO ()
-send conn = OSC.send (transport conn)
+send (Connection _ t _ _) = OSC.send t
 
--- | Wait for an OSC message where the supplied function does not give
---   Nothing, discarding intervening messages.
-waitFor :: Connection -> (OSC -> Bool) -> IO OSC
-waitFor = T.waitFor . transport
-
--- | Wait for an OSC message matching a specific address.
-wait :: Connection -> String -> IO OSC
-wait = T.wait . transport
+communicate :: Connection -> IO (Consumer a) -> IO a
+communicate conn = B.consume (broadcast conn)
 
 syncWith :: Connection -> (OSC -> OSC) -> IO ()
-syncWith conn f = do
-    i  <- (atomically . State.alloc . State.syncId . state) conn
-    send conn $ f $ Message "/sync" [Int i]
-    waitFor conn (synced i)
-    return ()
+syncWith conn f = void $ communicate conn $ do
+    i <- (atomically . State.alloc . State.syncId . state) conn
+    send conn (f (Message "/sync" [Int i]))
+    return $ waitFor (synced i)
     where
         synced i (Message "/synced" [Int j]) = j == i
         synced _ _                           = False

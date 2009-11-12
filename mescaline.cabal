@@ -39,6 +39,7 @@ library
                     hsc3-lang == 0.8.*,
                     hsc3-process == 0.2.*,
                     hsndfile >= 0.2.0,
+                    iteratee,
                     monad-loops,
                     MissingH >= 1.0,
                     mtl,
@@ -79,8 +80,13 @@ library
                     Mescaline.Synth.Pattern.Load
                     Sound.SC3.Server
                     Sound.SC3.Server.Allocator
+                    Sound.SC3.Server.Broadcast
                     Sound.SC3.Server.BufferedTransport
                     Sound.SC3.Server.Connection
+                    Sound.SC3.Server.Iteratee
+                    Sound.SC3.Server.Iteratee.Base
+                    Sound.SC3.Server.Iteratee.Chan
+                    Sound.SC3.Server.Iteratee.OSC
                     Sound.SC3.Server.Monad
                     Sound.SC3.Server.State
 
