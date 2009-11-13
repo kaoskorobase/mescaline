@@ -1,13 +1,32 @@
 -- | Server notification processors.
 module Sound.SC3.Server.Notification (
-    tr
+    Status(..)
+  , status_reply
+  , tr
   , synced
+  , done
   , NodeNotification(..)
   , n_go , n_end , n_off , n_on , n_move , n_info
 ) where
 
 import Sound.SC3.Server.State (NodeId)
 import Sound.OpenSoundControl (OSC(..), Datum(..))
+
+data Status = Status {
+    numUGens          :: Int
+  , numSynths         :: Int
+  , numGroups         :: Int
+  , numSynthDefs      :: Int
+  , avgCPU            :: Double
+  , peakCPU           :: Double
+  , nominalSampleRate :: Double
+  , actualSampleRate  :: Double
+} deriving (Eq, Show)
+
+status_reply :: OSC -> Maybe Status
+status_reply (Message "status.reply" [Int _, Int u, Int s, Int g, Int d, Float a, Float p, Float sr, Float sr']) =
+    Just $ Status u s g d a p sr sr'
+status_reply _ = Nothing
 
 tr :: NodeId -> Maybe Int -> OSC -> Maybe Double
 tr n (Just i) (Message "/tr" [Int n', Int i', Float r]) | fromIntegral n == n' && i == i' = Just r
@@ -17,6 +36,10 @@ tr _ _        _                                         = Nothing
 synced :: Int -> OSC -> Maybe Int
 synced i (Message "/synced" [Int j]) | j == i = Just i
 synced _ _                                    = Nothing
+
+done :: OSC -> Maybe [Datum]
+done (Message "/done" xs@(String _:_)) = Just xs
+done _                                 = Nothing
 
 data NodeNotification =
     SynthNotification NodeId NodeId NodeId NodeId
