@@ -24,6 +24,7 @@ import           Sound.OpenSoundControl.Time (Time(..))
 import           Sound.SC3.Server.Broadcast (Broadcast)
 import qualified Sound.SC3.Server.Broadcast as B
 import           Sound.SC3.Server.Iteratee as It
+import           Sound.SC3.Server.Notification (synced)
 import           Sound.SC3.Server.State (State)
 import qualified Sound.SC3.Server.State as State
 
@@ -67,9 +68,6 @@ syncWith conn f = void $ communicate conn $ do
     i <- (atomically . State.alloc . State.syncId . state) conn
     send conn (f (Message "/sync" [Int i]))
     return $ waitFor (synced i)
-    where
-        synced i (Message "/synced" [Int j]) = j == i
-        synced _ _                           = False
 
 appendOSC :: OSC -> OSC -> OSC
 appendOSC m1@(Message _ _) m2@(Message _ _)  = Bundle (NTPi 1) [m1, m2]

@@ -88,6 +88,7 @@ library
                     Sound.SC3.Server.Iteratee.Chan
                     Sound.SC3.Server.Iteratee.OSC
                     Sound.SC3.Server.Monad
+                    Sound.SC3.Server.Notification
                     Sound.SC3.Server.State
 
 -- executable mescaline

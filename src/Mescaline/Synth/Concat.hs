@@ -21,6 +21,7 @@ import           Sound.SC3.Server.Connection (Connection)
 import qualified Sound.SC3.Server.Connection as Conn
 import qualified Sound.SC3.Server.Iteratee as I
 import           Sound.SC3.Server.Monad as S
+import           Sound.SC3.Server.Notification (n_end)
 import qualified Sound.SC3.Server.Process as Process
 import qualified Sound.SC3.Server.State as State
 
@@ -152,7 +153,7 @@ playUnit cache unit params t = do
     liftIO $ pauseThreadUntil (t + dur)
     S.communicate $ do
         S.send $ stopVoice voice params (t + dur)
-        return $ I.waitFor (nodeEnded (fromIntegral nid))
+        return $ I.waitFor $ n_end nid
     -- tu' <- utcr
     -- putStrLn ("node end: " ++ show (tu' - tu))
     freeVoice cache voice
@@ -160,19 +161,7 @@ playUnit cache unit params t = do
     where
         dur = Unit.duration unit
         sourceFile = Unit.sourceFile unit
-        nodeEnded i (Message "/n_end" [Int j, _, _, _, _]) = j == i
-        nodeEnded _ _                                      = False
         
-
-eitherToIO :: Either String a -> IO a
-eitherToIO e = case e of
-                    Left l -> error l
-                    Right r -> return r
-
-p1 l = reverse $ take 8 $ drop (length l `div` 3) l
-p2 l = (take 4 l') ++ (reverse $ take 4 $ drop 4 l')
-    where l' = drop (length l `div` 3 * 2) l
-
 data Sampler = Sampler Connection BufferCache
 
 initSampler :: Server BufferCache
