@@ -174,7 +174,7 @@ initSampler = do
 
 newSampler :: IO Sampler
 newSampler = do
-    s <- atomically (State.newState Process.defaultServerOptions)
+    s <- State.newState Process.defaultServerOptions
     t <- Process.openTransport opts "127.0.0.1" :: IO UDP
     conn <- Conn.new s t
     cache <- runServer initSampler conn

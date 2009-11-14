@@ -46,7 +46,6 @@ newtype Server a = Server (ReaderT Connection IO a)
 
 type Allocator a = State -> State.Allocator a
 
-
 liftSTM :: STM a -> Server a
 liftSTM = liftIO . atomically
 
@@ -56,9 +55,8 @@ liftConnIO f = ask >>= liftIO . f
 liftState :: (State -> a) -> Server a
 liftState f = asks Conn.state >>= return . f
 
-liftStateSTM :: (State -> STM a) -> Server a
-liftStateSTM = join . fmap liftSTM . liftState
-
+liftStateIO :: (State -> IO a) -> Server a
+liftStateIO = join . fmap liftIO . liftState
 
 runServer :: Server a -> Connection -> IO a
 runServer (Server r) = runReaderT r
@@ -80,13 +78,13 @@ busId r  = error ("No bus allocator for rate " ++ show r)
 
 
 alloc :: IdAllocator i a => Allocator a -> Server i
-alloc a = liftStateSTM (State.alloc . a)
+alloc a = liftStateIO (State.alloc . a)
 
 allocMany :: IdAllocator i a => Allocator a -> Int -> Server [i]
-allocMany a n = liftStateSTM (flip State.allocMany n . a)
+allocMany a n = liftStateIO (flip State.allocMany n . a)
 
 allocConsecutive :: IdAllocator i a => Allocator a -> Int -> Server [i]
-allocConsecutive a n = liftStateSTM (flip State.allocConsecutive n . a)
+allocConsecutive a n = liftStateIO (flip State.allocConsecutive n . a)
 
 fork :: Server () -> Server ThreadId
 fork = liftConnIO . flip Conn.fork . runServer

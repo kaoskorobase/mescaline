@@ -4,9 +4,30 @@
   , GeneralizedNewtypeDeriving
   , TemplateHaskell #-}
 
-module Sound.SC3.Server.State where
+module Sound.SC3.Server.State (
+    State
+  , options
+  , Allocator
+  , NodeId
+  , BusId
+  , BufferId
+  , IntIdAllocator
+  , NodeIdAllocator
+  , BufferIdAllocator
+  , BusIdAllocator
+  , syncId
+  , nodeId
+  , bufferId
+  , controlBusId
+  , audioBusId
+  , rootNode
+  , newState
+  , alloc
+  , allocMany
+  , allocConsecutive
+) where
 
-import           Control.Concurrent.STM             (STM, TVar, newTVar, readTVar, writeTVar)
+import           Control.Concurrent.STM             (STM, TVar, atomically, newTVar, readTVar, writeTVar)
 
 import           Sound.SC3.Server.Allocator         (IdAllocator, SimpleAllocator)
 import qualified Sound.SC3.Server.Allocator         as Alloc
@@ -37,8 +58,8 @@ data State = State {
 rootNode :: State -> NodeId
 rootNode = const (NodeId 0)
 
-newState :: ServerOptions -> STM State
-newState os = do
+newStateSTM :: ServerOptions -> STM State
+newStateSTM os = do
         sid <- newTVar (Alloc.newSimpleAllocator 0)
         nid <- newTVar (Alloc.newSimpleAllocator 1000) -- FIXME
         bid <- newTVar (Alloc.newSimpleAllocator 0)
@@ -55,6 +76,9 @@ newState os = do
     where numHardwareChannels = numberOfInputBusChannels os
                               + numberOfOutputBusChannels os
 
+newState :: ServerOptions -> IO State
+newState = atomically . newStateSTM
+
 swap :: (a, b) -> (b, a)
 swap (a, b) = (b, a)
 
@@ -64,11 +88,11 @@ modifyTVar var f = do
     writeTVar var a'
     return b
 
-alloc :: IdAllocator i a => Allocator a -> STM i
-alloc allocator = modifyTVar allocator (fmap swap . Alloc.alloc)
+alloc :: IdAllocator i a => Allocator a -> IO i
+alloc allocator = atomically $ modifyTVar allocator (fmap swap . Alloc.alloc)
 
-allocMany :: IdAllocator i a => Allocator a -> Int -> STM [i]
-allocMany allocator n = modifyTVar allocator (fmap swap . Alloc.allocMany n)
+allocMany :: IdAllocator i a => Allocator a -> Int -> IO [i]
+allocMany allocator n = atomically $ modifyTVar allocator (fmap swap . Alloc.allocMany n)
 
-allocConsecutive :: IdAllocator i a => Allocator a -> Int -> STM [i]
-allocConsecutive allocator n = modifyTVar allocator (fmap swap . Alloc.allocConsecutive n)
+allocConsecutive :: IdAllocator i a => Allocator a -> Int -> IO [i]
+allocConsecutive allocator n = atomically $ modifyTVar allocator (fmap swap . Alloc.allocConsecutive n)

@@ -13,7 +13,6 @@ module Sound.SC3.Server.Connection (
 ) where
 
 import           Control.Concurrent (ThreadId, forkIO, killThread)
-import           Control.Concurrent.STM
 
 import           Foreign (void)
 
@@ -65,7 +64,7 @@ communicate conn = B.consume (broadcast conn)
 
 syncWith :: Connection -> (OSC -> OSC) -> IO ()
 syncWith conn f = void $ communicate conn $ do
-    i <- (atomically . State.alloc . State.syncId . state) conn
+    i <- (State.alloc . State.syncId . state) conn
     send conn (f (Message "/sync" [Int i]))
     return $ waitFor (synced i)
 
