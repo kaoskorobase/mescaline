@@ -20,10 +20,11 @@ import           Sound.OpenSoundControl (Datum(..), OSC(..), Transport)
 import qualified Sound.OpenSoundControl as OSC
 import           Sound.OpenSoundControl.Time (Time(..))
 
+import           Sound.SC3 (notify)
 import           Sound.SC3.Server.Broadcast (Broadcast)
 import qualified Sound.SC3.Server.Broadcast as B
 import           Sound.SC3.Server.Iteratee as It
-import           Sound.SC3.Server.Notification (synced)
+import           Sound.SC3.Server.Notification (done, synced)
 import           Sound.SC3.Server.State (State)
 import qualified Sound.SC3.Server.State as State
 
@@ -41,12 +42,23 @@ new :: Transport t => State -> t -> IO Connection
 new s t = do
     d <- B.new
     r <- forkIO $ recvLoop d
-    return $ Connection s t d r
+    let c = Connection s t d r
+    initServer c
+    return c
     where
         recvLoop d = OSC.recv t >>= return . flatten >>= B.broadcastList d >> recvLoop d
         flatten m@(Message _ _) = [m]
         flatten b@(Bundle _ xs) = concatMap flatten xs
-        
+
+initServer :: Connection -> IO ()
+initServer c = do
+    communicate c $ do
+        -- Turn on notification
+        -- TODO: Make this configurable?
+        send c (notify True)
+        return (waitFor (done "notify"))
+    return ()
+
 close :: Connection -> IO ()
 close (Connection _ t d r) = do
     killThread r
