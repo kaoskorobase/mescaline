@@ -37,9 +37,13 @@ synced :: Int -> OSC -> Maybe Int
 synced i (Message "/synced" [Int j]) | j == i = Just i
 synced _ _                                    = Nothing
 
-done :: OSC -> Maybe [Datum]
-done (Message "/done" xs@(String _:_)) = Just xs
-done _                                 = Nothing
+normalize :: String -> String
+normalize ('/':s) = s
+normalize s       = s
+
+done :: String -> OSC -> Maybe [Datum]
+done c (Message "/done" (String s:xs)) | normalize c == normalize s = Just xs
+done _ _                                                            = Nothing
 
 data NodeNotification =
     SynthNotification NodeId NodeId NodeId NodeId
