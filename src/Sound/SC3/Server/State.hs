@@ -81,11 +81,11 @@ rootNode = const (NodeId 0)
 
 new :: ServerOptions -> IO State
 new os = do
-        sid <- newAllocator $ IntAllocator      (SAlloc.cons 0                           :: SimpleAllocator Int     )
-        nid <- newAllocator $ NodeIdAllocator   (SAlloc.cons 1000                        :: SimpleAllocator NodeId  )
-        bid <- newAllocator $ BufferIdAllocator (SAlloc.cons 0                           :: SimpleAllocator BufferId)
-        cid <- newAllocator $ BusIdAllocator    (SAlloc.cons 0                           :: SimpleAllocator BusId   )
-        aid <- newAllocator $ BusIdAllocator    (SAlloc.cons (BusId numHardwareChannels) :: SimpleAllocator BusId   )
+        sid <- newAllocator $ IntAllocator      (SAlloc.cons $ Alloc.range 0                           maxBound :: SimpleAllocator Int     )
+        nid <- newAllocator $ NodeIdAllocator   (SAlloc.cons $ Alloc.range 1000                        maxBound :: SimpleAllocator NodeId  )
+        bid <- newAllocator $ BufferIdAllocator (SAlloc.cons $ Alloc.range 0                           maxBound :: SimpleAllocator BufferId)
+        cid <- newAllocator $ BusIdAllocator    (SAlloc.cons $ Alloc.range 0                           maxBound :: SimpleAllocator BusId   )
+        aid <- newAllocator $ BusIdAllocator    (SAlloc.cons $ Alloc.range (BusId numHardwareChannels) maxBound :: SimpleAllocator BusId   )
         return $ State {
             options      = os
           , syncId       = sid
