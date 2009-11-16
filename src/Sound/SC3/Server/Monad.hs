@@ -16,7 +16,7 @@ module Sound.SC3.Server.Monad (
   , busId
   , alloc
   , allocMany
-  , allocConsecutive
+  , allocRange
   -- *Synchronization
   , fork
   , send
@@ -32,7 +32,7 @@ import           Control.Monad.Reader (MonadReader, ReaderT(..), ask, asks, lift
 import           Control.Monad.Trans (MonadIO, liftIO)
 
 import           Sound.SC3 (Rate(..))
-import           Sound.SC3.Server.Allocator (IdAllocator)
+import           Sound.SC3.Server.Allocator (IdAllocator, RangeAllocator, Range)
 import           Sound.SC3.Server.Connection (Connection, Consumer)
 import qualified Sound.SC3.Server.Connection as Conn
 -- import           Sound.SC3.Server.Process.Options (ServerOptions, numberOfInputBusChannels, numberOfOutputBusChannels)
@@ -83,8 +83,8 @@ alloc a = liftStateIO (State.alloc . a)
 allocMany :: IdAllocator i a => Allocator a -> Int -> Server [i]
 allocMany a n = liftStateIO (flip State.allocMany n . a)
 
-allocConsecutive :: IdAllocator i a => Allocator a -> Int -> Server [i]
-allocConsecutive a n = liftStateIO (flip State.allocConsecutive n . a)
+allocRange :: RangeAllocator i a => Allocator a -> Int -> Server (Range i)
+allocRange a n = liftStateIO (flip State.allocRange n . a)
 
 fork :: Server () -> Server ThreadId
 fork = liftConnIO . flip Conn.fork . runServer

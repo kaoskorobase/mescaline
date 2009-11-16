@@ -14,7 +14,10 @@ cabal-version:      >= 1.6
 
 library
     hs-source-dirs: src
-    extensions:     GeneralizedNewtypeDeriving
+    extensions:     ExistentialQuantification
+                    FlexibleInstances
+                    GeneralizedNewtypeDeriving
+                    MultiParamTypeClasses
     ghc-options:    -Wall
 
     build-depends:  base >= 4,
@@ -80,6 +83,8 @@ library
                     Mescaline.Synth.Pattern.Load
                     Sound.SC3.Server
                     Sound.SC3.Server.Allocator
+                    Sound.SC3.Server.Allocator.Range
+                    Sound.SC3.Server.Allocator.SimpleAllocator
                     Sound.SC3.Server.Broadcast
                     Sound.SC3.Server.BufferedTransport
                     Sound.SC3.Server.Connection
@@ -99,8 +104,16 @@ executable sampler
     main-is:        sampler.hs
     ghc-options:    -threaded
     hs-source-dirs: src, tools
+    extensions:     ExistentialQuantification
+                    FlexibleInstances
+                    GeneralizedNewtypeDeriving
+                    MultiParamTypeClasses
 
 executable mkdb
     main-is:        mkdb.hs
     ghc-options:    -threaded
     hs-source-dirs: src, tools
+    extensions:     ExistentialQuantification
+                    FlexibleInstances
+                    GeneralizedNewtypeDeriving
+                    MultiParamTypeClasses
