@@ -81,6 +81,7 @@ library
                     Mescaline.Synth.Concat
                     Mescaline.Synth.Pattern
                     Mescaline.Synth.Pattern.Load
+                    Sound.OpenSoundControl.Connection
                     Sound.SC3.Server
                     Sound.SC3.Server.Allocator
                     Sound.SC3.Server.Allocator.Range
