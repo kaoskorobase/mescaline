@@ -1,5 +1,5 @@
 {-# LANGUAGE ExistentialQuantification #-}
-module Sound.SC3.Server.Iteratee.Chan where
+module Data.Iteratee.Chan where
 
 import Control.Concurrent.Chan
 import Data.Iteratee

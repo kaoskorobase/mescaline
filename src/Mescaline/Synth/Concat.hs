@@ -1,6 +1,7 @@
 module Mescaline.Synth.Concat where
 
 import           Data.Accessor ((^.))
+import qualified Data.Iteratee.OSC as I
 import           Mescaline
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Database.SourceFile as SourceFile
@@ -19,7 +20,6 @@ import           Sound.SC3.Lang.Pattern
 import           Sound.SC3.Server.Command.Completion
 import           Sound.SC3.Server.Connection (Connection)
 import qualified Sound.SC3.Server.Connection as Conn
-import qualified Sound.SC3.Server.Iteratee as I
 import           Sound.SC3.Server.Monad as S
 import           Sound.SC3.Server.Notification (n_end)
 import qualified Sound.SC3.Server.Process as Process

@@ -14,8 +14,8 @@ import           Control.Concurrent (ThreadId, forkIO, killThread)
 import           Sound.OpenSoundControl (OSC(..), Transport)
 import qualified Sound.OpenSoundControl as OSC
 
-import           Sound.SC3.Server.Broadcast (Broadcast)
-import qualified Sound.SC3.Server.Broadcast as B
+import           Control.Concurrent.Broadcast (Broadcast)
+import qualified Control.Concurrent.Broadcast as B
 
 data Connection = forall t . Transport t => Connection t (Broadcast OSC) ThreadId
 

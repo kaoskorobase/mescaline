@@ -13,6 +13,7 @@ module Sound.SC3.Server.Connection (
 ) where
 
 import           Control.Concurrent (ThreadId)
+import           Data.Iteratee.OSC as It
 
 import           Foreign (void)
 
@@ -23,7 +24,6 @@ import qualified Sound.OpenSoundControl.Connection as C
 import           Sound.OpenSoundControl.Time (Time(..))
 
 import           Sound.SC3 (notify)
-import           Sound.SC3.Server.Iteratee as It
 import           Sound.SC3.Server.Notification (done, synced)
 import           Sound.SC3.Server.State (State)
 import qualified Sound.SC3.Server.State as State

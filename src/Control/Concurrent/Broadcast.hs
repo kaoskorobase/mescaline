@@ -17,7 +17,7 @@
 --  
 -- An enumerator is provided for enumerating a Control.Concurrent.Chan, as
 -- well as some iteratees specific to OSC message processing.
-module Sound.SC3.Server.Broadcast (
+module Control.Concurrent.Broadcast (
     Broadcast
   , Consumer
   , new
@@ -29,7 +29,7 @@ module Sound.SC3.Server.Broadcast (
 
 import Control.Concurrent.Chan
 import Data.Iteratee (IterateeG, run)
-import Sound.SC3.Server.Iteratee (ChanMsg(..), enumChan)
+import Data.Iteratee.Chan (ChanMsg(..), enumChan)
 
 -- Internal data type used for message queue elements.
 
