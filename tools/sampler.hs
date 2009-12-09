@@ -2,11 +2,17 @@
 
 import Language.Haskell.Interpreter (InterpreterError(..), GhcError(..))
 
+import           Control.Concurrent
+import           Control.Concurrent.Chan
 import qualified Mescaline.Database.FlatFile as DB
 import           Mescaline.Database.SourceFile as SourceFile
 import           Mescaline.Synth.Concat
 import           Mescaline.Synth.Pattern as P
 import           Mescaline.Synth.Pattern.Load as P
+
+import qualified Mescaline.Sampler.GUI as GUI
+import qualified Mescaline.Sampler.Keyboard as GUI
+import qualified Mescaline.Sampler.Looper as Looper
 
 import System.Environment (getArgs)
 import Control.Exception
@@ -16,21 +22,39 @@ import Sound.OpenSoundControl.Transport.UDP (UDP)
 import System.FilePath
 import Prelude hiding (catch)
 
-main' :: FilePath -> FilePath -> Sampler -> IO ()
-main' dbDir patternFile sampler = do
-    db <- DB.open dbDir
-    mapM_ putStrLn (map SourceFile.path $ DB.sourceFiles db)
+patternFromFile :: DB.Database -> FilePath -> IO (Either String P.Pattern)
+patternFromFile db patternFile = do
     ps <- P.loadFile patternFile
     case ps of
         Left err ->
 			case err of
-				WontCompile es -> putStrLn $ unlines $ map errMsg es
-				e              -> print e
-        Right (P.PCons pfunc) -> do
-            let pattern = pfunc db
-            playPattern sampler pattern
+				WontCompile es -> return $ Left $ unlines $ map errMsg es
+				e              -> return $ Left $ show e
+        Right (P.PCons pfunc) -> return (Right $ pfunc db)
+
+handlePattern :: Chan P.Pattern -> Either String P.Pattern -> IO ()
+handlePattern _ (Left s)  = putStrLn s
+handlePattern c (Right p) = writeChan c p
+
+-- playSampler' :: DB.Database -> FilePath -> Sampler -> IO ()
+-- playSampler' db patternFile sampler = do
+--     ps <- P.loadFile patternFile
+--     case ps of
+--         Left err ->
+--          case err of
+--              WontCompile es -> putStrLn $ unlines $ map errMsg es
+--              e              -> print e
+--         Right (P.PCons pfunc) -> do
+--             let pattern = pfunc db
+--             playPattern sampler pattern
+
+playSampler :: Chan P.Pattern -> IO ()
+playSampler = bracket newSampler freeSampler . flip playPattern
 
 main :: IO ()
 main = do
-    [dbDir, patternFile] <- getArgs
-    bracket newSampler freeSampler (main' dbDir patternFile)
+    [dbDir] <- getArgs
+    db <- DB.open dbDir
+    c <- newChan
+    forkIO $ playSampler c
+    GUI.main (\p -> patternFromFile db p >>= handlePattern c)

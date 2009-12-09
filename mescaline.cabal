@@ -20,27 +20,29 @@ library
                     MultiParamTypeClasses
     ghc-options:    -Wall
 
-    build-depends:  base >= 4,
+    build-depends:  base >= 4 && < 5,
                     binary,
                     bytestring,
-                    bytestring-lexing == 0.2.*,
-                    Cabal == 1.6.*,
+                    bytestring-lexing >= 0.2,
+                    Cabal >= 1.6,
                     containers,
-                    Control-Engine == 0.0.*,
+                    Control-Engine,
                     Crypto >= 4.2,
-                    data-accessor == 0.2.*,
-                    data-accessor-template == 0.2.*,
+                    data-accessor >= 0.2,
+                    data-accessor-template >= 0.2,
                     directory,
-                    FileManip == 0.3.*,
+                    FileManip >= 0.3,
                     filepath,
+                    GLUT,
                     HDBC >= 1.1 && < 2,
                     HDBC-sqlite3 >= 1.1 && < 2,
-                    hint == 0.3.*,
+                    hint >= 0.3,
                     hmeap,
+                    hmidi,
                     hosc == 0.8.*,
                     hsc3 == 0.8.*,
                     hsc3-lang == 0.8.*,
-                    hsc3-process == 0.2.*,
+                    hsc3-process >= 0.2,
                     hsndfile >= 0.2.0,
                     iteratee,
                     monad-loops,
@@ -48,9 +50,9 @@ library
                     mtl,
                     process,
                     random,
-                    stm == 2.1.*,
+                    stm,
                     uuid >= 1.0,
-                    uvector == 0.1.*
+                    uvector
     exposed-modules:
                     Control.Concurrent.Broadcast
                     Data.Iteratee.Chan
@@ -102,12 +104,30 @@ library
 
 executable sampler
     main-is:        sampler.hs
-    ghc-options:    -threaded
-    hs-source-dirs: src, tools
+    other-modules:  Mescaline.Sampler.GUI
+                  , Mescaline.Sampler.Keyboard
+                  , Mescaline.Sampler.Looper
+    hs-source-dirs: src, tools, tools/sampler
     extensions:     ExistentialQuantification
                     FlexibleInstances
                     GeneralizedNewtypeDeriving
                     MultiParamTypeClasses
+    build-depends:  gtk
+    ghc-options:    -threaded
+
+executable looper
+    main-is:        looper.hs
+    other-modules:  Mescaline.Sampler.GUI
+                  , Mescaline.Sampler.Keyboard
+                  , Mescaline.Sampler.Looper
+                  , Mescaline.Sampler.MIDI
+    hs-source-dirs: src, tools, tools/sampler
+    extensions:     ExistentialQuantification
+                    FlexibleInstances
+                    GeneralizedNewtypeDeriving
+                    MultiParamTypeClasses
+    build-depends:  gtk
+    ghc-options:    -threaded
 
 executable mkdb
     main-is:        mkdb.hs

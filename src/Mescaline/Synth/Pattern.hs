@@ -2,6 +2,7 @@
 
 module Mescaline.Synth.Pattern where
 
+import           Control.Concurrent.Chan
 import           Data.Accessor
 import           Data.Accessor.Template
 import           Data.List (scanl1)
@@ -79,18 +80,24 @@ ptrace :: Show a => P.P a -> P.P a
 ptrace = fmap f
     where f a = traceShow a a
 
-execute :: (Event -> Double -> IO ()) -> Pattern -> IO ()
-execute f p = do
+execute :: (Event -> Double -> IO ()) -> Chan Pattern -> IO ()
+execute f c = do
     t0 <- utcr
-    let es = P.evalP p
-        ts = (scanl (+) t0 . map (getVal delta)) es
-    sequence_ (zipWith3 perform es ts (tail ts))
-    -- loop es t0
+    -- let es = P.evalP p
+    --     ts = (scanl (+) t0 . map (getVal delta)) es
+    -- sequence_ (zipWith3 perform es ts (tail ts))
+    loop c [] t0
     where
-        perform e t t' = f e t >> pauseThreadUntil t'
-        loop [] _     = return ()
-        loop (e:es) t = do
+        -- perform e t t' = f e t >> pauseThreadUntil t'
+        loop c [] t = do
+            es <- P.evalP `fmap` readChan c
+            t0 <- utcr
+            loop c es t0
+        loop c (e:es) t = do
             f e t
             let t' = t + getVal delta e
             pauseThreadUntil t'
-            loop es t'
+            empty <- isEmptyChan c
+            if empty
+                then loop c es t'
+                else loop c [] t'

@@ -1,5 +1,6 @@
 module Mescaline.Synth.Concat where
 
+import           Control.Concurrent.Chan (Chan, readChan)
 import           Data.Accessor ((^.))
 import qualified Data.Iteratee.OSC as I
 import           Mescaline
@@ -40,7 +41,7 @@ buffer :: Voice -> Buffer
 buffer (Voice _ b) = b
 
 diskBufferSize :: Int
-diskBufferSize = 8192*8*4
+diskBufferSize = 8192*8
 
 -- | Attack-sustain-release envelope parameter constructor.
 asr :: UGen -> UGen -> UGen -> [EnvCurve] -> [UGen]
@@ -147,7 +148,8 @@ playUnit cache unit params t = do
                     (truncate $ SourceFile.sampleRate sourceFile * Unit.onset unit)
                     (-1) 0 1)
     -- tu <- utcr
-    S.unsafeSync -- Why is this necessary?!
+    -- FIXME: Why is this necessary?!
+    S.unsafeSync
     -- C.send conn (startVoice voice t)
     -- print (t-tu, t+dur-tu)
     liftIO $ pauseThreadUntil (t + dur)
@@ -187,8 +189,15 @@ freeSampler (Sampler conn cache) = flip runServer conn $ do
     S.send (g_freeAll [0])
     BC.free cache
 
+runSampler :: Sampler -> Chan (Double, P.Event) -> IO ()
+runSampler s@(Sampler conn cache) c = do
+    (t, e) <- readChan c
+    -- print (t, e)
+    runServer (fork $ playUnit cache (e ^. P.unit) (e ^. P.synth) t) conn
+    runSampler s c
+
 -- Disk based sampler
-playPatternDisk :: Sampler -> P.Pattern -> IO ()
+playPatternDisk :: Sampler -> Chan P.Pattern -> IO ()
 playPatternDisk (Sampler conn cache) = P.execute f
     where
         f e t = runServer (fork (playUnit cache (e ^. P.unit) (e ^. P.synth) t) >> return ()) conn
