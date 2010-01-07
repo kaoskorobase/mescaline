@@ -61,13 +61,13 @@ class MeapOptionParser
         @options.smoothing_window = arg
       end
 
-      # opts.on("-d", "--[no-]old-onset-detector") do |arg|
-      #   @options.old_onset_detector = arg
-      # end
+      opts.on("-d", "--[no-]old-onset-detector") do |arg|
+        @options.old_onset_detector = arg
+      end
 
-      # opts.on("-0", "--[no-]initial-onset") do |arg|
-      #   @options.initial_onset = arg
-      # end
+      opts.on("-0", "--[no-]initial-onset") do |arg|
+        @options.initial_onset = arg
+      end
 
       opts.separator ""
       opts.separator "Extractor options:"
@@ -173,7 +173,8 @@ def process_file(type, options, input_file)
   cache_file    = mk_file(input_file, "cache")
 
   segmenter_options = [
-    type == :events ? ["-d"] : [],
+    # type == :events ? ["-d"] : [],
+    ["-d"],
     opt("-t", options.tempo_scale),
     opt("-s", options.smoothing_window),
     "-0" ].flatten

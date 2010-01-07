@@ -13,10 +13,12 @@ module Mescaline.Database.Table (
   , insert
 ) where
 
+import           Control.Monad
 import           Data.Accessor (Accessor)
 import qualified Data.List as List
-import           Database.HDBC (IConnection, SqlType, SqlValue, run)
+import           Database.HDBC (IConnection, SqlType, SqlValue, handleSqlError, quickQuery, run, toSql)
 import           Mescaline.Data.ListReader (runListReader)
+import           Mescaline.Data.Unique (Unique, uuid)
 import           Mescaline.Database.Sql (SqlAccessor, getSqlValue, SqlExpression(..), SqlRow(..))
 import           Text.Printf (printf)
 
@@ -26,6 +28,14 @@ import           Text.Printf (printf)
 data ColumnType = Type String
                 | PrimaryKey String
                 | forall a . Model a => LinksTo a
+
+isPrimaryKey :: ColumnType -> Bool
+isPrimaryKey (PrimaryKey _) = True
+isPrimaryKey _              = False
+
+isLink :: ColumnType -> Bool
+isLink (LinksTo _) = True
+isLink _           = False
 
 instance SqlExpression ColumnType where
     toSqlExpression (Type s)       = s
@@ -66,7 +76,7 @@ create c t = run c (toSqlExpression (CreateTable t)) [] >> return ()
 -- ====================================================================
 -- Model
 
-class SqlRow a => Model a where
+class (SqlRow a, Unique a) => Model a where
     toTable :: a -> Table a
 
 toRow :: Model a => a -> [SqlValue]
@@ -75,19 +85,33 @@ toRow a = map (flip getSqlValue a) $ accessors $ toTable a
 fromRow :: SqlRow a => [SqlValue] -> Either String a
 fromRow = runListReader fromSqlRow
 
+primaryKeyColumn :: Model a => a -> Maybe (Column a)
+primaryKeyColumn a = List.find (isPrimaryKey.col_type) cs `mplus` List.find (isLink.col_type) cs
+    where cs = columns (toTable a)
+
+colNames :: Model a => a -> String
+colNames a = "(" ++ (List.intercalate "," . fmap col_name . columns . toTable) a ++ ")"
+
 args :: Model a => a -> String
 args = List.intercalate "," . flip replicate "?" . length . columns . toTable
 
 withSqlExpr :: Model a => (String -> String -> String) -> a -> String
 withSqlExpr f a = f ((name.toTable)a) (args a)
 
--- | Insert instance of a mode into the corrsponding table.
+-- | Insert instance of a model into the corrsponding table.
 insert :: (Model a, IConnection c) => c -> a -> IO ()
 insert c a = do
     -- TODO: optimize
     create c (toTable a)
-    run c (withSqlExpr (printf "insert into %s values (%s)") a) (toRow a)
-    return ()
+    doit <- case primaryKeyColumn a of
+            Nothing -> return True
+            Just col -> null `fmap` quickQuery c (printf "select * from %s where %s = ?" tname (col_name col)) [toSql (uuid a)]
+    when doit $ do
+        let expr = printf "insert into %s values (%s)" tname (args a)
+        handleSqlError (run c expr (toRow a))
+        return ()
+    where
+        tname = name (toTable a)
 
 -- ensureTables :: (SqlModel a, IConnection c) => c -> [a] -> IO ()
 -- ensureTables c = fst . foldl f (return (), []) . map sqlTable

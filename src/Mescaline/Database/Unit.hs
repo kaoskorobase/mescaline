@@ -1,6 +1,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Mescaline.Database.Unit where
+module Mescaline.Database.Unit (
+    Segmentation(..)
+  , Unit, id, sourceFile, segmentation, onset, duration
+  , namespace
+  , unsafeCons
+  , cons
+) where
 
 import           Data.Accessor.Template (nameDeriveAccessors)
 import qualified Data.Binary as Binary
@@ -18,11 +24,14 @@ import           Prelude hiding(id)
 type Time  = Double
 type DTime = Double
 
+data Segmentation = Onset | Beat deriving (Enum, Eq, Read, Show)
+
 data Unit = Unit {
-    id         :: Unique.Id,
-    sourceFile :: SourceFile,
-    onset      :: Time,
-    duration   :: DTime
+    id           :: Unique.Id
+  , sourceFile   :: SourceFile
+  , segmentation :: Segmentation
+  , onset        :: Time
+  , duration     :: DTime
 } deriving (Show)
 
 $(nameDeriveAccessors ''Unit (return.(++"_")))
@@ -41,12 +50,12 @@ instance Unique Unit where
 instance Eq Unit where
     a == b = id a == id b
 
-unsafeCons :: Unique.Id -> SourceFile -> Time -> DTime -> Unit
+unsafeCons :: Unique.Id -> SourceFile -> Segmentation -> Time -> DTime -> Unit
 unsafeCons = Unit
 
-cons :: SourceFile -> Time -> DTime -> Unit
-cons sf o d = unsafeCons (Unique.fromBinary namespace p) sf o d
-    where p = Binary.put o >> Binary.put d
+cons :: SourceFile -> Segmentation -> Time -> DTime -> Unit
+cons sf s o d = unsafeCons (Unique.fromBinary namespace p) sf s o d
+    where p = Binary.put (fromEnum o) >> Binary.put o >> Binary.put d
 
 -- descriptors :: FeatureTable -> [Feature.Descriptor]
 -- descriptors = map (Feature.descriptor) . features

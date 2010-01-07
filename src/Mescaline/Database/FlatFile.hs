@@ -113,7 +113,7 @@ open path = do
             assocs <- readUnits f
             specs <- zipWithIds (zip (repeat sf) assocs)
             return (sf, map mkUnit specs)
-        mkUnit (i, (sf, ((o, d), vs))) = Unit.Unit i sf o d
+        mkUnit (i, (sf, ((o, d), vs))) = Unit.unsafeCons i sf Unit.Beat o d
 
 query :: Query -> Database -> [Unit]
 query (Query q) = filter q . units

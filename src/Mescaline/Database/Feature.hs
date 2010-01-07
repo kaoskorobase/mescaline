@@ -26,6 +26,15 @@ degree_ = unDescriptor_ .> third3
 namespace :: Unique.Namespace
 namespace = Unique.mkNamespace "be38ae7f-da19-4df8-99b7-e4ca78b28d92"
 
+instance Unique.Unique Descriptor where
+    uuid (Descriptor (u, _, _)) = u
+
+instance Unique.Unique Feature where
+    -- The feature is uniquely identified by the unit
+    -- (because there is one table per feature and a unit can contain a given
+    -- feature only once).
+    uuid (Feature (u, _, _)) = Unique.uuid u
+
 mkDescriptor :: Unique.Id -> String -> Int -> Descriptor
 mkDescriptor i n d = Descriptor (i, n, d)
 

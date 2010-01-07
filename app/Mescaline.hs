@@ -34,11 +34,10 @@ instance SqlType (B.ByteString) where
 
 
 connect :: String -> IO Connection 
-connect p = handleSqlError $
-    do 
-        dbh <- connectSqlite3 p
-        setBusyTimeout dbh 5000
-        return dbh
+connect p = do 
+    dbh <- connectSqlite3 p
+    setBusyTimeout dbh 5000
+    return dbh
 
 withConnection :: (Connection -> IO a) -> String -> IO a
 withConnection f p = do

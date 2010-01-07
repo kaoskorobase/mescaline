@@ -75,21 +75,26 @@ instance SqlType Unit.Unit where
     toSql = toSql . Unit.id
     fromSql = error "Cannot convert single SqlValue to record Unit"
 
+instance SqlRow Unit.Segmentation where
+    fromSqlRow = (read.fromSql) `fmap` ListReader.head
+
 instance SqlRow Unit.Unit where
     fromSqlRow = do
-        i <- fromSqlRow
-        s <- fromSqlRow
-        o <- fromSqlRow
-        d <- fromSqlRow
-        return $ Unit.unsafeCons i s o d
+        i  <- fromSqlRow
+        sf <- fromSqlRow
+        s  <- fromSqlRow
+        o  <- fromSqlRow
+        d  <- fromSqlRow
+        return $ Unit.unsafeCons i sf s o d
     
 instance Model Unit.Unit where
     -- type BelongsTo Unit.Unit = SourceFile
     toTable _ = Table.table "unit"
-                    [ ("id"          , PrimaryKey "blob"                          , sqlAccessor Unit.id         )
-                    , ("source_file" , LinksTo (undefined::SourceFile.SourceFile) , sqlAccessor Unit.sourceFile )
-                    , ("onset"       , Type "real"                                , sqlAccessor Unit.onset      )
-                    , ("duration"    , Type "real"                                , sqlAccessor Unit.duration   ) ]
+                    [ ("id"          , PrimaryKey "blob"                          , sqlAccessor Unit.id                  )
+                    , ("source_file" , LinksTo (undefined::SourceFile.SourceFile) , sqlAccessor Unit.sourceFile          )
+                    , ("segmentation", Type "text"                                , sqlAccessor (show.Unit.segmentation) )
+                    , ("onset"       , Type "real"                                , sqlAccessor Unit.onset               )
+                    , ("duration"    , Type "real"                                , sqlAccessor Unit.duration            ) ]
                     [ "id", "source_file" ]
 --     sqlCreate c u = run' c "insert into unit values (null,?,?,?)" (tail $ sqlRow u)
 --         where sqlRow u = [(DB.toSql.Unit.id)u, (DB.toSql.SourceFile.id.Unit.sourceFile)u,(DB.toSql.Unit.onset)u,(DB.toSql.Unit.duration)u]

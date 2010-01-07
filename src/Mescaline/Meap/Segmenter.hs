@@ -1,18 +1,19 @@
 module Mescaline.Meap.Segmenter (
-    Options(..),
-    defaultOptions,
-    run
+    Segmentation(..)
+  , Options(..)
+  , defaultOptions
+  , run
 ) where
 
 import Mescaline.Meap.Process   (runMeap, withTempFile)
 import System.Exit              (ExitCode)
 
-data UnitBoundary = Onset | Beat
+data Segmentation = Onset | Beat
 
 data Options = Options {
     tempoScale      :: Double,
     smoothingWindow :: Double,
-    unitBoundary    :: UnitBoundary,
+    segmentation    :: Segmentation,
     initialOnset    :: Bool
 }
 
@@ -20,7 +21,7 @@ defaultOptions :: Options
 defaultOptions = Options {
     tempoScale      = 1,
     smoothingWindow = 0.1,
-    unitBoundary    = Onset,
+    segmentation    = Onset,
     initialOnset    = False
 }
 
@@ -31,7 +32,7 @@ run opts infile outfile = runMeap "com.meapsoft.Segmenter" olist
             "-o", outfile,
             "-t", show (tempoScale opts),
             "-s", show (smoothingWindow opts)]
-            ++ (case unitBoundary opts of
+            ++ (case segmentation opts of
                     Onset -> ["-d"]
                     Beat  -> [])
             ++ (if initialOnset opts
