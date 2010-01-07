@@ -71,8 +71,10 @@ midiCallback c us (MIDI.MidiEvent _ (MIDI.MidiMessage _ (MIDI.NoteOn n _))) =
             writeChan c e
 midiCallback _ _ _ = return ()
 
-main_midi db us' = do
-    let us = cycle tr505_notes `zip` cycle us'
+main_midi [dbDir, pattern, thatMany] = do
+    db <- DB.open dbDir
+    let us' = DB.query (DB.pathMatch pattern) db
+    let us = cycle tr505_notes `zip` drop (read thatMany) (cycle us')
     Just midiSource <- MIDI.findSource (\"RME" _ "Port 1" -> True)
     midi <- newChan
     midiConn <- MIDI.openSource midiSource (Just $ midiCallback midi us)
@@ -252,8 +254,8 @@ windowedMode = do
     createWindow "Fucking Hell"
     return ()
 
-main :: IO ()
-main = do
+main_glut :: IO ()
+main_glut = do
     -- Setup the basic GLUT stuff
     (_, args) <- getArgsAndInitialize
 
@@ -269,10 +271,5 @@ main = do
 
     main_ args
 
--- main :: IO ()
--- main = do
---     [dbDir] <- getArgs
---     db <- DB.open dbDir
---     c <- newChan
---     forkIO $ playSampler c
---     GUI.main (\p -> patternFromFile db p >>= handlePattern c)
+main :: IO ()
+main = getArgs >>= main_midi
