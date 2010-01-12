@@ -58,9 +58,9 @@ instance SqlRow SourceFile.SourceFile where
 instance Model SourceFile.SourceFile where
     -- type BelongsTo SourceFile.SourceFile = ()
     toTable _ = Table.table "source_file"
-                    [ ("id"   , PrimaryKey "blob" , sqlAccessor SourceFile.id   )
+                    [ ("id"   , PrimaryKey "text" , sqlAccessor SourceFile.id   )
                     , ("url"  , Type "text"       , sqlAccessor SourceFile.url  )
-                    , ("hash" , Type "blob"       , sqlAccessor SourceFile.hash ) ]
+                    , ("hash" , Type "text"       , sqlAccessor SourceFile.hash ) ]
                     [ "id" ]
     -- sqlCreate c sf = run' c "insert into source_file values (null,?,?)" (tail $ sqlRow sf)
     --     where sqlRow sf = [(DB.toSql.SourceFile.id)sf,(DB.toSql.SourceFile.path)sf,(DB.toSql.SourceFile.hash)sf] 
@@ -90,7 +90,7 @@ instance SqlRow Unit.Unit where
 instance Model Unit.Unit where
     -- type BelongsTo Unit.Unit = SourceFile
     toTable _ = Table.table "unit"
-                    [ ("id"          , PrimaryKey "blob"                          , sqlAccessor Unit.id                  )
+                    [ ("id"          , PrimaryKey "text"                          , sqlAccessor Unit.id                  )
                     , ("source_file" , LinksTo (undefined::SourceFile.SourceFile) , sqlAccessor Unit.sourceFile          )
                     , ("segmentation", Type "text"                                , sqlAccessor (show.Unit.segmentation) )
                     , ("onset"       , Type "real"                                , sqlAccessor Unit.onset               )
@@ -116,7 +116,7 @@ instance SqlRow Feature.Descriptor where
 instance Model Feature.Descriptor where
     -- type BelongsTo Feature.Descriptor = ()
     toTable _ = Table.table "feature_descriptor"
-                    [ ("id"     , PrimaryKey "blob" , sqlAccessor Feature.id    )
+                    [ ("id"     , PrimaryKey "text" , sqlAccessor Feature.id    )
                     , ("name"   , Type "text"       , sqlAccessor Feature.name  )
                     , ("degree" , Type "integer"    , sqlAccessor Feature.degree) ]
                     []
