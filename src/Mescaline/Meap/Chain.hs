@@ -9,6 +9,7 @@ import qualified Data.ByteString as ByteString
 import           Data.Char (toUpper)
 import           Control.ThreadPool (threadPoolIO)
 import qualified Control.Concurrent.Chan as Chan
+import           Control.Exception (evaluate)
 
 import qualified Mescaline.Meap.Extractor as Extractor
 import qualified Mescaline.Meap.Feature as Feature
@@ -97,8 +98,7 @@ mapDirectory np f opts path = do
     -- Push jobs to input channel
     mapM_ (Chan.writeChan ichan) files
     -- Pull results from output channel (and discard them)
-    mapM_ (\_ -> Chan.readChan ochan >>= consume) [1..length files]
+    mapM_ (\_ -> Chan.readChan ochan) [1..length files]
     where
-        proc path = run opts path >>= f path
-        consume a = a `seq` return a
+        proc path = run opts path >>= f path >>= evaluate
 
