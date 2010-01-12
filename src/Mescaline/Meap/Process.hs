@@ -32,7 +32,7 @@ runMeap mainClass args = do
                   "-cp",
                   intercalate ":" classPath,
                   mainClass ] ++ args
-    print args'
+    -- print args'
     runProcess java
         args'
         Nothing Nothing
