@@ -73,6 +73,7 @@ library
                     Mescaline.Database.SoundFile
                     Mescaline.Database.SourceFile
                     Mescaline.Database.Sql
+                    Mescaline.Database.SqlQuery
                     Mescaline.Database.Table
                     Mescaline.Database.Unit
                     Mescaline.Meap.Chain
