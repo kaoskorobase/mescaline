@@ -6,7 +6,9 @@ import           Data.Accessor.Template (nameDeriveAccessors)
 import           Data.Binary (Binary)
 import qualified Data.Binary as Binary
 import           Data.Digest.SHA1 (Word160(..))
-import           Data.Map as Map
+import           Data.List (intercalate)
+import qualified Data.Map as Map
+import           Data.Word (Word32)
 import           Database.HDBC (SqlType(..))
 import           Mescaline.Data.ByteString as BS
 import           Mescaline.Data.Unique (Unique)
@@ -14,9 +16,10 @@ import qualified Mescaline.Data.Unique as Unique
 import qualified Mescaline.Database.SoundFile as SF
 import           Prelude hiding (id)
 -- import           Sound.File.Sndfile (Count)
+import           Text.Printf (printf)
 
 type URL = String
-type Hash = Word160
+newtype Hash = Hash String deriving (Binary, Eq, Ord, Read, Show)
 
 -- | Sourcefile.
 data SourceFile = SourceFile {
@@ -65,9 +68,21 @@ instance Ord (SourceFile) where
 instance Unique (SourceFile) where
     uuid = id
 
+-- | Contruct a 'Hash' from five 32 bit integers.
+fromList :: [Word32] -> Hash
+fromList = Hash . intercalate "-" . map (printf "%08x")
+
+-- | Construct a 'Hash' from a 'Word160'.
+fromWord160 :: Word160 -> Hash
+fromWord160 (Word160 x1 x2 x3 x4 x5) = fromList [x1, x2, x3, x4, x5]
+
 -- | Placeholder for a zero hash.
 noHash :: Hash
-noHash = Word160 0 0 0 0 0
+noHash = fromList [0, 0, 0, 0, 0]
+
+instance SqlType Hash where
+    fromSql = Hash . fromSql
+    toSql (Hash s) = toSql s
 
 -- | Construct a SourceFile.
 -- The id is expected to be valid.
@@ -84,7 +99,7 @@ cons u h nc sr nf = unsafeCons (Unique.fromBinary namespace p) u h nc sr nf
 newLocal :: FilePath -> IO SourceFile
 newLocal path = do
     info <- SF.getInfo path
-    hash <- BS.sha1DigestFromFile path
+    hash <- fromWord160 `fmap` BS.sha1DigestFromFile path
     return $ cons path hash
                 (SF.channels info)
                 (fromIntegral $ SF.samplerate info)
