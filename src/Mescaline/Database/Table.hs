@@ -10,6 +10,7 @@ module Mescaline.Database.Table (
   , create
   -- *Model access
   , Model(..)
+  , isStored
   , insert
 ) where
 
@@ -98,20 +99,28 @@ args = List.intercalate "," . flip replicate "?" . length . columns . toTable
 withSqlExpr :: Model a => (String -> String -> String) -> a -> String
 withSqlExpr f a = f ((name.toTable)a) (args a)
 
+-- | Return true if the model is stored in the database.
+isStored :: (Model a, IConnection c) => c -> a -> IO Bool
+isStored c a = do
+    create c t
+    case primaryKeyColumn a of
+                Nothing  -> return False
+                Just col -> (not.null) `fmap` quickQuery c (printf "select * from %s where %s = ?" (name t) (col_name col)) [toSql (uuid a)]
+    where
+        t = toTable a
+
 -- | Insert instance of a model into the corrsponding table.
 insert :: (Model a, IConnection c) => c -> a -> IO ()
 insert c a = do
     -- TODO: optimize
-    create c (toTable a)
-    doit <- case primaryKeyColumn a of
-            Nothing -> return True
-            Just col -> null `fmap` quickQuery c (printf "select * from %s where %s = ?" tname (col_name col)) [toSql (uuid a)]
-    when doit $ do
-        let expr = printf "insert into %s values (%s)" tname (args a)
+    create c t
+    p <- isStored c a
+    unless p $ do
+        let expr = printf "insert into %s values (%s)" (name t) (args a)
         handleSqlError (run c expr (toRow a))
         return ()
     where
-        tname = name (toTable a)
+        t = toTable a
 
 -- ensureTables :: (SqlModel a, IConnection c) => c -> [a] -> IO ()
 -- ensureTables c = fst . foldl f (return (), []) . map sqlTable

@@ -31,6 +31,7 @@ library
                     data-accessor >= 0.2,
                     data-accessor-template >= 0.2,
                     directory,
+                    Euterpea,
                     FileManip >= 0.3,
                     filepath,
                     GLUT,
@@ -131,7 +132,7 @@ executable looper
 
 executable mkdb
     main-is:        mkdb.hs
-    ghc-options:    -threaded
+    ghc-options:    -threaded -O -fvia-C -funbox-strict-fields
     hs-source-dirs: src, tools
     extensions:     ExistentialQuantification
                     FlexibleInstances

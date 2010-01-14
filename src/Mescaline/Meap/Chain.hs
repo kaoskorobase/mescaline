@@ -68,29 +68,28 @@ segmenterExtension = ".seg_beats"
 extractorExtension :: String
 extractorExtension = ".feat_beats"
 
-run :: Options -> FilePath -> IO Meap.MEAP
-run opts audioFile =
-    withTempFile
-        "es.globero.mescaline.segmenter.XXXX.seg"
-        (\segFile segHandle -> do
-            hClose segHandle
-            withTempFile
-                "es.globero.mescaline.extractor.XXXX.seg"
-                (\featFile featHandle -> do
-                    hClose featHandle
-                    runSegmenter (segmenter opts) audioFile segFile
-                    -- TODO: error handling
-                    runExtractor (extractor opts) segFile featFile
-                    -- TODO: error handling
-                    Meap.read_meap featFile >>= eitherToIO))
+run :: Options -> FilePath -> IO MEAP
+run opts audioFile = withTempFile
+    "es.globero.mescaline.segmenter.XXXX.seg"
+    (\segFile segHandle -> do
+        hClose segHandle
+        withTempFile
+            "es.globero.mescaline.extractor.XXXX.seg"
+            (\featFile featHandle -> do
+                hClose featHandle
+                runSegmenter (segmenter opts) audioFile segFile
+                -- TODO: error handling
+                runExtractor (extractor opts) segFile featFile
+                -- TODO: error handling
+                Meap.read_meap featFile >>= eitherToIO))
 
 audioFileExtensions :: [String]
 audioFileExtensions = map ("."++) (xs ++ (map (map toUpper) xs))
     where xs = ["aif", "aiff", "mp3", "wav"]
 
-mapDirectory :: Int -> (FilePath -> MEAP -> IO ()) -> Options -> FilePath -> IO ()
-mapDirectory np f opts path = do
-    (ichan, ochan) <- threadPoolIO np proc
+mapDirectory :: Int -> (FilePath -> (Options -> FilePath -> IO MEAP) -> IO ()) -> FilePath -> IO ()
+mapDirectory np f path = do
+    (ichan, ochan) <- threadPoolIO np (\sf -> f sf run >>= evaluate)
     files <- Find.find
                 Find.always
                 (fmap (flip elem audioFileExtensions) Find.extension)
@@ -99,6 +98,4 @@ mapDirectory np f opts path = do
     mapM_ (Chan.writeChan ichan) files
     -- Pull results from output channel (and discard them)
     mapM_ (\_ -> Chan.readChan ochan) [1..length files]
-    where
-        proc path = run opts path >>= f path >>= evaluate
 

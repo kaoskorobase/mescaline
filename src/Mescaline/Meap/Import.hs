@@ -2,6 +2,7 @@ module Mescaline.Meap.Import (
     importDirectory
 ) where
 
+import           Control.Monad
 import           Database.HDBC (IConnection)
 
 -- import           Mescaline.Data.Unique (Unique)
@@ -47,6 +48,8 @@ options seg = Chain.defaultOptions {
                             Unit.Onset -> Segmenter.Onset
             }
           , extractor = Extractor.defaultOptions {
+            windowSize = 1024,
+            hopSize = 512,
             features  = meapFeatures } }
 
 meapFeaturePrefix :: String
@@ -65,25 +68,31 @@ convFeature d f u l = Feature.cons u d v
     -- TODO: Make this more efficient
     where v = toU . take (Meap.feature_degree f) . drop (Meap.feature_column f) $ l
 
-insert :: (Table.Model a, IConnection c) => c -> a -> IO a
-insert c a = Table.insert c a >> return a
+insertModel :: (Table.Model a, IConnection c) => c -> a -> IO a
+insertModel c a = Table.insert c a >> return a
 
 meapFrames :: Meap.MEAP -> [[Double]]
 meapFrames meap = map (Meap.frame_l meap) [0..Meap.n_frames meap - 1]
 
-insertFile :: IConnection c => Unit.Segmentation -> c -> FilePath -> Meap.MEAP -> IO ()
-insertFile seg c path meap = do
+insertFile :: IConnection c => [Unit.Segmentation] -> c -> FilePath -> (Chain.Options -> FilePath -> IO Meap.MEAP) -> IO ()
+insertFile segs c path getMeap = do
     -- mapM_ print (Meap.features meap)
     -- mapM_ print (meapFrames meap)
     sf <- SourceFile.newLocal path
-    Table.insert c sf
-    ds <- mapM (insert c . convFeatureDesc) $ Meap.features meap
-    us <- mapM (insert c . convUnit sf seg) $ Meap.segments_l meap
-    flip mapM_ (zip ds (Meap.features meap)) $ \(d, f) ->
-        flip mapM_ (zip us (meapFrames meap)) $
-            insert c . uncurry (convFeature d f)
+    p <- Table.isStored c sf
+    putStrLn (path ++ " " ++ show sf ++ " " ++ show p)
+    unless p $ do
+        Table.insert c sf
+        mapM_ (insert sf) segs
+    where
+        insert sf seg = do
+            meap <- getMeap (options seg) path
+            ds <- mapM (insertModel c . convFeatureDesc) $ Meap.features meap
+            us <- mapM (insertModel c . convUnit sf seg) $ Meap.segments_l meap
+            flip mapM_ (zip ds (Meap.features meap)) $ \(d, f) ->
+                flip mapM_ (zip us (meapFrames meap)) $
+                    insertModel c . uncurry (convFeature d f)
 
 importDirectory :: IConnection c => Int -> FilePath -> c -> IO ()
-importDirectory np dir c = do
-    Chain.mapDirectory np (insertFile Unit.Onset c) (options Unit.Onset) dir
-    Chain.mapDirectory np (insertFile Unit.Beat c) (options Unit.Beat) dir
+importDirectory np dir c = Chain.mapDirectory np (insertFile segs c) dir
+    where segs = [Unit.Onset, Unit.Beat]
