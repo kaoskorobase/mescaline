@@ -2,6 +2,7 @@
     ExistentialQuantification
   , FlexibleContexts
   , GeneralizedNewtypeDeriving
+  , MultiParamTypeClasses
   , TemplateHaskell #-}
 
 module Sound.SC3.Server.State (

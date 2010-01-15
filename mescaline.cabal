@@ -14,10 +14,6 @@ cabal-version:      >= 1.6
 
 library
     hs-source-dirs: src
-    extensions:     ExistentialQuantification
-                    FlexibleInstances
-                    GeneralizedNewtypeDeriving
-                    MultiParamTypeClasses
     ghc-options:    -Wall
 
     build-depends:  base >= 4 && < 5,
@@ -109,10 +105,6 @@ executable sampler
                   , Mescaline.Sampler.Keyboard
                   , Mescaline.Sampler.Looper
     hs-source-dirs: src, tools, tools/sampler
-    extensions:     ExistentialQuantification
-                    FlexibleInstances
-                    GeneralizedNewtypeDeriving
-                    MultiParamTypeClasses
     build-depends:  gtk
     ghc-options:    -threaded
 
@@ -123,10 +115,6 @@ executable looper
                   , Mescaline.Sampler.Looper
                   , Mescaline.Sampler.MIDI
     hs-source-dirs: src, tools, tools/sampler
-    extensions:     ExistentialQuantification
-                    FlexibleInstances
-                    GeneralizedNewtypeDeriving
-                    MultiParamTypeClasses
     build-depends:  gtk
     ghc-options:    -threaded
 
@@ -134,7 +122,3 @@ executable mkdb
     main-is:        mkdb.hs
     ghc-options:    -threaded -O -fvia-C -funbox-strict-fields
     hs-source-dirs: src, tools
-    extensions:     ExistentialQuantification
-                    FlexibleInstances
-                    GeneralizedNewtypeDeriving
-                    MultiParamTypeClasses

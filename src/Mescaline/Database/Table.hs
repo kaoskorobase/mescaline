@@ -41,7 +41,7 @@ isLink _           = False
 instance SqlExpression ColumnType where
     toSqlExpression (Type s)       = s
     toSqlExpression (PrimaryKey s) = s ++ " primary key"
-    toSqlExpression (LinksTo _)    = "blob"
+    toSqlExpression (LinksTo _)    = "text"
 
 data Column a = Column {
     col_name     :: String
