@@ -105,8 +105,7 @@ tables = [ Table.name $ Table.toTable (undefined :: SourceFile.SourceFile)
          , Table.name $ Table.toTable (undefined :: Unit.Unit) ]
 
 query :: Query -> (String, [SqlValue])
-query q = (printf "SELECT %s FROM %s WHERE %s" a b cond, args)
+query q = (printf "SELECT * FROM %s WHERE %s" ts cond, args)
     where
-        a = intercalate "," (map (++".id") tables)
-        b = intercalate "," tables
+        ts = intercalate ", " tables
         (cond, args) = queryToSql q
