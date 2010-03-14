@@ -1,2 +1,6 @@
 dist
 upstream
+*.hi
+*.o
+*.prof
+*.tix
