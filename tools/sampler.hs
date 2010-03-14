@@ -2,6 +2,7 @@
 
 import Language.Haskell.Interpreter (InterpreterError(..), GhcError(..))
 
+import           Control.Arrow
 import           Control.Concurrent
 import           Control.Concurrent.Chan
 import qualified Mescaline.Database.FlatFile as DB
@@ -48,13 +49,14 @@ handlePattern c (Right p) = writeChan c p
 --             let pattern = pfunc db
 --             playPattern sampler pattern
 
-playSampler :: Chan P.Pattern -> IO ()
-playSampler = bracket newSampler freeSampler . flip playPattern
+playSampler :: Chan P.Input -> IO ()
+playSampler = bracket newSampler freeSampler . playPattern 0.001 (P.constant noEvent)
 
 main :: IO ()
 main = do
     [dbDir] <- getArgs
     db <- DB.open dbDir
     c <- newChan
-    forkIO $ playSampler c
-    GUI.main (\p -> patternFromFile db p >>= handlePattern c)
+    -- forkIO $ playSampler c
+    playSampler c
+    -- GUI.main (\p -> patternFromFile db p >>= handlePattern c)

@@ -6,7 +6,7 @@ module Mescaline.Synth.Pattern.Load (
 import           Control.Monad.Trans (liftIO)
 import           Language.Haskell.Interpreter (Interpreter, InterpreterError, as)
 import qualified Language.Haskell.Interpreter as Interp
-import Sound.SC3.Lang.Pattern
+-- import Sound.SC3.Lang.Pattern
 import Mescaline.Synth.Pattern
 import           System.FilePath
 import qualified System.FilePath.Find as Find
@@ -45,7 +45,7 @@ interpretFile path = do
         ("Prelude", Nothing)
       , ("Data.Accessor", Nothing)
       , ("Data.List", Nothing)
-      , ("Sound.SC3.Lang.Pattern", Nothing)
+      -- , ("Sound.SC3.Lang.Pattern", Nothing)
       , ("Mescaline.Synth.Pattern", Nothing)
       , ("Mescaline.Database.FlatFile", Nothing)
       , ("Mescaline.Database.Query", Nothing)

@@ -16,7 +16,7 @@ import qualified Sound.File.Sndfile as SF
 import           Sound.SC3 hiding (free, gate, sync, uid)
 
 import           Sound.SC3.Lang.Collection
-import           Sound.SC3.Lang.Pattern
+-- import           Sound.SC3.Lang.Pattern
 
 import           Sound.SC3.Server.Command.Completion
 import           Sound.SC3.Server.Connection (Connection)
@@ -189,7 +189,7 @@ freeSampler (Sampler conn cache) = flip runServer conn $ do
     S.send (g_freeAll [0])
     BC.free cache
 
-runSampler :: Sampler -> Chan (Double, P.Event) -> IO ()
+runSampler :: Sampler -> Chan (Double, P.SynthEvent) -> IO ()
 runSampler s@(Sampler conn cache) c = do
     (t, e) <- readChan c
     -- print (t, e)
@@ -197,10 +197,15 @@ runSampler s@(Sampler conn cache) c = do
     runSampler s c
 
 -- Disk based sampler
-playPatternDisk :: Sampler -> Chan P.Pattern -> IO ()
-playPatternDisk (Sampler conn cache) = P.execute f
+playPatternDisk :: Double -> P.Pattern -> Chan P.Input -> Sampler -> IO ()
+playPatternDisk tick pattern ichan (Sampler conn cache) = do
+    ochan <- newChan
+    forkIO $ loop ochan
+    P.execute tick pattern ichan ochan
     where
-        f e t = runServer (fork (playUnit cache (e ^. P.unit) (e ^. P.synth) t) >> return ()) conn
+        loop c = readChan c >>= f >> loop c
+        f (_, P.NoEvent) = return ()
+        f (_, P.Event e) = runServer (fork (playUnit cache (e ^. P.unit) (e ^. P.synth) (e ^. P.time)) >> return ()) conn
 
 -- Memory based sampler
 -- fixSegDur segs = (zipWith (\(Segment o _) d -> Segment o d) segs (zipWith (\(Segment o1 _) (Segment o2 _) -> o2 - o1) segs (tail segs)))

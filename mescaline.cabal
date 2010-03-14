@@ -21,6 +21,7 @@ library
                     bytestring,
                     bytestring-lexing >= 0.2,
                     Cabal >= 1.6,
+                    CCA >= 0.1,
                     containers,
                     Control-Engine,
                     Crypto >= 4.2,
@@ -30,6 +31,7 @@ library
                     Euterpea,
                     FileManip >= 0.3,
                     filepath,
+                    fingertree,
                     GLUT,
                     HDBC >= 1.1 && < 2,
                     HDBC-sqlite3 >= 1.1 && < 2,
@@ -108,15 +110,26 @@ executable sampler
     build-depends:  gtk
     ghc-options:    -threaded
 
-executable looper
-    main-is:        looper.hs
-    other-modules:  Mescaline.Sampler.GUI
-                  , Mescaline.Sampler.Keyboard
-                  , Mescaline.Sampler.Looper
-                  , Mescaline.Sampler.MIDI
-    hs-source-dirs: src, tools, tools/sampler
-    build-depends:  gtk
+executable sequencer
+    main-is:        sequencer.hs
+    hs-source-dirs: src, tools
+    build-depends:  gtk >= 0.10
+                  , glib >= 0.10
+                  , cairo >= 0.10
+                  , diagrams >= 0.2
+                  , colour >= 2.3
     ghc-options:    -threaded
+    ghc-prof-options: -threaded -auto-all
+
+--executable looper
+--    main-is:        looper.hs
+--    other-modules:  Mescaline.Sampler.GUI
+--                  , Mescaline.Sampler.Keyboard
+--                  , Mescaline.Sampler.Looper
+--                  , Mescaline.Sampler.MIDI
+--    hs-source-dirs: src, tools, tools/sampler
+--    build-depends:  gtk
+--    ghc-options:    -threaded
 
 executable mkdb
     main-is:        mkdb.hs
