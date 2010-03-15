@@ -9,6 +9,7 @@ import qualified Mescaline.Database.SourceFile as SourceFile
 import           Mescaline.Synth.BufferCache (Buffer, BufferCache)
 import qualified Mescaline.Synth.BufferCache as BC
 import qualified Mescaline.Synth.Pattern as P
+import qualified Mescaline.Synth.SF as SF
 
 import qualified Sound.Analysis.Meapsoft as Meap
 import qualified Sound.File.Sndfile as SF
@@ -204,8 +205,8 @@ playPatternDisk tick pattern ichan (Sampler conn cache) = do
     P.execute tick pattern ichan ochan
     where
         loop c = readChan c >>= f >> loop c
-        f (_, P.NoEvent) = return ()
-        f (_, P.Event e) = runServer (fork (playUnit cache (e ^. P.unit) (e ^. P.synth) (e ^. P.time)) >> return ()) conn
+        f (_, SF.NoEvent) = return ()
+        f (_, SF.Event e) = runServer (fork (playUnit cache (e ^. P.unit) (e ^. P.synth) (e ^. P.time)) >> return ()) conn
 
 -- Memory based sampler
 -- fixSegDur segs = (zipWith (\(Segment o _) d -> Segment o d) segs (zipWith (\(Segment o1 _) (Segment o2 _) -> o2 - o1) segs (tail segs)))

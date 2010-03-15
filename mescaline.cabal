@@ -17,6 +17,7 @@ library
     ghc-options:    -Wall
 
     build-depends:  base >= 4 && < 5,
+                    arrows,
                     binary,
                     bytestring,
                     bytestring-lexing >= 0.2,
@@ -36,11 +37,11 @@ library
                     HDBC >= 1.1 && < 2,
                     HDBC-sqlite3 >= 1.1 && < 2,
                     hint >= 0.3,
-                    hmeap,
+                    hmeap >= 0.8,
                     hmidi,
-                    hosc == 0.8.*,
-                    hsc3 == 0.8.*,
-                    hsc3-lang == 0.8.*,
+                    hosc >= 0.8,
+                    hsc3 >= 0.8,
+                    hsc3-lang >= 0.8,
                     hsc3-process >= 0.2,
                     hsndfile >= 0.2.0,
                     iteratee,
@@ -50,8 +51,8 @@ library
                     process,
                     random,
                     stm,
-                    uuid >= 1.0,
-                    uvector
+                    uuid >= 1.0
+                  , vector >= 0.5
     exposed-modules:
                     Control.Concurrent.Broadcast
                     Data.Iteratee.Chan
@@ -86,6 +87,8 @@ library
                     Mescaline.Synth.Concat
                     Mescaline.Synth.Pattern
                     Mescaline.Synth.Pattern.Load
+                    Mescaline.Synth.SF
+                    Mescaline.Synth.SSF
                     Sound.OpenSoundControl.Connection
                     Sound.SC3.Server
                     Sound.SC3.Server.Allocator

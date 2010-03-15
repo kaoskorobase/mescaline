@@ -11,7 +11,7 @@ import Data.IORef
 import Graphics.Rendering.Cairo (Render)
 import Graphics.UI.Gtk hiding (Image, Point, get)
 import Graphics.UI.Gtk.Diagram
-import Mescaline.Synth.Sequencer
+import Mescaline.Synth.Sequencer as Sequencer
 import qualified System.Glib.MainLoop as MainLoop
 
 import qualified Graphics.Rendering.Cairo as C
@@ -58,9 +58,16 @@ sequencerRender p = do
                     withState $ do
                         C.translate (fromIntegral c * (boxSize p + padding p)) 0
                         C.rectangle 0 0 (boxSize p) (boxSize p)
-                        if sequencer p `isCursorAtIndex` (r, c)
-                            then C.fill
-                            else C.stroke
+                        let i = (r, c)
+                        if s `isElemAtIndex` i
+                            then C.setSourceRGB 0.3 0.3 0.3 >> C.fillPreserve
+                            else if s `isCursorAtIndex` i
+                                then C.setSourceRGB 0.3 0 0 >> C.fillPreserve
+                                else return ()
+                        C.setSourceRGB 0 0 0
+                        C.stroke
+    where
+        s = sequencer p
 
 sequencerExpose :: Params a -> EventM EExpose Bool
 sequencerExpose p = do
@@ -85,14 +92,14 @@ mkBboxes boxSize padding s = map fr [0..rows s - 1]
 pointToIndex :: Params a -> (Double, Double) -> Maybe (Int, Int)
 pointToIndex params p = fmap fst $ find (isWithin p . snd) $ concat $ bboxes params
 
-sequencerMouseEvent :: Params a -> EventM EButton Bool
-sequencerMouseEvent p = do
+sequencerMouseEvent :: Chan (Sequencer a -> Sequencer a) -> Params a -> EventM EButton Bool
+sequencerMouseEvent ochan p = do
     (x, y) <- eventCoordinates
     win <- eventWindow
     (_, h) <- liftIO $ drawableGetSize win
-    let index = pointToIndex p (x, fromIntegral h - y)
-    -- liftIO $ print (bboxes p)
-    liftIO $ print index
+    case pointToIndex p (x, y) of
+        Nothing -> return ()
+        Just (row, col) -> liftIO $ print (row, col) >> (writeChan ochan $ Sequencer.toggle row col undefined)
     return True
 
 -- redraw :: Double -> Double -> Sequencer a -> Diagram
@@ -102,18 +109,18 @@ sequencerMouseEvent p = do
 --         fc True  = rgb 0.2 0.2 0.2
 --         fc False = rgb 1.0 1.0 1.0
 
-sequencerNew :: Double -> Double -> Sequencer a -> Chan (Sequencer a) -> IO SequencerView
-sequencerNew boxSize padding s c = do
+sequencerNew :: Double -> Double -> Sequencer a -> Chan (Sequencer a) -> Chan (Sequencer a -> Sequencer a) -> IO SequencerView
+sequencerNew boxSize padding s ichan ochan = do
     ref <- newIORef (Params boxSize padding s (mkBboxes boxSize padding s))
     w <- drawingAreaNew
     w `on` sizeRequest $ readIORef ref >>= sequencerSizeRequest
     w `on` exposeEvent $ liftIO (readIORef ref) >>= sequencerExpose
-    w `on` buttonPressEvent $ liftIO (readIORef ref) >>= sequencerMouseEvent
+    w `on` buttonPressEvent $ liftIO (readIORef ref) >>= sequencerMouseEvent ochan
     -- w <- diagramNew $ \p -> readIORef ref >>= \s -> return (Auto, redraw boxSize padding s)
     flip MainLoop.timeoutAdd 5 $ do
-        e <- isEmptyChan c
+        e <- isEmptyChan ichan
         when (not e) $ do
-            readChan c >>= \s -> modifyIORef ref (\p -> p { sequencer = s })
+            readChan ichan >>= \s -> modifyIORef ref (\p -> p { sequencer = s })
             widgetQueueDraw w
         return True
     return w

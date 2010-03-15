@@ -12,6 +12,7 @@ import           Control.Monad (zipWithM)
 import           Data.List (group)
 import qualified Data.Map as Map
 import           Data.Maybe (fromJust)
+import qualified Data.Vector.Generic as V
 
 import           Mescaline.Data.Array.Vector
 import qualified Mescaline.Data.Unique as Unique
@@ -69,7 +70,7 @@ mkFeatures fs = zipWith3 Feature fs ds cs
         cs = scanl (+) 0 ds
 
 meapFeatureData :: Meap.MEAP -> [Vector Double]
-meapFeatureData m = map (toU.drop 2.Meap.frame_l m) [0..Meap.n_frames m - 1]
+meapFeatureData m = map (V.fromList.drop 2.Meap.frame_l m) [0..Meap.n_frames m - 1]
 
 readUnits :: FilePath -> IO [((Double, Double), Vector Double)]
 readUnits path = do

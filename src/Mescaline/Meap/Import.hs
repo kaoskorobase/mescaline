@@ -3,6 +3,7 @@ module Mescaline.Meap.Import (
 ) where
 
 import           Control.Monad
+import qualified Data.Vector.Generic as V
 import           Database.HDBC (IConnection)
 
 -- import           Mescaline.Data.Unique (Unique)
@@ -66,7 +67,7 @@ convFeatureDesc f = Feature.consDescriptor
 convFeature :: Feature.Descriptor -> Meap.Feature -> Unit -> [Double] -> Feature
 convFeature d f u l = Feature.cons u d v
     -- TODO: Make this more efficient
-    where v = toU . take (Meap.feature_degree f) . drop (Meap.feature_column f) $ l
+    where v = V.fromList . take (Meap.feature_degree f) . drop (Meap.feature_column f) $ l
 
 insertModel :: (Table.Model a, IConnection c) => c -> a -> IO a
 insertModel c a = Table.insert c a >> return a

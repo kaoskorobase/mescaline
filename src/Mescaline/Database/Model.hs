@@ -2,6 +2,8 @@
 
 module Mescaline.Database.Model where
 
+import           Data.Vector.Generic ((!))
+
 -- import           Database.HDBC
 import           Database.HDBC (IConnection, SqlType(..), SqlValue)
 import qualified Database.HDBC          as DB
@@ -127,7 +129,7 @@ instance Model Feature.Descriptor where
 --             f [x1,x2,x3] = return $ Feature.mkDescriptor (DB.fromSql x1) (DB.fromSql x2) (DB.fromSql x3)
 --             f _          = fail "WTF"
 
-vectorAccessor i = accessor (flip indexU i) (const $ error "Vector accessor setter not implemented")
+vectorAccessor i = accessor (flip (!) i) (const $ error "Vector accessor setter not implemented")
 
 instance SqlRow Feature.Feature where
     fromSqlRow = do
@@ -143,7 +145,7 @@ instance Model Feature.Feature where
     -- type BelongsTo Feature.Feature = ()
     toTable f = Table.table (Feature.sqlTableName (Feature.descriptor f))
                    ([ ("unit", LinksTo (undefined :: Unit.Unit), sqlAccessor Feature.unit) ]
-                    ++ map (\i -> ("value_"++show i, Type "real", sqlAccessor (flip indexU i . Feature.value))) (Feature.indices (Feature.descriptor f)))
+                    ++ map (\i -> ("value_"++show i, Type "real", sqlAccessor (flip (!) i . Feature.value))) (Feature.indices (Feature.descriptor f)))
                    []
 
 -- instance SqlModel Unit.FeatureTable where

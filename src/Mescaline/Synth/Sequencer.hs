@@ -3,6 +3,7 @@ module Mescaline.Synth.Sequencer where
 import           Data.Accessor
 import           Data.Maybe (maybeToList)
 import qualified Data.IntMap as Map
+import Debug.Trace
 
 data Matrix a = Matrix Int Int (Map.IntMap (Map.IntMap a)) deriving (Eq, Show)
 
@@ -25,19 +26,36 @@ tick = accessor tick_ (\a r -> r { tick_ = a })
 cursor :: Accessor (Sequencer a) Cursor
 cursor = accessor cursor_ (\a r -> r { cursor_ = a })
 
+alter :: (Maybe a -> Maybe a) -> Int -> Int -> Sequencer a -> Sequencer a
+alter f row col s | row >= rows s || col >= cols s = s
+                  | otherwise =
+                      s { matrix = Map.alter
+                                       (maybe (Map.singleton row `fmap` f Nothing)
+                                              (\m -> let m' = Map.alter f row m
+                                                     in if Map.null m' then Nothing else Just m'))
+                                        col (matrix s) }
+
 insert :: Int -> Int -> a -> Sequencer a -> Sequencer a
-insert row col a s | row >= rows s || col >= cols s = s
-                   | otherwise =
-                       s { matrix = Map.alter
-                                    (Just . maybe (Map.singleton row a) (Map.insert row a))
-                                    col (matrix s) }
+insert row col a = alter (const (Just a)) row col
+-- insert row col a s | row >= rows s || col >= cols s = s
+--                    | otherwise =
+--                        s { matrix = Map.alter
+--                                     (Just . maybe (Map.singleton row a) (Map.insert row a))
+--                                     col (matrix s) }
 
 delete :: Int -> Int -> Sequencer a -> Sequencer a
-delete row col s | row >= rows s || col >= cols s = s
-                 | otherwise =
-                     s { matrix = Map.alter
-                                    (maybe Nothing (Just . Map.delete row))
-                                    col (matrix s) }
+delete = alter (const Nothing)
+-- delete row col s | row >= rows s || col >= cols s = s
+--                  | otherwise =
+--                      s { matrix = Map.alter
+--                                     (maybe Nothing (Just . Map.delete row))
+--                                     col (matrix s) }
+
+toggle :: Int -> Int -> a -> Sequencer a -> Sequencer a
+toggle row col a = alter f row col
+    where
+        f Nothing  = traceShow "toggle on"  $ Just a
+        f (Just _) = traceShow "toggle off" $ Nothing
 
 cursorPosition :: Cursor -> (Int, Int)
 cursorPosition (Bar col)       = (0, col)

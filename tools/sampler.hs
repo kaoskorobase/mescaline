@@ -10,6 +10,7 @@ import           Mescaline.Database.SourceFile as SourceFile
 import           Mescaline.Synth.Concat
 import           Mescaline.Synth.Pattern as P
 import           Mescaline.Synth.Pattern.Load as P
+import qualified Mescaline.Synth.SF as SF
 
 import qualified Mescaline.Sampler.GUI as GUI
 import qualified Mescaline.Sampler.Keyboard as GUI
@@ -50,7 +51,7 @@ handlePattern c (Right p) = writeChan c p
 --             playPattern sampler pattern
 
 playSampler :: Chan P.Input -> IO ()
-playSampler = bracket newSampler freeSampler . playPattern 0.001 (P.constant noEvent)
+playSampler = bracket newSampler freeSampler . playPattern 0.001 (SF.constant SF.noEvent)
 
 main :: IO ()
 main = do
