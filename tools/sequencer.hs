@@ -28,7 +28,7 @@ clock = scanl f (Nothing, NoEvent) >>> arr snd
             | localTime <= globalTime = (Just $ localTime+tick, Event localTime)
             | otherwise               = (Just $ localTime, NoEvent)
 
-sequencer0 = Sequencer.cons 16 16 (Bar (-1))
+sequencer0 = Sequencer.cons 16 16 0.125 (Bar (-1))
 
 sequencer :: SF (Double, Double) (Event (Sequencer ()))
 sequencer = clock >>> tag (Sequencer.step (undefined::Score)) >>> accum sequencer0
