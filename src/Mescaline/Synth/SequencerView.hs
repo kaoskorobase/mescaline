@@ -3,9 +3,11 @@ module Mescaline.Synth.SequencerView (
   , sequencerNew
 ) where
 
+import Control.Concurrent (forkIO)
 import Control.Concurrent.Chan
 import Control.Concurrent.MVar
 import Control.Monad
+import Control.Monad.Fix (fix)
 import Data.Colour.SRGB.Linear (rgb)
 import Data.IORef
 import Graphics.Rendering.Cairo (Render)
@@ -126,4 +128,9 @@ sequencerNew boxSize padding s ichan ochan = do
             readChan ichan >>= \s -> modifyMVar_ ref (\p -> let p' = p { sequencer = s } in p' `seq` return p')
             widgetQueueDraw w
         return True
+    -- forkIO $ fix $ \loop -> do
+    --     s <- readChan ichan
+    --     modifyMVar_ ref (\p -> let p' = p { sequencer = s } in p' `seq` return p')
+    --     postGUIAsync $ widgetQueueDraw w
+    --     loop
     return w

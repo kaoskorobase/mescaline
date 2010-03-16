@@ -1,17 +1,14 @@
 {-# LANGUAGE Arrows #-}
-import Control.Applicative
-import Control.Arrow
-import Control.Concurrent
-import Control.Concurrent.Chan
--- import Control.Monad.State
-import Data.Accessor
-import Data.Function (fix)
-import Data.Maybe
-import Graphics.Rendering.Diagrams as D
-import Graphics.Rendering.Cairo (Render)
-import Graphics.UI.Gtk hiding (Image, Point, get, event)
-import Graphics.UI.Gtk.Diagram
-import Mescaline (Time)
+import           Control.Applicative
+import           Control.Arrow
+import           Control.Concurrent
+import           Control.Concurrent.Chan
+import           Data.Accessor
+import           Data.Function (fix)
+import           Data.Maybe
+import           Graphics.Rendering.Cairo (Render)
+import           Graphics.UI.Gtk hiding (Image, Point, get, event)
+import           Mescaline (Time)
 import qualified Mescaline.Database.FlatFile as DB
 import qualified Mescaline.Synth.Concat as Synth
 import qualified Mescaline.Synth.Pattern as P
@@ -100,28 +97,32 @@ main = do
     
     -- unsafeInitGUIForThreadedRTS
     initGUI
-    dia <- dialogNew
-    dialogAddButton dia stockOk ResponseOk
-    contain <- dialogGetUpper dia
+    
     ichan <- newChan
     ochan <- newChan
     seqChan <- newChan
-    smpChan <- newChan
-    canvas <- sequencerNew 25 3 sequencer0 seqChan ichan
+    synth <- Synth.newSampler
+
     -- forkIO $ executeSSF 0.05 (constant 0.125 >>> sequencer) ichan ochan
     forkIO $ executeSSF 0.005 (sequencer sequencer0 >>> first (arr (fmap (uncurry (sequencerEvents units))))) ichan ochan
     -- forkIO $ pipeChan (eventToMaybe.snd) ochan seqChan
     forkIO $ fix $ \loop -> do
         x <- readChan ochan
-        event (return ()) (mapM_ (writeChan smpChan)) (fst.snd $ x)
+        event (return ()) (mapM_ (Synth.playEvent synth)) (fst.snd $ x)
         event (return ()) (writeChan seqChan) (snd.snd $ x)
         loop
-    synth <- Synth.newSampler
-    forkIO $ Synth.runSampler synth smpChan
+
+    -- forkIO $ Synth.runSampler synth smpChan
     -- widgetSetSizeRequest canvas 600 600
+
+    dia <- dialogNew
+    dialogAddButton dia stockOk ResponseOk
+    contain <- dialogGetUpper dia    
+    canvas <- sequencerNew 25 3 sequencer0 seqChan ichan
     boxPackStartDefaults contain canvas
     widgetShow canvas
     dialogRun dia
+
     return ()
 
 -- printChanE c = do
