@@ -54,7 +54,7 @@ options seg = Chain.defaultOptions {
             features  = meapFeatures } }
 
 meapFeaturePrefix :: String
-meapFeaturePrefix = "com_meapsoft_"
+meapFeaturePrefix = "com.meapsoft."
 
 convUnit :: SourceFile -> Unit.Segmentation -> (Double, Double) -> Unit
 convUnit sf s (o, d) = Unit.cons sf s o d
