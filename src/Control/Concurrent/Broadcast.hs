@@ -21,6 +21,7 @@ module Control.Concurrent.Broadcast (
     Broadcast
   , Consumer
   , new
+  , dup
   , close
   , broadcastList
   , broadcast
@@ -42,7 +43,10 @@ broadcastMsg :: Broadcast a -> ChanMsg [a] -> IO ()
 broadcastMsg (Broadcast c) m = writeChan c m >> readChan c >> return ()
 
 new :: IO (Broadcast a)
-new = Broadcast `fmap` newChan
+new = fmap Broadcast newChan
+
+dup :: Broadcast a -> IO (Broadcast a)
+dup = fmap Broadcast . dupChan . messages
 
 close :: Broadcast a -> IO ()
 close = flip broadcastMsg CloseChan
@@ -58,5 +62,6 @@ type Consumer a b = IterateeG [] a IO b
 
 consume :: Broadcast a -> IO (Consumer a b) -> IO b
 consume d a = do
-    c <- dupChan (messages d)
-    a >>= enumChan c >>= run
+    -- c <- dupChan (messages d)
+    -- a >>= enumChan c >>= run
+    a >>= enumChan (messages d) >>= run

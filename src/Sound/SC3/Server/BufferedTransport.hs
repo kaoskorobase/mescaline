@@ -39,12 +39,18 @@ fork t f = dup t >>= forkIO . f
 
 -- | Wait for an OSC message where the supplied function does not give
 --   Nothing, discarding intervening messages.
-waitFor :: BufferedTransport -> (OSC -> Bool) -> IO OSC
-waitFor t@(BufferedTransport _ c) = flip iterateUntil (readChan c)
+waitFor :: BufferedTransport -> (OSC -> Maybe a) -> IO a
+waitFor (BufferedTransport _ c) f = loop
+    where
+        loop = do
+            x <- readChan c
+            case f x of
+                Nothing -> loop
+                Just a  -> return a
 
 -- | Wait for an OSC message matching a specific address.
 wait :: BufferedTransport -> String -> IO OSC
-wait t s = waitFor t (has_address s)
+wait t s = waitFor t (\osc -> if has_address s osc then Just osc else Nothing)
     where
         has_address x (Message y _) = x == y
         has_address x (Bundle _ xs) = any (has_address x) xs

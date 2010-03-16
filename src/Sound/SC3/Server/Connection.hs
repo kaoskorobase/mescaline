@@ -3,38 +3,49 @@ module Sound.SC3.Server.Connection (
     Connection
   , state
   , new
+  , dup
   , close
   , fork
   , send
-  , Consumer
-  , communicate
+  -- , Consumer
+  -- , communicate
+  , waitFor
+  , wait
   , sync
   , unsafeSync
 ) where
 
 import           Control.Concurrent (ThreadId)
-import           Data.Iteratee.OSC as It
+-- import           Data.Iteratee.OSC as It
 
 import           Foreign (void)
 
-import           Sound.OpenSoundControl (Datum(..), OSC(..), Transport)
+import           Sound.OpenSoundControl (Datum(..), OSC(..), Transport, immediately)
 import qualified Sound.OpenSoundControl as OSC
-import           Sound.OpenSoundControl.Connection (Consumer)
-import qualified Sound.OpenSoundControl.Connection as C
+-- import           Sound.OpenSoundControl.Connection (Consumer)
+-- import qualified Sound.OpenSoundControl.Connection as C
 import           Sound.OpenSoundControl.Time (Time(..))
 
-import           Sound.SC3 (notify)
+import           Sound.SC3 (notify, dumpOSC, PrintLevel(..))
+import qualified Sound.SC3.Server.BufferedTransport as C
 import           Sound.SC3.Server.Notification (done, synced)
 import           Sound.SC3.Server.State (State)
 import qualified Sound.SC3.Server.State as State
 
-data Connection = Connection State C.Connection
+data Connection = Connection State C.BufferedTransport
 
 state :: Connection -> State
 state (Connection s _) = s
 
-conn :: Connection -> C.Connection
+conn :: Connection -> C.BufferedTransport
 conn (Connection _ c) = c
+
+initServer :: Connection -> IO ()
+initServer c = do
+    -- Turn on notification
+    -- TODO: Make this configurable?
+    send c $ Bundle immediately $ [notify True] -- ++ [dumpOSC TextPrinter]
+    void $ c `waitFor` done "notify"
 
 new :: Transport t => State -> t -> IO Connection
 new s t = do
@@ -42,32 +53,33 @@ new s t = do
     initServer c
     return c
 
-initServer :: Connection -> IO ()
-initServer c = do
-    communicate c $ do
-        -- Turn on notification
-        -- TODO: Make this configurable?
-        send c (notify True)
-        return (waitFor (done "notify"))
-    return ()
+dup :: Connection -> IO Connection
+dup (Connection s c) = fmap (Connection s) (C.dup c)
 
 close :: Connection -> IO ()
-close = C.close . conn
+close = OSC.close . conn
 
 fork :: Connection -> (Connection -> IO ()) -> IO ThreadId
 fork c f = C.fork (conn c) (f . Connection (state c))
 
 send :: Connection -> OSC -> IO ()
-send = C.send . conn
+send = OSC.send . conn
 
-communicate :: Connection -> IO (Consumer a) -> IO a
-communicate = C.communicate . conn
+waitFor :: Connection -> (OSC -> Maybe a) -> IO a
+waitFor c = C.waitFor (conn c)
+
+-- | Wait for an OSC message matching a specific address.
+wait :: Connection -> String -> IO OSC
+wait c = C.wait (conn c)
+
+-- communicate :: Connection -> IO (Consumer a) -> IO a
+-- communicate = C.communicate . conn
 
 syncWith :: Connection -> (OSC -> OSC) -> IO ()
-syncWith c f = void $ communicate c $ do
+syncWith c f = do
     i <- (State.alloc . State.syncId . state) c
     send c (f (Message "/sync" [Int i]))
-    return $ waitFor (synced i)
+    void $ c `waitFor` synced i
 
 appendOSC :: OSC -> OSC -> OSC
 appendOSC m1@(Message _ _) m2@(Message _ _)  = Bundle (NTPi 1) [m1, m2]

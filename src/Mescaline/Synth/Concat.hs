@@ -36,7 +36,7 @@ import Control.Monad            (join)
 import Sound.OpenSoundControl
 import Sound.OpenSoundControl.Transport
 
-data Voice = Voice NodeId Buffer
+data Voice = Voice NodeId Buffer deriving (Eq, Show)
 
 buffer :: Voice -> Buffer
 buffer (Voice _ b) = b
@@ -154,11 +154,10 @@ playUnit cache unit params t = do
     -- C.send conn (startVoice voice t)
     -- print (t-tu, t+dur-tu)
     liftIO $ pauseThreadUntil (t + dur)
-    S.communicate $ do
-        S.send $ stopVoice voice params (t + dur)
-        return $ I.waitFor $ n_end nid
+    S.send $ stopVoice voice params (t + dur)
+    S.waitFor $ n_end nid
     -- tu' <- utcr
-    -- putStrLn ("node end: " ++ show (tu' - tu))
+    -- liftIO $ putStrLn ("node end: " ++ show voice)
     freeVoice cache voice
     return ()
     where
@@ -169,10 +168,8 @@ data Sampler = Sampler Connection BufferCache
 
 initSampler :: Server BufferCache
 initSampler = do
-    S.send $ bundle' [notify True]
-                            -- , dumpOSC TextPrinter]
-    S.sync $ bundle' [d_recv (synthdef (voiceDefName 1) (voiceDef 1)),
-                           d_recv (synthdef (voiceDefName 2) (voiceDef 2))]
+    S.sync $ bundle' [ d_recv (synthdef (voiceDefName 1) (voiceDef 1)),
+                       d_recv (synthdef (voiceDefName 2) (voiceDef 2)) ]
     BC.newWith (replicate 4 (BC.allocBytes 1 diskBufferSize) ++ replicate 4 (BC.allocBytes 1 diskBufferSize))
 
 newSampler :: IO Sampler

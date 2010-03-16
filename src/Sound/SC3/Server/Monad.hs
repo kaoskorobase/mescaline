@@ -20,7 +20,9 @@ module Sound.SC3.Server.Monad (
   -- *Synchronization
   , fork
   , send
-  , communicate
+  -- , communicate
+  , waitFor
+  , wait
   , sync
   , unsafeSync
 ) where
@@ -33,8 +35,8 @@ import           Control.Monad.Trans (MonadIO, liftIO)
 
 import           Sound.SC3 (Rate(..))
 import           Sound.SC3.Server.Allocator (IdAllocator, RangeAllocator, Range)
-import           Sound.SC3.Server.Connection (Connection, Consumer)
-import qualified Sound.SC3.Server.Connection as Conn
+import           Sound.SC3.Server.Connection (Connection)
+import qualified Sound.SC3.Server.Connection as C
 -- import           Sound.SC3.Server.Process.Options (ServerOptions, numberOfInputBusChannels, numberOfOutputBusChannels)
 import           Sound.SC3.Server.State (BufferId, BufferIdAllocator, BusId, BusIdAllocator, NodeId, NodeIdAllocator, State)
 import qualified Sound.SC3.Server.State as State
@@ -53,7 +55,7 @@ liftConnIO :: (Connection -> IO a) -> Server a
 liftConnIO f = ask >>= liftIO . f
 
 liftState :: (State -> a) -> Server a
-liftState f = asks Conn.state >>= return . f
+liftState f = asks C.state >>= return . f
 
 liftStateIO :: (State -> IO a) -> Server a
 liftStateIO = join . fmap liftIO . liftState
@@ -87,18 +89,25 @@ allocRange :: RangeAllocator i a => Allocator a -> Int -> Server (Range i)
 allocRange a n = liftStateIO (flip State.allocRange n . a)
 
 fork :: Server () -> Server ThreadId
-fork = liftConnIO . flip Conn.fork . runServer
+fork = liftConnIO . flip C.fork . runServer
 
 send :: OSC -> Server ()
-send = liftConnIO . flip Conn.send
+send = liftConnIO . flip C.send
 
-communicate :: Server (Consumer a) -> Server a
-communicate a = do
-    c <- ask
-    liftIO $ Conn.communicate c (runServer a c)
+-- communicate :: Server (Consumer a) -> Server a
+-- communicate a = do
+--     c <- ask
+--     liftIO $ Conn.communicate c (runServer a c)
+
+waitFor :: (OSC -> Maybe a) -> Server a
+waitFor = liftConnIO . flip C.waitFor
+
+-- | Wait for an OSC message matching a specific address.
+wait :: String -> Server OSC
+wait = liftConnIO . flip C.wait
 
 sync :: OSC -> Server ()
-sync = liftConnIO . flip Conn.sync
+sync = liftConnIO . flip C.sync
 
 unsafeSync :: Server ()
-unsafeSync = liftConnIO Conn.unsafeSync
+unsafeSync = liftConnIO C.unsafeSync
