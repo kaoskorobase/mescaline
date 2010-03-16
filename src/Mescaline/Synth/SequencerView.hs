@@ -97,9 +97,12 @@ sequencerMouseEvent ochan p = do
     (x, y) <- eventCoordinates
     win <- eventWindow
     (_, h) <- liftIO $ drawableGetSize win
-    case pointToIndex p (x, y) of
-        Nothing -> return ()
-        Just (row, col) -> liftIO $ print (row, col) >> (writeChan ochan $ Sequencer.toggle row col undefined)
+    b <- eventButton
+    if b == LeftButton
+        then case pointToIndex p (x, y) of
+                Nothing -> return ()
+                Just (row, col) -> liftIO $ print (row, col) >> (writeChan ochan $ Sequencer.toggle row col undefined)
+        else return ()
     return True
 
 -- redraw :: Double -> Double -> Sequencer a -> Diagram
@@ -111,16 +114,16 @@ sequencerMouseEvent ochan p = do
 
 sequencerNew :: Double -> Double -> Sequencer a -> Chan (Sequencer a) -> Chan (Sequencer a -> Sequencer a) -> IO SequencerView
 sequencerNew boxSize padding s ichan ochan = do
-    ref <- newIORef (Params boxSize padding s (mkBboxes boxSize padding s))
+    ref <- newMVar (Params boxSize padding s (mkBboxes boxSize padding s))
     w <- drawingAreaNew
-    w `on` sizeRequest $ readIORef ref >>= sequencerSizeRequest
-    w `on` exposeEvent $ liftIO (readIORef ref) >>= sequencerExpose
-    w `on` buttonPressEvent $ liftIO (readIORef ref) >>= sequencerMouseEvent ochan
+    w `on` sizeRequest $ readMVar ref >>= sequencerSizeRequest
+    w `on` exposeEvent $ liftIO (readMVar ref) >>= sequencerExpose
+    w `on` buttonPressEvent $ liftIO (readMVar ref) >>= sequencerMouseEvent ochan
     -- w <- diagramNew $ \p -> readIORef ref >>= \s -> return (Auto, redraw boxSize padding s)
     flip MainLoop.timeoutAdd 5 $ do
         e <- isEmptyChan ichan
         when (not e) $ do
-            readChan ichan >>= \s -> modifyIORef ref (\p -> p { sequencer = s })
+            readChan ichan >>= \s -> modifyMVar_ ref (\p -> let p' = p { sequencer = s } in p' `seq` return p')
             widgetQueueDraw w
         return True
     return w

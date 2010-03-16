@@ -85,6 +85,12 @@ elemsAtCursor s =
         Bar col       -> maybe [] Map.elems (Map.lookup col (matrix s))
         Point row col -> maybe [] (maybeToList . Map.lookup row) (Map.lookup col (matrix s))
 
+indicesAtCursor :: Sequencer a -> [(Int, Int)]
+indicesAtCursor s =
+    case cursor_ s of
+        Bar col       -> map (flip (,) col) $ maybe [] Map.keys (Map.lookup col (matrix s))
+        Point row col -> maybe [] (maybe [] (const [(row,col)]) . Map.lookup row) (Map.lookup col (matrix s))
+
 class Algorithm a where
     step :: a -> Sequencer e -> Sequencer e
 

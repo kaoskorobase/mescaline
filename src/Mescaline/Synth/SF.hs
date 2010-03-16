@@ -5,6 +5,7 @@ module Mescaline.Synth.SF (
   , constant
   , Event(..)
   , noEvent
+  , event
   , initially
   , tag
   , filter
@@ -45,6 +46,10 @@ data Event a = NoEvent | Event a deriving (Eq, Read, Show)
 
 noEvent :: Event a
 noEvent = NoEvent
+
+event :: b -> (a -> b) -> Event a -> b
+event b _ NoEvent   = b
+event _ f (Event a) = f a
 
 instance Functor Event where
     fmap _ NoEvent   = NoEvent

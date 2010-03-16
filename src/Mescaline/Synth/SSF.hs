@@ -2,6 +2,7 @@
 module Mescaline.Synth.SSF (
     Event(..)
   , noEvent
+  , event
   , identity
   , constant
   , initially
@@ -25,7 +26,7 @@ import           Control.Arrow.Transformer.Reader
 import           Control.Monad (liftM)
 import           Control.Concurrent.Chan
 import           Mescaline (Time)
-import           Mescaline.Synth.SF (Event(..), noEvent)
+import           Mescaline.Synth.SF (Event(..), noEvent, event)
 import qualified Mescaline.Synth.SF as SF
 import qualified Sound.OpenSoundControl as OSC
 import           Prelude hiding (filter, init, scanl)

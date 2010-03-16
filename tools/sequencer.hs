@@ -1,23 +1,26 @@
 {-# LANGUAGE Arrows #-}
 import Control.Applicative
+import Control.Arrow
 import Control.Concurrent
 import Control.Concurrent.Chan
 -- import Control.Monad.State
 import Data.Accessor
+import Data.Function (fix)
 import Data.Maybe
 import Graphics.Rendering.Diagrams as D
 import Graphics.Rendering.Cairo (Render)
-import Graphics.UI.Gtk hiding (Image, Point, get)
+import Graphics.UI.Gtk hiding (Image, Point, get, event)
 import Graphics.UI.Gtk.Diagram
 import Mescaline (Time)
-import Mescaline.Synth.Sequencer as Sequencer
-import Mescaline.Synth.SequencerView
+import qualified Mescaline.Database.FlatFile as DB
+import qualified Mescaline.Synth.Concat as Synth
+import qualified Mescaline.Synth.Pattern as P
+import           Mescaline.Synth.Sequencer as Sequencer
+import           Mescaline.Synth.SequencerView
+import           Mescaline.Synth.SSF
 import           Sound.OpenSoundControl hiding (Time)
-
-import Control.Arrow
-import Control.CCA.Types
-import Mescaline.Synth.SSF
-import Prelude hiding (init, scanl)
+import qualified System.Environment as Env
+import           Prelude hiding (init, scanl)
 
 import Debug.Trace
 
@@ -62,7 +65,7 @@ type Changed a = Event a
 traceEvent e@NoEvent   = traceShow "traceEvent: NoEvent" e
 traceEvent e@(Event _) = traceShow "traceEvent: Event"   e
 
-sequencer :: Sequencer a -> SSF (Update (Sequencer a)) (Event Time, Changed (Sequencer a))
+sequencer :: Sequencer a -> SSF (Update (Sequencer a)) (Event (Time, Sequencer a), Changed (Sequencer a))
 sequencer s0 =
     proc update -> do
         rec
@@ -70,7 +73,8 @@ sequencer s0 =
             e <- tag (Sequencer.step (undefined::Score)) -< c
             s <- accum s0 -< (foldl (.) id `fmap` (update `merge` e))
             t <- hold s0 >>> arr (getVal Sequencer.tick) -< s
-        returnA -< (c, s)
+        returnA -< (liftA2 (,) c s, s)
+-- sequencer s0 = constant noEvent &&& accum s0
 
 eventToMaybe NoEvent = Nothing
 eventToMaybe (Event x) = Just x
@@ -82,32 +86,52 @@ pipeChan f i o = do
         Just e  -> writeChan o e
     pipeChan f i o
 
+-- sequencerEvents :: [Unit] -> Time -> Sequencer a -> [P.SynthEvent]
+sequencerEvents units t s = map f is
+    where
+        -- is = map (\(r, c) -> r * cols s + c) $ indicesAtCursor s
+        is = map fst $ indicesAtCursor s
+        f i = P.SynthEvent t (units !! i) P.defaultSynth
+
 main = do
-    unsafeInitGUIForThreadedRTS
+    [dbDir, n] <- Env.getArgs
+    db <- DB.open dbDir
+    let units = drop (read n) (DB.units db)
+    
+    -- unsafeInitGUIForThreadedRTS
+    initGUI
     dia <- dialogNew
     dialogAddButton dia stockOk ResponseOk
     contain <- dialogGetUpper dia
     ichan <- newChan
     ochan <- newChan
     seqChan <- newChan
+    smpChan <- newChan
     canvas <- sequencerNew 25 3 sequencer0 seqChan ichan
     -- forkIO $ executeSSF 0.05 (constant 0.125 >>> sequencer) ichan ochan
-    forkIO $ executeSSF 0.05 (sequencer sequencer0 >>> arr snd) ichan ochan
-    forkIO $ pipeChan (eventToMaybe.snd) ochan seqChan
+    forkIO $ executeSSF 0.005 (sequencer sequencer0 >>> first (arr (fmap (uncurry (sequencerEvents units))))) ichan ochan
+    -- forkIO $ pipeChan (eventToMaybe.snd) ochan seqChan
+    forkIO $ fix $ \loop -> do
+        x <- readChan ochan
+        event (return ()) (mapM_ (writeChan smpChan)) (fst.snd $ x)
+        event (return ()) (writeChan seqChan) (snd.snd $ x)
+        loop
+    synth <- Synth.newSampler
+    forkIO $ Synth.runSampler synth smpChan
     -- widgetSetSizeRequest canvas 600 600
     boxPackStartDefaults contain canvas
     widgetShow canvas
     dialogRun dia
     return ()
 
-printChanE c = do
-    (t, e) <- readChan c
-    case e of
-        NoEvent -> return ()
-        Event e -> print (t, e)
-    printChanE c
-
-printChan c = readChan c >>= print >> printChan c
+-- printChanE c = do
+--     (t, e) <- readChan c
+--     case e of
+--         NoEvent -> return ()
+--         Event e -> print (t, e)
+--     printChanE c
+-- 
+-- printChan c = readChan c >>= print >> printChan c
 
 -- main_ = do
 --     ichan <- newChan

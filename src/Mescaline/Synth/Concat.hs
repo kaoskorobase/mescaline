@@ -190,12 +190,14 @@ freeSampler (Sampler conn cache) = flip runServer conn $ do
     S.send (g_freeAll [0])
     BC.free cache
 
-runSampler :: Sampler -> Chan (Double, P.SynthEvent) -> IO ()
-runSampler s@(Sampler conn cache) c = do
-    (t, e) <- readChan c
-    -- print (t, e)
-    runServer (fork $ playUnit cache (e ^. P.unit) (e ^. P.synth) t) conn
-    runSampler s c
+runSampler :: Sampler -> Chan P.SynthEvent -> IO ()
+runSampler s@(Sampler conn cache) c = loop
+    where
+        loop = do
+            e <- readChan c
+            -- print (t, e)
+            runServer (fork $ playUnit cache (e ^. P.unit) (e ^. P.synth) (e ^. P.time)) conn
+            runSampler s c
 
 -- Disk based sampler
 playPatternDisk :: Double -> P.Pattern -> Chan P.Input -> Sampler -> IO ()
