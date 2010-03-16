@@ -1,5 +1,5 @@
 {-# LANGUAGE ExistentialQuantification #-}
-module Sound.SC3.Server.BufferedTransport (
+module Sound.OpenSoundControl.BufferedTransport (
     BufferedTransport
   , new
   , dup

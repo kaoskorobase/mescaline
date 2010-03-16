@@ -22,12 +22,12 @@ import           Foreign (void)
 
 import           Sound.OpenSoundControl (Datum(..), OSC(..), Transport, immediately)
 import qualified Sound.OpenSoundControl as OSC
+import qualified Sound.OpenSoundControl.BufferedTransport as C
 -- import           Sound.OpenSoundControl.Connection (Consumer)
 -- import qualified Sound.OpenSoundControl.Connection as C
 import           Sound.OpenSoundControl.Time (Time(..))
 
 import           Sound.SC3 (notify, dumpOSC, PrintLevel(..))
-import qualified Sound.SC3.Server.BufferedTransport as C
 import           Sound.SC3.Server.Notification (done, synced)
 import           Sound.SC3.Server.State (State)
 import qualified Sound.SC3.Server.State as State

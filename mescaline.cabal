@@ -88,12 +88,12 @@ library
                     Mescaline.Synth.Pattern.Load
                     Mescaline.Synth.SF
                     Mescaline.Synth.SSF
+                    Sound.OpenSoundControl.BufferedTransport
                     Sound.OpenSoundControl.Connection
                     Sound.SC3.Server
                     Sound.SC3.Server.Allocator
                     Sound.SC3.Server.Allocator.Range
                     Sound.SC3.Server.Allocator.SimpleAllocator
-                    Sound.SC3.Server.BufferedTransport
                     Sound.SC3.Server.Connection
                     Sound.SC3.Server.Monad
                     Sound.SC3.Server.Notification
