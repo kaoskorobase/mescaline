@@ -24,7 +24,7 @@ data Status = Status {
 } deriving (Eq, Show)
 
 status_reply :: OSC -> Maybe Status
-status_reply (Message "status.reply" [Int _, Int u, Int s, Int g, Int d, Float a, Float p, Double sr, Double sr']) =
+status_reply (Message "/status.reply" [Int _, Int u, Int s, Int g, Int d, Float a, Float p, Double sr, Double sr']) =
     Just $ Status u s g d a p sr sr'
 status_reply _ = Nothing
 
