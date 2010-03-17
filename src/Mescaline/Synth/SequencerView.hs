@@ -114,7 +114,7 @@ sequencerMouseEvent ochan p = do
 --         fc True  = rgb 0.2 0.2 0.2
 --         fc False = rgb 1.0 1.0 1.0
 
-sequencerNew :: Double -> Double -> Sequencer a -> Chan (Sequencer a) -> Chan (Sequencer a -> Sequencer a) -> IO SequencerView
+sequencerNew :: Double -> Double -> Sequencer a -> Chan (Sequencer a) -> Chan (Sequencer a -> Sequencer a) -> IO (SequencerView, Sequencer a -> IO ())
 sequencerNew boxSize padding s ichan ochan = do
     ref <- newMVar (Params boxSize padding s (mkBboxes boxSize padding s))
     w <- drawingAreaNew
@@ -122,15 +122,19 @@ sequencerNew boxSize padding s ichan ochan = do
     w `on` exposeEvent $ liftIO (readMVar ref) >>= sequencerExpose
     w `on` buttonPressEvent $ liftIO (readMVar ref) >>= sequencerMouseEvent ochan
     -- w <- diagramNew $ \p -> readIORef ref >>= \s -> return (Auto, redraw boxSize padding s)
-    flip MainLoop.timeoutAdd 5 $ do
-        e <- isEmptyChan ichan
-        when (not e) $ do
-            readChan ichan >>= \s -> modifyMVar_ ref (\p -> let p' = p { sequencer = s } in p' `seq` return p')
-            widgetQueueDraw w
-        return True
-    -- forkIO $ fix $ \loop -> do
-    --     s <- readChan ichan
-    --     modifyMVar_ ref (\p -> let p' = p { sequencer = s } in p' `seq` return p')
+    -- flip MainLoop.timeoutAdd 5 $ do
+    --     e <- isEmptyChan ichan
+    --     when (not e) $ do
+    --         readChan ichan >>= \s -> modifyMVar_ ref (\p -> let p' = p { sequencer = s } in p' `seq` return p')
+    --         widgetQueueDraw w
+    --     return True
+    forkIO $ fix $ \loop -> do
+        s <- readChan ichan
+        modifyMVar_ ref (\p -> return $ p { sequencer = s })
+        postGUIAsync $ widgetQueueDraw w
+        loop
+    -- let f s = do
+    --     modifyMVar_ ref (\p -> return $ p { sequencer = s })
     --     postGUIAsync $ widgetQueueDraw w
-    --     loop
-    return w
+    let f s = return ()
+    return (w, f)

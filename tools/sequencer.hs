@@ -31,6 +31,7 @@ clock = (logicalTime &&& identity) >>> scanl f (Nothing, NoEvent) >>> arr snd
             | localTime <= globalTime = (Just $ localTime+tick, Event localTime)
             | otherwise               = (Just $ localTime, NoEvent)
 
+sequencer0 :: Sequencer ()
 sequencer0 = Sequencer.cons 16 16 0.125 (Bar (-1))
 
 sequencerOld :: SSF Double (Event (Sequencer ()))
@@ -95,34 +96,36 @@ main = do
     db <- DB.open dbDir
     let units = drop (read n) (DB.units db)
     
-    -- unsafeInitGUIForThreadedRTS
-    initGUI
+    unsafeInitGUIForThreadedRTS
+    -- initGUI
     
     ichan <- newChan
     ochan <- newChan
     seqChan <- newChan
     synth <- Synth.newSampler
 
-    -- forkIO $ executeSSF 0.05 (constant 0.125 >>> sequencer) ichan ochan
-    forkIO $ executeSSF 0.005 (sequencer sequencer0 >>> first (arr (fmap (uncurry (sequencerEvents units))))) ichan ochan
-    -- forkIO $ pipeChan (eventToMaybe.snd) ochan seqChan
-    forkIO $ fix $ \loop -> do
-        x <- readChan ochan
-        event (return ()) (mapM_ (Synth.playEvent synth)) (fst.snd $ x)
-        event (return ()) (writeChan seqChan) (snd.snd $ x)
-        loop
-
-    -- forkIO $ Synth.runSampler synth smpChan
-    -- widgetSetSizeRequest canvas 600 600
-
     dia <- dialogNew
     dialogAddButton dia stockOk ResponseOk
     contain <- dialogGetUpper dia    
-    canvas <- sequencerNew 25 3 sequencer0 seqChan ichan
+    (canvas, update) <- sequencerNew 25 3 sequencer0 seqChan ichan
     boxPackStartDefaults contain canvas
     widgetShow canvas
-    dialogRun dia
 
+    -- Execute signal function
+    forkIO $ executeSSF 0.005 (sequencer sequencer0 >>> first (arr (fmap (uncurry (sequencerEvents units))))) ichan ochan
+
+    -- Dispatch events to and from sequencer view
+    forkIO $ fix $ \loop -> do
+        x <- readChan ochan
+        case (fst.snd $ x) of
+            NoEvent -> return ()
+            Event es -> mapM_ (Synth.playEvent synth) es
+        case (snd.snd $ x) of
+            NoEvent -> return ()
+            Event s -> writeChan seqChan s
+        loop
+    
+    dialogRun dia
     return ()
 
 -- printChanE c = do
@@ -139,3 +142,4 @@ main = do
 --     ochan <- newChan
 --     forkIO $ executeSSF 0.05 (sequencer sequencer0 >>> arr snd) ichan ochan
 --     printChanE ochan
+
