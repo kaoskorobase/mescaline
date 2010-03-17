@@ -21,10 +21,11 @@ def install_tool(pkg, cmd)
 end
 
 UPSTREAM_SOURCES = [
- UpstreamSource.new("hosc", "http://www.slavepianos.org/rd/sw/hosc"),
- UpstreamSource.new("hsc3", "http://www.slavepianos.org/rd/sw/hsc3"),
- UpstreamSource.new("hsc3-lang", "http://www.slavepianos.org/rd/sw/hsc3-lang"),
- UpstreamSource.new("hmeap", "http://www.slavepianos.org/rd/sw/hmeap")
+  # These are all available on hackage now
+  # UpstreamSource.new("hosc", "http://www.slavepianos.org/rd/sw/hosc"),
+  # UpstreamSource.new("hsc3", "http://www.slavepianos.org/rd/sw/hsc3"),
+  # UpstreamSource.new("hsc3-lang", "http://www.slavepianos.org/rd/sw/hsc3-lang"),
+  # UpstreamSource.new("hmeap", "http://www.slavepianos.org/rd/sw/hmeap")
 ]
 
 TOOLS = ["alex", "happy", "c2hs"]
