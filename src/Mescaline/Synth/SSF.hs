@@ -112,6 +112,6 @@ executeSSF tick ssf ichan ochan = OSC.utcr >>= loop (runReader ssf)
             let e = Env (t, lt)
                 (b, sf') = SF.runSF sf (a, e)
                 lt' = lt + tick
-            writeChan ochan (getEnv e, b)
+            b `seq` writeChan ochan (getEnv e, b)
             OSC.pauseThreadUntil lt'
             loop sf' lt'
