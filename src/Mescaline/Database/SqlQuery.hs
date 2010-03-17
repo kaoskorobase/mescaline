@@ -104,8 +104,8 @@ tables :: [String]
 tables = [ Table.name $ Table.toTable (undefined :: SourceFile.SourceFile)
          , Table.name $ Table.toTable (undefined :: Unit.Unit) ]
 
-query :: Query -> (String, [SqlValue])
-query q = (printf "SELECT * FROM %s WHERE %s" ts cond, args)
+query :: Query -> [Feature.Descriptor] -> (String, [SqlValue])
+query q ds = (printf "SELECT * FROM %s WHERE %s" ts cond, args)
     where
         ts = intercalate ", " tables
         (cond, args) = queryToSql q
