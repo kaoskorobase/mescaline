@@ -49,8 +49,9 @@ library
                     mtl,
                     process,
                     random,
-                    stm,
-                    uuid >= 1.0
+                    stm
+                  , strict-concurrency >= 0.2
+                  , uuid >= 1.0
                   , vector >= 0.5
     exposed-modules:
                     Control.Concurrent.Broadcast
@@ -120,8 +121,8 @@ executable sequencer
                   , cairo >= 0.10
                   , diagrams >= 0.2
                   , colour >= 2.3
-    ghc-options:
-    ghc-prof-options: -auto-all
+    ghc-options:      -threaded
+    ghc-prof-options: -threaded -auto-all
 
 --executable looper
 --    main-is:        looper.hs
