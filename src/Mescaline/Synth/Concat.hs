@@ -2,7 +2,6 @@ module Mescaline.Synth.Concat where
 
 import           Control.Concurrent.Chan (Chan, readChan)
 import           Data.Accessor ((^.))
-import qualified Data.Iteratee.OSC as I
 import           Mescaline
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Database.SourceFile as SourceFile

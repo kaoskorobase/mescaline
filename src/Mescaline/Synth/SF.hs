@@ -1,6 +1,6 @@
 {-# LANGUAGE Arrows #-}
 module Mescaline.Synth.SF (
-    module Euterpea.Signal.SF
+    module Data.Signal.SF
   , identity
   , constant
   , Event(..)
@@ -21,7 +21,7 @@ import           Control.Arrow.Transformer (lift)
 import           Control.Arrow.Transformer.Reader
 import           Control.Applicative
 import           Control.CCA.Types
-import           Euterpea.Signal.SF
+import           Data.Signal.SF
 import           Prelude hiding (filter, init, scanl)
 
 -- Segment set combinators

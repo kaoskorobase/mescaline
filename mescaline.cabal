@@ -1,5 +1,5 @@
 name:               mescaline
-version:            0.0
+version:            0.0.1
 
 synopsis:           <Project description>
 description:        <Project description>
@@ -15,49 +15,46 @@ cabal-version:      >= 1.6
 library
     hs-source-dirs: src
     ghc-options:    -Wall
-    build-depends:  base >= 4 && < 5,
-                    arrows,
-                    binary,
-                    bytestring,
-                    bytestring-lexing >= 0.2,
-                    Cabal >= 1.6,
-                    CCA >= 0.1,
-                    containers,
-                    Control-Engine,
-                    Crypto >= 4.2,
-                    data-accessor >= 0.2,
-                    data-accessor-template >= 0.2,
-                    directory,
-                    Euterpea,
-                    FileManip >= 0.3,
-                    filepath,
-                    fingertree,
-                    GLUT,
-                    HDBC >= 1.1 && < 2,
-                    HDBC-sqlite3 >= 1.1 && < 2,
-                    hint >= 0.3,
-                    hmeap >= 0.8,
-                    hmidi,
-                    hosc >= 0.8,
-                    hsc3 >= 0.8,
-                    hsc3-lang >= 0.8,
-                    hsc3-process >= 0.2,
-                    hsndfile >= 0.2.0,
-                    iteratee,
-                    monad-loops,
-                    MissingH >= 1.0,
-                    mtl,
-                    process,
-                    random,
-                    stm
+    build-depends:  base >= 4 && < 5
+                  , arrows
+                  , binary
+                  , bytestring
+                  , Cabal >= 1.6
+                  , CCA >= 0.1
+                  , containers
+                  , Control-Engine
+                  , Crypto >= 4.2
+                  , data-accessor >= 0.2
+                  , data-accessor-template >= 0.2
+                  , directory
+                  , FileManip >= 0.3
+                  , filepath
+                  , fingertree
+                  , HDBC >= 1.1 && < 2
+                  , HDBC-sqlite3 >= 1.1 && < 2
+                  , hint >= 0.3
+                  , hmeap >= 0.8
+                  , hosc >= 0.8
+                  , hsc3 >= 0.8
+                  , hsc3-lang >= 0.8
+                  , hsc3-process >= 0.2
+                  , hsndfile >= 0.2.0
+                  , MissingH >= 1.0
+                  , mtl
+                  , process >= 1.0
+                  , random
+                  , stm
                   , strict-concurrency >= 0.2
+                  , template-haskell
                   , uuid >= 1.0
                   , vector >= 0.5
     exposed-modules:
-                    Control.Concurrent.Broadcast
-                    Data.Iteratee.Chan
-                    Data.Iteratee.OSC
-                    Data.Iteratee.Util
+                    Control.CCA.ArrowP
+                    -- Control.Concurrent.Broadcast
+                    -- Data.Iteratee.Chan
+                    -- Data.Iteratee.OSC
+                    -- Data.Iteratee.Util
+                    Data.Signal.SF
                     Mescaline
                     Mescaline.Control.Concurrent
                     Mescaline.Control.Concurrent.Pool
@@ -79,7 +76,7 @@ library
                     Mescaline.Meap.Chain
                     Mescaline.Meap.Extractor
                     Mescaline.Meap.Feature
-                    Mescaline.Meap.File
+                    -- Mescaline.Meap.File
                     Mescaline.Meap.Import
                     Mescaline.Meap.Process
                     Mescaline.Meap.Segmenter
@@ -90,7 +87,7 @@ library
                     Mescaline.Synth.SF
                     Mescaline.Synth.SSF
                     Sound.OpenSoundControl.BufferedTransport
-                    Sound.OpenSoundControl.Connection
+                    -- Sound.OpenSoundControl.Connection
                     Sound.SC3.Server
                     Sound.SC3.Server.Allocator
                     Sound.SC3.Server.Allocator.Range
@@ -136,5 +133,5 @@ executable sequencer
 
 executable mkdb
     main-is:        mkdb.hs
-    ghc-options:    -threaded -O -fvia-C -funbox-strict-fields
+    ghc-options:    -threaded -funbox-strict-fields
     hs-source-dirs: src, tools

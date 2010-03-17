@@ -9,7 +9,6 @@ module Sound.OpenSoundControl.BufferedTransport (
 ) where
 
 import Control.Concurrent
-import Control.Monad.Loops (iterateUntil)
 import Sound.OpenSoundControl (OSC(..), Transport(..))
 
 data BufferedTransport = forall t . Transport t => BufferedTransport t (Chan OSC)
