@@ -3,10 +3,25 @@
 module Mescaline.Database.Table (
   -- *Table construction
     ColumnType(..)
+  , Column
+  , col_name
+  , col_type
+  , col_accessor
+  , isPrimaryKeyColumn
+  , isLinkColumn
+  , isIndexColumn
+  , link
   , Table
-  , name, columns, indexes
+  , name
+  , columns
+  , indexes
   , table
   , accessors
+  , columnNames
+  , primaryKeyColumn
+  , linkColumns
+  , prefixedColumnNames
+  , prefixedColumnNames_
   , create
   -- *Model access
   , Model(..)
@@ -49,6 +64,20 @@ data Column a = Column {
   , col_accessor :: SqlAccessor a
 }
 
+isPrimaryKeyColumn :: Column a -> Bool
+isPrimaryKeyColumn = isPrimaryKey . col_type
+
+isLinkColumn :: Column a -> Bool
+isLinkColumn = isLink . col_type
+
+isIndexColumn :: Column a -> Bool
+isIndexColumn c = isPrimaryKeyColumn c || isLinkColumn c
+
+link :: Column a -> Maybe (String, String)
+link (Column _ (LinksTo m) _) = let t = toTable m
+                                in fmap ((,) (name t) . col_name) (primaryKeyColumn t)
+link _                        = error "linkModel: not a link column"
+
 data Table a = Table {
     name    :: String
   , columns :: [Column a]
@@ -62,14 +91,33 @@ table name cols idxs = Table name (map f cols) idxs
 accessors :: Table a -> [SqlAccessor a]
 accessors = map col_accessor . columns
 
+primaryKeyColumn :: Table a -> Maybe (Column a)
+primaryKeyColumn t = List.find (isPrimaryKeyColumn) cs `mplus` List.find (isLinkColumn) cs
+    where cs = columns t
+
+linkColumns :: Table a -> [Column a]
+linkColumns = filter isLinkColumn . columns
+
+columnNames :: Table a -> [String]
+columnNames = map col_name . columns
+
+prefixedColumnNames :: Maybe String -> Table a -> [String]
+prefixedColumnNames prefix t = map (p++) (columnNames t)
+    where p = maybe (name t) id prefix ++ "."
+
+prefixedColumnNames_ :: Table a -> [String]
+prefixedColumnNames_ = prefixedColumnNames Nothing
+
 newtype CreateTable a = CreateTable (Table a)
 
 instance SqlExpression (CreateTable a) where
     toSqlExpression (CreateTable t) =
-        printf "create table if not exists %s (%s);" (name t) (args (columns t))
-        -- printf "create index %s on %s(%s);" (f name) name (intercalate ", " cols)
+        printf "create table if not exists %s (%s);" (name t) colSpecs
+     ++ if null indices then "" else printf "\ncreate index if not exists %s_index on %s(%s);" (name t) (name t) indices
         where
-            args = List.intercalate ", " . map (\c -> col_name c ++ " " ++ toSqlExpression (col_type c))
+            cols = columns t
+            colSpecs = List.intercalate ", " $ map (\c -> col_name c ++ " " ++ toSqlExpression (col_type c)) cols
+            indices = List.intercalate ", " $ map col_name $ filter isIndexColumn cols
 
 create :: IConnection c => c -> Table a -> IO ()
 create c t = run c (toSqlExpression (CreateTable t)) [] >> return ()
@@ -86,10 +134,6 @@ toRow a = map (flip getSqlValue a) $ accessors $ toTable a
 fromRow :: SqlRow a => [SqlValue] -> Either String a
 fromRow = runListReader fromSqlRow
 
-primaryKeyColumn :: Model a => a -> Maybe (Column a)
-primaryKeyColumn a = List.find (isPrimaryKey.col_type) cs `mplus` List.find (isLink.col_type) cs
-    where cs = columns (toTable a)
-
 colNames :: Model a => a -> String
 colNames a = "(" ++ (List.intercalate "," . fmap col_name . columns . toTable) a ++ ")"
 
@@ -103,9 +147,9 @@ withSqlExpr f a = f ((name.toTable)a) (args a)
 isStored :: (Model a, IConnection c) => c -> a -> IO Bool
 isStored c a = do
     create c t
-    case primaryKeyColumn a of
-                Nothing  -> return False
-                Just col -> (not.null) `fmap` quickQuery c (printf "select * from %s where %s = ?" (name t) (col_name col)) [toSql (uuid a)]
+    case primaryKeyColumn t of
+        Nothing  -> return False
+        Just col -> (not.null) `fmap` quickQuery c (printf "select * from %s where %s = ?" (name t) (col_name col)) [toSql (uuid a)]
     where
         t = toTable a
 

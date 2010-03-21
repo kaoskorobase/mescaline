@@ -77,13 +77,18 @@ instance SqlType Unit.Unit where
     toSql = toSql . Unit.id
     fromSql = error "Cannot convert single SqlValue to record Unit"
 
+instance SqlType Unit.Segmentation where
+	fromSql = read . fromSql
+	toSql   = toSql . show
+
 instance SqlRow Unit.Segmentation where
-    fromSqlRow = (read.fromSql) `fmap` ListReader.head
+    fromSqlRow = fromSql `fmap` ListReader.head
 
 instance SqlRow Unit.Unit where
     fromSqlRow = do
-        i  <- fromSqlRow
         sf <- fromSqlRow
+        i  <- fromSqlRow
+        sfid <- fromSqlRow :: ListReader.ListReader SqlValue Unique.Id
         s  <- fromSqlRow
         o  <- fromSqlRow
         d  <- fromSqlRow
@@ -92,11 +97,11 @@ instance SqlRow Unit.Unit where
 instance Model Unit.Unit where
     -- type BelongsTo Unit.Unit = SourceFile
     toTable _ = Table.table "unit"
-                    [ ("id"          , PrimaryKey "text"                          , sqlAccessor Unit.id                  )
-                    , ("source_file" , LinksTo (undefined::SourceFile.SourceFile) , sqlAccessor Unit.sourceFile          )
-                    , ("segmentation", Type "text"                                , sqlAccessor (show.Unit.segmentation) )
-                    , ("onset"       , Type "real"                                , sqlAccessor Unit.onset               )
-                    , ("duration"    , Type "real"                                , sqlAccessor Unit.duration            ) ]
+                    [ ("id"          , PrimaryKey "text"                          , sqlAccessor Unit.id           )
+                    , ("source_file" , LinksTo (undefined::SourceFile.SourceFile) , sqlAccessor Unit.sourceFile   )
+                    , ("segmentation", Type "text"                                , sqlAccessor Unit.segmentation )
+                    , ("onset"       , Type "real"                                , sqlAccessor Unit.onset        )
+                    , ("duration"    , Type "real"                                , sqlAccessor Unit.duration     ) ]
                     [ "id", "source_file" ]
 --     sqlCreate c u = run' c "insert into unit values (null,?,?,?)" (tail $ sqlRow u)
 --         where sqlRow u = [(DB.toSql.Unit.id)u, (DB.toSql.SourceFile.id.Unit.sourceFile)u,(DB.toSql.Unit.onset)u,(DB.toSql.Unit.duration)u]

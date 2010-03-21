@@ -32,7 +32,7 @@ class Unique a where
 
 instance SqlType UUID where
     fromSql s = case UUID.fromString (fromSql s) of
-                    Nothing -> error "Couldn't convert SqlType to UUID"
+                    Nothing -> error ("Couldn't convert SqlType to UUID: " ++ show s)
                     Just u  -> u
     toSql = toSql . UUID.toString
 
