@@ -7,7 +7,7 @@ import           Data.Accessor
 import           Data.Function (fix)
 import           Data.Maybe
 import           Graphics.Rendering.Cairo (Render)
-import           Graphics.UI.Gtk hiding (Image, Point, get, event)
+import           Graphics.UI.Gtk hiding (Image, Point)
 import           Mescaline (Time)
 import qualified Mescaline.Database.FlatFile as DB
 import qualified Mescaline.Synth.Concat as Synth
