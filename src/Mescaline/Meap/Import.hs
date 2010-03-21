@@ -100,4 +100,4 @@ insertFile segs c path getMeap = do
 
 importDirectory :: IConnection c => Int -> FilePath -> c -> IO ()
 importDirectory np dir c = Chain.mapDirectory np (insertFile segs c) dir
-    where segs = [Unit.Onset, Unit.Beat]
+    where segs = [Unit.Onset {- , Unit.Beat -}]
