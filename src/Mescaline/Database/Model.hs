@@ -55,14 +55,20 @@ instance SqlRow SourceFile.SourceFile where
         i <- fromSqlRow
         u <- fromSqlRow
         h <- fromSqlRow
-        return $ SourceFile.unsafeCons i u h 0 0 0
+        nc <- fromSqlRow
+        sr <- fromSqlRow
+        nf <- fromSqlRow
+        return $ SourceFile.unsafeCons i u h nc sr nf
 
 instance Model SourceFile.SourceFile where
     -- type BelongsTo SourceFile.SourceFile = ()
     toTable _ = Table.table "source_file"
-                    [ ("id"   , PrimaryKey "text" , sqlAccessor SourceFile.id   )
-                    , ("url"  , Type "text"       , sqlAccessor SourceFile.url  )
-                    , ("hash" , Type "text"       , sqlAccessor SourceFile.hash ) ]
+                    [ ("id"   ,      PrimaryKey "text" , sqlAccessor SourceFile.id   )
+                    , ("url"  ,      Type "text"       , sqlAccessor SourceFile.url  )
+                    , ("hash" ,      Type "text"       , sqlAccessor SourceFile.hash )
+                    , ("channels",   Type "integer"    , sqlAccessor SourceFile.numChannels)
+                    , ("sampleRate", Type "real"       , sqlAccessor SourceFile.sampleRate)
+                    , ("frames",     Type "integer"    , sqlAccessor SourceFile.frames) ]
                     [ "id" ]
     -- sqlCreate c sf = run' c "insert into source_file values (null,?,?)" (tail $ sqlRow sf)
     --     where sqlRow sf = [(DB.toSql.SourceFile.id)sf,(DB.toSql.SourceFile.path)sf,(DB.toSql.SourceFile.hash)sf] 
