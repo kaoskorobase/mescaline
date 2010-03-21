@@ -1,5 +1,6 @@
 module Mescaline.Meap.Import (
-    importDirectory
+    features
+  , importDirectory
 ) where
 
 import           Control.Monad
@@ -17,44 +18,47 @@ import           Mescaline.Database.SourceFile (SourceFile)
 import qualified Mescaline.Database.SourceFile as SourceFile
 import qualified Mescaline.Database.Table as Table
 import           Mescaline.Data.Array.Vector
-import           Mescaline.Meap.Extractor as Extractor
-import           Mescaline.Meap.Segmenter as Segmenter
+import qualified Mescaline.Meap.Extractor as Extractor
+import qualified Mescaline.Meap.Segmenter as Segmenter
 import           Mescaline.Meap.Chain as Chain
 import qualified Sound.Analysis.Meapsoft as Meap
 
-meapFeatures :: [String]
+meapFeatures :: [(String, Int)]
 meapFeatures = [
-    "AvgChroma"
-  , "AvgChromaScalar"
-  , "AvgChunkPower"
-  , "AvgFreqSimple"
-  , "AvgMelSpec"
-  , "AvgMFCC"
-  , "AvgPitch"
-  , "AvgSpecCentroid"
-  , "AvgSpecFlatness"
-  , "AvgTonalCentroid"
-  , "ChunkLength"
-  , "ChunkStartTime"
-  , "Entropy"
-  , "RMSAmplitude"
-  , "SpectralStability"
+    ( "AvgChroma"         , 12  )
+  , ( "AvgChromaScalar"   , 1   )
+  , ( "AvgChunkPower"     , 1   )
+  , ( "AvgFreqSimple"     , 1   )
+  , ( "AvgMelSpec"        , 40  )
+  , ( "AvgMFCC"           , 13  )
+  , ( "AvgPitch"          , 1   )
+  , ( "AvgSpecCentroid"   , 1   )
+  , ( "AvgSpecFlatness"   , 1   )
+  , ( "AvgTonalCentroid"  , 6   )
+  , ( "ChunkLength"       , 1   )
+  , ( "ChunkStartTime"    , 1   )
+  , ( "Entropy"           , 1   )
+  , ( "RMSAmplitude"      , 1   )
+  , ( "SpectralStability" , 1   )
   ]
+
+meapFeaturePrefix :: String
+meapFeaturePrefix = "com.meapsoft."
+
+features :: [(String, Feature.Descriptor)]
+features = map (\(n, d) -> (n, Feature.consDescriptor (meapFeaturePrefix ++ n) d)) meapFeatures
 
 options :: Unit.Segmentation -> Chain.Options
 options seg = Chain.defaultOptions {
             segmenter = Segmenter.defaultOptions {
-            segmentation = case seg of
-                            Unit.Beat -> Segmenter.Beat
-                            Unit.Onset -> Segmenter.Onset
+                Segmenter.segmentation = case seg of
+                                            Unit.Beat -> Segmenter.Beat
+                                            Unit.Onset -> Segmenter.Onset
             }
           , extractor = Extractor.defaultOptions {
-            windowSize = 1024,
-            hopSize = 512,
-            features  = meapFeatures } }
-
-meapFeaturePrefix :: String
-meapFeaturePrefix = "com.meapsoft."
+                Extractor.windowSize = 1024,
+                Extractor.hopSize = 512,
+                Extractor.features  = map fst meapFeatures } }
 
 convUnit :: SourceFile -> Unit.Segmentation -> (Double, Double) -> Unit
 convUnit sf s (o, d) = Unit.cons sf s o d
@@ -96,4 +100,4 @@ insertFile segs c path getMeap = do
 
 importDirectory :: IConnection c => Int -> FilePath -> c -> IO ()
 importDirectory np dir c = Chain.mapDirectory np (insertFile segs c) dir
-    where segs = [Unit.Onset, Unit.Beat]
+    where segs = [Unit.Onset {- , Unit.Beat -}]

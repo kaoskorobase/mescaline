@@ -6,10 +6,13 @@ import           Control.Concurrent.Chan
 import           Data.Accessor
 import           Data.Function (fix)
 import           Data.Maybe
+import           Database.HDBC (quickQuery')
 import           Graphics.Rendering.Cairo (Render)
 import           Graphics.UI.Gtk hiding (Image, Point)
 import           Mescaline (Time)
-import qualified Mescaline.Database.FlatFile as DB
+import           Mescaline.Database as DB
+import           Mescaline.Database.SqlQuery
+import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Synth.Concat as Synth
 import qualified Mescaline.Synth.Pattern as P
 import           Mescaline.Synth.Sequencer as Sequencer
@@ -17,7 +20,7 @@ import           Mescaline.Synth.SequencerView
 import           Mescaline.Synth.SSF
 import           Sound.OpenSoundControl hiding (Time)
 import qualified System.Environment as Env
-import           Prelude hiding (init, scanl)
+import           Prelude hiding (and, init, scanl)
 
 import Debug.Trace
 
@@ -85,16 +88,28 @@ pipeChan f i o = do
     pipeChan f i o
 
 -- sequencerEvents :: [Unit] -> Time -> Sequencer a -> [P.SynthEvent]
-sequencerEvents units t s = map f is
+sequencerEvents units t s = map (setEnv.f) is
     where
         -- is = map (\(r, c) -> r * cols s + c) $ indicesAtCursor s
         is = map fst $ indicesAtCursor s
         f i = P.SynthEvent t (units !! i) P.defaultSynth
+        setEnv = setVal (P.synth.>P.attackTime) 0.01 . setVal (P.synth.>P.releaseTime) 0.02
+
+getUnits dbFile pattern = do
+    (units, sfMap) <- flip withDatabase dbFile $ \c -> do
+        unitQuery (quickQuery' c)
+              ((url sourceFile `like` pattern) `and` (segmentation unit `eq` Unit.Onset))
+              []
+    case units of
+        Left e -> fail e
+        Right us -> return us
 
 main = do
-    [dbDir, n] <- Env.getArgs
-    db <- DB.open dbDir
-    let units = drop (read n) (DB.units db)
+    [dbFile, pattern, n] <- Env.getArgs
+    -- db <- DB.open dbDir
+    -- let units = drop (read n) (DB.units db)
+    units <- drop (read n) `fmap` getUnits dbFile pattern
+    mapM_ print units
     
     unsafeInitGUIForThreadedRTS
     -- initGUI

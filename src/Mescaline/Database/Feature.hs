@@ -81,6 +81,9 @@ sqlTableName f = "feature_" ++ (map tr $ name f)
         tr '.' = '_'
         tr c   = c
 
+sqlColumnNames :: Descriptor -> [String]
+sqlColumnNames = map (("value_" ++) . show) . indices
+
 {-
 module Mescaline.Database.Feature (
     FeatureDescriptor,

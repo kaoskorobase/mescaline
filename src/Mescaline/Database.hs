@@ -1,14 +1,16 @@
 module Mescaline.Database (
-    withDatabase
-  , DB.Connection
+    Connection
+  , withDatabase
 ) where
 
 import qualified Database.HDBC as DB
+import           Database.HDBC.Sqlite3 (Connection)
 import qualified Database.HDBC.Sqlite3 as DB
 
-withDatabase :: (DB.Connection -> IO ()) -> FilePath -> IO ()
-withDatabase io path = do
-    c <- DB.connectSqlite3 path
-    io c
-    DB.commit c
-    DB.disconnect c
+withDatabase :: (Connection -> IO a) -> FilePath -> IO a
+withDatabase action path = do
+    conn <- DB.connectSqlite3 path
+    result <- action conn
+    DB.commit conn
+    DB.disconnect conn
+    return result
