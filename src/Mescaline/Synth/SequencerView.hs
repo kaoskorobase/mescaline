@@ -12,7 +12,7 @@ import Data.Colour.SRGB.Linear (rgb)
 import Data.IORef
 import Graphics.Rendering.Cairo (Render)
 import Graphics.UI.Gtk hiding (Image, Point, get)
-import Graphics.UI.Gtk.Diagram
+-- import Graphics.UI.Gtk.Diagram
 import Mescaline.Synth.Sequencer as Sequencer
 import qualified System.Glib.MainLoop as MainLoop
 
