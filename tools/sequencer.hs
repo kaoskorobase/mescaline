@@ -20,7 +20,7 @@ import           Mescaline.Synth.SequencerView
 import           Mescaline.Synth.SSF
 import           Sound.OpenSoundControl hiding (Time)
 import qualified System.Environment as Env
-import           Prelude hiding (init, scanl)
+import           Prelude hiding (and, init, scanl)
 
 import Debug.Trace
 
