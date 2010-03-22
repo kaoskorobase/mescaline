@@ -53,10 +53,10 @@ isLink :: ColumnType -> Bool
 isLink (LinksTo _) = True
 isLink _           = False
 
-instance SqlExpression ColumnType where
-    toSqlExpression (Type s)       = s
-    toSqlExpression (PrimaryKey s) = s ++ " primary key"
-    toSqlExpression (LinksTo _)    = "text"
+columnTypeToSql :: ColumnType -> String
+columnTypeToSql (Type s)       = s
+columnTypeToSql (PrimaryKey s) = s ++ " primary key"
+columnTypeToSql (LinksTo _)    = "text"
 
 data Column a = Column {
     col_name     :: String
@@ -113,14 +113,14 @@ newtype CreateTable a = CreateTable (Table a)
 instance SqlExpression (CreateTable a) where
     toSqlExpression (CreateTable t) =
         printf "create table if not exists %s (%s);" (name t) colSpecs
-     ++ if null indices then "" else printf "\ncreate index if not exists %s_index on %s(%s);" (name t) (name t) indices
+      : if null indices then [] else [printf "\ncreate index if not exists %s_index on %s(%s);" (name t) (name t) indices]
         where
             cols = columns t
-            colSpecs = List.intercalate ", " $ map (\c -> col_name c ++ " " ++ toSqlExpression (col_type c)) cols
+            colSpecs = List.intercalate ", " $ map (\c -> col_name c ++ " " ++ columnTypeToSql (col_type c)) cols
             indices = List.intercalate ", " $ map col_name $ filter isIndexColumn cols
 
 create :: IConnection c => c -> Table a -> IO ()
-create c t = run c (toSqlExpression (CreateTable t)) [] >> return ()
+create c = mapM_ (flip (run c) []) . toSqlExpression . CreateTable
 
 -- ====================================================================
 -- Model

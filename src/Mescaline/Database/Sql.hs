@@ -22,7 +22,7 @@ getSqlValue (SqlAccessor f) a = toSql (f a)
 
 
 class SqlExpression a where
-    toSqlExpression :: a -> String
+    toSqlExpression :: a -> [String]
 
 
 class SqlRow a where
