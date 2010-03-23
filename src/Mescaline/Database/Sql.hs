@@ -5,7 +5,10 @@ module Mescaline.Database.Sql (
   , sqlAccessor
   , getSqlValue
   , SqlExpression(..)
+  , SqlReader
   , SqlRow(..)
+  , SqlType(..)
+  , SqlValue
 ) where
 
 import           Database.HDBC (SqlType(..), SqlValue)
@@ -20,13 +23,13 @@ sqlAccessor = SqlAccessor
 getSqlValue :: SqlAccessor a -> a -> SqlValue
 getSqlValue (SqlAccessor f) a = toSql (f a)
 
-
 class SqlExpression a where
     toSqlExpression :: a -> [String]
 
+type SqlReader a = ListReader SqlValue a
 
 class SqlRow a where
-    fromSqlRow :: ListReader SqlValue a
+    fromSqlRow :: SqlReader a
 
 fromSqlRow_SqlType :: (SqlType a, SqlRow a) => ListReader SqlValue a
 fromSqlRow_SqlType = fromSql `fmap` ListReader.head

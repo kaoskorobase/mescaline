@@ -6,15 +6,18 @@ import           Data.Accessor.Template (nameDeriveAccessors)
 import           Data.Accessor (Accessor, (.>))
 import           Data.Accessor.Tuple
 import qualified Data.Binary as Binary
-import           Mescaline.Data.Array.Vector (Vector)
+import qualified Data.Vector.Unboxed as V
+import qualified Mescaline.Data.ListReader as ListReader
 import qualified Mescaline.Data.Unique as Unique
 import           Mescaline.Database.Unit (Unit)
 import qualified Mescaline.Database.Unit as Unit
+import           Mescaline.Database.Sql (SqlReader)
+import qualified Mescaline.Database.Sql as Sql
 import           Prelude hiding (id)
 
 newtype Descriptor = Descriptor { unDescriptor :: (Unique.Id, String, Int) } deriving (Eq, Show) 
 newtype Feature    = Feature    { unFeature :: (Unit, Descriptor, Value) } deriving (Eq, Show)
-type    Value      = Vector Double
+type    Value      = V.Vector Double
 
 $(nameDeriveAccessors ''Descriptor (return.(++"_")))
 $(nameDeriveAccessors ''Feature (return.(++"_")))
@@ -83,6 +86,10 @@ sqlTableName f = "feature_" ++ (map tr $ name f)
 
 sqlColumnNames :: Descriptor -> [String]
 sqlColumnNames = map (("value_" ++) . show) . indices
+
+
+getSql :: Unit -> Descriptor -> SqlReader Feature
+getSql u d = ListReader.take (degree d) >>= return . mkFeature u d . V.fromList . map Sql.fromSql
 
 {-
 module Mescaline.Database.Feature (

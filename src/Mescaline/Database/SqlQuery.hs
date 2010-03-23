@@ -146,26 +146,38 @@ unitQueryString q ds = (printf "SELECT %s FROM %s JOIN %s ON %s WHERE %s"
             ++ concatMap (\d -> map ((Feature.sqlTableName d ++ ".") ++) (Feature.sqlColumnNames d)) ds
         (cond, args) = queryCond q
 
-unitQuery :: (String -> [SqlValue] -> IO [[SqlValue]]) -> Query -> [Feature.Descriptor] -> IO (Either String [Unit.Unit], SourceFileMap)
+unitQuery :: (String -> [SqlValue] -> IO [[SqlValue]]) -> Query -> [Feature.Descriptor] -> IO (Either String [(Unit.Unit, [Feature.Feature])], SourceFileMap)
 unitQuery action q ds = do
-    print (unitQueryString q ds)
+    -- print (unitQueryString q ds)
     rows <- uncurry action (unitQueryString q ds)
-    print $ Prelude.length rows
+    -- print $ Prelude.length rows
     return $ State.runState (Error.runErrorT (mapM readUnit rows)) Map.empty
     where
-        readUnit :: [SqlValue] -> Error.ErrorT String (State.State SourceFileMap) Unit.Unit
+        -- readUnit :: [SqlValue] -> Error.ErrorT String (State.State SourceFileMap) Unit.Unit
         readUnit xs = do
-            case ListReader.runListReader Sql.fromSqlRow xs of
+            let get = do
+                u <- Sql.fromSqlRow
+                fs <- mapM (Feature.getSql u) ds
+                return (u, fs)
+            case ListReader.runListReader get xs of
                 Left e -> Error.throwError e
-                Right unit -> do
+                Right (unit, fs) -> do
                     sfMap <- State.lift State.get
                     let sf = Unit.sourceFile unit
                         sfid = SourceFile.id sf
                     sf' <- case Map.lookup sfid sfMap of
                             Nothing  -> State.lift $ State.put (Map.insert sfid sf sfMap) >> return sf
                             Just sf' -> return sf'
-                    return $ Unit.unsafeCons
+                    return (Unit.unsafeCons
                                 (Unit.id unit) sf'
                                 (Unit.segmentation unit)
                                 (Unit.onset unit)
-                                (Unit.duration unit)
+                                (Unit.duration unit), fs)
+
+unitQuery_ :: (String -> [SqlValue] -> IO [[SqlValue]]) -> Query -> IO (Either String [Unit.Unit], SourceFileMap)
+unitQuery_ f q = do
+    (res, sfMap) <- unitQuery f q []
+    case res of
+        Left e -> return (Left e, sfMap)
+        Right us -> return (Right (map fst us), sfMap)
+    

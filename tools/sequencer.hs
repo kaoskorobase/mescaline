@@ -97,9 +97,8 @@ sequencerEvents units t s = map (setEnv.f) is
 
 getUnits dbFile pattern = do
     (units, sfMap) <- flip withDatabase dbFile $ \c -> do
-        unitQuery (quickQuery' c)
+        unitQuery_ (quickQuery' c)
               ((url sourceFile `like` pattern) `and` (segmentation unit `eq` Unit.Onset))
-              []
     case units of
         Left e -> fail e
         Right us -> return us
