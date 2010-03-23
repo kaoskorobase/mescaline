@@ -36,11 +36,6 @@ data Unit = Unit {
 
 $(nameDeriveAccessors ''Unit (return.(++"_")))
 
--- data FeatureTable = FeatureTable {
---     features :: [Feature],
---     table    :: [(Unit, Vector Double)]
--- } deriving (Show)
-
 namespace :: Unique.Namespace
 namespace = Unique.mkNamespace "6a1f3de2-91fb-43c5-8ee0-8d4fb43d0d20"
 
@@ -56,12 +51,3 @@ unsafeCons = Unit
 cons :: SourceFile -> Segmentation -> Time -> DTime -> Unit
 cons sf s o d = unsafeCons (Unique.fromBinary namespace p) sf s o d
     where p = Binary.put (fromEnum o) >> Binary.put o >> Binary.put d
-
--- descriptors :: FeatureTable -> [Feature.Descriptor]
--- descriptors = map (Feature.descriptor) . features
-
---feature :: Feature -> Unit -> Double
---feature f u = indexU (featureValues u) (Feature.column f)
---
---featureVector :: Feature -> Unit -> Vector Double
---featureVector f u = sliceU (featureValues u) (Feature.column f) (Feature.degree f)

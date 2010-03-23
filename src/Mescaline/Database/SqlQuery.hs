@@ -114,20 +114,6 @@ tables = [ Table.name $ Table.toTable (undefined :: SourceFile.SourceFile)
 
 type SourceFileMap = Map.Map Unique.Id SourceFile.SourceFile
 
--- select source_file.id, unit.id, unit.onset, unit.duration,
--- feature_com_meapsoft_AvgSpecCentroid.value_0, feature_com_meapsoft_AvgPitch.value_0
--- from source_file join unit, feature_com_meapsoft_AvgSpecCentroid,
--- feature_com_meapsoft_AvgPitch on source_file.id = unit.source_file and unit.id =
--- feature_com_meapsoft_AvgSpecCentroid.unit and unit.id =
--- feature_com_meapsoft_AvgPitch.unit where segmentation = 'Onset';
-
--- modelJoinExpr :: [Table.Table a] -> Query
--- modelJoinExpr ts = foldl1 and [ q | Just q <- [ maybe Nothing (\s -> Just $ query_ (Table.name t ++ "." ++ Table.col_name lc ++ "=" ++ s)) (linkId lc) | (t, [lc]) <- zip ts (map Table.linkColumns ts) ] ]
---     where
---         linkId c = case Table.link c of
---                     Nothing -> Nothing
---                     Just (t, c) -> Just (t ++ "." ++ c)
-
 unitQueryString :: Query -> [Feature.Descriptor] -> (String, [SqlValue])
 unitQueryString q ds = (printf "SELECT %s FROM %s JOIN %s ON %s WHERE %s"
                         (List.intercalate "," cols)
