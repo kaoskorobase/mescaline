@@ -10,7 +10,7 @@ $: << File.join(File.dirname(__FILE__), 'lib')
 require 'threadpool'
 
 MEAP_VERSION = "2.0"
-CLASS_PATH   = Dir.glob(File.join(File.dirname(__FILE__), "jar/meap-#{MEAP_VERSION}/*.jar"))
+CLASS_PATH   = Dir.glob(File.join(File.dirname(__FILE__), "lib/meap-#{MEAP_VERSION}/*.jar"))
 SEGMENTER    = "com.meapsoft.Segmenter"
 EXTRACTOR    = "com.meapsoft.FeatExtractor"
 
