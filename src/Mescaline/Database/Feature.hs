@@ -11,7 +11,7 @@ import qualified Mescaline.Data.ListReader as ListReader
 import qualified Mescaline.Data.Unique as Unique
 import           Mescaline.Database.Unit (Unit)
 import qualified Mescaline.Database.Unit as Unit
-import           Mescaline.Database.Sql (SqlReader)
+import           Mescaline.Database.Sql (GetSql)
 import qualified Mescaline.Database.Sql as Sql
 import           Prelude hiding (id)
 
@@ -87,6 +87,5 @@ sqlTableName f = "feature_" ++ (map tr $ name f)
 sqlColumnNames :: Descriptor -> [String]
 sqlColumnNames = map (("value_" ++) . show) . indices
 
-
-getSql :: Unit -> Descriptor -> SqlReader Feature
+getSql :: Unit -> Descriptor -> GetSql Feature
 getSql u d = ListReader.take (degree d) >>= return . mkFeature u d . V.fromList . map Sql.fromSql

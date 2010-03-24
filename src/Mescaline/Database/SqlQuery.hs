@@ -9,9 +9,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import           Data.Sequence as Seq
 import           Database.HDBC (SqlType(..), SqlValue)
-import           Mescaline
 import qualified Mescaline.Data.Unique as Unique
-import qualified Mescaline.Data.ListReader as ListReader
 import qualified Mescaline.Database.Model ()
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.SourceFile as SourceFile
@@ -142,10 +140,10 @@ unitQuery action q ds = do
         -- readUnit :: [SqlValue] -> Error.ErrorT String (State.State SourceFileMap) Unit.Unit
         readUnit xs = do
             let get = do
-                u <- Sql.fromSqlRow
+                u <- Sql.getRow
                 fs <- mapM (Feature.getSql u) ds
                 return (u, fs)
-            case ListReader.runListReader get xs of
+            case Sql.execGetSql get xs of
                 Left e -> Error.throwError e
                 Right (unit, fs) -> do
                     sfMap <- State.lift State.get

@@ -5,14 +5,21 @@ module Mescaline.Database.Sql (
   , sqlAccessor
   , getSqlValue
   , SqlExpression(..)
-  , SqlReader
+  , PutSql
+  , runPutSql
+  , execPutSql
+  , GetSql
+  , runGetSql
+  , execGetSql
   , SqlRow(..)
+  , toRow
+  , fromRow
   , SqlType(..)
   , SqlValue
 ) where
 
 import           Database.HDBC (SqlType(..), SqlValue)
-import           Mescaline.Data.ListReader (ListReader)
+import           Mescaline.Data.ListReader (ListReader, ListWriter)
 import qualified Mescaline.Data.ListReader as ListReader
 
 data SqlAccessor a = forall b . SqlType b => SqlAccessor (a -> b)
@@ -26,17 +33,46 @@ getSqlValue (SqlAccessor f) a = toSql (f a)
 class SqlExpression a where
     toSqlExpression :: a -> [String]
 
-type SqlReader a = ListReader SqlValue a
+type GetSql a = ListReader SqlValue a
+
+runGetSql :: GetSql a -> [SqlValue] -> Either String (a, [SqlValue])
+runGetSql = ListReader.runListReader
+
+execGetSql :: GetSql a -> [SqlValue] -> Either String a
+execGetSql = ListReader.execListReader
+
+type PutSql a = ListWriter SqlValue a
+
+runPutSql :: PutSql a -> (a, [SqlValue])
+runPutSql = ListReader.runListWriter
+
+execPutSql :: PutSql a -> [SqlValue]
+execPutSql = ListReader.execListWriter
 
 class SqlRow a where
-    fromSqlRow :: SqlReader a
+    putRow :: a -> PutSql ()
+    getRow :: GetSql a
 
-fromSqlRow_SqlType :: (SqlType a, SqlRow a) => ListReader SqlValue a
-fromSqlRow_SqlType = fromSql `fmap` ListReader.head
+putRow_SqlType :: (SqlType a) => a -> PutSql ()
+putRow_SqlType = ListReader.put . toSql
+
+getRow_SqlType :: (SqlType a) => GetSql a
+getRow_SqlType = fmap fromSql ListReader.head
 
 instance SqlRow String where
-    fromSqlRow = fromSqlRow_SqlType
+    putRow = putRow_SqlType
+    getRow = getRow_SqlType
+
 instance SqlRow Int where
-    fromSqlRow = fromSqlRow_SqlType
+    putRow = putRow_SqlType
+    getRow = getRow_SqlType
+
 instance SqlRow Double where
-    fromSqlRow = fromSqlRow_SqlType
+    putRow = putRow_SqlType
+    getRow = getRow_SqlType
+
+toRow :: SqlRow a => a -> [SqlValue]
+toRow = execPutSql . putRow
+
+fromRow :: SqlRow a => [SqlValue] -> Either String a
+fromRow = execGetSql getRow
