@@ -7,8 +7,7 @@ import           Control.Monad
 import qualified Data.Vector.Generic as V
 import           Database.HDBC (IConnection)
 
--- import           Mescaline.Data.Unique (Unique)
--- import qualified Mescaline.Data.Unique as Unique
+import qualified Mescaline.Database as DB
 import           Mescaline.Database.Feature (Feature)
 import qualified Mescaline.Database.Feature as Feature
 import           Mescaline.Database.Model ()
@@ -80,23 +79,24 @@ meapFrames :: Meap.MEAP -> [[Double]]
 meapFrames meap = map (Meap.frame_l meap) [0..Meap.n_frames meap - 1]
 
 insertFile :: IConnection c => [Unit.Segmentation] -> c -> FilePath -> (Chain.Options -> FilePath -> IO Meap.MEAP) -> IO ()
-insertFile segs c path getMeap = do
+insertFile segs conn path getMeap = do
     -- mapM_ print (Meap.features meap)
     -- mapM_ print (meapFrames meap)
     sf <- SourceFile.newLocal path
-    p <- Table.isStored c sf
+    p <- Table.isStored conn sf
     putStrLn (path ++ " " ++ show sf ++ " " ++ show p)
     unless p $ do
-        Table.insert c sf
+        Table.insert conn sf
         mapM_ (insert sf) segs
+        DB.commit conn
     where
         insert sf seg = do
             meap <- getMeap (options seg) path
-            ds <- mapM (insertModel c . convFeatureDesc) $ Meap.features meap
-            us <- mapM (insertModel c . convUnit sf seg) $ Meap.segments_l meap
+            ds <- mapM (insertModel conn . convFeatureDesc) $ Meap.features meap
+            us <- mapM (insertModel conn . convUnit sf seg) $ Meap.segments_l meap
             flip mapM_ (zip ds (Meap.features meap)) $ \(d, f) ->
                 flip mapM_ (zip us (meapFrames meap)) $
-                    insertModel c . uncurry (convFeature d f)
+                    insertModel conn . uncurry (convFeature d f)
 
 importDirectory :: IConnection c => Int -> FilePath -> c -> IO ()
 importDirectory np dir c = Chain.mapDirectory np (insertFile segs c) dir

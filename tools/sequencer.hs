@@ -10,7 +10,7 @@ import           Database.HDBC (quickQuery')
 import           Graphics.Rendering.Cairo (Render)
 import           Graphics.UI.Gtk hiding (Image, Point)
 import           Mescaline (Time)
-import           Mescaline.Database as DB
+import qualified Mescaline.Database as DB
 import           Mescaline.Database.SqlQuery
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Synth.Concat as Synth
@@ -96,7 +96,7 @@ sequencerEvents units t s = map (setEnv.f) is
         setEnv = setVal (P.synth.>P.attackTime) 0.01 . setVal (P.synth.>P.releaseTime) 0.02
 
 getUnits dbFile pattern = do
-    (units, sfMap) <- flip withDatabase dbFile $ \c -> do
+    (units, sfMap) <- DB.withDatabase dbFile $ \c -> do
         unitQuery_ (quickQuery' c)
               ((url sourceFile `like` pattern) `and` (segmentation unit `eq` Unit.Onset))
     case units of

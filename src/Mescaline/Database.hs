@@ -1,16 +1,13 @@
 module Mescaline.Database (
     Connection
   , withDatabase
+  , DB.commit
 ) where
 
+import           Control.Exception (bracket)
 import qualified Database.HDBC as DB
 import           Database.HDBC.Sqlite3 (Connection)
 import qualified Database.HDBC.Sqlite3 as DB
 
-withDatabase :: (Connection -> IO a) -> FilePath -> IO a
-withDatabase action path = do
-    conn <- DB.connectSqlite3 path
-    result <- action conn
-    DB.commit conn
-    DB.disconnect conn
-    return result
+withDatabase :: FilePath -> (Connection -> IO a) -> IO a
+withDatabase path = bracket (DB.connectSqlite3 path) DB.disconnect
