@@ -53,6 +53,7 @@ options seg = Chain.defaultOptions {
                 Segmenter.segmentation = case seg of
                                             Unit.Beat -> Segmenter.Beat
                                             Unit.Onset -> Segmenter.Onset
+              , Segmenter.smoothingWindow = 0.01
             }
           , extractor = Extractor.defaultOptions {
                 Extractor.windowSize = 1024,
