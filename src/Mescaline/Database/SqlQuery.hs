@@ -112,6 +112,7 @@ tables = [ Table.name $ Table.toTable (undefined :: SourceFile.SourceFile)
 
 type SourceFileMap = Map.Map Unique.Id SourceFile.SourceFile
 
+-- | Return an Sql query string with arguments for a 'Unit' query.
 unitQueryString :: Query -> [Feature.Descriptor] -> (String, [SqlValue])
 unitQueryString q ds = (printf "SELECT %s FROM %s JOIN %s ON %s WHERE %s"
                         (List.intercalate "," cols)
