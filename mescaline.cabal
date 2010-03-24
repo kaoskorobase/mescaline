@@ -135,3 +135,8 @@ executable mkdb
     main-is:        mkdb.hs
     ghc-options:    -threaded -funbox-strict-fields
     hs-source-dirs: src, tools
+
+executable editfeature
+    main-is:        editfeature.hs
+    ghc-options:    -threaded -funbox-strict-fields
+    hs-source-dirs: src, tools
