@@ -111,9 +111,9 @@ executable sampler
     build-depends:  gtk
     ghc-options:    -threaded
 
-executable sequencer
-    main-is:        sequencer.hs
-    hs-source-dirs: src, tools
+executable mescaline
+    main-is:        main.hs
+    hs-source-dirs: app, src
     build-depends:  gtk >= 0.10
                   , glib >= 0.10
                   , cairo >= 0.10
