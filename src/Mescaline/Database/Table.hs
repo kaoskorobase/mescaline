@@ -124,7 +124,7 @@ create c = mapM_ (flip (run c) []) . Sql.toSqlExpression . CreateTable
 -- ====================================================================
 -- Model
 
-class (SqlRow a, Unique a) => Model a where
+class (Unique a) => Model a where
     toTable :: a -> Table
 
 colNames :: Model a => a -> String
@@ -144,7 +144,7 @@ isStored c a = do
         t = toTable a
 
 -- | Insert instance of a model into the corrsponding table.
-insert :: (Model a, IConnection c) => c -> a -> IO ()
+insert :: (Model a, SqlRow a, IConnection c) => c -> a -> IO ()
 insert c a = do
     -- TODO: optimize
     create c t

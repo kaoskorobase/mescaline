@@ -142,7 +142,7 @@ unitQuery action q ds = do
         readUnit xs = do
             let get = do
                 u <- Sql.getRow
-                fs <- mapM (Feature.getSql u) ds
+                fs <- mapM (Feature.getSql (Unit.id u)) ds
                 return (u, fs)
             case Sql.execGetSql get xs of
                 Left e -> Error.throwError e

@@ -121,13 +121,22 @@ instance Model Feature.Descriptor where
                     , ("degree" , Type "integer"   ) ]
                     []
 
+instance Model Feature.FeatureOf where
+    toTable (Feature.FeatureOf desc) =
+        Table.table (Feature.sqlTableName desc)
+            ([ ("unit", LinksTo (undefined :: Unit.Unit))
+             , ("descriptor", LinksTo (undefined :: Feature.Descriptor))
+             , ("length", Type "integer") ]
+             ++ map (\i -> ("value_" ++ show i, Type "real")) (Feature.indices desc))
+            []
+
 instance SqlRow Feature.Value where
     putRow x = putRow (V.length x) >> mapM_ putRow (V.toList x)
     getRow = getRow >>= sequence . flip replicate getRow >>= return . V.fromList
 
 instance SqlRow Feature.Feature where
     putRow x = do
-        putRow $ Unit.id.Feature.unit          $ x
+        putRow $ Feature.unit                  $ x
         putRow $ Feature.id.Feature.descriptor $ x
         putRow $ Feature.value                   x
     getRow = do

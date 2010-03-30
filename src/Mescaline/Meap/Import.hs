@@ -15,6 +15,7 @@ import           Mescaline.Database.Unit (Unit)
 import qualified Mescaline.Database.Unit as Unit
 import           Mescaline.Database.SourceFile (SourceFile)
 import qualified Mescaline.Database.SourceFile as SourceFile
+import           Mescaline.Database.Sql (SqlRow)
 import qualified Mescaline.Database.Table as Table
 import           Mescaline.Data.Array.Vector
 import qualified Mescaline.Meap.Extractor as Extractor
@@ -69,11 +70,11 @@ convFeatureDesc f = Feature.consDescriptor
                        (Meap.feature_degree f)
 
 convFeature :: Feature.Descriptor -> Meap.Feature -> Unit -> [Double] -> Feature
-convFeature d f u l = Feature.cons u d v
+convFeature d f u l = Feature.cons (Unit.id u) d v
     -- TODO: Make this more efficient
     where v = V.fromList . take (Meap.feature_degree f) . drop (Meap.feature_column f) $ l
 
-insertModel :: (Table.Model a, IConnection c) => c -> a -> IO a
+insertModel :: (Table.Model a, SqlRow a, IConnection c) => c -> a -> IO a
 insertModel c a = Table.insert c a >> return a
 
 meapFrames :: Meap.MEAP -> [[Double]]

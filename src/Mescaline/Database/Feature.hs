@@ -15,8 +15,9 @@ import           Mescaline.Database.Sql (GetSql)
 import qualified Mescaline.Database.Sql as Sql
 import           Prelude hiding (id)
 
-newtype Descriptor = Descriptor { unDescriptor :: (Unique.Id, String, Int) } deriving (Eq, Show) 
-newtype Feature    = Feature    { unFeature :: (Unit, Descriptor, Value) } deriving (Eq, Show)
+newtype Descriptor = Descriptor { unDescriptor :: (Unique.Id, String, Int) } deriving (Eq, Show)
+newtype FeatureOf  = FeatureOf Descriptor deriving (Eq, Show)
+newtype Feature    = Feature    { unFeature :: (Unique.Id, Descriptor, Value) } deriving (Eq, Show)
 type    Value      = V.Vector Double
 
 $(nameDeriveAccessors ''Descriptor (return.(++"_")))
@@ -31,6 +32,9 @@ namespace = Unique.mkNamespace "be38ae7f-da19-4df8-99b7-e4ca78b28d92"
 
 instance Unique.Unique Descriptor where
     uuid (Descriptor (u, _, _)) = u
+
+instance Unique.Unique FeatureOf where
+    uuid (FeatureOf d) = Unique.uuid d
 
 instance Unique.Unique Feature where
     -- The feature is uniquely identified by the unit
@@ -57,13 +61,13 @@ degree (Descriptor (_, _, d)) = d
 indices :: Descriptor -> [Int]
 indices d = [0..degree d - 1]
 
-cons :: Unit -> Descriptor -> Value -> Feature
+cons :: Unique.Id -> Descriptor -> Value -> Feature
 cons u d v = Feature (u, d, v)
 
-mkFeature :: Unit -> Descriptor -> Value -> Feature
+mkFeature :: Unique.Id -> Descriptor -> Value -> Feature
 mkFeature = cons
 
-unit :: Feature -> Unit
+unit :: Feature -> Unique.Id
 unit (Feature (u, _, _)) = u
 
 descriptor :: Feature -> Descriptor
@@ -87,5 +91,5 @@ sqlTableName f = "feature_" ++ (map tr $ name f)
 sqlColumnNames :: Descriptor -> [String]
 sqlColumnNames = map (("value_" ++) . show) . indices
 
-getSql :: Unit -> Descriptor -> GetSql Feature
+getSql :: Unique.Id -> Descriptor -> GetSql Feature
 getSql u d = ListReader.take (degree d) >>= return . mkFeature u d . V.fromList . map Sql.fromSql
