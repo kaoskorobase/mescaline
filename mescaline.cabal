@@ -82,6 +82,7 @@ library
                     Mescaline.Meap.Segmenter
                     Mescaline.Synth.BufferCache
                     Mescaline.Synth.Concat
+                    Mescaline.Synth.FeatureSpaceView
                     Mescaline.Synth.Pattern
                     Mescaline.Synth.Pattern.Load
                     Mescaline.Synth.SF

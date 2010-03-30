@@ -54,8 +54,8 @@ delete = alter (const Nothing)
 toggle :: Int -> Int -> a -> Sequencer a -> Sequencer a
 toggle row col a = alter f row col
     where
-        f Nothing  = traceShow "toggle on"  $ Just a
-        f (Just _) = traceShow "toggle off" $ Nothing
+        f Nothing  = Just a
+        f (Just _) = Nothing
 
 cursorPosition :: Cursor -> (Int, Int)
 cursorPosition (Bar col)       = (0, col)

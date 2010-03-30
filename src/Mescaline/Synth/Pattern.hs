@@ -69,6 +69,9 @@ data SynthEvent = SynthEvent {
 
 $(deriveAccessors ''SynthEvent)
 
+fromUnit :: Double -> Unit.Unit -> SynthEvent
+fromUnit t u = SynthEvent t u defaultSynth
+
 data Env = Env {
     e_time     :: Time
 }

@@ -53,10 +53,10 @@ sequencerRender :: Params a -> Render ()
 sequencerRender p = do
     withState $ do
         C.translate (padding p) (padding p)
-        forM_ [0..cols (sequencer p) - 1] $ \r -> do
+        forM_ [0..rows (sequencer p) - 1] $ \r -> do
             withState $ do
                 C.translate 0 (fromIntegral r * (boxSize p + padding p))
-                forM_ [0..rows (sequencer p) - 1] $ \c -> do
+                forM_ [0..cols (sequencer p) - 1] $ \c -> do
                     withState $ do
                         C.translate (fromIntegral c * (boxSize p + padding p)) 0
                         C.rectangle 0 0 (boxSize p) (boxSize p)
@@ -103,7 +103,7 @@ sequencerMouseEvent ochan p = do
     if b == LeftButton
         then case pointToIndex p (x, y) of
                 Nothing -> return ()
-                Just (row, col) -> liftIO $ print (row, col) >> (writeChan ochan $ Sequencer.toggle row col undefined)
+                Just (row, col) -> liftIO $ writeChan ochan $ Sequencer.toggle row col undefined
         else return ()
     return True
 

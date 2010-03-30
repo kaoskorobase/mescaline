@@ -8,15 +8,18 @@ import           Data.Function (fix)
 import           Data.Maybe
 import           Database.HDBC (quickQuery')
 import           Graphics.Rendering.Cairo (Render)
+import qualified Graphics.UI.Gtk as G
 import           Graphics.UI.Gtk hiding (Image, Point)
 import           Mescaline (Time)
 import qualified Mescaline.Database as DB
 import           Mescaline.Database.SqlQuery
+import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Synth.Concat as Synth
 import qualified Mescaline.Synth.Pattern as P
 import           Mescaline.Synth.Sequencer as Sequencer
 import           Mescaline.Synth.SequencerView
+import qualified Mescaline.Synth.FeatureSpaceView as FeatureSpaceView
 import           Mescaline.Synth.SSF
 import           Sound.OpenSoundControl hiding (Time)
 import qualified System.Environment as Env
@@ -35,10 +38,10 @@ clock = (logicalTime &&& identity) >>> scanl f (Nothing, NoEvent) >>> arr snd
             | otherwise               = (Just $ localTime, NoEvent)
 
 sequencer0 :: Sequencer ()
-sequencer0 = Sequencer.cons 16 16 0.125 (Bar (-1))
+sequencer0 = Sequencer.cons 6 16 0.125 (Bar (-1))
 
-sequencerOld :: SSF Double (Event (Sequencer ()))
-sequencerOld = clock >>> tag (Sequencer.step (undefined::Score)) >>> accum sequencer0
+-- sequencerOld :: SSF Double (Event (Sequencer ()))
+-- sequencerOld = clock >>> tag (Sequencer.step (undefined::Score)) >>> accum sequencer0
 
 accumHold :: a -> SSF (Event (a -> a)) a
 accumHold a0 = scanl g a0
@@ -95,10 +98,11 @@ sequencerEvents units t s = map (setEnv.f) is
         f i = P.SynthEvent t (units !! i) P.defaultSynth
         setEnv = setVal (P.synth.>P.attackTime) 0.01 . setVal (P.synth.>P.releaseTime) 0.02
 
-getUnits dbFile pattern = do
+getUnits dbFile pattern features = do
     (units, sfMap) <- DB.withDatabase dbFile $ \c -> do
-        unitQuery_ (quickQuery' c)
+        unitQuery (quickQuery' c)
               ((url sourceFile `like` pattern) `and` (segmentation unit `eq` Unit.Onset))
+              features
     case units of
         Left e -> fail e
         Right us -> return us
@@ -107,10 +111,10 @@ main = do
     [dbFile, pattern, n] <- Env.getArgs
     -- db <- DB.open dbDir
     -- let units = drop (read n) (DB.units db)
-    units <- drop (read n) `fmap` getUnits dbFile pattern
-    mapM_ print units
+    units <- drop (read n) `fmap` getUnits dbFile pattern [Feature.consDescriptor "es.globero.mescaline.spectral" 2]
+    -- mapM_ print units
     
-    unsafeInitGUIForThreadedRTS
+    G.unsafeInitGUIForThreadedRTS
     -- initGUI
     
     ichan <- newChan
@@ -118,16 +122,34 @@ main = do
     seqChan <- newChan
     synth <- Synth.newSampler
 
-    dia <- dialogNew
-    dialogAddButton dia stockOk ResponseOk
-    contain <- dialogGetUpper dia    
-    (canvas, update) <- sequencerNew 25 3 sequencer0 seqChan ichan
-    boxPackStartDefaults contain canvas
-    widgetShow canvas
+    window <- G.windowNew
+    contain <- G.vBoxNew False 0
+    (canvas, _) <- sequencerNew 25 3 sequencer0 seqChan ichan
+    G.boxPackStart contain canvas G.PackNatural 0
+    fspace_ichan <- newChan
+    fspace_ochan <- newChan
+    fspace <- FeatureSpaceView.newFeatureSpaceView (map (second head) units) fspace_ichan fspace_ochan
+    G.boxPackStart contain fspace G.PackGrow 0
+    -- boxPackStartDefaults contain canvas
+    -- widgetShow canvas
+    -- fix size
+    -- G.windowSetResizable window False
+    -- G.widgetSetSizeRequest window 300 300
+    -- press any key to quit
+    -- G.onKeyPress window $ const (do G.widgetDestroy window; return True)
+    G.onDestroy window G.mainQuit
+    G.set window [G.containerChild G.:= contain]
+    G.widgetShowAll window
 
     -- Execute signal function
-    forkIO $ executeSSF 0.005 (sequencer sequencer0 >>> first (arr (fmap (uncurry (sequencerEvents units))))) ichan ochan
+    forkIO $ executeSSF 0.005 (sequencer sequencer0 >>> first (arr (fmap (uncurry (sequencerEvents (map fst units)))))) ichan ochan
 
+    -- Pipe feature space view output to sample player
+    forkIO $ fix $ \loop -> do
+        us <- readChan fspace_ochan
+        mapM_ (Synth.playEvent synth . P.fromUnit 0) us
+        loop
+    
     -- Dispatch events to and from sequencer view
     forkIO $ fix $ \loop -> do
         x <- readChan ochan
@@ -139,8 +161,7 @@ main = do
             Event s -> writeChan seqChan s
         loop
     
-    dialogRun dia
-    return ()
+    G.mainGUI
 
 -- printChanE c = do
 --     (t, e) <- readChan c
