@@ -1,5 +1,6 @@
 import           Data.Maybe (fromJust)
 import qualified Data.Vector.Generic as V
+import qualified Database.HDBC as DB
 import qualified Mescaline.Data.Unique as Unique
 import           Mescaline.Database as DB
 import           Mescaline.Database.SqlQuery
@@ -34,7 +35,10 @@ cmd_insert dbFile seg name degree file = do
         features = zipWith (\u r -> Feature.cons (Unique.unsafeFromString u) desc (V.fromList r)) units rowData
         table = Table.toTable (Feature.FeatureOf desc)
     putStrLn $ printf "Feature %s into table `%s'" (show desc) (Table.name table)
-    DB.withDatabase dbFile $ \c -> mapM_ (Table.insert c) features >> DB.commit c
+    DB.withDatabase dbFile $ \c -> do
+        DB.handleSqlError $ DB.run c (printf "drop table %s" (Table.name table)) []
+        mapM_ (Table.insert c) features
+        DB.commit c
     where
         read_dlm = fmap (map words . lines) . hGetContents
 
