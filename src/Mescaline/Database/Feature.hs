@@ -2,7 +2,7 @@
 
 module Mescaline.Database.Feature where
 
-import           Data.Accessor.Template (nameDeriveAccessors)
+-- import           Data.Accessor.Template (nameDeriveAccessors)
 import           Data.Accessor (Accessor, (.>))
 import           Data.Accessor.Tuple
 import qualified Data.Binary as Binary
@@ -20,12 +20,12 @@ newtype FeatureOf  = FeatureOf Descriptor deriving (Eq, Show)
 newtype Feature    = Feature    { unFeature :: (Unique.Id, Descriptor, Value) } deriving (Eq, Show)
 type    Value      = V.Vector Double
 
-$(nameDeriveAccessors ''Descriptor (return.(++"_")))
-$(nameDeriveAccessors ''Feature (return.(++"_")))
+-- $(nameDeriveAccessors ''Descriptor (return.(++"_")))
+-- $(nameDeriveAccessors ''Feature (return.(++"_")))
 
-id_     = unDescriptor_ .> first3
-name_   = unDescriptor_ .> second3
-degree_ = unDescriptor_ .> third3
+-- id_     = unDescriptor_ .> first3
+-- name_   = unDescriptor_ .> second3
+-- degree_ = unDescriptor_ .> third3
 
 namespace :: Unique.Namespace
 namespace = Unique.mkNamespace "be38ae7f-da19-4df8-99b7-e4ca78b28d92"

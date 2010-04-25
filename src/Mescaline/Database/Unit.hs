@@ -8,7 +8,7 @@ module Mescaline.Database.Unit (
   , cons
 ) where
 
-import           Data.Accessor.Template (nameDeriveAccessors)
+-- import           Data.Accessor.Template (nameDeriveAccessors)
 import qualified Data.Binary as Binary
 import           Data.List (find)
 import           Database.HDBC (SqlValue, fromSql)
@@ -34,7 +34,7 @@ data Unit = Unit {
   , duration     :: DTime
 } deriving (Show)
 
-$(nameDeriveAccessors ''Unit (return.(++"_")))
+-- $(nameDeriveAccessors ''Unit (return.(++"_")))
 
 namespace :: Unique.Namespace
 namespace = Unique.mkNamespace "6a1f3de2-91fb-43c5-8ee0-8d4fb43d0d20"

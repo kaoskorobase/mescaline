@@ -1,4 +1,4 @@
-{-# LANGUAGE Arrows, DeriveDataTypeable, TemplateHaskell #-}
+{-# LANGUAGE Arrows, CPP, DeriveDataTypeable, TemplateHaskell #-}
 
 module Mescaline.Synth.Pattern where
 
@@ -9,7 +9,7 @@ import           Control.Concurrent
 import           Control.Concurrent.Chan
 import           Control.Monad
 import           Data.Accessor
-import           Data.Accessor.Template
+-- import           Data.Accessor.Template
 import           Data.List (scanl1)
 import           Data.Typeable (Typeable)
 import           Debug.Trace (traceShow)
@@ -25,6 +25,8 @@ import qualified Data.PriorityQueue.FingerTree as PQ
 import           Prelude hiding (filter, init, scanl)
 
 -- import Language.Haskell.TH              (Dec, Name, Q)
+#define ACCESSOR(N,F,T,V) \
+    N = accessor F (\x a -> a { F = x }) :: Accessor T V
 
 -- Segment set combinators
 -- * select segments from sound file based on time, features
@@ -47,7 +49,13 @@ defaultSynth = SynthParams {
     latency_      = 0.2
 }
 
-$(deriveAccessors ''SynthParams)
+ACCESSOR(attackTime, attackTime_, SynthParams, Double)
+ACCESSOR(releaseTime, releaseTime_, SynthParams, Double)
+ACCESSOR(sustainLevel, sustainLevel_, SynthParams, Double)
+ACCESSOR(gateLevel, gateLevel_, SynthParams, Double)
+ACCESSOR(latency, latency_, SynthParams, Double)
+
+-- $(deriveAccessors ''SynthParams)
 
 -- attackTime_ :: Double -> Event -> Event
 -- attackTime_ x e = e { synth = (synth e) { attackTime = x } }
@@ -67,7 +75,11 @@ data SynthEvent = SynthEvent {
     synth_ :: SynthParams
 } deriving (Eq, Show)
 
-$(deriveAccessors ''SynthEvent)
+ACCESSOR(time, time_, SynthEvent, Double)
+ACCESSOR(unit, unit_, SynthEvent, Unit.Unit)
+ACCESSOR(synth, synth_, SynthEvent, SynthParams)
+
+-- $(deriveAccessors ''SynthEvent)
 
 fromUnit :: Double -> Unit.Unit -> SynthEvent
 fromUnit t u = SynthEvent t u defaultSynth

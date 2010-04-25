@@ -2,7 +2,7 @@
 
 module Mescaline.Database.SourceFile where
 
-import           Data.Accessor.Template (nameDeriveAccessors)
+-- import           Data.Accessor.Template (nameDeriveAccessors)
 import           Data.Binary (Binary)
 import qualified Data.Binary as Binary
 import           Data.Digest.SHA1 (Word160(..))
@@ -32,7 +32,7 @@ data SourceFile = SourceFile {
     frames      :: SF.Count
 } deriving (Show)
 
-$(nameDeriveAccessors ''SourceFile (return.(++"_")))
+-- $(nameDeriveAccessors ''SourceFile (return.(++"_")))
 
 instance Binary Word160 where
     put (Word160 w0 w1 w2 w3 w4) = do
