@@ -9,7 +9,7 @@ import           Data.Maybe
 import           Database.HDBC (quickQuery')
 import           Graphics.Rendering.Cairo (Render)
 import qualified Graphics.UI.Gtk as G
-import           Graphics.UI.Gtk hiding (Image, Point)
+import qualified Graphics.UI.Gtk.Glade as G
 import           Mescaline (Time)
 import qualified Mescaline.Database as DB
 import           Mescaline.Database.SqlQuery
@@ -38,7 +38,7 @@ clock = (logicalTime &&& identity) >>> scanl f (Nothing, NoEvent) >>> arr snd
             | otherwise               = (Just $ localTime, NoEvent)
 
 sequencer0 :: Sequencer ()
-sequencer0 = Sequencer.cons 6 16 0.125 (Bar (-1))
+sequencer0 = Sequencer.cons 32 32 0.125 (Bar (-1))
 
 -- sequencerOld :: SSF Double (Event (Sequencer ()))
 -- sequencerOld = clock >>> tag (Sequencer.step (undefined::Score)) >>> accum sequencer0
@@ -109,37 +109,32 @@ getUnits dbFile pattern features = do
 
 main = do
     [dbFile, pattern, n] <- Env.getArgs
-    -- db <- DB.open dbDir
-    -- let units = drop (read n) (DB.units db)
     units <- drop (read n) `fmap` getUnits dbFile pattern [Feature.consDescriptor "es.globero.mescaline.spectral" 2]
-    -- mapM_ print units
     
     G.unsafeInitGUIForThreadedRTS
-    -- initGUI
+    Just xml <- G.xmlNew "app/mescaline.glade"
+    window <- G.xmlGetWidget xml G.castToWindow "window"
+    G.onDestroy window G.mainQuit
     
     ichan <- newChan
     ochan <- newChan
     seqChan <- newChan
     synth <- Synth.newSampler
 
-    window <- G.windowNew
-    contain <- G.vBoxNew False 0
-    (canvas, _) <- sequencerNew 25 3 sequencer0 seqChan ichan
-    G.boxPackStart contain canvas G.PackNatural 0
+    (canvas, _) <- sequencerNew 15 2 sequencer0 seqChan ichan
+    matrixBox <- G.xmlGetWidget xml G.castToContainer "matrix"
+    G.containerAdd matrixBox canvas
+    tempo <- G.xmlGetWidget xml G.castToSpinButton "tempo"
+    G.onValueSpinned tempo $ do
+        t <- G.spinButtonGetValue tempo
+        let t' = 60/t/4
+        writeChan ichan (setVal tick t')
+    
     fspace_ichan <- newChan
     fspace_ochan <- newChan
     fspace <- FeatureSpaceView.newFeatureSpaceView (map (second head) units) fspace_ichan fspace_ochan
-    G.boxPackStart contain fspace G.PackGrow 0
-    -- boxPackStartDefaults contain canvas
-    -- widgetShow canvas
-    -- fix size
-    -- G.windowSetResizable window False
-    -- G.widgetSetSizeRequest window 300 300
-    -- press any key to quit
-    -- G.onKeyPress window $ const (do G.widgetDestroy window; return True)
-    G.onDestroy window G.mainQuit
-    G.set window [G.containerChild G.:= contain]
-    G.widgetShowAll window
+    spaceBox <- G.xmlGetWidget xml G.castToContainer "space"
+    G.containerAdd spaceBox fspace
 
     -- Execute signal function
     forkIO $ executeSSF 0.005 (sequencer sequencer0 >>> first (arr (fmap (uncurry (sequencerEvents (map fst units)))))) ichan ochan
@@ -161,20 +156,5 @@ main = do
             Event s -> writeChan seqChan s
         loop
     
+    G.widgetShowAll window
     G.mainGUI
-
--- printChanE c = do
---     (t, e) <- readChan c
---     case e of
---         NoEvent -> return ()
---         Event e -> print (t, e)
---     printChanE c
--- 
--- printChan c = readChan c >>= print >> printChan c
-
--- main_ = do
---     ichan <- newChan
---     ochan <- newChan
---     forkIO $ executeSSF 0.05 (sequencer sequencer0 >>> arr snd) ichan ochan
---     printChanE ochan
-

@@ -115,10 +115,11 @@ executable mescaline
     main-is:        main.hs
     hs-source-dirs: app, src
     build-depends:  gtk >= 0.10
+                  , glade >= 0.10
                   , glib >= 0.10
                   , cairo >= 0.10
-                  , diagrams >= 0.2
                   , colour >= 2.3
+                  , diagrams >= 0.2
     ghc-options:      -threaded
     ghc-prof-options: -threaded -auto-all
 
