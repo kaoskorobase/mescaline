@@ -25,7 +25,6 @@ library
                   , Control-Engine
                   , Crypto >= 4.2
                   , data-accessor >= 0.2
-                  , data-accessor-template >= 0.2
                   , directory
                   , FileManip >= 0.3
                   , filepath
@@ -85,6 +84,7 @@ library
                     Mescaline.Synth.FeatureSpaceView
                     Mescaline.Synth.Pattern
                     Mescaline.Synth.Pattern.Load
+                    Mescaline.Synth.SequencerView
                     Mescaline.Synth.SF
                     Mescaline.Synth.SSF
                     Sound.OpenSoundControl.BufferedTransport
@@ -98,28 +98,19 @@ library
                     Sound.SC3.Server.Notification
                     Sound.SC3.Server.State
 
--- executable mescaline
---     main-is:        Mescaline.hs
+-- executable sampler
+--     main-is:        sampler.hs
+--     other-modules:  Mescaline.Sampler.GUI
+--                   , Mescaline.Sampler.Keyboard
+--                   , Mescaline.Sampler.Looper
+--     hs-source-dirs: src, tools, tools/sampler
+--     build-depends:  gtk
 --     ghc-options:    -threaded
-
-executable sampler
-    main-is:        sampler.hs
-    other-modules:  Mescaline.Sampler.GUI
-                  , Mescaline.Sampler.Keyboard
-                  , Mescaline.Sampler.Looper
-    hs-source-dirs: src, tools, tools/sampler
-    build-depends:  gtk
-    ghc-options:    -threaded
 
 executable mescaline
     main-is:        main.hs
     hs-source-dirs: app, src
-    build-depends:  gtk >= 0.10
-                  , glade >= 0.10
-                  , glib >= 0.10
-                  , cairo >= 0.10
-                  , colour >= 2.3
-                  , diagrams >= 0.2
+    build-depends:  qt >= 1.1
     ghc-options:      -threaded
     ghc-prof-options: -threaded -auto-all
 

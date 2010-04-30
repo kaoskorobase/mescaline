@@ -7,9 +7,6 @@ import           Data.Accessor
 import           Data.Function (fix)
 import           Data.Maybe
 import           Database.HDBC (quickQuery')
-import           Graphics.Rendering.Cairo (Render)
-import qualified Graphics.UI.Gtk as G
-import qualified Graphics.UI.Gtk.Glade as G
 import           Mescaline (Time)
 import qualified Mescaline.Database as DB
 import           Mescaline.Database.SqlQuery
@@ -21,6 +18,7 @@ import           Mescaline.Synth.Sequencer as Sequencer
 import           Mescaline.Synth.SequencerView
 import qualified Mescaline.Synth.FeatureSpaceView as FeatureSpaceView
 import           Mescaline.Synth.SSF
+import qualified Qt as Q
 import           Sound.OpenSoundControl hiding (Time)
 import qualified System.Environment as Env
 import           Prelude hiding (and, init, scanl)
@@ -107,35 +105,71 @@ getUnits dbFile pattern features = do
         Left e -> fail e
         Right us -> return us
 
+main :: IO ()
 main = do
+    app <- Q.qApplication  ()
+
     [dbFile, pattern, n] <- Env.getArgs
+
+    -- FIXME: .ui file is not found in the resource for some reason
+    rcc <- Q.registerResource "app/mescaline.rcc"
+    -- engine <- qScriptEngine ()
+    -- scriptFile <- qFile ":/calculator.js"
+    -- open scriptFile fReadOnly
+    -- ss <- qTextStream scriptFile
+    -- ra <- readAll ss ()
+    -- dv <- evaluate engine ra
+    -- close scriptFile ()
+    uiLoader <- Q.qUiLoader ()
+    -- setHandler uiLoader "(QWidget*)createWidget(const QString&,QWidget*,const QString&)" $ myCreateWidget seqView
+    uiFile <- Q.qFile "app/mescaline.ui"
+    Q.open uiFile Q.fReadOnly
+    ui <- Q.load uiLoader uiFile
+    Q.close uiFile ()
+    -- FIXME: .ui file is not found in the resource for some reason
+    rcc <- Q.registerResource "app/mescaline.rcc"
+    -- engine <- qScriptEngine ()
+    -- scriptFile <- qFile ":/calculator.js"
+    -- open scriptFile fReadOnly
+    -- ss <- qTextStream scriptFile
+    -- ra <- readAll ss ()
+    -- dv <- evaluate engine ra
+    -- close scriptFile ()
+    uiLoader <- Q.qUiLoader ()
+    -- setHandler uiLoader "(QWidget*)createWidget(const QString&,QWidget*,const QString&)" $ myCreateWidget seqView
+    uiFile <- Q.qFile "app/mescaline.ui"
+    Q.open uiFile Q.fReadOnly
+    ui <- Q.load uiLoader uiFile
+    Q.close uiFile ()
+
     units <- drop (read n) `fmap` getUnits dbFile pattern [Feature.consDescriptor "es.globero.mescaline.spectral" 2]
-    
-    G.unsafeInitGUIForThreadedRTS
-    Just xml <- G.xmlNew "app/mescaline.glade"
-    window <- G.xmlGetWidget xml G.castToWindow "window"
-    G.onDestroy window G.mainQuit
     
     ichan <- newChan
     ochan <- newChan
     seqChan <- newChan
     synth <- Synth.newSampler
 
-    (canvas, _) <- sequencerNew 15 2 sequencer0 seqChan ichan
-    matrixBox <- G.xmlGetWidget xml G.castToContainer "matrix"
-    G.containerAdd matrixBox canvas
-    tempo <- G.xmlGetWidget xml G.castToSpinButton "tempo"
-    G.onValueSpinned tempo $ do
-        t <- G.spinButtonGetValue tempo
-        let t' = 60/t/4
-        writeChan ichan (setVal tick t')
+    seqView <- sequencerView 15 2 sequencer0 seqChan ichan
+    graphicsView <- Q.findChild ui ("<QGraphicsView*>", "sequencerView")
+    Q.setScene graphicsView seqView
+
+    -- matrixBox <- G.xmlGetWidget xml G.castToContainer "matrix"
+    -- G.containerAdd matrixBox canvas
+    -- tempo <- G.xmlGetWidget xml G.castToSpinButton "tempo"
+    -- G.onValueSpinned tempo $ do
+    --     t <- G.spinButtonGetValue tempo
+    --     let t' = 60/t/4
+    --     writeChan ichan (setVal tick t')
     
     fspace_ichan <- newChan
     fspace_ochan <- newChan
-    fspace <- FeatureSpaceView.newFeatureSpaceView (map (second head) units) fspace_ichan fspace_ochan
-    spaceBox <- G.xmlGetWidget xml G.castToContainer "space"
-    G.containerAdd spaceBox fspace
+    fspaceView <- FeatureSpaceView.featureSpaceView (map (second head) units) fspace_ichan fspace_ochan
 
+    graphicsView <- Q.findChild ui ("<QGraphicsView*>", "featureSpaceView")
+    Q.setScene graphicsView fspaceView
+    -- Q.fitInView graphicsView (Q.rectF 0 0 1 1)
+    Q.qscale graphicsView (400::Double, 400::Double)
+    
     -- Execute signal function
     forkIO $ executeSSF 0.005 (sequencer sequencer0 >>> first (arr (fmap (uncurry (sequencerEvents (map fst units)))))) ichan ochan
 
@@ -156,5 +190,10 @@ main = do
             Event s -> writeChan seqChan s
         loop
     
-    G.widgetShowAll window
-    G.mainGUI
+    
+    -- ctor <- evaluate engine "Calculator"
+    -- scriptUi <- newQObject engine ui
+    -- calc <- construct ctor [scriptUi]
+    Q.qshow ui ()
+    ok <- Q.qApplicationExec ()
+    return ()
