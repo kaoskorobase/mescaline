@@ -1,14 +1,13 @@
 {-# LANGUAGE
-    ExistentialQuantification
+    CPP
+  , ExistentialQuantification
   , FlexibleContexts
   , GeneralizedNewtypeDeriving
-  , MultiParamTypeClasses
-  , TemplateHaskell #-}
+  , MultiParamTypeClasses #-}
 
 module Sound.SC3.Server.State (
     State
   , options
-  , Allocator
   , IntAllocator
   , NodeIdAllocator
   , BusIdAllocator
@@ -23,15 +22,16 @@ module Sound.SC3.Server.State (
   , audioBusId
   , rootNode
   , new
-  , alloc
-  , allocMany
-  , allocRange
+  , Alloc.alloc
+  , Alloc.allocMany
+  , Alloc.allocRange
+  , Alloc.free
 ) where
 
 import           Control.Arrow (second)
-import           Control.Concurrent.MVar
 import           Control.Monad (liftM)
-import           Sound.SC3.Server.Allocator (IdAllocator, RangeAllocator, Range)
+import           Data.Accessor
+import           Sound.SC3.Server.Allocator (IdAllocator, RangeAllocator)
 import qualified Sound.SC3.Server.Allocator as Alloc
 import           Sound.SC3.Server.Allocator.SimpleAllocator (SimpleAllocator)
 import qualified Sound.SC3.Server.Allocator.SimpleAllocator as SAlloc
@@ -64,54 +64,43 @@ instance IdAllocator BusId BusIdAllocator where
     alloc  (BusIdAllocator a) = liftM (second BusIdAllocator) $ Alloc.alloc a
     free i (BusIdAllocator a) = liftM         BusIdAllocator  $ Alloc.free i a
 
-newtype Allocator a = Allocator (MVar a)
+#define ACCESSOR(N,F,T,V) \
+    N = accessor F (\x a -> a { F = x }) :: Accessor T V
 
 data State = State {
-   options      :: ServerOptions
- , syncId       :: Allocator IntAllocator
- , nodeId       :: Allocator NodeIdAllocator
- , bufferId     :: Allocator BufferIdAllocator
- , controlBusId :: Allocator BusIdAllocator
- , audioBusId   :: Allocator BusIdAllocator
+   options_      :: ServerOptions
+ , syncId_       :: IntAllocator
+ , nodeId_       :: NodeIdAllocator
+ , bufferId_     :: BufferIdAllocator
+ , controlBusId_ :: BusIdAllocator
+ , audioBusId_   :: BusIdAllocator
  }
 
--- $( nameDeriveAccessors ''State (Just . (++"_")) )
+ACCESSOR(options, options_, State, ServerOptions)
+ACCESSOR(syncId,  syncId_, State, IntAllocator)
+ACCESSOR(nodeId,  nodeId_, State, NodeIdAllocator)
+ACCESSOR(bufferId, bufferId_, State, BufferIdAllocator)
+ACCESSOR(controlBusId, controlBusId_, State, BusIdAllocator)
+ACCESSOR(audioBusId, audioBusId_, State, BusIdAllocator)
 
 rootNode :: State -> NodeId
 rootNode = const (NodeId 0)
 
-new :: ServerOptions -> IO State
-new os = do
-        sid <- newAllocator $ IntAllocator      (SAlloc.cons $ Alloc.range 0                           maxBound :: SimpleAllocator Int     )
-        nid <- newAllocator $ NodeIdAllocator   (SAlloc.cons $ Alloc.range 1000                        maxBound :: SimpleAllocator NodeId  )
-        bid <- newAllocator $ BufferIdAllocator (SAlloc.cons $ Alloc.range 0                           maxBound :: SimpleAllocator BufferId)
-        cid <- newAllocator $ BusIdAllocator    (SAlloc.cons $ Alloc.range 0                           maxBound :: SimpleAllocator BusId   )
-        aid <- newAllocator $ BusIdAllocator    (SAlloc.cons $ Alloc.range (BusId numHardwareChannels) maxBound :: SimpleAllocator BusId   )
-        return $ State {
-            options      = os
-          , syncId       = sid
-          , nodeId       = nid
-          , bufferId     = bid
-          , controlBusId = cid
-          , audioBusId   = aid
-        }
+new :: ServerOptions -> State
+new os =
+    State {
+        options_      = os
+      , syncId_       = sid
+      , nodeId_       = nid
+      , bufferId_     = bid
+      , controlBusId_ = cid
+      , audioBusId_   = aid
+    }
     where
-        newAllocator = fmap Allocator . newMVar
+        sid = IntAllocator      (SAlloc.cons $ Alloc.range 0                           maxBound :: SimpleAllocator Int     )
+        nid = NodeIdAllocator   (SAlloc.cons $ Alloc.range 1000                        maxBound :: SimpleAllocator NodeId  )
+        bid = BufferIdAllocator (SAlloc.cons $ Alloc.range 0                           maxBound :: SimpleAllocator BufferId)
+        cid = BusIdAllocator    (SAlloc.cons $ Alloc.range 0                           maxBound :: SimpleAllocator BusId   )
+        aid = BusIdAllocator    (SAlloc.cons $ Alloc.range (BusId numHardwareChannels) maxBound :: SimpleAllocator BusId   )
         numHardwareChannels = numberOfInputBusChannels os
                             + numberOfOutputBusChannels os
-
-swap :: (a, b) -> (b, a)
-swap (a, b) = (b, a)
-
-errorToIO :: Either String a -> IO a
-errorToIO (Left e)  = fail e -- TODO: error mechanism?
-errorToIO (Right a) = return a
-
-alloc :: IdAllocator i a => Allocator a -> IO i
-alloc (Allocator a) = modifyMVar a (fmap swap . errorToIO . Alloc.alloc)
-
-allocMany :: IdAllocator i a => Allocator a -> Int -> IO [i]
-allocMany (Allocator a) n = modifyMVar a (fmap swap . errorToIO . Alloc.allocMany n)
-
-allocRange :: RangeAllocator i a => Allocator a -> Int -> IO (Range i)
-allocRange (Allocator a) n = modifyMVar a (fmap swap . errorToIO . Alloc.allocRange n)

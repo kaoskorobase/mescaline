@@ -97,6 +97,7 @@ library
                     Sound.SC3.Server.Monad
                     Sound.SC3.Server.Notification
                     Sound.SC3.Server.State
+                    Sound.SC3.Server.State.IO
 
 -- executable sampler
 --     main-is:        sampler.hs

@@ -29,10 +29,10 @@ module Sound.SC3.Server.Monad (
 
 import           Control.Concurrent (ThreadId)
 import           Control.Concurrent.STM (STM, atomically)
-import           Control.Monad (join)
+import           Control.Concurrent.MVar
 import           Control.Monad.Reader (MonadReader, ReaderT(..), ask, asks, lift)
 import           Control.Monad.Trans (MonadIO, liftIO)
-
+import           Data.Accessor
 import           Sound.SC3 (Rate(..))
 import           Sound.SC3.Server.Allocator (IdAllocator, RangeAllocator, Range)
 import           Sound.SC3.Server.Connection (Connection)
@@ -40,13 +40,14 @@ import qualified Sound.SC3.Server.Connection as C
 -- import           Sound.SC3.Server.Process.Options (ServerOptions, numberOfInputBusChannels, numberOfOutputBusChannels)
 import           Sound.SC3.Server.State (BufferId, BufferIdAllocator, BusId, BusIdAllocator, NodeId, NodeIdAllocator, State)
 import qualified Sound.SC3.Server.State as State
+import qualified Sound.SC3.Server.State.IO as IOState
 
 import           Sound.OpenSoundControl (OSC)
 
 newtype Server a = Server (ReaderT Connection IO a)
     deriving (Functor, Monad, MonadReader Connection, MonadIO)
 
-type Allocator a = State -> State.Allocator a
+type Allocator a = Accessor State a
 
 liftSTM :: STM a -> Server a
 liftSTM = liftIO . atomically
@@ -55,10 +56,7 @@ liftConnIO :: (Connection -> IO a) -> Server a
 liftConnIO f = ask >>= liftIO . f
 
 liftState :: (State -> a) -> Server a
-liftState f = asks C.state >>= return . f
-
-liftStateIO :: (State -> IO a) -> Server a
-liftStateIO = join . fmap liftIO . liftState
+liftState f = asks C.state >>= liftIO . readMVar >>= return . f
 
 runServer :: Server a -> Connection -> IO a
 runServer (Server r) = runReaderT r
@@ -80,13 +78,13 @@ busId r  = error ("No bus allocator for rate " ++ show r)
 
 
 alloc :: IdAllocator i a => Allocator a -> Server i
-alloc a = liftStateIO (State.alloc . a)
+alloc a = asks C.state >>= liftIO . IOState.alloc a
 
 allocMany :: IdAllocator i a => Allocator a -> Int -> Server [i]
-allocMany a n = liftStateIO (flip State.allocMany n . a)
+allocMany a n = asks C.state >>= liftIO . flip (IOState.allocMany a) n
 
 allocRange :: RangeAllocator i a => Allocator a -> Int -> Server (Range i)
-allocRange a n = liftStateIO (flip State.allocRange n . a)
+allocRange a n = asks C.state >>= liftIO . flip (IOState.allocRange a) n
 
 fork :: Server () -> Server ThreadId
 fork = liftConnIO . flip C.fork . runServer

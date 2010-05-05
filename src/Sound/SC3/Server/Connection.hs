@@ -31,10 +31,12 @@ import           Sound.SC3 (notify, dumpOSC, PrintLevel(..))
 import           Sound.SC3.Server.Notification (done, synced)
 import           Sound.SC3.Server.State (State)
 import qualified Sound.SC3.Server.State as State
+import           Sound.SC3.Server.State.IO (IOState)
+import qualified Sound.SC3.Server.State.IO as IOState
 
-data Connection = Connection State C.BufferedTransport
+data Connection = Connection IOState C.BufferedTransport
 
-state :: Connection -> State
+state :: Connection -> IOState
 state (Connection s _) = s
 
 conn :: Connection -> C.BufferedTransport
@@ -49,7 +51,9 @@ initServer c = do
 
 new :: Transport t => State -> t -> IO Connection
 new s t = do
-    c <- Connection s `fmap` C.new t
+    ios <- IOState.fromState s
+    bt <- C.new t
+    let c = Connection ios bt
     initServer c
     return c
 
@@ -77,7 +81,7 @@ wait c = C.wait (conn c)
 
 syncWith :: Connection -> (OSC -> OSC) -> IO ()
 syncWith c f = do
-    i <- (State.alloc . State.syncId . state) c
+    i <- (IOState.alloc State.syncId . state) c
     send c (f (Message "/sync" [Int i]))
     void $ c `waitFor` synced i
 
