@@ -17,7 +17,7 @@ import qualified Mescaline.Synth.Pattern as P
 import           Mescaline.Synth.Sequencer as Sequencer
 import           Mescaline.Synth.SequencerView
 import qualified Mescaline.Synth.FeatureSpaceView as FeatureSpaceView
-import           Mescaline.Synth.SSF
+import           Mescaline.Synth.SSF as SSF
 import qualified Qt as Q
 import           Sound.OpenSoundControl hiding (Time)
 import qualified System.Environment as Env
@@ -171,7 +171,7 @@ main = do
     Q.qscale graphicsView (400::Double, 400::Double)
     
     -- Execute signal function
-    forkIO $ executeSSF 0.005 (sequencer sequencer0 >>> first (arr (fmap (uncurry (sequencerEvents (map fst units)))))) ichan ochan
+    forkIO $ SSF.execute 0.005 (sequencer sequencer0 >>> first (arr (fmap (uncurry (sequencerEvents (map fst units)))))) ichan ochan
 
     -- Pipe feature space view output to sample player
     forkIO $ fix $ \loop -> do

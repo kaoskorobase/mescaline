@@ -16,13 +16,13 @@ module Mescaline.Synth.SSF (
   , lift
   , realTime
   , logicalTime
-  , executeSSF
+  , execute
 ) where
 
 import           Control.Arrow
-import           Control.Arrow.Operations
+import qualified Control.Arrow.Operations as State
 import           Control.Arrow.Transformer (lift)
-import           Control.Arrow.Transformer.Reader
+import qualified Control.Arrow.Transformer.State as State
 import           Control.Monad (liftM)
 import           Control.Concurrent.Chan
 import           Mescaline (Time)
@@ -89,29 +89,33 @@ edge = lift SF.edge
 -- ====================================================================
 -- Sampled Signal functions
 
-newtype Env = Env { getEnv :: (Time, Time) }
+data State = State {
+    s_realTime    :: !Time
+  , s_logicalTime :: !Time
+} deriving (Eq, Show)
 
-type SSF = ReaderArrow Env SF.SF
+type SSF = State.StateArrow State SF.SF
 
 realTime :: SSF a Time
-realTime = readState >>> arr (fst.getEnv)
+realTime = State.fetch >>> arr s_realTime
 
 logicalTime :: SSF a Time
-logicalTime = readState >>> arr (snd.getEnv)
+logicalTime = State.fetch >>> arr s_logicalTime
 
 -- ====================================================================
 -- Driver
 
-executeSSF :: Double -> SSF (Event a) b -> Chan a -> Chan ((Time,Time), b) -> IO ()
-executeSSF tick ssf ichan ochan = OSC.utcr >>= loop (runReader ssf)
+execute :: Double -> SSF (Event a) b -> Chan a -> Chan ((Time,Time), b) -> IO ()
+execute tick ssf ichan ochan = do
+    t <- OSC.utcr
+    loop (State t t) (State.elimState ssf)
     where
-        loop sf lt = do
+        loop state sf = do
             empty <- isEmptyChan ichan
             a <- if empty then return NoEvent else liftM Event (readChan ichan)
-            t <- OSC.utcr
-            let e = Env (t, lt)
-                (b, sf') = SF.runSF sf (a, e)
-                lt' = lt + tick
-            b `seq` writeChan ochan (getEnv e, b)
-            OSC.pauseThreadUntil lt'
-            loop sf' lt'
+            rt <- OSC.utcr
+            let ((b, state'), sf') = SF.runSF sf (a, state { s_realTime = rt })
+            b `seq` state' `seq` writeChan ochan ((s_realTime state', s_logicalTime state'), b)
+            let state'' = state' { s_logicalTime = s_logicalTime state' + tick }
+            OSC.pauseThreadUntil (s_logicalTime state'')
+            state'' `seq` loop state'' sf'
