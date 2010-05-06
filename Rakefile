@@ -45,3 +45,7 @@ task [:doc, :clean] do
     FileUtils.rm(outfile)
   }
 end
+
+task [:rcc] do
+	system("rcc -binary app/mescaline.qrc -o app/mescaline.rcc")
+end
