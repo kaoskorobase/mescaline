@@ -12,7 +12,7 @@ module Mescaline.Synth.SSF (
   , accum
   , scanl
   , edge
-  , SSF
+  , SF
   , lift
   , realTime
   , logicalTime
@@ -35,11 +35,11 @@ import           Prelude hiding (filter, init, scanl)
 -- Signal functions
 
 -- | Identity: identity = arr id
-identity :: SSF a a
+identity :: SF a a
 identity = lift SF.identity
 
 -- | Identity: constant b = arr (const b)
-constant :: b -> SSF a b
+constant :: b -> SF a b
 constant b = lift (SF.constant b)
 
 -- -- | Transform initial output value.
@@ -61,29 +61,29 @@ constant b = lift (SF.constant b)
 -- (>--) a0 = lift (SF.(>--) a0)
 
 -- Override initial value of input signal.
-initially :: a -> SSF a a
+initially :: a -> SF a a
 initially a = lift (SF.initially a)
 
 -- | Replace event value.
-tag :: b -> SSF (Event a) (Event b)
+tag :: b -> SF (Event a) (Event b)
 tag b = lift (SF.tag b)
 
 -- | Filter out events that don't satisfy some predicate.
-filter :: (a -> Bool) -> SSF (Event a) (Event a)
+filter :: (a -> Bool) -> SF (Event a) (Event a)
 filter p = lift (SF.filter p)
 
 -- | Zero order hold.
-hold :: a -> SSF (Event a) a
+hold :: a -> SF (Event a) a
 hold a0 = lift (SF.hold a0)
 
 -- | Accumulate from an initial value and an update event.
-accum :: a -> SSF (Event (a -> a)) (Event a)
+accum :: a -> SF (Event (a -> a)) (Event a)
 accum a0 = lift (SF.accum a0)
 
-scanl :: (b -> a -> b) -> b -> SSF a b
+scanl :: (b -> a -> b) -> b -> SF a b
 scanl f b0 = lift (SF.scanl f b0)
 
-edge :: SSF Bool (Event ())
+edge :: SF Bool (Event ())
 edge = lift SF.edge
 
 -- ====================================================================
@@ -94,18 +94,18 @@ data State = State {
   , s_logicalTime :: !Time
 } deriving (Eq, Show)
 
-type SSF = State.StateArrow State SF.SF
+type SF = State.StateArrow State SF.SF
 
-realTime :: SSF a Time
+realTime :: SF a Time
 realTime = State.fetch >>> arr s_realTime
 
-logicalTime :: SSF a Time
+logicalTime :: SF a Time
 logicalTime = State.fetch >>> arr s_logicalTime
 
 -- ====================================================================
 -- Driver
 
-execute :: Double -> SSF (Event a) b -> Chan a -> Chan ((Time,Time), b) -> IO ()
+execute :: Double -> SF (Event a) b -> Chan a -> Chan ((Time,Time), b) -> IO ()
 execute tick ssf ichan ochan = do
     t <- OSC.utcr
     loop (State t t) (State.elimState ssf)

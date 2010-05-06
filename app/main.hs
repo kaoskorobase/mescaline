@@ -17,7 +17,7 @@ import qualified Mescaline.Synth.Pattern as P
 import           Mescaline.Synth.Sequencer as Sequencer
 import           Mescaline.Synth.SequencerView
 import qualified Mescaline.Synth.FeatureSpaceView as FeatureSpaceView
-import           Mescaline.Synth.SSF as SSF
+import           Mescaline.Synth.SSF as SF
 import qualified Qt as Q
 import           Sound.OpenSoundControl hiding (Time)
 import qualified System.Environment as Env
@@ -26,7 +26,7 @@ import           Prelude hiding (and, init, scanl)
 import Debug.Trace
 
 -- TODO: Implement start time quantization based on master clock signal.
-clock :: SSF Double (Event Time)
+clock :: SF Double (Event Time)
 clock = (logicalTime &&& identity) >>> scanl f (Nothing, NoEvent) >>> arr snd
     where
         f (Nothing, _) (globalTime, tick)
@@ -41,7 +41,7 @@ sequencer0 = Sequencer.cons 32 32 0.125 (Bar (-1))
 -- sequencerOld :: SSF Double (Event (Sequencer ()))
 -- sequencerOld = clock >>> tag (Sequencer.step (undefined::Score)) >>> accum sequencer0
 
-accumHold :: a -> SSF (Event (a -> a)) a
+accumHold :: a -> SF (Event (a -> a)) a
 accumHold a0 = scanl g a0
     where
         g a NoEvent   = a
@@ -67,7 +67,7 @@ type Changed a = Event a
 traceEvent e@NoEvent   = traceShow "traceEvent: NoEvent" e
 traceEvent e@(Event _) = traceShow "traceEvent: Event"   e
 
-sequencer :: Sequencer a -> SSF (Update (Sequencer a)) (Event (Time, Sequencer a), Changed (Sequencer a))
+sequencer :: Sequencer a -> SF (Update (Sequencer a)) (Event (Time, Sequencer a), Changed (Sequencer a))
 sequencer s0 =
     proc update -> do
         rec
@@ -171,7 +171,7 @@ main = do
     Q.qscale graphicsView (400::Double, 400::Double)
     
     -- Execute signal function
-    forkIO $ SSF.execute 0.005 (sequencer sequencer0 >>> first (arr (fmap (uncurry (sequencerEvents (map fst units)))))) ichan ochan
+    forkIO $ SF.execute 0.005 (sequencer sequencer0 >>> first (arr (fmap (uncurry (sequencerEvents (map fst units)))))) ichan ochan
 
     -- Pipe feature space view output to sample player
     forkIO $ fix $ \loop -> do
