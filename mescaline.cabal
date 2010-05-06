@@ -49,6 +49,7 @@ library
                   , vector >= 0.5
     exposed-modules:
                     Control.CCA.ArrowP
+                    Control.Concurrent.Chan.Chunked
                     -- Control.Concurrent.Broadcast
                     -- Data.Iteratee.Chan
                     -- Data.Iteratee.OSC
