@@ -27,9 +27,9 @@ newChan = do
 -- |Write a value to a 'Chan'.
 writeChan :: Chan a -> a -> IO ()
 writeChan (Chan m c) a = do
-    n <- takeMVar m
+    n <- tryTakeMVar m
     C.writeChan c a
-    putMVar m (n+1)
+    putMVar m (maybe (1) (+1) n)
 
 -- |Read the next value from the 'Chan'.
 readChan :: Chan a -> IO a
@@ -52,9 +52,9 @@ readChanAvailable (Chan m c) = do
 -- |Put a data item back onto a channel, where it will be the next item read.
 unGetChan :: Chan a -> a -> IO ()
 unGetChan (Chan m c) a = do
-    n <- takeMVar m
+    n <- tryTakeMVar m
     C.unGetChan c a
-    putMVar m (n+1)
+    putMVar m (maybe 1 (+1) n)
 
 -- |Returns 'True' if the supplied 'Chan' is empty.
 isEmptyChan :: Chan a -> IO Bool
@@ -67,6 +67,7 @@ getChanAvailable (Chan m _) = readMVar m
 -- |Write an entire list of items to a 'Chan'.
 writeList2Chan :: Chan a -> [a] -> IO ()
 writeList2Chan (Chan m c) a = do
-    n <- takeMVar m
+    n <- tryTakeMVar m
     C.writeList2Chan c a
-    putMVar m (n + length a)
+    let k = length a
+    putMVar m (maybe (k) (+k) n)
