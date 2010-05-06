@@ -24,7 +24,8 @@ import qualified Control.Arrow.Operations as State
 import           Control.Arrow.Transformer (lift)
 import qualified Control.Arrow.Transformer.State as State
 import           Control.Monad (liftM)
-import           Control.Concurrent.Chan
+import           Control.Concurrent.Chan.Chunked
+import qualified Data.List as List
 import           Mescaline (Time)
 import           Mescaline.Synth.SF (Event(..), noEvent, event)
 import qualified Mescaline.Synth.SF as SF
@@ -110,12 +111,19 @@ execute tick ssf ichan ochan = do
     t <- OSC.utcr
     loop (State t t) (State.elimState ssf)
     where
-        loop state sf = do
+        loop state0 sf = do
             empty <- isEmptyChan ichan
-            a <- if empty then return NoEvent else liftM Event (readChan ichan)
+            as <- if empty then return [NoEvent] else map Event `fmap` readChanAvailable ichan
             rt <- OSC.utcr
-            let ((b, state'), sf') = SF.runSF sf (a, state { s_realTime = rt })
-            b `seq` state' `seq` writeChan ochan ((s_realTime state', s_logicalTime state'), b)
-            let state'' = state' { s_logicalTime = s_logicalTime state' + tick }
-            OSC.pauseThreadUntil (s_logicalTime state'')
-            state'' `seq` loop state'' sf'
+            let state1 = state0 { s_realTime = rt }
+                ((bs, state2), sf') = List.foldl'
+                                        (\((bs, s), sf) a -> let ((b, s'), sf') = SF.runSF sf (a, s)
+                                                             in b `seq` s' `seq` ((b:bs, s'), sf'))
+                                        (([], state1), sf)
+                                        as
+            -- let ((b, state'), sf') = SF.runSF sf (a, state { s_realTime = rt })
+            -- b `seq` state' `seq` writeChan ochan ((s_realTime state', s_logicalTime state'), b)
+            writeList2Chan ochan $ map ((,) (s_realTime state2, s_logicalTime state2)) bs
+            let state3 = state2 { s_logicalTime = s_logicalTime state2 + tick }
+            OSC.pauseThreadUntil (s_logicalTime state3)
+            state3 `seq` loop state3 sf'

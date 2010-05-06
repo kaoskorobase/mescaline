@@ -1,6 +1,9 @@
 module Mescaline.Synth.Concat where
 
-import           Control.Concurrent.Chan (Chan, readChan)
+import           Control.Concurrent (ThreadId, forkIO)
+import           Control.Concurrent.Chan.Chunked
+import           Control.Concurrent.STM
+import           Control.Monad            (join)
 import           Data.Accessor ((^.))
 import           Mescaline
 import qualified Mescaline.Database.Unit as Unit
@@ -28,9 +31,7 @@ import qualified Sound.SC3.Server.State as State
 
 import qualified Data.Set as Set
 
-import Control.Concurrent
-import Control.Concurrent.STM
-import Control.Monad            (join)
+-- import Control.Concurrent
 
 import Sound.OpenSoundControl
 import Sound.OpenSoundControl.Transport

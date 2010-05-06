@@ -1,8 +1,8 @@
 {-# LANGUAGE Arrows #-}
 import           Control.Applicative
 import           Control.Arrow
-import           Control.Concurrent
-import           Control.Concurrent.Chan
+import           Control.Concurrent (forkIO)
+import           Control.Concurrent.Chan.Chunked
 import           Data.Accessor
 import           Data.Function (fix)
 import           Data.Maybe
