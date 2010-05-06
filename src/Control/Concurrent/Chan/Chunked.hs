@@ -1,5 +1,6 @@
 module Control.Concurrent.Chan.Chunked (
-    newChan
+    Chan
+  , newChan
   , writeChan
   , readChan
   , readChanAvailable
