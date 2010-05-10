@@ -5,13 +5,13 @@ import           Control.Concurrent.Chan.Chunked
 import           Control.Concurrent.STM
 import           Control.Monad            (join)
 import           Data.Accessor ((^.))
+import qualified Data.Signal.SF as SF
 import           Mescaline
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Database.SourceFile as SourceFile
 import           Mescaline.Synth.BufferCache (Buffer, BufferCache)
 import qualified Mescaline.Synth.BufferCache as BC
 import qualified Mescaline.Synth.Pattern as P
-import qualified Mescaline.Synth.SF as SF
 
 import qualified Sound.Analysis.Meapsoft as Meap
 import qualified Sound.File.Sndfile as SF

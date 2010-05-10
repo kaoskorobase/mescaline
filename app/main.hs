@@ -20,6 +20,8 @@ import qualified Mescaline.Synth.FeatureSpaceView as FeatureSpaceView
 import           Mescaline.Synth.SSF as SF
 import qualified Qt as Q
 import           Sound.OpenSoundControl hiding (Time)
+import qualified Sound.SC3.Server.State as State
+import qualified Sound.SC3.Server.Process as Server
 import qualified System.Environment as Env
 import           Prelude hiding (and, init, scanl)
 
@@ -41,25 +43,12 @@ sequencer0 = Sequencer.cons 32 32 0.125 (Bar (-1))
 -- sequencerOld :: SSF Double (Event (Sequencer ()))
 -- sequencerOld = clock >>> tag (Sequencer.step (undefined::Score)) >>> accum sequencer0
 
-accumHold :: a -> SF (Event (a -> a)) a
-accumHold a0 = scanl g a0
-    where
-        g a NoEvent   = a
-        g a (Event f) = f a
-
--- Event merge paramterezied on the conflict resolution function.
-mergeBy :: (a -> a -> a) -> Event a -> Event a -> Event a
-mergeBy _ NoEvent      NoEvent      = NoEvent
-mergeBy _ le@(Event _) NoEvent      = le
-mergeBy _ NoEvent      re@(Event _) = re
-mergeBy f (Event l)    (Event r)    = Event (f l r)
-
--- Unbiased event merge: simultaneous occurrence is an error.
-merge :: Event a -> Event a -> Event [a]
-merge NoEvent   NoEvent   = NoEvent
-merge (Event l) NoEvent   = Event [l]
-merge NoEvent   (Event r) = Event [r]
-merge (Event l) (Event r) = Event [l, r]
+-- | Left-biased event merge.
+mergeList :: Event a -> Event a -> Event [a]
+mergeList NoEvent   NoEvent   = NoEvent
+mergeList (Event l) NoEvent   = Event [l]
+mergeList NoEvent   (Event r) = Event [r]
+mergeList (Event l) (Event r) = Event [l, r]
 
 type Update a = Event (a -> a)
 type Changed a = Event a
@@ -73,13 +62,10 @@ sequencer s0 =
         rec
             c <- clock -< t
             e <- tag (Sequencer.step (undefined::Score)) -< c
-            s <- accum s0 -< (foldl (.) id `fmap` (update `merge` e))
+            s <- accum s0 -< (foldl (.) id `fmap` (update `mergeList` e))
             t <- hold s0 >>> arr (getVal Sequencer.tick) -< s
         returnA -< (liftA2 (,) c s, s)
 -- sequencer s0 = constant noEvent &&& accum s0
-
-eventToMaybe NoEvent = Nothing
-eventToMaybe (Event x) = Just x
 
 pipeChan f i o = do
     x <- readChan i
@@ -171,7 +157,9 @@ main = do
     Q.qscale graphicsView (400::Double, 400::Double)
     
     -- Execute signal function
-    forkIO $ SF.execute 0.005 (sequencer sequencer0 >>> first (arr (fmap (uncurry (sequencerEvents (map fst units)))))) ichan ochan
+    t <- Server.openTransport Server.defaultRTOptionsUDP "127.0.0.1" :: IO UDP
+    forkIO $ SF.execute (SF.Options Server.defaultServerOptions t 0.005)
+        (sequencer sequencer0 >>> first (arr (fmap (uncurry (sequencerEvents (map fst units)))))) ichan ochan
 
     -- Pipe feature space view output to sample player
     forkIO $ fix $ \loop -> do

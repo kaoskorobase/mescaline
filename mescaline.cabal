@@ -55,6 +55,8 @@ library
                     -- Data.Iteratee.OSC
                     -- Data.Iteratee.Util
                     Data.Signal.SF
+                    Data.Signal.SF.Base
+                    Data.Signal.SF.Event
                     Mescaline
                     Mescaline.Control.Concurrent
                     Mescaline.Control.Concurrent.Pool
@@ -86,8 +88,8 @@ library
                     Mescaline.Synth.Pattern
                     Mescaline.Synth.Pattern.Load
                     Mescaline.Synth.SequencerView
-                    Mescaline.Synth.SF
                     Mescaline.Synth.SSF
+                    Mescaline.Synth.SSF.BufferCache
                     Sound.OpenSoundControl.BufferedTransport
                     -- Sound.OpenSoundControl.Connection
                     Sound.SC3.Server

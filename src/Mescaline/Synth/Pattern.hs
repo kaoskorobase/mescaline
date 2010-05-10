@@ -11,6 +11,7 @@ import           Control.Monad
 import           Data.Accessor
 -- import           Data.Accessor.Template
 import           Data.List (scanl1)
+import           Data.Signal.SF as SF
 import           Data.Typeable (Typeable)
 import           Debug.Trace (traceShow)
 import           Mescaline
@@ -19,7 +20,6 @@ import           Mescaline.Database.FlatFile (Database)
 import qualified Mescaline.Database.Unit as Unit
 
 import           Sound.OpenSoundControl hiding (Time)
-import           Mescaline.Synth.SF
 import qualified Data.PriorityQueue.FingerTree as PQ
 
 import           Prelude hiding (filter, init, scanl)

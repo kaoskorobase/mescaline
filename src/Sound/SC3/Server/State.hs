@@ -37,6 +37,7 @@ import           Sound.SC3.Server.Allocator.SimpleAllocator (SimpleAllocator)
 import qualified Sound.SC3.Server.Allocator.SimpleAllocator as SAlloc
 import           Sound.SC3.Server.Process.Options (ServerOptions, numberOfInputBusChannels, numberOfOutputBusChannels)
 
+-- Hide the actual allocator
 data IntAllocator = forall a . IdAllocator Int a => IntAllocator a
 
 instance IdAllocator Int IntAllocator where

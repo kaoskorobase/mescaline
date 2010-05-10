@@ -1,153 +1,214 @@
-{-# LANGUAGE BangPatterns, CPP, FlexibleInstances, MultiParamTypeClasses, TemplateHaskell #-}
-
--- Copyright (c) 2008-2009 Paul Hudak <paul.hudak@yale.edu> 
--- 
--- This software is provided 'as-is', without any express or implied
--- warranty. In no event will the authors be held liable for any damages
--- arising from the use of this software.
--- 
--- Permission is granted to anyone to use this software for any purpose,
--- including commercial applications, and to alter it and redistribute it
--- freely, subject to the following restrictions:
--- 
--- 1. The origin of this software must not be misrepresented; you must not
---    claim that you wrote the original software. If you use this software
---    in a product, an acknowledgment in the product documentation would
---    be appreciated but is not required.
--- 
--- 2. Altered source versions must be plainly marked as such, and must not
---    be misrepresented as being the original software.
--- 
--- 3. This notice may not be removed or altered from any source
---    distribution.
-
+{-# LANGUAGE Arrows #-}
 module Data.Signal.SF (
-    SF(..)
-  , run
-  , unfold
-  , nth
-  , nth'
+    module Data.Signal.SF.Base
+  , module Data.Signal.SF.Event
+  , identity
+  , constant
+  , (>=-)
+  , (-=>)
+  , (>--)
+  , (-->)
+  , initially
+  , tag
+  , never
+  , now
+  , filter
+  , hold
+  , accum
+  , accumHold
+  , scanl
+  , edge
+  , sample
+  , sample_
+  , switch
+  , switch'
+  , rswitch
+  , rswitch'
 ) where
 
-#if __GLASGOW_HASKELL__ >= 610
-import Control.Category
-import Prelude hiding ((.), init, exp)
-#else
-import Prelude hiding (init, exp)
-#endif
+import           Control.Arrow
+import           Control.Arrow.Operations
+import           Control.Arrow.Transformer (lift)
+import           Control.Arrow.Transformer.Reader
+import           Control.Applicative
+import           Control.CCA.Types
+import           Data.Signal.SF.Base
+import           Data.Signal.SF.Event
+import           Prelude hiding (filter, init, scanl)
 
-import Control.Arrow
---import Control.CCA.CCNF
-import Control.CCA.Types
-import Control.CCA.ArrowP
+-- Segment set combinators
+-- * select segments from sound file based on time, features
+-- * construct linear sequences (for time based manipulation) or sets (for feature based manipulation)
 
+-- ====================================================================
+-- Signal functions
 
-newtype SF a b = SF { runSF :: (a -> (b, SF a b)) }
+-- | Identity: identity = arr id
+identity :: SF a a
+identity = arr id
 
-instance ArrowInitP SF p
+-- | Identity: constant b = arr (const b)
+constant :: b -> SF a b
+constant = arr . const
 
-#if __GLASGOW_HASKELL__ >= 610
-instance Category SF where
-  id = SF h where h x = (x, SF h)
-  g . f = SF (h f g)
+-- | Transform initial input value.
+(>=-) :: (a -> a) -> SF a b -> SF a b
+f >=- (SF tf) = SF (\a0 -> tf (f a0))
+
+-- | Transform initial output value.
+(-=>) :: (b -> b) -> SF a b -> SF a b
+f -=> (SF tf) = SF (\a0 -> let (b0, tf') = tf a0 in (f b0, tf'))
+
+-- | Override initial input value.
+(>--) :: a -> SF a b -> SF a b
+-- (>--) a0 (SF f) = SF (\_ -> f a0)
+(>--) a0 = (>=-) (const a0)
+
+-- | Override initial output value.
+--
+-- Initialization operator (cf. Lustre/Lucid Synchrone).
+--
+-- TODO: equivalent to 'delay' in 'ArrowCircuit'?
+(-->) :: b -> SF a b -> SF a b
+-- (-->) b0 (SF tf) = SF (\a0 -> (b0, fst (tf a0)))
+(-->) b0 = (-=>) (const b0)
+
+-- | Override initial value of input signal.
+initially :: a -> SF a a
+initially = (--> identity)
+
+-- ====================================================================
+-- Event sources
+
+-- | Event source that never occurs.
+never :: SF a (Event b)
+never = constant NoEvent
+
+-- | Event source with a single occurrence at time 0. The value of the event
+-- is given by the function argument.
+now :: b -> SF a (Event b)
+now b0 = (Event b0 --> never)
+
+-- ====================================================================
+-- Event modifiers
+
+-- | Replace event value.
+tag :: b -> SF (Event a) (Event b)
+tag b = arr (b <$)
+
+-- | asdjhaskjdh .
+tagList :: [b] -> SF (Event a) (Event b)
+tagList bs = SF (tf bs)
     where
-      h f g x =
-        let (y, f') = runSF f x
-            (z, g') = runSF g y
-        in f' `seq` g' `seq` (z, SF (h f' g'))
+        tf [] _             = (NoEvent, constant NoEvent)
+        tf bs NoEvent       = (NoEvent, SF (tf bs))
+        tf (b:bs) (Event _) = (Event b, SF (tf bs))
 
-instance Arrow SF where
-  arr f = g
-    where g = SF (\x -> (f x, g))
-  first f = SF (g f)
+-- | Filter out events that don't satisfy a predicate.
+filter :: (a -> Bool) -> SF (Event a) (Event a)
+filter p = arr f
     where
-      g f (x, z) = f' `seq` ((y, z), SF (g f'))
-        where (y, f') = runSF f x
-  f &&& g = SF (h f g)
+        f e@(Event a) = if (p a) then e else NoEvent
+        f NoEvent     = NoEvent
+
+-- ====================================================================
+-- Event/signal conversion
+
+-- | Zero order hold.
+hold :: a -> SF (Event a) a
+hold a0 = scanl f a0
     where
-      h f g x =
-        let (y, f') = runSF f x
-            (z, g') = runSF g x 
-        in ((y, z), SF (h f' g'))
-  f *** g = SF (h f g)
+        f a NoEvent   = a
+        f _ (Event a) = a
+
+-- | Signal to event
+edge :: SF Bool (Event ())
+edge = scanl f (False, NoEvent) >>> arr snd
     where
-      h f g x =
-        let (y, f') = runSF f (fst x)
-            (z, g') = runSF g (snd x) 
-        in ((y, z), SF (h f' g'))
-#else
-instance Arrow SF where
-  arr f = g
-    where g = SF (\x -> (f x, g))
-  f >>> g = SF (h f g)
+        f (False, _) False = (False, NoEvent)
+        f (False, _) True  = (True, Event ())
+        f (True, _)  False = (False, NoEvent)
+        f (True, _)  True  = (True, NoEvent)
+
+sample :: SF (a, Event b) (Event (a, b))
+sample = arr (\(a, e) -> event NoEvent (\b -> Event (a, b)) e)
+
+sample_ :: SF (a, Event b) (Event a)
+sample_ = sample >>> arr (fmap fst)
+
+-- ====================================================================
+-- Accumulators
+
+-- | Accumulate from an initial value and an update event.
+accum :: a -> SF (Event (a -> a)) (Event a)
+accum a0 = SF (tf a0)
     where
-      h f g x =
-        let (y, f') = runSF f x
-            (z, g') = runSF g y
-        in (z, SF (h f' g'))
-  first f = SF (g f)
+        tf a NoEvent   = (NoEvent, SF (tf a))
+        tf a (Event f) = let a' = f a in a' `seq` (Event a', SF (tf a'))
+
+accumHold :: a -> SF (Event (a -> a)) a
+accumHold a0 = scanl g a0
     where
-      g f (x, z) = ((y, z), SF (g f'))
-        where (y, f') = runSF f x
-  f &&& g = SF (h f g)
+        g a NoEvent   = a
+        g a (Event f) = f a
+
+scanl :: (b -> a -> b) -> b -> SF a b
+scanl f b0 =
+    proc a -> do
+        rec
+            b <- init b0 -< f b a
+        returnA -< b
+
+-- -- | Mealy-style state machine, given initial value and transition
+-- -- function.  Carries along event data.  See also 'mealy_'.
+-- mealy :: (b -> a -> b) -> b -> SF a (a, b)
+-- mealy b0 f = scanl g (a0, s0)
+--     where
+--         b0         = error "mealy: no initial value"
+--         g (_, s) a = (a, f s a)
+-- 
+-- -- | Mealy-style state machine, given initial value and transition
+-- -- function.  Forgetful version of 'mealy'.
+-- mealy_ :: s -> (s -> s) -> SF a s
+-- mealy_ s0 f = mealy s0 f >>> arr snd
+
+countDown :: ArrowInit a => Int -> a () Int
+countDown x = 
+    proc _ -> do
+      rec 
+          i <- init x -< i - 1
+      returnA -< i
+
+countUp :: ArrowInit a => a () Int
+countUp = 
+    proc _ -> do
+      rec 
+         i <- init 0 -< i + 1
+      returnA -< i
+
+-- ====================================================================
+-- Switching combinators
+
+-- | Lazy (delayed) switch.
+switch :: SF a (b, Event c) -> (c -> SF a b) -> SF a b
+switch sf f = SF (g sf)
     where
-      h f g x =
-        let (y, f') = runSF f x
-            (z, g') = runSF g x 
-        in ((y, z), SF (h f' g'))
-  f *** g = SF (h f g)
+        g sf a = case runSF sf a of
+                    ((b, NoEvent), sf') -> (b, SF (g sf'))
+                    ((b, Event c), _)   -> (b, f c)
+
+-- | Eager (immediate) switch.
+switch' :: SF a (b, Event c) -> (c -> SF a b) -> SF a b
+switch' sf f = SF (g sf)
     where
-      h f g x =
-        let (y, f') = runSF f (fst x)
-            (z, g') = runSF g (snd x) 
-        in ((y, z), SF (h f' g'))
-#endif
+        g sf a = case runSF sf a of
+                    ((b, NoEvent), sf') -> (b, SF (g sf'))
+                    ((_, Event c), _)   -> runSF (f c) a
 
-instance ArrowLoop SF where
-  loop sf = SF (g sf)
-    where
-      g f x = f' `seq` (y, SF (g f'))
-        where ((y, z), f') = runSF f (x, z)
+-- | Recurring switch.
+rswitch :: SF a b -> SF (a, Event (SF a b)) b
+rswitch sf = switch (first sf) ((second (const NoEvent) >=-) . rswitch)
 
-instance ArrowChoice SF where
-   left sf = SF (g sf)
-       where 
-         g f x = case x of
-                   Left a -> let (y, f') = runSF f a in f' `seq` (Left y, SF (g f'))
-                   Right b -> (Right b, SF (g f))
-
-instance ArrowInit SF where
-  init i = SF (f i)
-    where f i x = (i, SF (f x))
-  loopD i g = SF (f i g)
-    where
-      f i g x = 
-        let ((y, i'), g') = runSF g (x, i)
-        in (y, SF (f i' g'))
-  loopB i g = SF (f i g)
-    where
-      f i g x = 
-        let ((y, (z, i')), g') = runSF g (x, (z, i))
-        in (y, SF (f i' g'))
-
-
-
-run :: SF a b -> [a] -> [b]
-run (SF f) (x:xs) =
-  let (y, f') = f x 
-  in y `seq` f' `seq` (y : run f' xs)
-
-unfold :: SF () a -> [a]
-unfold = flip run inp
-  where inp = () : inp
-
-
-nth :: Int -> SF () a -> a
-nth n (SF f) = x `seq` if n == 0 then x else nth (n - 1) f'
-  where (x, f') = f ()
-
-nth' :: Int -> (b, ((), b) -> (a, b)) -> a
-nth' !n (i, f) = n `seq` i `seq` f `seq` aux n i
-  where
-    aux !n !i = x `seq` i' `seq` if n == 0 then x else aux (n-1) i'
-      where (x, i') = f ((), i)
+-- | Recurring switch.
+rswitch' :: SF a b -> SF (a, Event (SF a b)) b
+rswitch' sf = switch' (first sf) ((second (const NoEvent) >=-) . rswitch')

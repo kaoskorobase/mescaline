@@ -1,36 +1,136 @@
-{-# LANGUAGE Arrows #-}
+{-# LANGUAGE Arrows, FlexibleInstances, MultiParamTypeClasses #-}
 module Mescaline.Synth.SSF (
-    Event(..)
-  , noEvent
-  , event
+    module Data.Signal.SF.Event
   , identity
   , constant
   , initially
   , tag
+  , never
+  , now
   , filter
   , hold
   , accum
+  , accumHold
   , scanl
   , edge
+  , sample
+  , sample_
+  -- * Switching
+  , switch
+  , switch'
+  , rswitch
+  , rswitch'
+  -- * Server state
+  , alloc
+  , recv
+  , send
+  , send_
+  , waitFor
+  , wait
+  , sync
   , SF
   , lift
   , realTime
   , logicalTime
+  , Options(..)
   , execute
+  , executeOSC
 ) where
 
 import           Control.Arrow
-import qualified Control.Arrow.Operations as State
-import           Control.Arrow.Transformer (lift)
-import qualified Control.Arrow.Transformer.State as State
-import           Control.Monad (liftM)
+-- import           Control.Arrow.Transformer
+import           Control.Arrow.Operations (ArrowState(..))
+-- import           Control.Arrow.Transformer (lift)
+import           Control.Arrow.Transformer.State (ArrowAddState(..))
+import           Control.Category
+import           Control.CCA.Types
+import           Control.Concurrent (forkIO)
 import           Control.Concurrent.Chan.Chunked
+import           Control.Monad (liftM)
+import           Control.Monad.Fix (fix)
+import           Data.Accessor
+import           Data.Monoid
 import qualified Data.List as List
+import qualified Data.Signal.SF as SF
+import           Data.Signal.SF.Event
 import           Mescaline (Time)
-import           Mescaline.Synth.SF (Event(..), noEvent, event)
-import qualified Mescaline.Synth.SF as SF
+import           Sound.OpenSoundControl (OSC(..), Datum(..))
 import qualified Sound.OpenSoundControl as OSC
-import           Prelude hiding (filter, init, scanl)
+import           Sound.OpenSoundControl.Monoid ()
+import           Sound.SC3.Server.Allocator (IdAllocator)
+import qualified Sound.SC3.Server.Allocator as Alloc
+import           Sound.SC3.Server.Notification
+import qualified Sound.SC3.Server.State as Server
+import           Sound.SC3.Server.Process.Options (ServerOptions)
+import           Prelude hiding ((.), filter, id, init, scanl)
+
+data State = State {
+    s_realTime    :: !Time
+  , s_logicalTime :: !Time
+  , s_state       :: Server.State
+  , s_oscInput    :: Event OSC
+  , s_oscOutput   :: [OSC]
+}
+
+newState :: Time -> Server.State -> State
+newState time state = State time time state NoEvent []
+
+newtype SF a b = SF { runState :: SF.SF (a, State) (b, State) }
+
+swapsnd :: ((a, b), c) -> ((a, c), b)
+swapsnd ~(~(x, y), z) = ((x, z), y)
+
+instance Category SF where
+	id = SF id
+	SF f . SF g = SF (f . g)
+
+instance Arrow SF where
+	arr f        = SF (arr (\(x, s) -> (f x, s)))
+	first (SF f) = SF (arr swapsnd >>> first f >>> arr swapsnd)
+
+-- instance Arrow a => ArrowTransformer SF SF.SF where
+--  lift f = SF (first f)
+
+lift :: SF.SF a b -> SF a b
+lift = SF . first
+
+instance ArrowState State SF where
+	fetch = SF (arr (\(_, s) -> (s, s)))
+	store = SF (arr (\(s, _) -> ((), s)))
+
+instance ArrowChoice SF where
+    left (SF f) = SF (arr distr >>> left f >>> arr undistr)
+        where
+            distr (Left y, s) = Left (y, s)
+            distr (Right z, s) = Right (z, s)
+            undistr (Left (y, s)) = (Left y, s)
+            undistr (Right (z, s)) = (Right z, s)
+
+-- instance ArrowApply a => ArrowApply (StateArrow s a) where
+--  app = ST (arr (\((ST f, x), s) -> (f, (x, s))) >>> app)
+
+instance ArrowLoop SF where
+	loop (SF f) = SF (loop (arr swapsnd >>> f >>> arr swapsnd))
+
+-- instance ArrowPlus SF where
+--  SF f <+> SF g = SF (f <+> g)
+
+-- Other instances
+
+instance Functor (SF a) where
+	fmap f g = g >>> arr f
+
+-- instance Applicative (SF a) where
+--  pure x = arr (const x)
+--  f <*> g = f &&& g >>> arr (uncurry id)
+-- 
+-- instance Alternative (SF a) where
+--  empty = zeroArrow
+--  f <|> g = f <+> g
+
+-- instance Monoid (SF a b) where
+--  mempty = zeroArrow
+--  mappend f g = f <+> g
 
 -- ====================================================================
 -- Signal functions
@@ -43,23 +143,22 @@ identity = lift SF.identity
 constant :: b -> SF a b
 constant b = lift (SF.constant b)
 
--- -- | Transform initial output value.
--- (-=>) :: (b -> b) -> SSF a b -> SSF a b
--- (-=>) = lift (SF.-=>)
--- 
--- -- | Override initial output value.
--- -- Initialization operator (cf. Lustre/Lucid Synchrone).
--- (-->) :: b -> SSF a b -> SSF a b
--- -- (-->) b0 (SF tf) = SF (\a0 -> (b0, fst (tf a0)))
--- (-->) = lift SF.(-->)
--- 
--- -- | Transform initial input value.
--- (>=-) :: (a -> a) -> SSF a b -> SSF a b
--- (>=-) f = lift (SF.(>=-) f)
--- 
--- -- | Override initial input value.
--- (>--) :: a -> SSF a b -> SSF a b
--- (>--) a0 = lift (SF.(>--) a0)
+-- | Transform initial input value.
+(>=-) :: (a -> a) -> SF a b -> SF a b
+(>=-) f = SF . (SF.>=-) (first f) . runState
+
+-- | Transform initial output value.
+(-=>) :: (b -> b) -> SF a b -> SF a b
+(-=>) f = SF . (SF.-=>) (first f) . runState
+
+-- | Override initial input value.
+(>--) :: a -> SF a b -> SF a b
+(>--) a0 = (>=-) (const a0)
+
+-- | Override initial output value.
+-- Initialization operator (cf. Lustre/Lucid Synchrone).
+(-->) :: b -> SF a b -> SF a b
+(-->) b0 = (-=>) (const b0)
 
 -- Override initial value of input signal.
 initially :: a -> SF a a
@@ -69,48 +168,143 @@ initially a = lift (SF.initially a)
 tag :: b -> SF (Event a) (Event b)
 tag b = lift (SF.tag b)
 
+-- | Event source that never occurs.
+never :: SF a (Event b)
+never = lift SF.never
+
+-- | Event source with a single occurrence at time 0. The value of the event
+-- is given by the function argument.
+now :: b -> SF a (Event b)
+now = lift . SF.now
+
 -- | Filter out events that don't satisfy some predicate.
 filter :: (a -> Bool) -> SF (Event a) (Event a)
-filter p = lift (SF.filter p)
+filter = lift . SF.filter
 
 -- | Zero order hold.
 hold :: a -> SF (Event a) a
-hold a0 = lift (SF.hold a0)
+hold = lift . SF.hold
 
 -- | Accumulate from an initial value and an update event.
 accum :: a -> SF (Event (a -> a)) (Event a)
-accum a0 = lift (SF.accum a0)
+accum = lift . SF.accum
+
+accumHold :: a -> SF (Event (a -> a)) a
+accumHold = lift . SF.accumHold
 
 scanl :: (b -> a -> b) -> b -> SF a b
-scanl f b0 = lift (SF.scanl f b0)
+scanl f = lift . SF.scanl f
 
 edge :: SF Bool (Event ())
 edge = lift SF.edge
 
+sample :: SF (a, Event b) (Event (a, b))
+sample = lift SF.sample
+
+sample_ :: SF (a, Event b) (Event a)
+sample_ = lift SF.sample_
+
+liftSwitch switch sf f = SF (switch sf' f')
+    where
+        sf' = runState sf >>> arr swapsnd
+        f'  = runState . f
+
+switch :: SF a (b, Event c) -> (c -> SF a b) -> SF a b
+switch = liftSwitch SF.switch
+
+switch' :: SF a (b, Event c) -> (c -> SF a b) -> SF a b
+switch' = liftSwitch SF.switch'
+
+-- lift_rswitch g sf f = SF (g sf' f')
+--     where
+--         sf' = runState sf >>> arr (\((b, c), s) -> ((b, s), c))
+--         f'  = runState . f
+
+rswitch :: SF a b -> SF (a, Event (SF a b)) b
+rswitch sf = switch (first sf) ((second (const NoEvent) >=-) . rswitch)
+
+rswitch' :: SF a b -> SF (a, Event (SF a b)) b
+rswitch' sf = switch' (first sf) ((second (const NoEvent) >=-) . rswitch')
+
 -- ====================================================================
 -- Sampled Signal functions
 
-data State = State {
-    s_realTime    :: !Time
-  , s_logicalTime :: !Time
-} deriving (Eq, Show)
-
-type SF = State.StateArrow State SF.SF
-
 realTime :: SF a Time
-realTime = State.fetch >>> arr s_realTime
+realTime = fetch >>> arr s_realTime
 
 logicalTime :: SF a Time
-logicalTime = State.fetch >>> arr s_logicalTime
+logicalTime = fetch >>> arr s_logicalTime
+
+eitherToEvent :: Either a b -> Event b
+eitherToEvent (Left _)  = NoEvent
+eitherToEvent (Right b) = Event b
+
+-- ID allocation
+alloc :: IdAllocator i a => (Accessor Server.State a) -> SF (Event b) (Event (b, i))
+alloc f =
+    proc e -> do
+        case e of
+            NoEvent -> returnA -< NoEvent
+            Event b -> do
+                s <- fetch -< ()
+                case Alloc.alloc (getVal f (s_state s)) of
+                    Left _       -> returnA -< NoEvent -- TODO: signal error condition
+                    Right (i, a) -> do
+                        store -< s { s_state = setVal f a (s_state s) }
+                        returnA -< Event (b, i)
+
+-- alloc f s = modifyMVar s (\s -> fmap (swap . second (flip (setVal f) s)) . errorToIO . Alloc.alloc . getVal f $ s)
+
+-- OSC shtuff
+recv :: SF a (Event OSC)
+recv = fetch >>> arr s_oscInput
+
+-- | Send an OSC packet.
+send :: SF (Event OSC) (Event OSC)
+send = fetch &&& identity
+       >>> arr (\(s, e) -> (event s (\osc -> s { s_oscOutput = osc : s_oscOutput s }) e, e))
+       >>> first store
+       >>> arr snd
+
+-- | Send an OSC packet.
+send_ :: OSC -> SF a (Event OSC)
+send_ osc = now osc >>> (id &&& send) >>> arr fst
+
+-- | Wait for an OSC message where the supplied function does not give
+--   Nothing, discarding intervening messages.
+waitFor :: (OSC -> Maybe a) -> SF (Event OSC) (Event a)
+waitFor f = arr (maybeToEvent . (>>= f) . eventToMaybe)
+
+-- | Wait for an OSC message matching a specific address.
+wait :: String -> SF (Event OSC) (Event OSC)
+wait s = waitFor (\osc -> if has_address s osc then Just osc else Nothing)
+    where
+        has_address x (OSC.Message y _) = x == y
+        has_address x (OSC.Bundle _ xs) = any (has_address x) xs
+
+-- | Synchronization barrier.
+sync :: SF (Event a) (Event a)
+sync = (never &&& alloc Server.syncId)
+       >>> arr (second (fmap (\(a, i) ->
+            now (Message "/sync" [Int i]) >>> send
+            >>> recv >>> waitFor (synced i) >>> tag a)))
+        >>> rswitch identity
 
 -- ====================================================================
 -- Driver
 
-execute :: Double -> SF (Event a) b -> Chan a -> Chan ((Time,Time), b) -> IO ()
-execute tick ssf ichan ochan = do
+data Options t = Options {
+    serverOptions :: ServerOptions
+  , transport     :: t
+  , tickInterval  :: Double
+} deriving (Eq, Show)
+
+execute :: OSC.Transport t => Options t -> SF (Event a) b -> Chan a -> Chan ((Time,Time), b) -> IO ()
+execute opts ssf ichan ochan = do
     t <- OSC.utcr
-    loop (State t t) (State.elimState ssf)
+    loop (newState t (Server.new $ serverOptions opts)) (runState ssf)
     where
+        dt = tickInterval opts
         loop state0 sf = do
             empty <- isEmptyChan ichan
             as <- if empty then return [NoEvent] else map Event `fmap` readChanAvailable ichan
@@ -124,6 +318,49 @@ execute tick ssf ichan ochan = do
             -- let ((b, state'), sf') = SF.runSF sf (a, state { s_realTime = rt })
             -- b `seq` state' `seq` writeChan ochan ((s_realTime state', s_logicalTime state'), b)
             writeList2Chan ochan $ map ((,) (s_realTime state2, s_logicalTime state2)) bs
-            let state3 = state2 { s_logicalTime = s_logicalTime state2 + tick }
+            let state3 = state2 { s_logicalTime = s_logicalTime state2 + dt }
             OSC.pauseThreadUntil (s_logicalTime state3)
             state3 `seq` loop state3 sf'
+
+withChanContents a0 f chan = do
+    empty <- isEmptyChan chan
+    if empty
+        then return a0
+        else fmap f (readChanAvailable chan)
+
+executeOSC :: OSC.Transport t => Options t -> SF (Event a) b -> Chan a -> Chan ((Time,Time), b) -> IO ()
+executeOSC opts ssf ichan ochan = do
+    t <- OSC.utcr
+    oscChan <- newChan
+    forkIO $ fix $ \loop -> OSC.recv (transport opts) >>= (\osc -> print osc >> writeChan oscChan osc) >> loop
+    loop oscChan (newState t (Server.new $ serverOptions opts)) (runState ssf)
+    where
+        dt = tickInterval opts
+        loop oscChan state0 sf = do
+            osc <- withChanContents [] (map Event) oscChan
+            as <- withChanContents [] (map Event) ichan
+            rt <- OSC.utcr
+            let input = if null osc && null as
+                        then [(NoEvent, NoEvent)]
+                        else let n = max (length osc) (length as)
+                                 osc' = osc ++ replicate n NoEvent
+                                 as'  = as  ++ replicate n NoEvent
+                             in zip osc' as'
+                state1 = state0 { s_realTime = rt }
+                ((bs, state2), sf') = List.foldl'
+                                        (\((bs, s), sf) (osc, a) ->
+                                            let ((b, s'), sf') = SF.runSF sf (a, s { s_oscInput = osc })
+                                            in b `seq` s' `seq` ((b:bs, s'), sf'))
+                                        (([], state1), sf)
+                                        input
+            -- let ((b, state'), sf') = SF.runSF sf (a, state { s_realTime = rt })
+            -- b `seq` state' `seq` writeChan ochan ((s_realTime state', s_logicalTime state'), b)
+            writeList2Chan ochan $ map ((,) (s_realTime state2, s_logicalTime state2)) bs
+            mapM_ (OSC.send (transport opts)) (s_oscOutput state2)
+            let state3 = state2 {
+                s_logicalTime = s_logicalTime state2 + dt
+              , s_oscInput    = NoEvent
+              , s_oscOutput   = []
+                }
+            OSC.pauseThreadUntil (s_logicalTime state3)
+            state3 `seq` loop oscChan state3 sf'
