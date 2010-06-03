@@ -1,17 +1,15 @@
-{-# LANGUAGE Arrows #-}
+{-# LANGUAGE Arrows, RankNTypes #-}
 module Data.Signal.SF (
     module Data.Signal.SF.Base
   , module Data.Signal.SF.Event
-  , identity
-  , constant
   , (>=-)
   , (-=>)
   , (>--)
   , (-->)
-  , initially
+  -- , initially
   , tag
   , never
-  , now
+  , once
   , filter
   , hold
   , accum
@@ -21,9 +19,11 @@ module Data.Signal.SF (
   , sample
   , sample_
   , switch
-  , switch'
-  , rswitch
-  , rswitch'
+  -- , switch'
+  , rSwitch
+  -- , rswitch'
+  , pSwitch
+  , rpSwitch
 ) where
 
 import           Control.Arrow
@@ -42,14 +42,6 @@ import           Prelude hiding (filter, init, scanl)
 
 -- ====================================================================
 -- Signal functions
-
--- | Identity: identity = arr id
-identity :: SF a a
-identity = arr id
-
--- | Identity: constant b = arr (const b)
-constant :: b -> SF a b
-constant = arr . const
 
 -- | Transform initial input value.
 (>=-) :: (a -> a) -> SF a b -> SF a b
@@ -74,20 +66,20 @@ f -=> (SF tf) = SF (\a0 -> let (b0, tf') = tf a0 in (f b0, tf'))
 (-->) b0 = (-=>) (const b0)
 
 -- | Override initial value of input signal.
-initially :: a -> SF a a
-initially = (--> identity)
+-- initially :: a -> SF a a
+-- initially = (--> identity)
 
 -- ====================================================================
 -- Event sources
 
 -- | Event source that never occurs.
 never :: SF a (Event b)
-never = constant NoEvent
+never = pure NoEvent
 
 -- | Event source with a single occurrence at time 0. The value of the event
 -- is given by the function argument.
-now :: b -> SF a (Event b)
-now b0 = (Event b0 --> never)
+once :: b -> SF a (Event b)
+once b0 = (Event b0 --> never)
 
 -- ====================================================================
 -- Event modifiers
@@ -100,7 +92,7 @@ tag b = arr (b <$)
 tagList :: [b] -> SF (Event a) (Event b)
 tagList bs = SF (tf bs)
     where
-        tf [] _             = (NoEvent, constant NoEvent)
+        tf [] _             = (NoEvent, pure NoEvent)
         tf bs NoEvent       = (NoEvent, SF (tf bs))
         tf (b:bs) (Event _) = (Event b, SF (tf bs))
 
@@ -190,25 +182,76 @@ countUp =
 -- Switching combinators
 
 -- | Lazy (delayed) switch.
-switch :: SF a (b, Event c) -> (c -> SF a b) -> SF a b
-switch sf f = SF (g sf)
-    where
-        g sf a = case runSF sf a of
-                    ((b, NoEvent), sf') -> (b, SF (g sf'))
-                    ((b, Event c), _)   -> (b, f c)
+-- switch :: SF a (b, Event c) -> (c -> SF a b) -> SF a b
+-- switch sf f = SF (g sf)
+--     where
+--         g sf a = case runSF sf a of
+--                     ((b, NoEvent), sf') -> (b, SF (g sf'))
+--                     ((b, Event c), _)   -> (b, f c)
 
 -- | Eager (immediate) switch.
-switch' :: SF a (b, Event c) -> (c -> SF a b) -> SF a b
-switch' sf f = SF (g sf)
+switch :: SF a (b, Event c) -> (c -> SF a b) -> SF a b
+switch sf f = SF (g sf)
     where
         g sf a = case runSF sf a of
                     ((b, NoEvent), sf') -> (b, SF (g sf'))
                     ((_, Event c), _)   -> runSF (f c) a
 
 -- | Recurring switch.
-rswitch :: SF a b -> SF (a, Event (SF a b)) b
-rswitch sf = switch (first sf) ((second (const NoEvent) >=-) . rswitch)
+-- rswitch :: SF a b -> SF (a, Event (SF a b)) b
+-- rswitch sf = switch (first sf) ((second (const NoEvent) >=-) . rswitch)
 
 -- | Recurring switch.
-rswitch' :: SF a b -> SF (a, Event (SF a b)) b
-rswitch' sf = switch' (first sf) ((second (const NoEvent) >=-) . rswitch')
+rSwitch :: SF a b -> SF (a, Event (SF a b)) b
+rSwitch sf = switch (first sf) ((second (const NoEvent) >=-) . rSwitch)
+
+-- | Parallel switch parameterized on the routing function. This is the most
+-- general switch from which all other (non-delayed) switches in principle
+-- can be derived. The signal function collection is spatially composed in
+-- parallel and run until the event signal function has an occurrence. Once
+-- the switching event occurs, all signal function are "frozen" and their
+-- continuations are passed to the continuation function, along with the
+-- event value.
+-- rf .........	Routing function: determines the input to each signal function
+--		in the collection. IMPORTANT! The routing function has an
+--		obligation to preserve the structure of the signal function
+--		collection.
+-- sfs0 .......	Signal function collection.
+-- sfe0 .......	Signal function generating the switching event.
+-- k .......... Continuation to be invoked once event occurs.
+-- Returns the resulting signal function.
+--
+-- !!! Could be optimized on the event source being SFArr, SFArrE, SFArrEE
+--
+pSwitch :: Functor col =>
+       (forall sf . (a -> col sf -> col (b, sf)))
+    -> col (SF b c)
+    -> SF (a, col c) (Event d)
+    -> (col (SF b c) -> d -> SF a (col c))
+    -> SF a (col c)
+pSwitch rf sfs0 sfe0 k = SF tf0
+    where
+        tf0 a0 =
+            let bsfs0 = rf a0 sfs0
+                sfcs0 = fmap (\(b0, sf0) -> runSF sf0 b0) bsfs0
+                cs0   = fmap fst sfcs0
+                sfs   = fmap snd sfcs0
+            in
+            case runSF sfe0 (a0, cs0) of
+                (NoEvent, sfe) -> (cs0, pSwitch rf sfs sfe k)
+                (Event d0, _)  -> runSF (k sfs0 d0) a0
+
+-- Recurring parallel switch parameterized on the routing function.
+-- rf .........	Routing function: determines the input to each signal function
+--		in the collection. IMPORTANT! The routing function has an
+--		obligation to preserve the structure of the signal function
+--		collection.
+-- sfs ........	Initial signal function collection.
+-- Returns the resulting signal function.
+
+rpSwitch :: Functor col =>
+       (forall sf . (a -> col sf -> col (b, sf)))
+    -> col (SF b c) -> SF (a, Event (col (SF b c) -> col (SF b c))) (col c)
+rpSwitch rf sfs =
+    pSwitch (rf . fst) sfs (arr (snd . fst)) $ \sfs' f ->
+        second (const NoEvent) >=- rpSwitch rf (f sfs')

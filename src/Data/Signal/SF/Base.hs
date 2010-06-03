@@ -36,6 +36,7 @@ import Prelude hiding ((.), init, exp)
 import Prelude hiding (init, exp)
 #endif
 
+import Control.Applicative
 import Control.Arrow
 --import Control.CCA.CCNF
 import Control.CCA.Types
@@ -43,6 +44,13 @@ import Control.CCA.ArrowP
 
 
 newtype SF a b = SF { runSF :: (a -> (b, SF a b)) }
+
+instance Functor (SF a) where
+	fmap f g = g >>> arr f
+
+instance Applicative (SF a) where
+    pure    = arr . const
+    f <*> g = f &&& g >>> arr (uncurry ($))
 
 instance ArrowInitP SF p
 

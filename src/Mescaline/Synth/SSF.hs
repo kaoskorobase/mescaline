@@ -1,12 +1,11 @@
-{-# LANGUAGE Arrows, FlexibleInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE Arrows, FlexibleInstances, MultiParamTypeClasses, RankNTypes #-}
 module Mescaline.Synth.SSF (
     module Data.Signal.SF.Event
-  , identity
-  , constant
-  , initially
+  , State
+  -- , initially
   , tag
   , never
-  , now
+  , once
   , filter
   , hold
   , accum
@@ -17,11 +16,14 @@ module Mescaline.Synth.SSF (
   , sample_
   -- * Switching
   , switch
-  , switch'
-  , rswitch
-  , rswitch'
+  -- , switch'
+  , rSwitch
+  -- , rswitch'
+  , pSwitch
+  , rpSwitch
   -- * Server state
   , alloc
+  , alloc_
   , recv
   , send
   , send_
@@ -37,6 +39,7 @@ module Mescaline.Synth.SSF (
   , executeOSC
 ) where
 
+import           Control.Applicative
 import           Control.Arrow
 -- import           Control.Arrow.Transformer
 import           Control.Arrow.Operations (ArrowState(..))
@@ -77,6 +80,9 @@ newState time state = State time time state NoEvent []
 
 newtype SF a b = SF { runState :: SF.SF (a, State) (b, State) }
 
+-- runSF :: SF a b -> (a, State) -> ((b, State), SF a b)
+-- runSF sf (a0, s) = second SF (SF.runSF (runState sf) (a0, s))
+
 swapsnd :: ((a, b), c) -> ((a, c), b)
 swapsnd ~(~(x, y), z) = ((x, z), y)
 
@@ -101,9 +107,9 @@ instance ArrowState State SF where
 instance ArrowChoice SF where
     left (SF f) = SF (arr distr >>> left f >>> arr undistr)
         where
-            distr (Left y, s) = Left (y, s)
-            distr (Right z, s) = Right (z, s)
-            undistr (Left (y, s)) = (Left y, s)
+            distr   (Left y, s)    = Left (y, s)
+            distr   (Right z, s)   = Right (z, s)
+            undistr (Left (y, s))  = (Left y, s)
             undistr (Right (z, s)) = (Right z, s)
 
 -- instance ArrowApply a => ArrowApply (StateArrow s a) where
@@ -111,6 +117,13 @@ instance ArrowChoice SF where
 
 instance ArrowLoop SF where
 	loop (SF f) = SF (loop (arr swapsnd >>> f >>> arr swapsnd))
+
+instance ArrowInit SF where
+    init = lift . init
+    -- loopD :: (ArrowInit a) => e -> a (b, e) (c, e) -> a b c
+    loopD i (SF g) = SF (loopD i (arr swapsnd >>> g >>> arr swapsnd))
+    -- loopB :: (ArrowInit a) => e -> a (b, (d, e)) (c, (d, e)) -> a b c
+    loopB i (SF g) = SF (loopB i (arr swapsnd >>> g >>> arr swapsnd))
 
 -- instance ArrowPlus SF where
 --  SF f <+> SF g = SF (f <+> g)
@@ -120,10 +133,10 @@ instance ArrowLoop SF where
 instance Functor (SF a) where
 	fmap f g = g >>> arr f
 
--- instance Applicative (SF a) where
---  pure x = arr (const x)
---  f <*> g = f &&& g >>> arr (uncurry id)
--- 
+instance Applicative (SF a) where
+    pure    = arr . const
+    f <*> g = f &&& g >>> arr (uncurry ($))
+
 -- instance Alternative (SF a) where
 --  empty = zeroArrow
 --  f <|> g = f <+> g
@@ -134,14 +147,6 @@ instance Functor (SF a) where
 
 -- ====================================================================
 -- Signal functions
-
--- | Identity: identity = arr id
-identity :: SF a a
-identity = lift SF.identity
-
--- | Identity: constant b = arr (const b)
-constant :: b -> SF a b
-constant b = lift (SF.constant b)
 
 -- | Transform initial input value.
 (>=-) :: (a -> a) -> SF a b -> SF a b
@@ -161,8 +166,8 @@ constant b = lift (SF.constant b)
 (-->) b0 = (-=>) (const b0)
 
 -- Override initial value of input signal.
-initially :: a -> SF a a
-initially a = lift (SF.initially a)
+-- initially :: a -> SF a a
+-- initially a = lift (SF.initially a)
 
 -- | Replace event value.
 tag :: b -> SF (Event a) (Event b)
@@ -174,8 +179,8 @@ never = lift SF.never
 
 -- | Event source with a single occurrence at time 0. The value of the event
 -- is given by the function argument.
-now :: b -> SF a (Event b)
-now = lift . SF.now
+once :: b -> SF a (Event b)
+once = lift . SF.once
 
 -- | Filter out events that don't satisfy some predicate.
 filter :: (a -> Bool) -> SF (Event a) (Event a)
@@ -212,19 +217,80 @@ liftSwitch switch sf f = SF (switch sf' f')
 switch :: SF a (b, Event c) -> (c -> SF a b) -> SF a b
 switch = liftSwitch SF.switch
 
-switch' :: SF a (b, Event c) -> (c -> SF a b) -> SF a b
-switch' = liftSwitch SF.switch'
+-- switch' :: SF a (b, Event c) -> (c -> SF a b) -> SF a b
+-- switch' = liftSwitch SF.switch'
+
+-- (>>=) :: forall  a b. m a -> (a -> m b) -> m b
+-- (>>) :: forall a b. m a -> m b -> m b
+-- return :: a -> m a
+-- fail :: String -> m a
+
+-- switchE :: SF (Event a) (Event c) -> (c -> SF (Event a) (Event b)) -> SF (Event a) (Event b)
+-- switchE = undefined
 
 -- lift_rswitch g sf f = SF (g sf' f')
 --     where
 --         sf' = runState sf >>> arr (\((b, c), s) -> ((b, s), c))
 --         f'  = runState . f
 
-rswitch :: SF a b -> SF (a, Event (SF a b)) b
-rswitch sf = switch (first sf) ((second (const NoEvent) >=-) . rswitch)
+rSwitch :: SF a b -> SF (a, Event (SF a b)) b
+rSwitch sf = switch (first sf) ((second (const NoEvent) >=-) . rSwitch)
 
-rswitch' :: SF a b -> SF (a, Event (SF a b)) b
-rswitch' sf = switch' (first sf) ((second (const NoEvent) >=-) . rswitch')
+-- rswitch' :: SF a b -> SF (a, Event (SF a b)) b
+-- rswitch' sf = switch' (first sf) ((second (const NoEvent) >=-) . rswitch')
+
+-- | Parallel switch parameterized on the routing function. This is the most
+-- general switch from which all other (non-delayed) switches in principle
+-- can be derived. The signal function collection is spatially composed in
+-- parallel and run until the event signal function has an occurrence. Once
+-- the switching event occurs, all signal function are "frozen" and their
+-- continuations are passed to the continuation function, along with the
+-- event value.
+-- rf .........	Routing function: determines the input to each signal function
+--		in the collection. IMPORTANT! The routing function has an
+--		obligation to preserve the structure of the signal function
+--		collection.
+-- sfs0 .......	Signal function collection.
+-- sfe0 .......	Signal function generating the switching event.
+-- k .......... Continuation to be invoked once event occurs.
+-- Returns the resulting signal function.
+--
+-- !!! Could be optimized on the event source being SFArr, SFArrE, SFArrEE
+--
+pSwitch :: (Functor col) =>
+       (forall sf . (a -> col sf -> col (b, sf)))
+    -> (forall s . s -> col (s -> ((c, SF b c), s)) -> (col (c, SF b c), s))
+    -> col (SF b c)
+    -> SF (a, col c) (Event d)
+    -> (col (SF b c) -> d -> SF a (col c))
+    -> SF a (col c)
+pSwitch rf ff sfs0 sfe0 k = SF (SF.SF tf0)
+    where
+        tf0 (a0, s0) =
+            let bsfs0      = rf a0 sfs0
+                (sfcs0, s) = ff s0 $ fmap (\(b0, sf0) -> \s -> swapsnd (second SF (SF.runSF (runState sf0) (b0, s)))) bsfs0
+                cs0        = fmap fst sfcs0
+                sfs        = fmap snd sfcs0
+            in
+            case SF.runSF (runState sfe0) ((a0, cs0), s) of
+                ((NoEvent, s'), sfe) -> ((cs0, s'), runState (pSwitch rf ff sfs (SF sfe) k))
+                ((Event d0, s'), _)  -> SF.runSF (runState (k sfs0 d0)) (a0, s')
+
+-- Recurring parallel switch parameterized on the routing function.
+-- rf .........	Routing function: determines the input to each signal function
+--		in the collection. IMPORTANT! The routing function has an
+--		obligation to preserve the structure of the signal function
+--		collection.
+-- sfs ........	Initial signal function collection.
+-- Returns the resulting signal function.
+
+rpSwitch :: Functor col =>
+      (forall sf . (a -> col sf -> col (b, sf)))
+   -> (forall s . s -> col (s -> ((c, SF b c), s)) -> (col (c, SF b c), s))
+   -> col (SF b c) -> SF (a, Event (col (SF b c) -> col (SF b c))) (col c)
+rpSwitch rf ff sfs =
+    pSwitch (rf . fst) ff sfs (arr (snd . fst)) $ \sfs' f ->
+        second (const NoEvent) >=- rpSwitch rf ff (f sfs')
 
 -- ====================================================================
 -- Sampled Signal functions
@@ -253,6 +319,9 @@ alloc f =
                         store -< s { s_state = setVal f a (s_state s) }
                         returnA -< Event (b, i)
 
+alloc_ :: IdAllocator i a => (Accessor Server.State a) -> SF (Event b) (Event i)
+alloc_ = fmap (fmap snd) . alloc
+
 -- alloc f s = modifyMVar s (\s -> fmap (swap . second (flip (setVal f) s)) . errorToIO . Alloc.alloc . getVal f $ s)
 
 -- OSC shtuff
@@ -261,14 +330,18 @@ recv = fetch >>> arr s_oscInput
 
 -- | Send an OSC packet.
 send :: SF (Event OSC) (Event OSC)
-send = fetch &&& identity
+send = fetch &&& id
        >>> arr (\(s, e) -> (event s (\osc -> s { s_oscOutput = osc : s_oscOutput s }) e, e))
        >>> first store
        >>> arr snd
 
 -- | Send an OSC packet.
 send_ :: OSC -> SF a (Event OSC)
-send_ osc = now osc >>> (id &&& send) >>> arr fst
+send_ osc = once osc >>> (id &&& send) >>> arr fst
+
+-- | Wait until a certain logical time.
+delayUntil :: SF (Event a) (Event a)
+delayUntil = undefined
 
 -- | Wait for an OSC message where the supplied function does not give
 --   Nothing, discarding intervening messages.
@@ -286,9 +359,16 @@ wait s = waitFor (\osc -> if has_address s osc then Just osc else Nothing)
 sync :: SF (Event a) (Event a)
 sync = (never &&& alloc Server.syncId)
        >>> arr (second (fmap (\(a, i) ->
-            now (Message "/sync" [Int i]) >>> send
+            once (Message "/sync" [Int i]) >>> send
             >>> recv >>> waitFor (synced i) >>> tag a)))
-        >>> rswitch identity
+        >>> rSwitch id
+
+-- sync' :: SF a b -> SF (a, Event (SF a b)) b
+-- sync' sf0 = second (alloc Server.syncId)
+--        >>> arr (second (fmap (\(a, i) ->
+--             now (Message "/sync" [Int i]) >>> send
+--             >>> recv >>> waitFor (synced i) >>> tag a)))
+--         >>> rswitch' sf0
 
 -- ====================================================================
 -- Driver
