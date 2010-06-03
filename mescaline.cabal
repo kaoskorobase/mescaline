@@ -90,6 +90,7 @@ library
                     Mescaline.Synth.SequencerView
                     Mescaline.Synth.SSF
                     Mescaline.Synth.SSF.BufferCache
+                    Mescaline.Synth.SSF.DiskSampler
                     Sound.OpenSoundControl.BufferedTransport
                     -- Sound.OpenSoundControl.Connection
                     Sound.SC3.Server

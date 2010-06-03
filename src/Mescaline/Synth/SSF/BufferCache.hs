@@ -2,23 +2,29 @@
 module Mescaline.Synth.SSF.BufferCache (
     Buffer(..)
   , BufferCache
+  , newEmpty
   , allocFrames
   , allocBytes
-  , newEmpty
+  , aquireBuffer
+  , releaseBuffer
   , newWith
   , free
   , allocBuffer
+  , freeBufferList
   , freeBuffer
 ) where
 
 import qualified Data.Set as Set
 
+import           Control.Applicative
 import           Control.Arrow
+import           Control.Category
 import           Sound.OpenSoundControl (OSC)
 import           Sound.SC3.Server.Command (b_alloc)
 import           Sound.SC3.Server.Command.Completion
 import qualified Sound.SC3.Server.State as State
 import           Mescaline.Synth.SSF as SF
+import           Prelude hiding ((.), id)
 
 data Buffer = Buffer {
     uid         :: State.BufferId
@@ -53,6 +59,7 @@ allocBytes nc = Alloc nc . bytesToFrames nc
 matchBuffer :: Alloc -> Buffer -> Bool
 matchBuffer (Alloc nc nf) b = nc == numChannels b && nf == numFrames b
 
+-- | Add a buffer to 'usedBuffers' and remove it from 'freeBuffers'.
 insertBuffer :: BufferCache -> Buffer -> BufferCache
 insertBuffer cache buf =
     BufferCache {
@@ -60,15 +67,28 @@ insertBuffer cache buf =
       , freeBuffers = Set.delete buf (freeBuffers cache)
     }
 
-deleteBuffer :: BufferCache -> Buffer -> BufferCache
-deleteBuffer cache buf =
+-- | Aquire a buffer from the cache.
+aquireBuffer :: Alloc -> BufferCache -> Maybe (BufferCache, Buffer)
+aquireBuffer alloc cache
+    | Set.null fbs = Nothing
+    | otherwise    = Just (cache', buf)
+        where
+            fbs    = Set.filter (matchBuffer alloc) (freeBuffers cache)
+            buf    = Set.findMin fbs
+            cache' = insertBuffer cache buf
+
+-- | Release a buffer to the cache.
+releaseBuffer :: BufferCache -> Buffer -> BufferCache
+releaseBuffer cache buf =
     BufferCache {
         usedBuffers = Set.delete buf (usedBuffers cache)
       , freeBuffers = Set.insert buf (freeBuffers cache)
     }
 
+-- Effectful interface
+
 newWith :: SF (Event [Alloc]) BufferCache
-newWith = undefined
+newWith = pure newEmpty
 -- newWith as = do
 --     cache <- newEmpty
 --     mapM (\a -> do
@@ -80,7 +100,7 @@ newWith = undefined
 --     return cache
 
 free :: SF (BufferCache, Event a) ()
-free = undefined
+free = pure ()
 -- free cache = do
 --     b1 <- liftSTM $ readTVar $ usedBuffers cache
 --     b2 <- liftSTM $ readTVar $ freeBuffers cache
@@ -109,40 +129,36 @@ free = undefined
 --     maybe (return ()) S.send (completion buf)
 --     return buf
 
-allocBuffer :: (Buffer -> Maybe OSC) -> SF (BufferCache, Event Alloc) (BufferCache, Event Buffer)
-allocBuffer = undefined
--- allocBuffer completion = (arr fst &&& sample) `switch` uncurry doAlloc
---     where
---         doAlloc :: BufferCache -> Alloc -> SF BufferCache (BufferCache, Event Buffer)
---         doAlloc cache alloc =
---             let fb = Set.filter (matchBuffer alloc) (freeBuffers cache)
---             in
---             -- if Set.null fb
---             --     then do
---                     -- Allocate buffer id
---                         now alloc
---                     >>> SF.alloc State.bufferId
---                     >>> arr (fmap (\(alloc, bid) ->
---                             let buf = Buffer bid (alloc_numChannels alloc) (alloc_numFrames alloc)
---                                 msg = maybe b_alloc (($) b_alloc') (completion buf)
---                                         (fromIntegral bid) (numFrames buf) (numChannels buf)
---                                 cache' = insertBuffer cache buf
---                             in (msg, (cache', buf))))
---                     >>> arr split
---                     >>> (first send &&& second sync)
---                     >>> arr (snd.split)
---                     >>> first (hold cache)
---                     -- Allocate buffer
---                     -- S.sync (msg (fromIntegral bid) (numFrames buf) (numChannels buf))
---                     -- Insert into used
---                     -- liftSTM $ insertTVar (usedBuffers cache) buf
---                     -- return buf)
---                 -- else
---                 --     let buf = Set.findMin fb
---                 --         cache' = deleteBuffer cache buf
---                 --     maybe (constant ()) (now (completion buf) >>> send)
---                 --     constant (cache', return buf)
+-- TODO: split this in pure part and initialization part for allocation of a fixed number of buffers
+allocBuffer :: SF (BufferCache, Event (Alloc, Buffer -> Maybe OSC)) (BufferCache, Event Buffer)
+allocBuffer = second never &&& (sample >>> arr (fmap (uncurry doAlloc))) >>> rSwitch id
+    where
+        -- doAlloc :: BufferCache -> Alloc -> SF (BufferCache, Event Buffer) (BufferCache, Event Buffer)
+        doAlloc cache (alloc, completion)
+            | Set.null fbs =
+                    once ()
+                >>> SF.alloc State.bufferId
+                >>> arr (split . fmap (\((), bid) ->
+                        let buf = Buffer bid (alloc_numChannels alloc) (alloc_numFrames alloc)
+                            msg = maybe b_alloc (($) b_alloc') (completion buf)
+                                    (fromIntegral bid) (numFrames buf) (numChannels buf)
+                            cache' = insertBuffer cache buf
+                        in (msg, (cache', buf))))
+                >>> send *** sync
+                >>> arr (split.snd)
+                >>> first (hold cache)
+            | otherwise    =
+                let buf    = Set.findMin fbs
+                    cache' = insertBuffer cache buf
+                in
+                    maybe never send_ (completion buf)
+                >>> pure (cache', Event buf)
+            where
+                fbs = Set.filter (matchBuffer alloc) (freeBuffers cache)
+
+freeBufferList :: SF (BufferCache, Event [Buffer]) BufferCache
+freeBufferList = second (arr (event id (flip (foldl (flip ($))) . fmap (flip releaseBuffer)))) >>> arr (uncurry (flip ($)))
 
 freeBuffer :: SF (BufferCache, Event Buffer) BufferCache
--- freeBuffer = (arr fst &&& sample) `switch` (constant . uncurry deleteBuffer)
-freeBuffer = (arr fst &&& sample) >>> second (arr (fmap (constant . uncurry deleteBuffer))) >>> rswitch identity
+-- freeBuffer = (arr fst &&& sample) >>> second (arr (fmap (constant . uncurry deleteBuffer))) >>> rSwitch identity
+freeBuffer = second (arr (fmap (:[]))) >>> freeBufferList

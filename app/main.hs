@@ -1,6 +1,7 @@
 {-# LANGUAGE Arrows #-}
 import           Control.Applicative
 import           Control.Arrow
+import           Control.Category
 import           Control.Concurrent (forkIO)
 import           Control.Concurrent.Chan.Chunked
 import           Data.Accessor
@@ -23,13 +24,13 @@ import           Sound.OpenSoundControl hiding (Time)
 import qualified Sound.SC3.Server.State as State
 import qualified Sound.SC3.Server.Process as Server
 import qualified System.Environment as Env
-import           Prelude hiding (and, init, scanl)
+import           Prelude hiding (and, (.), id, init, scanl)
 
 import Debug.Trace
 
 -- TODO: Implement start time quantization based on master clock signal.
 clock :: SF Double (Event Time)
-clock = (logicalTime &&& identity) >>> scanl f (Nothing, NoEvent) >>> arr snd
+clock = (logicalTime &&& id) >>> scanl f (Nothing, NoEvent) >>> arr snd
     where
         f (Nothing, _) (globalTime, tick)
             = (Just (globalTime+tick), Event globalTime)
