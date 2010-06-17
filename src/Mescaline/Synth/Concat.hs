@@ -16,7 +16,7 @@ import qualified Mescaline.Synth.Pattern as P
 import qualified Sound.Analysis.Meapsoft as Meap
 import qualified Sound.File.Sndfile as SF
 
-import           Sound.SC3 hiding (free, gate, sync, uid)
+import           Sound.SC3 hiding (free, gate, sync)
 
 import           Sound.SC3.Lang.Collection
 -- import           Sound.SC3.Lang.Pattern

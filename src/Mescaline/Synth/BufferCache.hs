@@ -15,7 +15,7 @@ import qualified Data.Set as Set
 
 import           Sound.OpenSoundControl (OSC, Transport)
 
-import           Sound.SC3 hiding (free, uid)
+import           Sound.SC3 hiding (free)
 import           Sound.SC3.Server.Command.Completion
 -- import           Sound.SC3.Server.Connection (Connection)
 -- import qualified Sound.SC3.Server.Connection  as C

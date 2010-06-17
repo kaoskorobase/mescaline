@@ -24,7 +24,7 @@ import qualified Prelude as P
 
 import           Sound.OpenSoundControl (OSC(..), Time(..), immediately)
 
-import           Sound.SC3 hiding (constant, free, gate, send, sync, uid)
+import           Sound.SC3 hiding (constant, free, gate, send, sync)
 import           Sound.SC3.Lang.Collection (clump)
 -- import           Sound.SC3.Lang.Pattern
 
