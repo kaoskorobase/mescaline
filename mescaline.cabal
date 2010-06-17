@@ -20,7 +20,7 @@ library
                   , binary
                   , bytestring
                   , Cabal >= 1.6
-                  , CCA >= 0.1
+                  , CCA >= 0.1.3 && < 0.2
                   , containers
                   , Control-Engine
                   , Crypto >= 4.2

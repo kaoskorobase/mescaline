@@ -127,16 +127,21 @@ instance ArrowChoice SF where
 instance ArrowInit SF where
   init i = SF (f i)
     where f i x = (i, SF (f x))
-  loopD i g = SF (f i g)
-    where
-      f i g x = 
-        let ((y, i'), g') = runSF g (x, i)
-        in (y, SF (f i' g'))
-  loopB i g = SF (f i g)
-    where
-      f i g x = 
-        let ((y, (z, i')), g') = runSF g (x, (z, i))
-        in (y, SF (f i' g'))
+  -- loopD i g = SF (f i g)
+  --   where
+  --     f i g x = 
+  --       let ((y, i'), g') = runSF g (x, i)
+  --       in (y, SF (f i' g'))
+  loopD i g = SF (f i)
+      where
+          f i x = 
+              let (y, i') = g (x, i)
+              in (y, SF (f i'))
+  -- loopB i g = SF (f i g)
+  --   where
+  --     f i g x = 
+  --       let ((y, (z, i')), g') = runSF g (x, (z, i))
+  --       in (y, SF (f i' g'))
 
 run :: SF a b -> [a] -> [b]
 run (SF f) (x:xs) =

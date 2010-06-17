@@ -123,10 +123,12 @@ instance ArrowLoop SF where
 instance ArrowInit SF where
     init = lift . init
     -- loopD :: (ArrowInit a) => e -> a (b, e) (c, e) -> a b c
-    loopD i (SF g) = SF (loopD i (arr swapsnd >>> g >>> arr swapsnd))
-    -- loopB :: (ArrowInit a) => e -> a (b, (d, e)) (c, (d, e)) -> a b c
-    loopB i (SF g) = SF (loopB i (arr swapsnd >>> g >>> arr swapsnd))
-
+    -- loopD i (SF g) = SF (loopD i (arr swapsnd >>> g >>> arr swapsnd))
+    -- loopD :: (ArrowInit a) => e -> ((b, e) -> (c, e)) -> a b c
+    loopD i g = SF (loopD i f)
+        where
+            f ((b, s), e) = let (c, e') = g (b, e) in ((c, s), e')
+    
 -- instance ArrowPlus SF where
 --  SF f <+> SF g = SF (f <+> g)
 
