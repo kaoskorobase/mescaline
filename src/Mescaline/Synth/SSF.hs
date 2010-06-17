@@ -1,4 +1,9 @@
-{-# LANGUAGE Arrows, FlexibleInstances, MultiParamTypeClasses, RankNTypes #-}
+{-# LANGUAGE
+    Arrows
+  , FlexibleInstances
+  , MultiParamTypeClasses
+  , RankNTypes
+  #-}
 module Mescaline.Synth.SSF (
     module Data.Signal.SF.Event
   , State
