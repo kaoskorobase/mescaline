@@ -51,7 +51,6 @@ library
     exposed-modules:
                     Control.CCA.ArrowP
                     Control.Concurrent.Chan.Chunked
-                    -- Control.Concurrent.Broadcast
                     -- Data.Iteratee.Chan
                     -- Data.Iteratee.OSC
                     -- Data.Iteratee.Util
@@ -95,7 +94,6 @@ library
                     Mescaline.Synth.SSF.BufferCache
                     Mescaline.Synth.SSF.DiskSampler
                     Sound.OpenSoundControl.BufferedTransport
-                    -- Sound.OpenSoundControl.Connection
                     Sound.SC3.Server
                     Sound.SC3.Server.Allocator
                     Sound.SC3.Server.Allocator.Range

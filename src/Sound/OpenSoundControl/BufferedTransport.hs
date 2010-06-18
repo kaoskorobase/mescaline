@@ -14,7 +14,6 @@ import Sound.OpenSoundControl (OSC(..), Transport(..), waitFor, wait)
 data BufferedTransport = forall t . Transport t => BufferedTransport t (Chan OSC)
 
 instance Transport BufferedTransport where
-   -- send  (BufferedTransport _ _ c) = atomically . writeTChan c
    send  (BufferedTransport t _) = send t
    recv  (BufferedTransport _ c) = readChan c
    close (BufferedTransport t _) = close t
