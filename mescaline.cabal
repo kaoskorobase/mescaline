@@ -94,7 +94,6 @@ library
                     Mescaline.Synth.SSF.BufferCache
                     Mescaline.Synth.SSF.DiskSampler
                     Sound.OpenSoundControl.BufferedTransport
-                    Sound.SC3.Server
                     Sound.SC3.Server.Allocator
                     Sound.SC3.Server.Allocator.Range
                     Sound.SC3.Server.Allocator.SimpleAllocator
