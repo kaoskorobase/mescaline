@@ -39,6 +39,7 @@ library
                   , hsc3-process >= 0.2
                   , hsndfile >= 0.4
                   , MissingH >= 1.0
+                  , monadIO >= 0.9 && < 1.0
                   , mtl
                   , process >= 1.0
                   , random
@@ -83,6 +84,8 @@ library
                     Mescaline.Meap.Process
                     Mescaline.Meap.Segmenter
                     Mescaline.Synth.BufferCache
+                    Mescaline.Synth.BufferCache.Alloc
+                    Mescaline.Synth.BufferCache.Server
                     Mescaline.Synth.Concat
                     Mescaline.Synth.FeatureSpaceView
                     Mescaline.Synth.Pattern

@@ -9,8 +9,8 @@ import qualified Data.Signal.SF as SF
 import           Mescaline
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Database.SourceFile as SourceFile
-import           Mescaline.Synth.BufferCache (Buffer, BufferCache)
-import qualified Mescaline.Synth.BufferCache as BC
+import           Mescaline.Synth.BufferCache.Server (Buffer, BufferCache)
+import qualified Mescaline.Synth.BufferCache.Server as BC
 import qualified Mescaline.Synth.Pattern as P
 
 import qualified Sound.Analysis.Meapsoft as Meap
@@ -107,10 +107,13 @@ bundle' = Bundle (NTPi 1)
 allocVoice :: BufferCache -> Unit.Unit -> (Voice -> Maybe OSC) -> Server Voice
 allocVoice cache unit completion = do
     nid <- alloc nodeId
-    buf <- BC.allocBuffer cache
-                          (BC.allocBytes (SourceFile.numChannels $ Unit.sourceFile unit)
-                                         diskBufferSize)
-                          (\buf -> completion (Voice nid buf))
+    buf <- BC.allocBuffer
+            (completion . Voice nid)
+            cache
+            (BC.allocBytes
+                (SourceFile.numChannels (Unit.sourceFile unit))
+                diskBufferSize)
+                          
     return $ Voice nid buf
 
 freeVoice :: BufferCache -> Voice -> Server ()
@@ -170,7 +173,7 @@ initSampler :: Server BufferCache
 initSampler = do
     S.sync $ bundle' [ d_recv (synthdef (voiceDefName 1) (voiceDef 1)),
                        d_recv (synthdef (voiceDefName 2) (voiceDef 2)) ]
-    BC.newWith (replicate 4 (BC.allocBytes 1 diskBufferSize) ++ replicate 4 (BC.allocBytes 1 diskBufferSize))
+    BC.new (replicate 4 (BC.allocBytes 1 diskBufferSize) ++ replicate 4 (BC.allocBytes 1 diskBufferSize))
 
 newSampler :: IO Sampler
 newSampler = do
@@ -185,7 +188,7 @@ newSampler = do
 freeSampler :: Sampler -> IO ()
 freeSampler (Sampler conn cache) = flip runServer conn $ do
     S.send (g_freeAll [0])
-    BC.free cache
+    BC.release cache
 
 playEvent :: Sampler -> P.SynthEvent -> IO ThreadId
 playEvent (Sampler conn cache) e = runServer (fork $ playUnit cache (e ^. P.unit) (e ^. P.synth) (e ^. P.time)) conn
