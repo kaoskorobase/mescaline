@@ -39,7 +39,7 @@ clock = (logicalTime &&& id) >>> scanl f (Nothing, NoEvent) >>> arr snd
             | otherwise               = (Just $ localTime, NoEvent)
 
 sequencer0 :: Sequencer ()
-sequencer0 = Sequencer.cons 32 32 0.125 (Bar (-1))
+sequencer0 = Sequencer.cons 16 16 0.125 (Bar (-1))
 
 -- sequencerOld :: SSF Double (Event (Sequencer ()))
 -- sequencerOld = clock >>> tag (Sequencer.step (undefined::Score)) >>> accum sequencer0
