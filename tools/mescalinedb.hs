@@ -34,7 +34,7 @@ cmd_query dbFile seg pattern features = do
                     in putStr $ unlines (map unwords ls)
 
 cmd_insert :: FilePath -> Segmentation -> String -> Int -> FilePath -> IO ()
-cmd_insert dbFile seg name degree file = do
+cmd_insert dbFile _ name degree file = do
     rows <- if file == "-" then read_dlm stdin else withFile file ReadMode read_dlm
     let units = map head rows
         rowData = map (map read . take degree . tail) rows :: [[Double]]
