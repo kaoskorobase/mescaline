@@ -129,7 +129,7 @@ executable mescaline
 --    build-depends:  gtk
 --    ghc-options:    -threaded
 
-executable mkdb
-    main-is:        mkdb.hs
+executable mescalinedb
+    main-is:        mescalinedb.hs
     ghc-options:    -threaded -funbox-strict-fields
     hs-source-dirs: src, tools
