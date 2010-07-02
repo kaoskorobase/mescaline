@@ -60,7 +60,6 @@ library
                     Mescaline
                     Mescaline.Control.Concurrent
                     Mescaline.Control.Concurrent.Pool
-                    Mescaline.Data.Array.Vector
                     Mescaline.Data.ByteString
                     Mescaline.Data.ListReader
                     Mescaline.Data.Unique
@@ -131,5 +130,6 @@ executable mescaline
 
 executable mescalinedb
     main-is:        mescalinedb.hs
+    build-depends:  hmatrix >= 0.9 && < 1.0
     ghc-options:    -threaded -funbox-strict-fields
     hs-source-dirs: src, tools

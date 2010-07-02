@@ -6,7 +6,8 @@ module Mescaline.Database.Feature where
 import           Data.Accessor (Accessor, (.>))
 import           Data.Accessor.Tuple
 import qualified Data.Binary as Binary
-import qualified Data.Vector.Unboxed as V
+import qualified Data.Vector.Generic as V
+import qualified Data.Vector.Storable as SV
 import qualified Mescaline.Data.ListReader as ListReader
 import qualified Mescaline.Data.Unique as Unique
 import           Mescaline.Database.Unit (Unit)
@@ -18,7 +19,7 @@ import           Prelude hiding (id)
 newtype Descriptor = Descriptor { unDescriptor :: (Unique.Id, String, Int) } deriving (Eq, Show)
 newtype FeatureOf  = FeatureOf Descriptor deriving (Eq, Show)
 newtype Feature    = Feature    { unFeature :: (Unique.Id, Descriptor, Value) } deriving (Eq, Show)
-type    Value      = V.Vector Double
+type    Value      = SV.Vector Double
 
 -- $(nameDeriveAccessors ''Descriptor (return.(++"_")))
 -- $(nameDeriveAccessors ''Feature (return.(++"_")))

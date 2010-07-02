@@ -14,8 +14,8 @@ import qualified Data.Map as Map
 import           Data.Maybe (fromJust)
 import qualified Data.Vector.Generic as V
 
-import           Mescaline.Data.Array.Vector
 import qualified Mescaline.Data.Unique as Unique
+import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.SoundFile as SF
 import           Mescaline.Database.SourceFile (SourceFile)
 import qualified Mescaline.Database.SourceFile as SourceFile
@@ -69,10 +69,10 @@ mkFeatures fs = zipWith3 Feature fs ds cs
         ds = fromJust $ mapM (flip lookup featureDegrees) fs
         cs = scanl (+) 0 ds
 
-meapFeatureData :: Meap.MEAP -> [Vector Double]
+meapFeatureData :: Meap.MEAP -> [Feature.Value]
 meapFeatureData m = map (V.fromList.drop 2.Meap.frame_l m) [0..Meap.n_frames m - 1]
 
-readUnits :: FilePath -> IO [((Double, Double), Vector Double)]
+readUnits :: FilePath -> IO [((Double, Double), Feature.Value)]
 readUnits path = do
     res <- Meap.read_meap path
     case res of

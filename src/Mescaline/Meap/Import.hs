@@ -17,7 +17,6 @@ import           Mescaline.Database.SourceFile (SourceFile)
 import qualified Mescaline.Database.SourceFile as SourceFile
 import           Mescaline.Database.Sql (SqlRow)
 import qualified Mescaline.Database.Table as Table
-import           Mescaline.Data.Array.Vector
 import qualified Mescaline.Meap.Extractor as Extractor
 import qualified Mescaline.Meap.Segmenter as Segmenter
 import           Mescaline.Meap.Chain as Chain

@@ -10,15 +10,9 @@ module Mescaline.Database.Unit (
 
 -- import           Data.Accessor.Template (nameDeriveAccessors)
 import qualified Data.Binary as Binary
-import           Data.List (find)
-import           Database.HDBC (SqlValue, fromSql)
 import           Mescaline.Data.Unique (Unique)
 import qualified Mescaline.Data.Unique as Unique
--- import           Mescaline.Database.Feature (Feature)
--- import qualified Mescaline.Database.Feature as Feature
-import           Mescaline.Data.Array.Vector
 import           Mescaline.Database.SourceFile (SourceFile)
-import qualified Mescaline.Database.SourceFile as SourceFile
 import           Prelude hiding(id)
 
 type Time  = Double
