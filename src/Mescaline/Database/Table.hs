@@ -150,11 +150,43 @@ insert c a = do
     create c t
     p <- isStored c a
     unless p $ do
+        -- TODO: optimize
+        -- insert into feature_es_globero_mescaline_spectral (unit,descriptor) select "foo","blah" where (select count (*) from feature_es_globero_mescaline_spectral where unit="16c268de-3d25-5679-b6d8-f3c34ade48e0")=0;
         let expr = printf "insert into %s values (%s)" (name t) (args a)
         handleSqlError (run c expr (Sql.toRow a))
         return ()
     where
         t = toTable a
+
+-- delete :: (Model a, SqlRow a, IConnection c) => c -> a -> IO ()
+-- delete c a = do
+--     -- TODO: optimize
+--     create c t
+--     let expr = printf "delete from %s values (%s) where " (name t) (args a)
+--         handleSqlError (run c expr (Sql.toRow a))
+--         return ()
+--     where
+--         t = toTable a
+-- 
+
+-- | Insert instance of a model into the corrsponding table.
+-- update :: (Model a, SqlRow a, IConnection c) => c -> a -> IO ()
+-- update c a = do
+--     -- TODO: optimize
+--     create c t
+--     p <- isStored c a
+--     
+--     if p
+--         then do
+--             let expr = printf "update" (name t) (args a)
+--             handleSqlError $ run c expr (Sql.toRow a)
+--             return ()
+--         else do
+--             let expr = printf "insert into %s values (%s)" (name t) (args a)
+--             handleSqlError $ run c expr (Sql.toRow a)
+--             return ()
+--     where
+--         t = toTable a
 
 -- ensureTables :: (SqlModel a, IConnection c) => c -> [a] -> IO ()
 -- ensureTables c = fst . foldl f (return (), []) . map sqlTable

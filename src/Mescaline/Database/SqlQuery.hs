@@ -8,15 +8,14 @@ import qualified Data.Foldable as Seq
 import qualified Data.List as List
 import qualified Data.Map as Map
 import           Data.Sequence as Seq
-import           Database.HDBC (SqlType(..), SqlValue)
 import qualified Mescaline.Data.Unique as Unique
 import qualified Mescaline.Database.Model ()
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.SourceFile as SourceFile
-import qualified Mescaline.Database.Sql as Sql
+import           Mescaline.Database.Sql as Sql
 import qualified Mescaline.Database.Table as Table
 import qualified Mescaline.Database.Unit as Unit
-import           Prelude hiding (and, elem, not, or)
+import           Prelude hiding (all, and, elem, not, or)
 import           Text.Printf (printf)
 
 data Field = Field String String
@@ -58,6 +57,9 @@ type Operator = String
 
 binop :: SqlType b => Operator -> Field -> b -> Query
 binop o (Field t f) b = query (t ++ "." ++ f ++ " " ++ o ++ " ?") [toSql b]
+
+all :: Query
+all = query "1" []
 
 eq :: SqlType a => Field -> a -> Query
 eq = binop "="

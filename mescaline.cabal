@@ -32,6 +32,7 @@ library
                   , HDBC >= 1.1 && < 2
                   , HDBC-sqlite3 >= 1.1 && < 2
                   , hint >= 0.3
+                  , hmatrix >= 0.9 && < 1.0
                   , hmeap >= 0.8
                   , hosc >= 0.8
                   , hsc3 >= 0.8
@@ -81,6 +82,7 @@ library
                     Mescaline.Meap.Import
                     Mescaline.Meap.Process
                     Mescaline.Meap.Segmenter
+                    Mescaline.Statistics.PCA
                     Mescaline.Synth.BufferCache
                     Mescaline.Synth.BufferCache.Alloc
                     Mescaline.Synth.BufferCache.Server
