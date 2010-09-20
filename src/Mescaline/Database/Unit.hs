@@ -39,6 +39,9 @@ instance Unique Unit where
 instance Eq Unit where
     a == b = id a == id b
 
+instance Ord Unit where
+    compare a b = compare (id a) (id b)
+
 unsafeCons :: Unique.Id -> SourceFile -> Segmentation -> Time -> DTime -> Unit
 unsafeCons = Unit
 
