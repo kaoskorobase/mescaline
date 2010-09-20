@@ -90,6 +90,7 @@ library
                     Mescaline.Synth.FeatureSpaceView
                     Mescaline.Synth.Pattern
                     Mescaline.Synth.Pattern.Load
+                    Mescaline.Synth.Sequencer
                     Mescaline.Synth.SequencerView
                     Mescaline.Synth.SSF
                     Mescaline.Synth.SSF.BufferCache
