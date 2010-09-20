@@ -1,4 +1,18 @@
 module Mescaline.Synth.FeatureSpace (
+    Unit
+  , unit
+  , feature
+  , value
+  , Region(..)
+  , FeatureSpace
+  , activeUnits
+  , units
+  , fromList
+  , insertRegion
+  , deleteRegion
+  , activateUnit
+  , activateUnits
+  , deactivateUnit
 ) where
 
 import qualified Control.Monad.State as State
@@ -50,27 +64,33 @@ data Region = Region {
   } deriving (Eq, Show)   
 
 data FeatureSpace = FeatureSpace { 
-    units :: BKTree Unit
+    featureSpace :: BKTree Unit
   , randomGen :: Random.StdGen
   , regions :: IntMap Region
   , activeUnits :: Set Unit.Unit
   }
 
-fromList :: [(Unit.Unit, Feature.Feature)] -> Random.StdGen -> FeatureSpace
-fromList = undefined
+units :: FeatureSpace -> [Unit]
+units = BKTree.elems . featureSpace
 
-addRegion :: Int -> Region -> FeatureSpace -> FeatureSpace
-addRegion = undefined
+fromList :: [(Unit.Unit, Feature.Feature)] -> Random.StdGen -> FeatureSpace
+fromList us g = FeatureSpace (BKTree.fromList (map Unit us)) g IntMap.empty Set.empty
+
+insertRegion :: Int -> Region -> FeatureSpace -> FeatureSpace
+insertRegion i r f = f { regions = IntMap.insert i r (regions f) }
+
+deleteRegion :: Int -> FeatureSpace -> FeatureSpace
+deleteRegion i f = f { regions = IntMap.delete i (regions f) }
 
 -- Return the next random unit from region i and an updated FeatureSpace.
 activateUnit :: Int -> FeatureSpace -> (Unit, FeatureSpace)
 activateUnit i f = (u'', f { randomGen = g', activeUnits = Set.insert (unit u'') (activeUnits f) })
     where
         Just r = IntMap.lookup i (regions f)
-        Unit (u, Feature.Feature (uid, d, v)) = head (BKTree.elems (units f))
+        Unit (u, Feature.Feature (uid, d, v)) = head (BKTree.elems (featureSpace f))
         u' = Unit (u, Feature.cons uid d (center r))
         n = withPrecision (radius r)
-        us = BKTree.elemsDistance n u' (units f)
+        us = BKTree.elemsDistance n u' (featureSpace f)
         (j, g') = Random.randomR (0, length us - 1) (randomGen f)
         u'' = us !! j
 
