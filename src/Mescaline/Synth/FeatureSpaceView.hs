@@ -1,6 +1,8 @@
 module Mescaline.Synth.FeatureSpaceView (
     FeatureSpaceView
   , featureSpaceView
+  , Input(..)
+  , Output(..)
 ) where
 
 import           Control.Concurrent (forkIO)
@@ -11,6 +13,7 @@ import           Control.Monad.Fix (fix)
 import qualified Data.Vector.Generic as V
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Database.Feature as Feature
+import           Mescaline.Synth.FeatureSpace
 import qualified Qt as Q
 
 type FeatureSpaceView = Q.QGraphicsSceneSc (CFeatureSpaceView)
@@ -19,8 +22,8 @@ data CFeatureSpaceView = CFeatureSpaceView
 featureSpaceView_ :: IO (FeatureSpaceView)
 featureSpaceView_ = Q.qSubClass (Q.qGraphicsScene ())
 
-type Params = [(Unit.Unit, Feature.Feature)]
-type Output = [Unit.Unit]
+data Input     = Model FeatureSpace | Deactivate Unit.Unit
+newtype Output = Activate Unit.Unit
 
 pair v | V.length v >= 2 = (v V.! 0, v V.! 1)
        | V.length v >= 1 = (v V.! 0, 0)
@@ -29,22 +32,22 @@ pair v | V.length v >= 2 = (v V.! 0, v V.! 1)
 mouseHandler :: Unit.Unit -> (Unit.Unit -> IO ()) -> Q.QGraphicsRectItem () -> Q.QGraphicsSceneMouseEvent () -> IO ()
 mouseHandler unit action this evt = action unit >> Q.mousePressEvent_h this evt
 
-initScene :: FeatureSpaceView -> Params -> (Unit.Unit -> IO ()) -> IO ()
-initScene view p action = mapM_ (uncurry unit) p
+initScene :: FeatureSpaceView -> FeatureSpace -> (Unit.Unit -> IO ()) -> IO ()
+initScene view model action = mapM_ mkUnit (units model)
     where
-        unit u f = do
-            let (x, y) = pair (Feature.value f)
+        mkUnit u = do
+            let (x, y) = pair (Feature.value (feature u))
                 box = Q.rectF x y 0.01 0.01
             item <- Q.qGraphicsRectItem_nf box
-            Q.setHandler item "mousePressEvent(QGraphicsSceneMouseEvent*)" $ mouseHandler u action
+            Q.setHandler item "mousePressEvent(QGraphicsSceneMouseEvent*)" $ mouseHandler (unit u) action
             Q.addItem view item
 
-featureSpaceView :: Params -> Chan Params -> Chan Output -> IO FeatureSpaceView
-featureSpaceView units ichan ochan = do
+featureSpaceView :: FeatureSpace -> Chan Input -> Chan Output -> IO FeatureSpaceView
+featureSpaceView fspace ichan ochan = do
     -- ref <- newMVar (Params boxSize padding s (mkBboxes boxSize padding s))
     ref <- newMVar units
     this <- featureSpaceView_
-    initScene this units $ \unit -> writeChan ochan [unit]
+    initScene this fspace (writeChan ochan . Activate)
 
     -- forkIO $ fix $ \loop -> do
     --     s <- readChan ichan

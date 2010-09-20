@@ -17,6 +17,7 @@ import qualified Mescaline.Synth.Concat as Synth
 import qualified Mescaline.Synth.Pattern as P
 import           Mescaline.Synth.Sequencer as Sequencer
 import           Mescaline.Synth.SequencerView
+import qualified Mescaline.Synth.FeatureSpace as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpaceView as FeatureSpaceView
 import           Mescaline.Synth.SSF as SF
 import qualified Qt as Q
@@ -24,6 +25,7 @@ import           Sound.OpenSoundControl hiding (Time)
 import qualified Sound.SC3.Server.State as State
 import qualified Sound.SC3.Server.Process as Server
 import qualified System.Environment as Env
+import qualified System.Random as Random
 import           Prelude hiding (and, (.), id, init, scanl)
 
 import Debug.Trace
@@ -150,7 +152,8 @@ main = do
     
     fspace_ichan <- newChan
     fspace_ochan <- newChan
-    fspaceView <- FeatureSpaceView.featureSpaceView (map (second head) units) fspace_ichan fspace_ochan
+    let fspace = FeatureSpace.fromList (map (second head) units) (Random.mkStdGen 0)
+    fspaceView <- FeatureSpaceView.featureSpaceView fspace fspace_ichan fspace_ochan
 
     graphicsView <- Q.findChild ui ("<QGraphicsView*>", "featureSpaceView")
     Q.setScene graphicsView fspaceView
@@ -164,8 +167,8 @@ main = do
 
     -- Pipe feature space view output to sample player
     forkIO $ fix $ \loop -> do
-        us <- readChan fspace_ochan
-        mapM_ (Synth.playEvent synth . P.fromUnit 0) us
+        FeatureSpaceView.Activate u <- readChan fspace_ochan
+        Synth.playEvent synth (P.fromUnit 0 u)
         loop
     
     -- Dispatch events to and from sequencer view
