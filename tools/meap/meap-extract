@@ -14,15 +14,15 @@ CLASS_PATH   = Dir.glob(File.join(File.dirname(__FILE__), "lib/meap-#{MEAP_VERSI
 SEGMENTER    = "com.meapsoft.Segmenter"
 EXTRACTOR    = "com.meapsoft.FeatExtractor"
 
-MEAP_FILE_REGEXP  = /\.(feat|seg)_(beats|events)$/
-SOUND_FILE_REGEXP = /\.(aif*|mp3|wav)$/i
+MEAP_FILE_REGEXP  = /\.meap_(feat|seg)$/
+SOUND_FILE_REGEXP = /\.(aif*|mp3|wav|ogg|flac)$/i
 
 FEATURES = %w(
 AvgChroma
 AvgChromaScalar
 AvgChunkPower
 AvgFreqSimple
-AvgMelSpec
+--AvgMelSpec
 AvgMFCC
 AvgPitch
 --AvgSpec
@@ -31,7 +31,7 @@ AvgSpecFlatness
 AvgTonalCentroid
 ChunkLength
 ChunkStartTime
-Entropy
+--Entropy
 --Likelihood
 --MedianBeatLengthOffset
 RMSAmplitude
@@ -168,16 +168,16 @@ def opt(flag, value)
 end
 
 def process_file(type, options, input_file)
-  segment_file  = mk_file(input_file, "seg_" + type.to_s)
-  feat_file     = mk_file(input_file, "feat_" + type.to_s)
+	type_suffix   = type.nil? ? "" : "_" + type.to_s
+  segment_file  = mk_file(input_file, "seg" + type_suffix)
+  feat_file     = mk_file(input_file, "feat" + type_suffix)
   cache_file    = mk_file(input_file, "cache")
 
   segmenter_options = [
     # type == :events ? ["-d"] : [],
     ["-d"],
     opt("-t", options.tempo_scale),
-    opt("-s", options.smoothing_window),
-    "-0" ].flatten
+    opt("-s", options.smoothing_window) ].flatten
 
   extractor_options = [
     opt("-w", options.fft_size),
@@ -219,6 +219,7 @@ def delete_meta_data(options, input_path)
 end
 
 def process_files(options, input_path)
+	type = nil
   if File.directory?(input_path)
     write_meta_data(options, input_path)
     pool = ThreadPool.new(options.jobs)
@@ -226,7 +227,7 @@ def process_files(options, input_path)
       if File.file?(file) && SOUND_FILE_REGEXP =~ file
         pool.process {
           begin
-            process_file(:beats, options, file)
+            process_file(type, options, file)
           rescue
             puts $!
             puts $!.backtrace
@@ -236,7 +237,7 @@ def process_files(options, input_path)
     end
     pool.join()
   else
-    process_file(options, input_path)
+    process_file(type, options, input_path)
   end
 end
 
