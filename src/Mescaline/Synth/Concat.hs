@@ -123,7 +123,10 @@ freeVoice cache (Voice _ buf) = do
 
 startVoice :: Voice -> Unit.Unit -> P.SynthParams -> Double -> OSC
 startVoice (Voice nid buf) unit params time =
-    bundle (time + params ^. P.latency)
+    let timeTag = if time <= 0
+                  then immediately
+                  else UTCr (time + params ^. P.latency)
+    in Bundle timeTag
         [s_new (voiceDefName $ BC.numChannels buf) (fromIntegral nid) AddToTail 0
             ([ ("bufnum", fromIntegral $ BC.uid buf),
               ("attackTime",   params ^. P.attackTime),

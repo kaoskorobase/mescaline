@@ -41,7 +41,7 @@ clock = (logicalTime &&& id) >>> scanl f (Nothing, NoEvent) >>> arr snd
             | otherwise               = (Just $ localTime, NoEvent)
 
 sequencer0 :: Sequencer ()
-sequencer0 = Sequencer.cons 16 16 0.125 (Bar (-1))
+sequencer0 = Sequencer.cons 4 16 0.125 (Bar (-1))
 
 -- sequencerOld :: SSF Double (Event (Sequencer ()))
 -- sequencerOld = clock >>> tag (Sequencer.step (undefined::Score)) >>> accum sequencer0
@@ -77,13 +77,14 @@ pipeChan f i o = do
         Just e  -> writeChan o e
     pipeChan f i o
 
+setEnv = setVal (P.synth.>P.attackTime) 0.01 . setVal (P.synth.>P.releaseTime) 0.02
+
 -- sequencerEvents :: [Unit] -> Time -> Sequencer a -> [P.SynthEvent]
 sequencerEvents units t s = map (setEnv.f) is
     where
         -- is = map (\(r, c) -> r * cols s + c) $ indicesAtCursor s
         is = map fst $ indicesAtCursor s
         f i = P.SynthEvent t (units !! i) P.defaultSynth
-        setEnv = setVal (P.synth.>P.attackTime) 0.01 . setVal (P.synth.>P.releaseTime) 0.02
 
 getUnits dbFile pattern features = do
     (units, sfMap) <- DB.withDatabase dbFile $ \c -> do
@@ -135,10 +136,10 @@ main = do
     
     ichan <- newChan
     ochan <- newChan
-    seqChan <- newChan
+    seq_ichan <- newChan
     synth <- Synth.newSampler
 
-    seqView <- sequencerView 15 2 sequencer0 seqChan ichan
+    (seqView, ichan) <- sequencerView 30 2 sequencer0 seq_ichan
     graphicsView <- Q.findChild ui ("<QGraphicsView*>", "sequencerView")
     Q.setScene graphicsView seqView
 
@@ -151,9 +152,8 @@ main = do
     --     writeChan ichan (setVal tick t')
     
     fspace_ichan <- newChan
-    fspace_ochan <- newChan
     let fspace = FeatureSpace.fromList (map (second head) units) (Random.mkStdGen 0)
-    fspaceView <- FeatureSpaceView.featureSpaceView fspace fspace_ichan fspace_ochan
+    (fspaceView, fspace_ochan) <- FeatureSpaceView.featureSpaceView fspace fspace_ichan
 
     graphicsView <- Q.findChild ui ("<QGraphicsView*>", "featureSpaceView")
     Q.setScene graphicsView fspaceView
@@ -162,13 +162,16 @@ main = do
     
     -- Execute signal function
     t <- Server.openTransport Server.defaultRTOptionsUDP "127.0.0.1" :: IO UDP
+    -- forkIO $ SF.execute (SF.Options Server.defaultServerOptions t 0.005)
+    --     (sequencer sequencer0 >>> first (arr (fmap (uncurry (sequencerEvents (map fst units)))))) ichan ochan
     forkIO $ SF.execute (SF.Options Server.defaultServerOptions t 0.005)
-        (sequencer sequencer0 >>> first (arr (fmap (uncurry (sequencerEvents (map fst units)))))) ichan ochan
+        (sequencer sequencer0) ichan ochan
 
     -- Pipe feature space view output to sample player
     forkIO $ fix $ \loop -> do
-        FeatureSpaceView.Activate u <- readChan fspace_ochan
-        Synth.playEvent synth (P.fromUnit 0 u)
+        FeatureSpaceView.Activate (t, u) <- readChan fspace_ochan
+        print u
+        Synth.playEvent synth (setEnv (P.fromUnit t u))
         loop
     
     -- Dispatch events to and from sequencer view
@@ -176,12 +179,14 @@ main = do
         x <- readChan ochan
         case (fst.snd $ x) of
             NoEvent -> return ()
-            Event es -> mapM_ (Synth.playEvent synth) es
+            -- Event es -> mapM_ (Synth.playEvent synth) es
+            Event (t, s) -> do
+                let is = map fst $ indicesAtCursor s
+                mapM_ (writeChan fspace_ichan . FeatureSpaceView.ActivateRegion . (,) t) is
         case (snd.snd $ x) of
             NoEvent -> return ()
-            Event s -> writeChan seqChan s
+            Event s -> writeChan seq_ichan s
         loop
-    
     
     -- ctor <- evaluate engine "Calculator"
     -- scriptUi <- newQObject engine ui

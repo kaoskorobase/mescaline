@@ -8,7 +8,8 @@ import           Control.Concurrent.Chan.Chunked
 import           Control.Concurrent.MVar
 import           Control.Monad
 import           Control.Monad.Fix (fix)
-import           Mescaline.Synth.Sequencer as Sequencer
+import           Mescaline.Synth.Sequencer as Seq
+import           Mescaline.Synth.FeatureSpaceView (regionsFromFile)
 import qualified Data.Foldable as Fold
 import qualified Data.Map as Map
 import qualified Qt as Q
@@ -30,6 +31,7 @@ data State a = State {
     params    :: Params
   , sequencer :: Sequencer a
   , fields    :: Fields
+  , colors    :: [Q.QColor ()]
   }
 
 mouseHandler :: (Int, Int) -> ((Int, Int) -> IO ()) -> Q.QGraphicsRectItem () -> Q.QGraphicsSceneMouseEvent () -> IO ()
@@ -60,18 +62,21 @@ updateScene stateVar this _ = do
                     then Q.qBrush Q.edarkRed
                     else if sequencer state `isElemAtIndex` coord
                         then Q.qBrush Q.edarkGray
-                        else Q.qBrush Q.eNoBrush
+                        else Q.qBrush (colors state !! (fst coord `mod` length (colors state)))
             Q.setBrush field b
 
-sequencerView :: Double -> Double -> Sequencer a -> Chan (Sequencer a) -> Chan (Sequencer a -> Sequencer a) -> IO SequencerView
-sequencerView boxSize padding seq0 ichan ochan = do
+sequencerView :: Double -> Double -> Sequencer a -> Chan (Sequencer a) -> IO (SequencerView, Chan (Sequencer a -> Sequencer a))
+sequencerView boxSize padding seq0 ichan = do
     let params = Params boxSize padding
     this <- sequencerView_
+    ochan <- newChan
     fields <- initScene this params (rows seq0) (cols seq0) $ \(r, c) -> do
-        writeChan ochan (Sequencer.toggle r c undefined)
-    state <- newMVar (State params seq0 fields)
-    
+        writeChan ochan (Seq.toggle r c undefined)
+    colors <- fmap (fmap snd) (regionsFromFile "regions.txt")
+    state <- newMVar (State params seq0 fields colors)
+
     Q.connectSlot this "updateScene()" this "updateScene()" $ updateScene state
+    Q.emitSignal this "updateScene()" ()
 
     forkIO $ fix $ \loop -> do
         newSequencer <- readChan ichan
@@ -80,4 +85,4 @@ sequencerView boxSize padding seq0 ichan ochan = do
         Q.emitSignal this "updateScene()" ()
         loop
 
-    return this
+    return (this, ochan)

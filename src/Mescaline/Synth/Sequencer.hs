@@ -51,6 +51,9 @@ delete = alter (const Nothing)
 --                                     (maybe Nothing (Just . Map.delete row))
 --                                     col (matrix s) }
 
+deleteAll :: Sequencer a -> Sequencer a
+deleteAll s = s { matrix = Map.empty }
+
 toggle :: Int -> Int -> a -> Sequencer a -> Sequencer a
 toggle row col a = alter f row col
     where

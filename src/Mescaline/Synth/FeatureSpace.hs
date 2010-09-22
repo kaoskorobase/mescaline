@@ -10,11 +10,13 @@ module Mescaline.Synth.FeatureSpace (
   , fromList
   , insertRegion
   , deleteRegion
-  , activateUnit
-  , activateUnits
+  , regionList
+  , activateRegion
+  , activateRegions
   , deactivateUnit
 ) where
 
+import           Control.Arrow
 import qualified Control.Monad.State as State
 import           Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -82,20 +84,27 @@ insertRegion i r f = f { regions = IntMap.insert i r (regions f) }
 deleteRegion :: Int -> FeatureSpace -> FeatureSpace
 deleteRegion i f = f { regions = IntMap.delete i (regions f) }
 
+regionList :: FeatureSpace -> [Region]
+regionList = IntMap.elems . regions
+
 -- Return the next random unit from region i and an updated FeatureSpace.
-activateUnit :: Int -> FeatureSpace -> (Unit, FeatureSpace)
-activateUnit i f = (u'', f { randomGen = g', activeUnits = Set.insert (unit u'') (activeUnits f) })
+activateRegion :: Int -> FeatureSpace -> (Maybe Unit, FeatureSpace)
+activateRegion i f = (u'', f { randomGen = g', activeUnits = au })
     where
         Just r = IntMap.lookup i (regions f)
-        Unit (u, Feature.Feature (uid, d, v)) = head (BKTree.elems (featureSpace f))
+        Unit (u, Feature.Feature (uid, d, _)) = head (BKTree.elems (featureSpace f))
         u' = Unit (u, Feature.cons uid d (center r))
         n = withPrecision (radius r)
         us = BKTree.elemsDistance n u' (featureSpace f)
         (j, g') = Random.randomR (0, length us - 1) (randomGen f)
-        u'' = us !! j
+        u'' = if null us then Nothing else Just (us !! j)
+        au = maybe (activeUnits f) (flip Set.insert (activeUnits f) . unit) u''
 
-activateUnits :: [Int] -> FeatureSpace -> ([Unit], FeatureSpace)
-activateUnits = State.runState . sequence . map (State.State . activateUnit)
+filterMaybe :: [Maybe a] -> [a]
+filterMaybe l = [ x | Just x <- l ]
+
+activateRegions :: [Int] -> FeatureSpace -> ([Unit], FeatureSpace)
+activateRegions is f = first filterMaybe $ State.runState (sequence (map (State.State . activateRegion) is)) f
 
 deactivateUnit :: Unit.Unit -> FeatureSpace -> FeatureSpace
 deactivateUnit u f = f { activeUnits = Set.delete u (activeUnits f) }
