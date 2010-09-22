@@ -4,13 +4,16 @@ import           Control.Arrow
 import           Control.Category
 import           Control.Concurrent (forkIO)
 import           Control.Concurrent.Chan.Chunked
+import           Control.Concurrent.MVar
+import           Control.Monad (unless)
 import           Data.Accessor
+import           Data.Char (ord)
 import           Data.Function (fix)
 import           Data.Maybe
 import           Database.HDBC (quickQuery')
 import           Mescaline (Time)
 import qualified Mescaline.Database as DB
-import           Mescaline.Database.SqlQuery
+import qualified Mescaline.Database.SqlQuery as Sql
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Synth.Concat as Synth
@@ -88,12 +91,21 @@ sequencerEvents units t s = map (setEnv.f) is
 
 getUnits dbFile pattern features = do
     (units, sfMap) <- DB.withDatabase dbFile $ \c -> do
-        unitQuery (quickQuery' c)
-              ((url sourceFile `like` pattern) `and` (segmentation unit `eq` Unit.Onset))
+        Sql.unitQuery (quickQuery' c)
+              ((Sql.url Sql.sourceFile `Sql.like` pattern) `Sql.and` (Sql.segmentation Sql.unit `Sql.eq` Unit.Onset))
               features
     case units of
         Left e -> fail e
         Right us -> return us
+
+sceneKeyPressEvent :: MVar Bool -> Chan (Sequencer a -> Sequencer a) -> SequencerView -> Q.QKeyEvent () -> IO ()
+sceneKeyPressEvent mute chan this qkev = do
+    key <- Q.key qkev ()
+    if key == Q.qEnum_toInt Q.eKey_C
+        then writeChan chan Sequencer.deleteAll
+        else if key == Q.qEnum_toInt Q.eKey_M
+            then modifyMVar_ mute (return . not)
+            else return ()
 
 main :: IO ()
 main = do
@@ -140,6 +152,8 @@ main = do
     synth <- Synth.newSampler
 
     (seqView, ichan) <- sequencerView 30 2 sequencer0 seq_ichan
+    mute <- newMVar False
+    Q.setHandler seqView "keyPressEvent(QKeyEvent*)" $ sceneKeyPressEvent mute ichan
     graphicsView <- Q.findChild ui ("<QGraphicsView*>", "sequencerView")
     Q.setScene graphicsView seqView
 
@@ -160,6 +174,7 @@ main = do
     -- Q.fitInView graphicsView (Q.rectF 0 0 1 1)
     Q.qscale graphicsView (400::Double, 400::Double)
     
+    
     -- Execute signal function
     t <- Server.openTransport Server.defaultRTOptionsUDP "127.0.0.1" :: IO UDP
     -- forkIO $ SF.execute (SF.Options Server.defaultServerOptions t 0.005)
@@ -170,8 +185,11 @@ main = do
     -- Pipe feature space view output to sample player
     forkIO $ fix $ \loop -> do
         FeatureSpaceView.Activate (t, u) <- readChan fspace_ochan
-        print u
-        Synth.playEvent synth (setEnv (P.fromUnit t u))
+        b <- readMVar mute
+        unless b $ do
+            print u
+            Synth.playEvent synth (setEnv (P.fromUnit t u))
+            return ()
         loop
     
     -- Dispatch events to and from sequencer view

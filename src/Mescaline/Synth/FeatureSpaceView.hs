@@ -37,6 +37,32 @@ pair v | V.length v >= 2 = (v V.! 0, v V.! 1)
 mouseHandler :: Unit.Unit -> (Unit.Unit -> IO ()) -> Qt.QGraphicsRectItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
 mouseHandler unit action this evt = action unit >> Qt.mousePressEvent_h this evt
 
+sceneMousePressHandler :: MVar Bool -> Qt.QGraphicsScene () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
+sceneMousePressHandler state view evt = do
+    putStrLn "sceneMousePressHandler"
+    b <- Qt.button evt ()
+    if ((Qt.qEnum_toInt b) == (Qt.qEnum_toInt Qt.eLeftButton))
+        then Qt.ignore evt () >> swapMVar state True >> return ()
+        else Qt.mousePressEvent_h view evt
+
+sceneMouseReleaseHandler :: MVar Bool -> Qt.QGraphicsScene () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
+sceneMouseReleaseHandler state view evt = do
+    putStrLn "sceneMouseReleaseHandler"
+    b <- Qt.button evt ()
+    if ((Qt.qEnum_toInt b) == (Qt.qEnum_toInt Qt.eLeftButton))
+        then swapMVar state False >> return ()
+        else return ()
+    Qt.mouseReleaseEvent_h view evt
+
+hoverHandler :: MVar Bool -> Unit.Unit -> (Unit.Unit -> IO ()) -> Qt.QGraphicsRectItem () -> Qt.QGraphicsSceneHoverEvent () -> IO ()
+hoverHandler state unit action this evt = do
+    putStrLn "hoverHandler"
+    b <- readMVar state
+    if True -- b
+        then action unit
+        else return ()
+    Qt.hoverEnterEvent_h this evt
+
 -- createPoly :: DiagramType -> IO (QPolygonF ())
 -- createPoly dt
 --  | dt == StartEnd
@@ -175,8 +201,10 @@ mouseHandler unit action this evt = action unit >> Qt.mousePressEvent_h this evt
 --         else return ()
 --     return vr
 
-initScene :: FeatureSpaceView -> FeatureSpace -> (Unit.Unit -> IO ()) -> IO ()
-initScene view model action = do
+initScene :: FeatureSpaceView -> FeatureSpace -> MVar Bool -> (Unit.Unit -> IO ()) -> IO ()
+initScene view model state action = do
+    -- Qt.setHandler view "mousePressEvent(QGraphicsSceneMouseEvent*)" $ sceneMousePressHandler state
+    -- Qt.setHandler view "mouseReleaseEvent(QGraphicsSceneMouseEvent*)" $ sceneMouseReleaseHandler state
     mapM_ mkUnit (units model)
     colors <- fmap (fmap snd) $ regionsFromFile "regions.txt"
     mapM_ (uncurry mkRegion) (zip (regionList model) colors)
@@ -185,7 +213,9 @@ initScene view model action = do
             let (x, y) = pair (Feature.value (feature u))
                 box = Qt.rectF x y 0.01 0.01
             item <- Qt.qGraphicsRectItem_nf box
-            Qt.setHandler item "mousePressEvent(QGraphicsSceneMouseEvent*)" $ mouseHandler (unit u) action
+            -- Qt.setHandler item "mousePressEvent(QGraphicsSceneMouseEvent*)" $ mouseHandler (unit u) action
+            Qt.setHandler item "hoverEnterEvent(QGraphicsSceneHoverEvent*)" $ hoverHandler state (unit u) action
+            Qt.setAcceptsHoverEvents item True
             Qt.addItem view item
         mkRegion region color = do
             let r = radius region
@@ -240,8 +270,9 @@ featureSpaceView fspace0 ichan = do
     let fspace = addRegions (map fst regions) fspace0
     this <- featureSpaceView_
     ochan <- newChan
-    
-    initScene this fspace (writeChan ochan . Activate . (,) (-1))
+    state <- newMVar False
+
+    initScene this fspace state (writeChan ochan . Activate . (,) (-1))
 
     forkIO $ inputLoop ichan ochan fspace
     
