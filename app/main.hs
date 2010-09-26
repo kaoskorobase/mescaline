@@ -172,7 +172,7 @@ main = do
     graphicsView <- Q.findChild ui ("<QGraphicsView*>", "featureSpaceView")
     Q.setScene graphicsView fspaceView
     -- Q.fitInView graphicsView (Q.rectF 0 0 1 1)
-    Q.qscale graphicsView (400::Double, 400::Double)
+    Q.qscale graphicsView (600::Double, 600::Double)
     
     
     -- Execute signal function
