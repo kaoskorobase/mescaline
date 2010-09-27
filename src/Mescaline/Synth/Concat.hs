@@ -4,7 +4,7 @@ module Mescaline.Synth.Concat (
 ) where
 
 import           Control.Concurrent (ThreadId, forkIO)
-import           Control.Concurrent.Chan.Chunked
+import           Control.Concurrent.Chan
 import           Control.Concurrent.STM
 import           Control.Monad            (join)
 import           Data.Accessor ((^.))

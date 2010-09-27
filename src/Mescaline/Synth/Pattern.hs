@@ -6,7 +6,7 @@ import           Control.CCA.Types
 import           Control.Arrow
 import           Control.Applicative
 -- import           Control.Concurrent
-import           Control.Concurrent.Chan.Chunked
+import           Control.Concurrent.Chan
 import           Control.Monad
 import           Data.Accessor
 -- import           Data.Accessor.Template

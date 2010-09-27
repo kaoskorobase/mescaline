@@ -8,7 +8,7 @@ module Mescaline.Synth.FeatureSpaceView (
 ) where
 
 import           Control.Concurrent (forkIO)
-import           Control.Concurrent.Chan.Chunked
+import           Control.Concurrent.Chan
 import           Control.Concurrent.MVar
 import           Control.Monad
 import           Control.Monad.Fix (fix)
