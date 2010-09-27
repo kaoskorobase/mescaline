@@ -1,4 +1,7 @@
-module Mescaline.Synth.Concat where
+module Mescaline.Synth.Concat (
+    newSampler
+  , playEvent
+) where
 
 import           Control.Concurrent (ThreadId, forkIO)
 import           Control.Concurrent.Chan.Chunked
