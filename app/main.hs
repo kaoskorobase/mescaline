@@ -11,7 +11,6 @@ import           Data.Char (ord)
 import           Data.Function (fix)
 import           Data.Maybe
 import           Database.HDBC (quickQuery')
-import           Mescaline (Time)
 import qualified Mescaline.Database as DB
 import qualified Mescaline.Database.SqlQuery as Sql
 import qualified Mescaline.Database.Feature as Feature
@@ -24,8 +23,6 @@ import qualified Mescaline.Synth.FeatureSpace as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpaceView as FeatureSpaceView
 import           Mescaline.Synth.SSF as SF
 import qualified Qt as Q
-import           Sound.OpenSoundControl hiding (Time)
-import qualified Sound.OpenSoundControl.Time as Time
 import qualified Sound.SC3.Server.State as State
 import qualified Sound.SC3.Server.Process as Server
 import qualified System.Environment as Env
@@ -36,29 +33,6 @@ import Debug.Trace
 
 sequencer0 :: Sequencer ()
 sequencer0 = Sequencer.cons 4 16 0.125 (Bar (-1))
-
-sequencer :: Sequencer a -> Chan (Sequencer a -> Sequencer a) -> IO (Chan (Time, Sequencer a))
-sequencer s0 ichan = do
-    ochan <- newChan
-    t0 <- Time.utcr
-    forkIO $ loop ichan ochan s0 t0
-    return ochan
-    where
-        loop ichan ochan s t = do
-            s' <- applyUpdates ichan s
-            let t' = t + getVal Sequencer.tick s'
-            writeChan ochan (t, s')
-            Time.pauseThreadUntil t'
-            let s'' = Sequencer.step (undefined::Score) s'
-            loop ichan ochan s'' t'
-        applyUpdates c s = do
-            b <- isEmptyChan c
-            if b
-                then return s
-                else do
-                    f <- readChan c
-                    let s' = f s
-                    s' `seq` applyUpdates c s'
 
 setEnv = setVal (P.synth.>P.attackTime) 0.01 . setVal (P.synth.>P.releaseTime) 0.02
 
@@ -119,15 +93,11 @@ main = do
 
     units <- drop (read n) `fmap` getUnits dbFile pattern [Feature.consDescriptor "es.globero.mescaline.spectral" 2]
     
-    ichan <- newChan
-    ochan <- sequencer sequencer0 ichan
-
     seq_ichan <- newChan
-    synth <- Synth.newSampler
-
-    (seqView, ichan) <- sequencerView 30 2 sequencer0 seq_ichan
+    (seqView, seq_ochan) <- sequencerView 30 2 sequencer0 seq_ichan
+    
     mute <- newMVar False
-    Q.setHandler seqView "keyPressEvent(QKeyEvent*)" $ sceneKeyPressEvent mute ichan
+    Q.setHandler seqView "keyPressEvent(QKeyEvent*)" $ sceneKeyPressEvent mute seq_ichan
     graphicsView <- Q.findChild ui ("<QGraphicsView*>", "sequencerView")
     Q.setScene graphicsView seqView
 
@@ -149,6 +119,7 @@ main = do
     Q.qscale graphicsView (600::Double, 600::Double)
         
     -- Pipe feature space view output to sample player
+    synth <- Synth.newSampler
     forkIO $ fix $ \loop -> do
         FeatureSpaceView.Activate (t, u) <- readChan fspace_ochan
         b <- readMVar mute
@@ -159,10 +130,9 @@ main = do
         loop
 
     forkIO $ fix $ \loop -> do
-        (t, s) <- readChan ochan
+        (t, s) <- readChan seq_ochan
         let is = map fst $ indicesAtCursor s
         mapM_ (writeChan fspace_ichan . FeatureSpaceView.ActivateRegion . (,) t) is
-        writeChan seq_ichan s
         loop
     
     -- ctor <- evaluate engine "Calculator"

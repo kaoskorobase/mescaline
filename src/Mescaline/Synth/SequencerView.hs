@@ -8,11 +8,14 @@ import           Control.Concurrent.Chan
 import           Control.Concurrent.MVar
 import           Control.Monad
 import           Control.Monad.Fix (fix)
+import           Data.Accessor
+import           Mescaline (Time)
 import           Mescaline.Synth.Sequencer as Seq
 import           Mescaline.Synth.FeatureSpaceView (regionsFromFile)
 import qualified Data.Foldable as Fold
 import qualified Data.Map as Map
 import qualified Qt as Q
+import qualified Sound.OpenSoundControl.Time as Time
 
 type SequencerView = Q.QGraphicsSceneSc (CSequencerView)
 data CSequencerView = CSequencerView
@@ -65,24 +68,53 @@ updateScene stateVar this _ = do
                         else Q.qBrush (colors state !! (fst coord `mod` length (colors state)))
             Q.setBrush field b
 
-sequencerView :: Double -> Double -> Sequencer a -> Chan (Sequencer a) -> IO (SequencerView, Chan (Sequencer a -> Sequencer a))
+sequencerProcess :: Sequencer a -> Chan (Sequencer a -> Sequencer a) -> IO (Chan (Time, Sequencer a))
+sequencerProcess s0 ichan = do
+    ochan <- newChan
+    t0 <- Time.utcr
+    forkIO $ loop ichan ochan s0 t0
+    return ochan
+    where
+        loop ichan ochan s t = do
+            s' <- applyUpdates ichan s
+            let t' = t + getVal Seq.tick s'
+            writeChan ochan (t, s')
+            Time.pauseThreadUntil t'
+            let s'' = Seq.step (undefined::Seq.Score) s'
+            loop ichan ochan s'' t'
+        applyUpdates c s = do
+            b <- isEmptyChan c
+            if b
+                then return s
+                else do
+                    f <- readChan c
+                    let s' = f s
+                    s' `seq` applyUpdates c s'
+
+sequencerView :: Double -> Double -> Sequencer a -> Chan (Sequencer a -> Sequencer a) -> IO (SequencerView, Chan (Time, Sequencer a))
 sequencerView boxSize padding seq0 ichan = do
     let params = Params boxSize padding
     this <- sequencerView_
     ochan <- newChan
+    seq_ichan <- newChan
+    seq_ochan <- sequencerProcess seq0 seq_ichan
     fields <- initScene this params (rows seq0) (cols seq0) $ \(r, c) -> do
-        writeChan ochan (Seq.toggle r c undefined)
+        writeChan seq_ichan (Seq.toggle r c undefined)
     colors <- fmap (fmap snd) (regionsFromFile "regions.txt")
     state <- newMVar (State params seq0 fields colors)
-
+    
     Q.connectSlot this "updateScene()" this "updateScene()" $ updateScene state
     Q.emitSignal this "updateScene()" ()
 
     forkIO $ fix $ \loop -> do
-        newSequencer <- readChan ichan
-        modifyMVar_ state (\s -> return $ s { sequencer = newSequencer })
-        -- putStrLn "state changed"
-        Q.emitSignal this "updateScene()" ()
+        readChan ichan >>= writeChan seq_ichan
+        loop
+    
+    forkIO $ fix $ \loop -> do
+        e@(t, s') <- readChan seq_ochan
+        writeChan ochan e
+        modifyMVar_ state (\s -> return $ s { sequencer = s' })
+        forkIO $ Q.emitSignal this "updateScene()" ()
         loop
 
     return (this, ochan)
