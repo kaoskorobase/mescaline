@@ -194,17 +194,17 @@ hoverHandler state unit action this evt = do
 --     ta <- exec mnu sp
 --     return ()
 
--- clusterChange :: Qt.QGraphicsEllipseItem () -> Qt.GraphicsItemChange -> Qt.QVariant () -> IO (Qt.QVariant ())
--- clusterChange i ic vr = do
---     putStrLn $ "itemChange " ++ show ic
---     -- Qt.scenePos i () >>= print
---     if (ic == Qt.eItemPositionChange)
---         then Qt.scenePos i () >>= print
---         else return ()
---     if (ic == Qt.eItemMatrixChange)
---         then putStrLn "eItemMatrixChange"
---         else return ()
---     return vr
+clusterChange :: Qt.QGraphicsEllipseItem () -> Qt.GraphicsItemChange -> Qt.QVariant () -> IO (Qt.QVariant ())
+clusterChange i ic vr = do
+    putStrLn $ "itemChange " ++ show ic
+    -- Qt.scenePos i () >>= print
+    if (ic == Qt.eItemPositionChange)
+        then Qt.scenePos i () >>= print
+        else return ()
+    if (ic == Qt.eItemMatrixChange)
+        then putStrLn "eItemMatrixChange"
+        else return ()
+    return vr
 
 initScene :: FeatureSpaceView -> FeatureSpace -> MVar State -> (Unit.Unit -> IO ()) -> IO ()
 initScene view model state action = do
@@ -228,8 +228,8 @@ initScene view model state action = do
                 y = center region V.! 1
             item <- Qt.qGraphicsEllipseItem_nf (Qt.rectF (x-r) (y-r) (r*2) (r*2))
             Qt.setBrush item =<< Qt.qBrush color
-            -- Qt.setFlags item $ Qt.fItemIsMovable
-            -- Qt.setHandler item "(QVariant)itemChange(QGraphicsItem::GraphicsItemChange,const QVariant&)" $ clusterChange
+            Qt.setFlags item $ Qt.fItemIsMovable
+            Qt.setHandler item "(QVariant)itemChange(QGraphicsItem::GraphicsItemChange,const QVariant&)" $ clusterChange
             Qt.addItem view item
             modifyMVar_ state (\s -> return $ s { regions = item : regions s })
 
