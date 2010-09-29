@@ -1,7 +1,6 @@
 {-# LANGUAGE Arrows #-}
 import           Control.Applicative
 import           Control.Arrow
-import           Control.Category
 import           Control.Concurrent (forkIO)
 import           Control.Concurrent.Chan
 import           Control.Concurrent.MVar
@@ -11,6 +10,7 @@ import           Data.Char (ord)
 import           Data.Function (fix)
 import           Data.Maybe
 import           Database.HDBC (quickQuery')
+import qualified Mescaline.Application as App
 import qualified Mescaline.Database as DB
 import qualified Mescaline.Database.SqlQuery as Sql
 import qualified Mescaline.Database.Feature as Feature
@@ -21,15 +21,13 @@ import           Mescaline.Synth.Sequencer as Sequencer
 import           Mescaline.Synth.SequencerView
 import qualified Mescaline.Synth.FeatureSpace as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpaceView as FeatureSpaceView
-import           Mescaline.Synth.SSF as SF
 import qualified Qt as Q
 import qualified Sound.SC3.Server.State as State
 import qualified Sound.SC3.Server.Process as Server
 import qualified System.Environment as Env
+import           System.Environment.FindBin (getProgPath)
+import           System.FilePath
 import qualified System.Random as Random
-import           Prelude hiding (and, (.), id, init, scanl)
-
-import Debug.Trace
 
 sequencer0 :: Sequencer ()
 sequencer0 = Sequencer.cons 4 16 0.125 (Bar (-1))
@@ -58,10 +56,17 @@ main :: IO ()
 main = do
     app <- Q.qApplication  ()
 
-    [dbFile, pattern, n] <- Env.getArgs
-
+    -- Parse arguments
+    args <- App.getArgs
+    dbFile <- case args of
+                (f:_) -> return f
+                _     -> App.getUserDataPath "mescaline.db"
+    let pattern = case args of
+                    (_:p:_) -> p
+                    _       -> "%"
+        
     -- FIXME: .ui file is not found in the resource for some reason
-    rcc <- Q.registerResource "app/mescaline.rcc"
+    -- rcc <- Q.registerResource "app/mescaline.rcc"
     -- engine <- qScriptEngine ()
     -- scriptFile <- qFile ":/calculator.js"
     -- open scriptFile fReadOnly
@@ -71,27 +76,12 @@ main = do
     -- close scriptFile ()
     uiLoader <- Q.qUiLoader ()
     -- setHandler uiLoader "(QWidget*)createWidget(const QString&,QWidget*,const QString&)" $ myCreateWidget seqView
-    uiFile <- Q.qFile "app/mescaline.ui"
-    Q.open uiFile Q.fReadOnly
-    ui <- Q.load uiLoader uiFile
-    Q.close uiFile ()
-    -- FIXME: .ui file is not found in the resource for some reason
-    rcc <- Q.registerResource "app/mescaline.rcc"
-    -- engine <- qScriptEngine ()
-    -- scriptFile <- qFile ":/calculator.js"
-    -- open scriptFile fReadOnly
-    -- ss <- qTextStream scriptFile
-    -- ra <- readAll ss ()
-    -- dv <- evaluate engine ra
-    -- close scriptFile ()
-    uiLoader <- Q.qUiLoader ()
-    -- setHandler uiLoader "(QWidget*)createWidget(const QString&,QWidget*,const QString&)" $ myCreateWidget seqView
-    uiFile <- Q.qFile "app/mescaline.ui"
+    uiFile <- Q.qFile =<< App.getResourcePath "mescaline.ui"
     Q.open uiFile Q.fReadOnly
     ui <- Q.load uiLoader uiFile
     Q.close uiFile ()
 
-    units <- drop (read n) `fmap` getUnits dbFile pattern [Feature.consDescriptor "es.globero.mescaline.spectral" 2]
+    units <- getUnits dbFile pattern [Feature.consDescriptor "es.globero.mescaline.spectral" 2]
     
     seq_ichan <- newChan
     (seqView, seq_ochan) <- sequencerView 30 2 sequencer0 seq_ichan
@@ -124,7 +114,7 @@ main = do
         FeatureSpaceView.Activate (t, u) <- readChan fspace_ochan
         b <- readMVar mute
         unless b $ do
-            print u
+            -- print u
             Synth.playEvent synth (setEnv (P.fromUnit t u))
             return ()
         loop
@@ -139,5 +129,7 @@ main = do
     -- scriptUi <- newQObject engine ui
     -- calc <- construct ctor [scriptUi]
     Q.qshow ui ()
+    Q.activateWindow ui ()
+    
     ok <- Q.qApplicationExec ()
     return ()

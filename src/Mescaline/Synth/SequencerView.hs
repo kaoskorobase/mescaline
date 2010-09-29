@@ -10,6 +10,7 @@ import           Control.Monad
 import           Control.Monad.Fix (fix)
 import           Data.Accessor
 import           Mescaline (Time)
+import qualified Mescaline.Application as App
 import           Mescaline.Synth.Sequencer as Seq
 import           Mescaline.Synth.FeatureSpaceView (regionsFromFile)
 import qualified Data.Foldable as Fold
@@ -100,7 +101,7 @@ sequencerView boxSize padding seq0 ichan = do
     seq_ochan <- sequencerProcess seq0 seq_ichan
     fields <- initScene this params (rows seq0) (cols seq0) $ \(r, c) -> do
         writeChan seq_ichan (Seq.toggle r c undefined)
-    colors <- fmap (fmap snd) (regionsFromFile "regions.txt")
+    colors <- fmap (fmap snd) $ regionsFromFile =<< App.getResourcePath "regions.txt"
     state <- newMVar (State params seq0 fields colors)
     
     Q.connectSlot this "updateScene()" this "updateScene()" $ updateScene state
