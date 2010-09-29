@@ -14,6 +14,7 @@ import           Control.Monad
 import           Control.Monad.Fix (fix)
 import           Data.Bits
 import qualified Data.Vector.Generic as V
+import qualified Mescaline.Application as App
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Database.Feature as Feature
 import           Mescaline.Synth.FeatureSpace as FSpace
@@ -54,11 +55,11 @@ sceneMouseReleaseHandler state view evt = do
         else return ()
     Qt.mouseReleaseEvent_h view evt
 
-hoverHandler :: MVar Bool -> Unit.Unit -> (Unit.Unit -> IO ()) -> Qt.QGraphicsRectItem () -> Qt.QGraphicsSceneHoverEvent () -> IO ()
+hoverHandler :: MVar State -> Unit.Unit -> (Unit.Unit -> IO ()) -> Qt.QGraphicsRectItem () -> Qt.QGraphicsSceneHoverEvent () -> IO ()
 hoverHandler state unit action this evt = do
     putStrLn "hoverHandler"
-    b <- readMVar state
-    if True -- b
+    s <- readMVar state
+    if playUnits s
         then action unit
         else return ()
     Qt.hoverEnterEvent_h this evt
@@ -196,18 +197,22 @@ hoverHandler state unit action this evt = do
 -- clusterChange :: Qt.QGraphicsEllipseItem () -> Qt.GraphicsItemChange -> Qt.QVariant () -> IO (Qt.QVariant ())
 -- clusterChange i ic vr = do
 --     putStrLn $ "itemChange " ++ show ic
+--     -- Qt.scenePos i () >>= print
 --     if (ic == Qt.eItemPositionChange)
 --         then Qt.scenePos i () >>= print
 --         else return ()
+--     if (ic == Qt.eItemMatrixChange)
+--         then putStrLn "eItemMatrixChange"
+--         else return ()
 --     return vr
 
-initScene :: FeatureSpaceView -> FeatureSpace -> MVar Bool -> (Unit.Unit -> IO ()) -> IO ()
+initScene :: FeatureSpaceView -> FeatureSpace -> MVar State -> (Unit.Unit -> IO ()) -> IO ()
 initScene view model state action = do
     -- Qt.setHandler view "mousePressEvent(QGraphicsSceneMouseEvent*)" $ sceneMousePressHandler state
     -- Qt.setHandler view "mouseReleaseEvent(QGraphicsSceneMouseEvent*)" $ sceneMouseReleaseHandler state
     mapM_ mkUnit (units model)
-    colors <- fmap (fmap snd) $ regionsFromFile "regions.txt"
-    mapM_ (uncurry mkRegion) (zip (regionList model) colors)
+    colors <- fmap (fmap snd) $ regionsFromFile =<< App.getResourcePath "regions.txt"
+    mapM_ (uncurry $ mkRegion state) (zip (regionList model) colors)
     where
         mkUnit u = do
             let (x, y) = pair (Feature.value (feature u))
@@ -217,18 +222,16 @@ initScene view model state action = do
             Qt.setHandler item "hoverEnterEvent(QGraphicsSceneHoverEvent*)" $ hoverHandler state (unit u) action
             Qt.setAcceptsHoverEvents item True
             Qt.addItem view item
-        mkRegion region color = do
+        mkRegion state region color = do
             let r = radius region
                 x = center region V.! 0
                 y = center region V.! 1
             item <- Qt.qGraphicsEllipseItem_nf (Qt.rectF (x-r) (y-r) (r*2) (r*2))
             Qt.setBrush item =<< Qt.qBrush color
-            -- Qt.setFlags cluster $ Qt.fItemIsMovable
+            -- Qt.setFlags item $ Qt.fItemIsMovable
             -- Qt.setHandler item "(QVariant)itemChange(QGraphicsItem::GraphicsItemChange,const QVariant&)" $ clusterChange
             Qt.addItem view item
-
--- regions :: [((Double, Double), Double)]
--- regions = [((0,0), 0.25), ((0.4,0.4), 0.1), ((0.2,0.8), 0.03), ((0.1,0.3),0.001)]
+            modifyMVar_ state (\s -> return $ s { regions = item : regions s })
 
 addRegions :: [Region] -> FeatureSpace -> FeatureSpace
 addRegions regions fspace = foldl (\fs (i, r) -> insertRegion i r fs)
@@ -263,14 +266,19 @@ regionsFromFile path = do
             -- c' <- Qt.qColorFromRgba (read c :: Int)
             return (Region (V.fromList [read x, read y]) (read r), c)
         f _ = error "regionsFromFile: parse error"
-                    
+                   
+data State = State {
+    regions :: [Qt.QGraphicsEllipseItem ()]
+  , playUnits :: Bool
+  }
+ 
 featureSpaceView :: FeatureSpace -> Chan Input -> IO (FeatureSpaceView, Chan Output)
 featureSpaceView fspace0 ichan = do
-    regions <- regionsFromFile "regions.txt"
+    regions <- regionsFromFile =<< App.getResourcePath "regions.txt"
     let fspace = addRegions (map fst regions) fspace0
     this <- featureSpaceView_
     ochan <- newChan
-    state <- newMVar False
+    state <- newMVar (State [] True)
 
     initScene this fspace state (writeChan ochan . Activate . (,) (-1))
 
