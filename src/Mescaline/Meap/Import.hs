@@ -45,7 +45,7 @@ meapFeaturePrefix :: String
 meapFeaturePrefix = "com.meapsoft."
 
 features :: [(String, Feature.Descriptor)]
-features = map (\(n, d) -> (n, Feature.consDescriptor (meapFeaturePrefix ++ n) d)) meapFeatures
+features = map (\(n, d) -> let n' = meapFeaturePrefix ++ n in (n', Feature.consDescriptor n' d)) meapFeatures
 
 options :: Unit.Segmentation -> Chain.Options
 options seg = Chain.defaultOptions {
