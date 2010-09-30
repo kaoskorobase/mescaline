@@ -2,6 +2,31 @@
 
 require 'fileutils'
 
+class Package
+	attr_reader :name, :flags
+	def initialize(name, flags=[])
+		@name = name
+		@flags = flags
+	end
+	def install
+		opts = flags.empty? ? "" : "--flags=" + flags.join(",")
+	  system("cabal install #{opts} #{name}")
+	end
+end
+
+class Tool < Package
+	attr_reader :command
+	def initialize(name, command=name, flags=[])
+		super(name, flags)
+		@command = command
+	end
+	def install
+	  if `which #{command}`.empty?
+	    super
+	  end
+	end
+end
+
 class UpstreamSource
   UPSTREAM_DIR = "upstream"
   attr_reader :name, :url
@@ -14,12 +39,6 @@ class UpstreamSource
   end
 end
 
-def install_tool(pkg, cmd)
-  if `which #{cmd}`.empty?
-    system("cabal install #{pkg}")
-  end
-end
-
 UPSTREAM_SOURCES = [
   # These are all available on hackage now
   # UpstreamSource.new("hosc", "http://www.slavepianos.org/rd/sw/hosc"),
@@ -28,10 +47,11 @@ UPSTREAM_SOURCES = [
   # UpstreamSource.new("hmeap", "http://www.slavepianos.org/rd/sw/hmeap")
 ]
 
-TOOLS = ["alex", "happy", "c2hs"]
+TOOLS = [Tool.new("alex"), Tool.new("happy"), Tool.new("c2hs")]
+PACKAGES = [Package.new("hmatrix", ["vector"])]
 
 system("cabal update")
-TOOLS.each { |t| install_tool(t, t) }
+(TOOLS + PACKAGES).each { |p| p.install }
 
 FileUtils.mkdir_p(UpstreamSource::UPSTREAM_DIR)
 
