@@ -92,6 +92,8 @@ initScene :: FeatureSpaceView -> FeatureSpace -> MVar State -> ((FeatureSpace ->
 initScene view model state changed playUnit = do
     -- Qt.setHandler view "mousePressEvent(QGraphicsSceneMouseEvent*)" $ sceneMousePressHandler state
     -- Qt.setHandler view "mouseReleaseEvent(QGraphicsSceneMouseEvent*)" $ sceneMouseReleaseHandler state
+    Qt.setHandler view "keyPressEvent(QKeyEvent*)" $ sceneKeyPressEvent state
+    Qt.setHandler view "keyReleaseEvent(QKeyEvent*)" $ sceneKeyReleaseEvent state
     mapM_ mkUnit (units model)
     colors <- fmap (fmap snd) $ regionsFromFile =<< App.getResourcePath "regions.txt"
     mapM_ (uncurry $ mkRegion state) $ zip (Map.toList (FSpace.regions model)) colors
@@ -161,7 +163,7 @@ featureSpaceView fspace0 ichan = do
     let fspace = addRegions (map fst regions) fspace0
     this <- featureSpaceView_
     ochan <- newChan
-    state <- newMVar (State [] True)
+    state <- newMVar (State [] False)
 
     initScene this fspace state (writeChan ichan . Update) (writeChan ochan . Activate . (,) (-1))
 
