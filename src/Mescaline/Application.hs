@@ -61,10 +61,8 @@ getUserDataDirectory = do
 #if darwin_HOST_OS == 1
     h <- getHomeDirectory
     return $ h </> "Library/Application Support" </> name
-#elif mingw32_HOST_OS == 1
-    getAppUserDataDirectory name
 #else
-    getAppUserDataDirectory $ map toLower name
+    getAppUserDataDirectory name
 #endif
 
 getUserDataPath :: FilePath -> IO FilePath
