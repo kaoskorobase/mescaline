@@ -33,10 +33,12 @@ getResourceDirectory = do
     p <- getProgPath
 #if darwin_HOST_OS == 1
     return $ takeDirectory p </> "Resources"
-#elif mingw32_HOST_OS == 1
-    return p
+-- #elif mingw32_HOST_OS == 1
+--     return p
+-- #else
+--     return $ takeDirectory p </> "lib" </> map toLower name
 #else
-    return $ takeDirectory p </> "lib" </> map toLower name
+    getUserDataDirectory
 #endif
 
 getResourcePath :: FilePath -> IO FilePath
