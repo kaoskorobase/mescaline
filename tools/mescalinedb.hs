@@ -109,26 +109,31 @@ usage = ("Usage: mkdb " ++)
 
 main :: IO ()
 main = do
-    (cmd:args) <- getArgs
-    case cmd of
-        "delete" -> do
-            case args of
-                (dbFile:[]) -> cmd_delete dbFile
-                otherwise -> putStrLn $ usage "delete DBFILE"
-        "import" -> do
-            case args of
-                (dbFile:dir:[]) -> cmd_import dbFile dir
-                otherwise -> putStrLn $ usage "import DBFILE DIRECTORY"
-        "insert" -> do
-            case args of
-                (dbFile:seg:name:degree:file:[]) -> cmd_insert dbFile (read seg :: Segmentation) name (read degree) file
-                otherwise -> putStrLn $ usage "insert DBFILE SEGMENTATION NAME DEGREE {FILE|-}"
-        "query" -> do
-            case args of
-                (dbFile:seg:pattern:features) -> cmd_query dbFile (read seg :: Segmentation) pattern features
-                otherwise -> putStrLn $ usage "query DBFILE PATTERN SEGMENTATION FEATURE..."
-        "transform" -> do
-            case args of
-                (dbFile:transform:dstFeature:srcFeatures) -> cmd_transform dbFile transform dstFeature srcFeatures
-                otherwise -> putStrLn $ usage "transform DBFILE TYPE DST_FEATURE SRC_FEATURE..."
-        otherwise -> putStrLn $ usage "{delete,import,insert,query} ARGS..."
+    argv <- getArgs
+    case argv of
+        (cmd:args) ->
+            case cmd of
+                "delete" -> do
+                    case args of
+                        (dbFile:[]) -> cmd_delete dbFile
+                        otherwise -> putStrLn $ usage "delete DBFILE"
+                "import" -> do
+                    case args of
+                        (dbFile:dir:[]) -> cmd_import dbFile dir
+                        otherwise -> putStrLn $ usage "import DBFILE DIRECTORY"
+                "insert" -> do
+                    case args of
+                        (dbFile:seg:name:degree:file:[]) -> cmd_insert dbFile (read seg :: Segmentation) name (read degree) file
+                        otherwise -> putStrLn $ usage "insert DBFILE SEGMENTATION NAME DEGREE {FILE|-}"
+                "query" -> do
+                    case args of
+                        (dbFile:seg:pattern:features) -> cmd_query dbFile (read seg :: Segmentation) pattern features
+                        otherwise -> putStrLn $ usage "query DBFILE PATTERN SEGMENTATION FEATURE..."
+                "transform" -> do
+                    case args of
+                        (dbFile:transform:dstFeature:srcFeatures) -> cmd_transform dbFile transform dstFeature srcFeatures
+                        otherwise -> putStrLn $ usage "transform DBFILE TYPE DST_FEATURE SRC_FEATURE..."
+                otherwise -> putStrLn cmdUsage
+        _ -> putStrLn cmdUsage
+    where
+        cmdUsage = usage "{delete,import,insert,query} ARGS..."
