@@ -43,7 +43,7 @@ transformFeature func dbFile featureNames = do
                     case func (map snd us) of
                         [] -> return ()
                         features -> do
-                            mapM_ (\f -> Table.create c (featureTable f) >> deleteFeature c f >> Table.insert c f) features
+                            mapM_ (\f -> Table.insert c (Feature.descriptor f) >> Table.create c (featureTable f) >> deleteFeature c f >> Table.insert c f) features
                             DB.commit c
 
 -- | Map a list of vectors to a target range.
