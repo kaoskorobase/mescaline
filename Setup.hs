@@ -10,7 +10,7 @@ guiApps = [MacApp "Mescaline"
                   (Just "app/mescaline.icns")
                   Nothing -- Build a default Info.plist for the icon.
                   [ "app/mescaline.ui"
-                  , "app/regions.txt" ]
+                  , "app/colors.txt" ]
                   [] -- No other binaries.
                   DoNotChase -- Try changing to ChaseWithDefaults
           ]

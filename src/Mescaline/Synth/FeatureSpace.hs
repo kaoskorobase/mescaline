@@ -10,6 +10,7 @@ module Mescaline.Synth.FeatureSpace (
   , fromList
   , insertRegion
   , deleteRegion
+  , updateRegion
   , regions
   , regionList
   , activateRegion
@@ -84,6 +85,10 @@ insertRegion i r f = f { regions = IntMap.insert i r (regions f) }
 
 deleteRegion :: Int -> FeatureSpace -> FeatureSpace
 deleteRegion i f = f { regions = IntMap.delete i (regions f) }
+
+updateRegion :: Int -> (Region -> Region) -> FeatureSpace -> FeatureSpace
+updateRegion i f fs = fs { regions = IntMap.update (Just . f) i (regions fs) }
+-- update :: (a -> Maybe a) -> Key -> IntMap a -> IntMap aSource
 
 regionList :: FeatureSpace -> [Region]
 regionList = IntMap.elems . regions

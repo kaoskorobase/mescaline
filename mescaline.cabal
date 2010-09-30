@@ -100,6 +100,7 @@ library
                     Mescaline.Synth.SSF
                     Mescaline.Synth.SSF.BufferCache
                     Mescaline.Synth.SSF.DiskSampler
+                    Mescaline.UI
                     Sound.OpenSoundControl.BufferedTransport
                     Sound.SC3.Server.Allocator
                     Sound.SC3.Server.Allocator.Range

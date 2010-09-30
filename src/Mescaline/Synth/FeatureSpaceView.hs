@@ -4,7 +4,6 @@ module Mescaline.Synth.FeatureSpaceView (
   , featureSpaceView
   , Input(..)
   , Output(..)
-  , regionsFromFile
 ) where
 
 import           Control.Concurrent (forkIO)
@@ -12,13 +11,13 @@ import           Control.Concurrent.Chan
 import           Control.Concurrent.MVar
 import           Control.Monad
 import           Control.Monad.Fix (fix)
-import           Data.Bits
 import qualified Data.IntMap as Map
 import qualified Data.Vector.Generic as V
 import qualified Mescaline.Application as App
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Database.Feature as Feature
 import           Mescaline.Synth.FeatureSpace as FSpace
+import qualified Mescaline.UI as UI
 import qualified Qt as Qt
 
 -- type FeatureSpaceView = Qt.QGraphicsSceneSc (CFeatureSpaceView)
@@ -70,9 +69,11 @@ sceneKeyReleaseEvent state view evt = do
         then modifyMVar_ state $ \s -> return $ s { playUnits = False }
         else return ()
 
-hoverHandler :: MVar State -> Unit.Unit -> (Unit.Unit -> IO ()) -> Qt.QGraphicsRectItem () -> Qt.QGraphicsSceneHoverEvent () -> IO ()
+hoverHandler :: MVar State -> Unit.Unit -> (Unit.Unit -> IO ()) -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneHoverEvent () -> IO ()
 hoverHandler state unit action this evt = do
     -- putStrLn "hoverHandler"
+    -- Qt.IPoint x y <- Qt.scenePos evt ()
+    -- putStrLn $ "hoverHandler " ++ show (x, y)
     s <- readMVar state
     if playUnits s
         then action unit
@@ -80,28 +81,35 @@ hoverHandler state unit action this evt = do
     Qt.hoverEnterEvent_h this evt
 
 clusterChange :: Int -> ((FeatureSpace -> FeatureSpace) -> IO ()) -> Qt.QGraphicsEllipseItem () -> Qt.GraphicsItemChange -> Qt.QVariant () -> IO (Qt.QVariant ())
-clusterChange regionId onChanged item itemChange variant = do
-    if (itemChange == Qt.eItemPositionChange)
-        then do
-            Qt.IPoint x y <- Qt.scenePos item ()
-            putStrLn $ "eItemPositionChange " ++ show (x, y)
-        else return ()
-    return variant
+clusterChange regionId onChanged item itemChange value = do
+    when (itemChange == Qt.eItemPositionChange) $ do
+        Qt.IPoint x y <- Qt.scenePos item ()
+        putStrLn $ "clusterChange " ++ show regionId ++ " " ++ show (x, y)
+        onChanged (FSpace.updateRegion regionId (\r -> r { FSpace.center = V.fromList [x, y] }))
+    return value
+
+-- mouseMoveHandler :: Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
+-- mouseMoveHandler item evt = do
+--     Qt.mouseMoveEvent_h item evt
+--     Qt.IPoint x y <- Qt.scenePos item ()
+--     putStrLn $ "mouseMoveEvent " ++ show (x, y)
 
 initScene :: FeatureSpaceView -> FeatureSpace -> MVar State -> ((FeatureSpace -> FeatureSpace) -> IO ()) -> (Unit.Unit -> IO ()) -> IO ()
 initScene view model state changed playUnit = do
     -- Qt.setHandler view "mousePressEvent(QGraphicsSceneMouseEvent*)" $ sceneMousePressHandler state
     -- Qt.setHandler view "mouseReleaseEvent(QGraphicsSceneMouseEvent*)" $ sceneMouseReleaseHandler state
+    Qt.setSceneRect view (Qt.rectF 0 0 1 1)
     Qt.setHandler view "keyPressEvent(QKeyEvent*)" $ sceneKeyPressEvent state
     Qt.setHandler view "keyReleaseEvent(QKeyEvent*)" $ sceneKeyReleaseEvent state
     mapM_ mkUnit (units model)
-    colors <- fmap (fmap snd) $ regionsFromFile =<< App.getResourcePath "regions.txt"
+    colors <- UI.defaultColorsFromFile
     mapM_ (uncurry $ mkRegion state) $ zip (Map.toList (FSpace.regions model)) colors
     where
         mkUnit u = do
             let (x, y) = pair (Feature.value (feature u))
-                box = Qt.rectF x y 0.01 0.01
-            item <- Qt.qGraphicsRectItem_nf box
+                r = 0.005
+                box = Qt.rectF (x-r) (y-r) (r*2) (r*2)
+            item <- Qt.qGraphicsEllipseItem_nf box
             -- Qt.setHandler item "mousePressEvent(QGraphicsSceneMouseEvent*)" $ mouseHandler (unit u) action
             Qt.setHandler item "hoverEnterEvent(QGraphicsSceneHoverEvent*)" $ hoverHandler state (unit u) playUnit
             Qt.setAcceptsHoverEvents item True
@@ -110,11 +118,13 @@ initScene view model state changed playUnit = do
             let r = radius region
                 x = center region V.! 0
                 y = center region V.! 1
-            item <- Qt.qGraphicsEllipseItem_nf (Qt.rectF (x-r) (y-r) (r*2) (r*2))
+            item <- Qt.qGraphicsEllipseItem_nf (Qt.rectF (-r) (-r) (r*2) (r*2))
             Qt.setBrush item =<< Qt.qBrush color
-            Qt.setFlags item $ Qt.fItemIsMovable + (Qt.qFlags_fromInt 2048) -- FIXME: Huh? Wtf?
-            Qt.setHandler item "(QVariant)itemChange(QGraphicsItem::GraphicsItemChange,const QVariant&)" $ clusterChange index changed
+            Qt.setFlags item $ Qt.fItemIsMovable + (Qt.qFlags_fromInt 2048) -- FIXME: Huh? Wtf? QGraphicsItem::ItemSendsGeometryChanges?
+            -- Qt.setHandler item "mouseMoveEvent(QGraphicsSceneMouseEvent*)" $ mouseMoveHandler
             Qt.addItem view item
+            Qt.setPos item (Qt.pointF x y)
+            Qt.setHandler item "(QVariant)itemChange(QGraphicsItem::GraphicsItemChange,const QVariant&)" $ clusterChange index changed
             modifyMVar_ state (\s -> return $ s { regionItems = item : regionItems s })
 
 addRegions :: [Region] -> FeatureSpace -> FeatureSpace
@@ -134,24 +144,6 @@ inputLoop ichan ochan fspace = do
         Deactivate _ ->
             inputLoop ichan ochan fspace
 
-qColorFromRgbaF :: (Double, Double, Double, Double) -> IO (Qt.QColor ())
-qColorFromRgbaF (r, g, b, a) = Qt.qColorFromRgba
-                                ( (shiftL (round (a*255)) 24)
-                              .|. (shiftL (round (r*255)) 16)
-                              .|. (shiftL (round (g*255)) 8)
-                              .|. (shiftL (round (b*255)) 0) )
-
-regionsFromFile :: FilePath -> IO [(Region, Qt.QColor ())]
-regionsFromFile path = do
-    s <- readFile path
-    mapM (f.words) (lines s)
-    where
-        f [x, y, r, cr, cg, cb, ca] = do
-            c <- qColorFromRgbaF (read cr, read cg, read cb, read ca)
-            -- c' <- Qt.qColorFromRgba (read c :: Int)
-            return (Region (V.fromList [read x, read y]) (read r), c)
-        f _ = error "regionsFromFile: parse error"
-
 data State = State {
     regionItems :: [Qt.QGraphicsEllipseItem ()]
   , playUnits :: Bool
@@ -159,8 +151,7 @@ data State = State {
 
 featureSpaceView :: FeatureSpace -> Chan Input -> IO (FeatureSpaceView, Chan Output)
 featureSpaceView fspace0 ichan = do
-    regions <- regionsFromFile =<< App.getResourcePath "regions.txt"
-    let fspace = addRegions (map fst regions) fspace0
+    let fspace = addRegions (replicate 4 (Region (V.fromList [0.5, 0.5]) 0.025)) fspace0
     this <- featureSpaceView_
     ochan <- newChan
     state <- newMVar (State [] False)
