@@ -105,9 +105,10 @@ main = do
 
     graphicsView <- Q.findChild ui ("<QGraphicsView*>", "featureSpaceView")
     Q.setScene graphicsView fspaceView
+    Q.setDragMode graphicsView Q.eScrollHandDrag
     -- Q.fitInView graphicsView (Q.rectF 0 0 1 1)
     Q.qscale graphicsView (600::Double, 600::Double)
-        
+
     -- Pipe feature space view output to sample player
     synth <- Synth.newSampler
     forkIO $ fix $ \loop -> do

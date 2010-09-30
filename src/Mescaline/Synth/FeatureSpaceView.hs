@@ -13,6 +13,7 @@ import           Control.Concurrent.MVar
 import           Control.Monad
 import           Control.Monad.Fix (fix)
 import           Data.Bits
+import qualified Data.IntMap as Map
 import qualified Data.Vector.Generic as V
 import qualified Mescaline.Application as App
 import qualified Mescaline.Database.Unit as Unit
@@ -28,7 +29,7 @@ featureSpaceView_ :: IO (FeatureSpaceView)
 -- featureSpaceView_ = Qt.qSubClass (Qt.qGraphicsScene ())
 featureSpaceView_ = Qt.qGraphicsScene ()
 
-data Input     = Model FeatureSpace | ActivateRegion (Double, Int) | Deactivate Unit.Unit
+data Input     = Update (FeatureSpace -> FeatureSpace) | ActivateRegion (Double, Int) | Deactivate Unit.Unit
 newtype Output = Activate (Double, Unit.Unit)
 
 pair v | V.length v >= 2 = (v V.! 0, v V.! 1)
@@ -55,183 +56,64 @@ sceneMouseReleaseHandler state view evt = do
         else return ()
     Qt.mouseReleaseEvent_h view evt
 
+sceneKeyPressEvent :: MVar State -> FeatureSpaceView -> Qt.QKeyEvent () -> IO ()
+sceneKeyPressEvent state view evt = do
+    key <- Qt.key evt ()
+    if key == Qt.qEnum_toInt Qt.eKey_Shift
+        then modifyMVar_ state $ \s -> return $ s { playUnits = True }
+        else return ()
+
+sceneKeyReleaseEvent :: MVar State -> FeatureSpaceView -> Qt.QKeyEvent () -> IO ()
+sceneKeyReleaseEvent state view evt = do
+    key <- Qt.key evt ()
+    if key == Qt.qEnum_toInt Qt.eKey_Shift
+        then modifyMVar_ state $ \s -> return $ s { playUnits = False }
+        else return ()
+
 hoverHandler :: MVar State -> Unit.Unit -> (Unit.Unit -> IO ()) -> Qt.QGraphicsRectItem () -> Qt.QGraphicsSceneHoverEvent () -> IO ()
 hoverHandler state unit action this evt = do
-    putStrLn "hoverHandler"
+    -- putStrLn "hoverHandler"
     s <- readMVar state
     if playUnits s
         then action unit
         else return ()
     Qt.hoverEnterEvent_h this evt
 
--- createPoly :: DiagramType -> IO (QPolygonF ())
--- createPoly dt
---  | dt == StartEnd
---   = do
---     pth <- qPainterPath ()
---     let m200 = 200::Double
---         m50 = 50::Double
---         a0 = 0::Double
---         a50 = 50::Double
---         a150 = 150::Double
---         a90 = 90::Double
---         a180 = 180::Double
---         a270 = 270::Double
---         l200 = 200::Double
---         l25 = 25::Double
---     qmoveTo pth (m200, m50)
---     arcTo pth (a150, a0, a50, a50, a0, a90)
---     arcTo pth (a50, a0, a50, a50, a90, a90)
---     arcTo pth (a50, a50, a50, a50, a180, a90)
---     arcTo pth (a150, a50, a50, a50, a270, a90)
---     lineTo pth (l200, l25)
---     toFillPolygon pth ()
---  | dt == Conditional 
---   = qPolygonFL [pointF (-100) 0, pointF 0 100, pointF 100 0, pointF 0 (-100), pointF (-100) 0] 
---  | dt == Step 
---   = qPolygonFL [pointF (-100) (-100), pointF 100 (-100), pointF 100 100, pointF (-100) 100, pointF (-100) (-100)] 
---  | otherwise 
---   = qPolygonFL [pointF (-120) (-80), pointF (-70) 80, pointF 120 80, pointF 70 (-80), pointF (-120) (-80)] 
-
--- dio <- qGraphicsPolygonItem_nf ()
--- di_pf <- createPoly typ
--- setPolygon dio di_pf
--- setFlags dio $ fItemIsMovable + fItemIsSelectable + (qFlags_fromInt 2048)
-
--- data ClusterItem = ClusterItem {
---     di_o :: QGraphicsEllipseItem ()
---   }
--- 
--- data DiUms = ItemId | DeleteItem | GetItemAvna | AddArrow | RemoveArrow deriving Enum
--- 
--- um_ItemId = fromEnum ItemId
--- um_DeleteItem = fromEnum DeleteItem
--- um_GetItemAvna = fromEnum GetItemAvna
--- um_AddArrow = fromEnum AddArrow
--- um_RemoveArrow = fromEnum RemoveArrow
--- 
--- class QclusterItem x1 where
---     clusterItem :: x1 -> IO ClusterItem
--- 
--- instance QclusterItem (RectF) where
---     clusterItem x1 = do
---         dio <- qGraphicsEllipseItem_nf x1
---         clusterItem_s dio x1
--- 
--- diagramItemType :: Int
--- diagramItemType = (qEnum_toInt (eUserType::QGraphicsItem__)) + 15
--- 
--- diagramItemtype :: QGraphicsEllipseItem () -> IO Int
--- diagramItemtype itm = return diagramItemType
--- 
--- clusterMousePressHandler :: Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
--- clusterMousePressHandler this evt = do
---     putStrLn "mousePressEvent"
---     Qt.accept evt ()
---     p <- scenePos evt ()
---     Qt.setHandler this "mouseMoveEvent(QGraphicsSceneMouseEvent*)" $ clusterMouseMoveHandler p
---     -- Qt.mousePressEvent_h this evt
--- 
--- clusterMouseMoveHandler :: Qt.PointF -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
--- clusterMouseMoveHandler p0 this evt = do
---     p1 <- scenePos evt  ()
---     putStrLn $ "mouseMoveEvent " ++ show p0 ++ " " ++ show p1
---     -- Qt.scenePos this () >>= print
---     Qt.mouseMoveEvent_h this evt
--- 
--- clusterMouseReleaseHandler :: Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
--- clusterMouseReleaseHandler this evt = do
---     putStrLn "mouseReleaseEvent"
---     Qt.unSetHandler this "mouseMoveEvent(QGraphicsSceneMouseEvent*)"
---     return ()
---     -- Qt.mouseReleaseEvent_h this evt
--- 
--- clusterItem_s :: QGraphicsEllipseItem () -> RectF -> IO ClusterItem
--- clusterItem_s dio bounds = do
---     -- setRect dio bounds
---     -- setFlags dio fItemIsMovable
---     -- tnmo <- qCast_QMenu mnu
---     -- di_ar <- newIORef []
---     -- di_asa <- newIORef []
---     -- di_mca <- newIORef (0::Int)
---     -- di_aca <- newIORef (0::Int)
---     let tdi = ClusterItem dio
---     -- setHandler dio "(QVariant)itemChange(QGraphicsItem::GraphicsItemChange,const QVariant&)" $ diItemChange tdi
---     -- Qt.setHandler dio "mousePressEvent(QGraphicsSceneMouseEvent*)" $ clusterMousePressHandler
---     -- Qt.setHandler dio "mouseReleaseEvent(QGraphicsSceneMouseEvent*)" $ clusterMouseReleaseHandler
---     -- setHandler dio "contextMenuEvent(QGraphicsSceneContextMenuEvent*)" $ diContextMenuEvent tnmo
---     setHandler dio "(int)type()" diagramItemtype
---     return tdi
--- 
--- diagramItem_delete :: ClusterItem -> IO ()
--- diagramItem_delete di = qGraphicsEllipseItem_delete (di_o di)
--- 
--- diItemChange :: ClusterItem -> QGraphicsEllipseItem () -> GraphicsItemChange -> QVariant () -> IO (QVariant ())
--- diItemChange di i ic vr
---   = do
---     if (ic == eItemPositionChange)
---      then
---       do
---       p <- scenePos i ()
---       putStrLn $ "eItemPositionChange " ++ show p
---       -- mapM_ (\(s, a) -> updatePosition a) =<< diArrows di
---      else return ()
---     return vr
-
--- umItemId :: Int -> QGraphicsEllipseItem () -> QVariant () -> IO (QVariant ())
--- umItemId id item p1 = qVariant id 
--- 
--- itemId :: QGraphicsEllipseItem () -> IO Int
--- itemId item = qVariantValue_Int =<< userMethod item um_ItemId =<< qCast_QVariant objectNull
-
--- diContextMenuEvent :: QMenu () -> QGraphicsPolygonItem () -> QGraphicsSceneContextMenuEvent () -> IO ()
--- diContextMenuEvent mnu pi ce
---   = do
---     s <- scene pi ()
---     clearSelection s ()
---     setSelected pi True
---     sp <- screenPos ce ()
---     ta <- exec mnu sp
---     return ()
-
-clusterChange :: Qt.QGraphicsEllipseItem () -> Qt.GraphicsItemChange -> Qt.QVariant () -> IO (Qt.QVariant ())
-clusterChange i ic vr = do
-    putStrLn $ "itemChange " ++ show ic
-    -- Qt.scenePos i () >>= print
-    if (ic == Qt.eItemPositionChange)
-        then Qt.scenePos i () >>= print
+clusterChange :: Int -> ((FeatureSpace -> FeatureSpace) -> IO ()) -> Qt.QGraphicsEllipseItem () -> Qt.GraphicsItemChange -> Qt.QVariant () -> IO (Qt.QVariant ())
+clusterChange regionId onChanged item itemChange variant = do
+    if (itemChange == Qt.eItemPositionChange)
+        then do
+            Qt.IPoint x y <- Qt.scenePos item ()
+            putStrLn $ "eItemPositionChange " ++ show (x, y)
         else return ()
-    if (ic == Qt.eItemMatrixChange)
-        then putStrLn "eItemMatrixChange"
-        else return ()
-    return vr
+    return variant
 
-initScene :: FeatureSpaceView -> FeatureSpace -> MVar State -> (Unit.Unit -> IO ()) -> IO ()
-initScene view model state action = do
+initScene :: FeatureSpaceView -> FeatureSpace -> MVar State -> ((FeatureSpace -> FeatureSpace) -> IO ()) -> (Unit.Unit -> IO ()) -> IO ()
+initScene view model state changed playUnit = do
     -- Qt.setHandler view "mousePressEvent(QGraphicsSceneMouseEvent*)" $ sceneMousePressHandler state
     -- Qt.setHandler view "mouseReleaseEvent(QGraphicsSceneMouseEvent*)" $ sceneMouseReleaseHandler state
     mapM_ mkUnit (units model)
     colors <- fmap (fmap snd) $ regionsFromFile =<< App.getResourcePath "regions.txt"
-    mapM_ (uncurry $ mkRegion state) (zip (regionList model) colors)
+    mapM_ (uncurry $ mkRegion state) $ zip (Map.toList (FSpace.regions model)) colors
     where
         mkUnit u = do
             let (x, y) = pair (Feature.value (feature u))
                 box = Qt.rectF x y 0.01 0.01
             item <- Qt.qGraphicsRectItem_nf box
             -- Qt.setHandler item "mousePressEvent(QGraphicsSceneMouseEvent*)" $ mouseHandler (unit u) action
-            Qt.setHandler item "hoverEnterEvent(QGraphicsSceneHoverEvent*)" $ hoverHandler state (unit u) action
+            Qt.setHandler item "hoverEnterEvent(QGraphicsSceneHoverEvent*)" $ hoverHandler state (unit u) playUnit
             Qt.setAcceptsHoverEvents item True
             Qt.addItem view item
-        mkRegion state region color = do
+        mkRegion state (index, region) color = do
             let r = radius region
                 x = center region V.! 0
                 y = center region V.! 1
             item <- Qt.qGraphicsEllipseItem_nf (Qt.rectF (x-r) (y-r) (r*2) (r*2))
             Qt.setBrush item =<< Qt.qBrush color
-            Qt.setFlags item $ Qt.fItemIsMovable
-            Qt.setHandler item "(QVariant)itemChange(QGraphicsItem::GraphicsItemChange,const QVariant&)" $ clusterChange
+            Qt.setFlags item $ Qt.fItemIsMovable + (Qt.qFlags_fromInt 2048) -- FIXME: Huh? Wtf?
+            Qt.setHandler item "(QVariant)itemChange(QGraphicsItem::GraphicsItemChange,const QVariant&)" $ clusterChange index changed
             Qt.addItem view item
-            modifyMVar_ state (\s -> return $ s { regions = item : regions s })
+            modifyMVar_ state (\s -> return $ s { regionItems = item : regionItems s })
 
 addRegions :: [Region] -> FeatureSpace -> FeatureSpace
 addRegions regions fspace = foldl (\fs (i, r) -> insertRegion i r fs)
@@ -241,7 +123,8 @@ addRegions regions fspace = foldl (\fs (i, r) -> insertRegion i r fs)
 inputLoop ichan ochan fspace = do
     x <- readChan ichan
     case x of
-        Model _ -> inputLoop ichan ochan fspace
+        Update f -> let fspace' = f fspace
+                    in fspace' `seq` inputLoop ichan ochan fspace'
         ActivateRegion (t, i) -> do
             let (u, fspace') = activateRegion i fspace
             maybe (return ()) (\u -> writeChan ochan (Activate (t, unit u))) u
@@ -266,12 +149,12 @@ regionsFromFile path = do
             -- c' <- Qt.qColorFromRgba (read c :: Int)
             return (Region (V.fromList [read x, read y]) (read r), c)
         f _ = error "regionsFromFile: parse error"
-                   
+
 data State = State {
-    regions :: [Qt.QGraphicsEllipseItem ()]
+    regionItems :: [Qt.QGraphicsEllipseItem ()]
   , playUnits :: Bool
   }
- 
+
 featureSpaceView :: FeatureSpace -> Chan Input -> IO (FeatureSpaceView, Chan Output)
 featureSpaceView fspace0 ichan = do
     regions <- regionsFromFile =<< App.getResourcePath "regions.txt"
@@ -280,7 +163,7 @@ featureSpaceView fspace0 ichan = do
     ochan <- newChan
     state <- newMVar (State [] True)
 
-    initScene this fspace state (writeChan ochan . Activate . (,) (-1))
+    initScene this fspace state (writeChan ichan . Update) (writeChan ochan . Activate . (,) (-1))
 
     forkIO $ inputLoop ichan ochan fspace
     

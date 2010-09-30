@@ -10,6 +10,7 @@ module Mescaline.Synth.FeatureSpace (
   , fromList
   , insertRegion
   , deleteRegion
+  , regions
   , regionList
   , activateRegion
   , activateRegions
