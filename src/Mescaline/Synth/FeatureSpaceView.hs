@@ -91,16 +91,8 @@ sceneKeyReleaseEvent state view evt = do
         then modifyMVar_ state $ \s -> return $ s { playUnits = False }
         else return ()
 
-hoverHandler :: MVar State -> Unit.Unit -> (Unit.Unit -> IO ()) -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneHoverEvent () -> IO ()
-hoverHandler state unit action this evt = do
-    -- putStrLn "hoverHandler"
-    -- Qt.IPoint x y <- Qt.scenePos evt ()
-    -- putStrLn $ "hoverHandler " ++ show (x, y)
-    s <- readMVar state
-    if playUnits s
-        then action unit
-        else return ()
-    Qt.hoverEnterEvent_h this evt
+hoverHandler :: IO () -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneHoverEvent () -> IO ()
+hoverHandler action item evt = action >> Qt.hoverEnterEvent_h item evt
 
 clusterChange :: Int -> ((FeatureSpace -> FeatureSpace) -> IO ()) -> Qt.QGraphicsEllipseItem () -> Qt.GraphicsItemChange -> Qt.QVariant () -> IO (Qt.QVariant ())
 clusterChange regionId onChanged item itemChange value = do
@@ -133,7 +125,8 @@ initScene view model state changed playUnit = do
                 box = Qt.rectF (x-r) (y-r) (r*2) (r*2)
             item <- Qt.qGraphicsEllipseItem_nf box
             -- Qt.setHandler item "mousePressEvent(QGraphicsSceneMouseEvent*)" $ mouseHandler (unit u) action
-            Qt.setHandler item "hoverEnterEvent(QGraphicsSceneHoverEvent*)" $ hoverHandler state (unit u) playUnit
+            Qt.setHandler item "hoverEnterEvent(QGraphicsSceneHoverEvent*)" $ hoverHandler $
+                readMVar state >>= flip when (playUnit (unit u)) . playUnits
             Qt.setAcceptsHoverEvents item True
             Qt.addItem view item
         mkRegion state (index, region) color = do
