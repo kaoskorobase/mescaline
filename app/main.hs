@@ -35,9 +35,11 @@ import qualified Qtc.ClassTypes.Gui             as Qt
 import qualified Qtc.Core.Base                  as Qt
 import qualified Qtc.Core.QFile                 as Qt
 import qualified Qtc.Enums.Base                 as Qt
+import qualified Qtc.Enums.Classes.Core         as Qt
 import qualified Qtc.Enums.Core.QIODevice       as Qt
 import qualified Qtc.Enums.Core.Qt              as Qt
 import qualified Qtc.Enums.Gui.QGraphicsView    as Qt
+import qualified Qtc.Enums.Gui.QPainter         as Qt
 import qualified Qtc.Gui.Base                   as Qt
 import qualified Qtc.Gui.QApplication           as Qt
 import qualified Qtc.Gui.QGraphicsView          as Qt
@@ -119,6 +121,7 @@ main = do
     (fspaceView, fspace_ochan) <- FeatureSpaceView.featureSpaceView fspace fspace_ichan
 
     graphicsView <- Qt.findChild ui ("<QGraphicsView*>", "featureSpaceView")
+    Qt.setRenderHints graphicsView (Qt.fAntialiasing :: Qt.RenderHints)
     Qt.setScene graphicsView fspaceView
     Qt.setDragMode graphicsView Qt.eScrollHandDrag
     -- Qt.fitInView graphicsView (Qt.rectF 0 0 1 1)
