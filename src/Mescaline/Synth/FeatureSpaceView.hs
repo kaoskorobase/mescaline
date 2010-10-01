@@ -134,7 +134,7 @@ initScene view model state changed playUnit = do
                 x = center region V.! 0
                 y = center region V.! 1
             item <- Qt.qGraphicsEllipseItem_nf (Qt.rectF (-r) (-r) (r*2) (r*2))
-            Qt.setBrush item =<< Qt.qBrush color
+            Qt.setBrush item =<< Qt.qBrush_nf color
             Qt.setFlags item $ Qt.fItemIsMovable + (Qt.qFlags_fromInt 2048) -- FIXME: Huh? Wtf? QGraphicsItem::ItemSendsGeometryChanges?
             -- Qt.setHandler item "mouseMoveEvent(QGraphicsSceneMouseEvent*)" $ mouseMoveHandler
             Qt.addItem view item

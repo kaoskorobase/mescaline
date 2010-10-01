@@ -73,10 +73,10 @@ updateScene stateVar this _ = do
         update state (coord, field) = do
             -- print (coord, cursor_ (sequencer state))
             b <- if sequencer state `isCursorAtIndex` coord
-                    then Qt.qBrush Qt.edarkRed
+                    then Qt.qBrush_nf Qt.edarkRed
                     else if sequencer state `isElemAtIndex` coord
-                        then Qt.qBrush Qt.edarkGray
-                        else Qt.qBrush (colors state !! (fst coord `mod` length (colors state)))
+                        then Qt.qBrush_nf Qt.edarkGray
+                        else Qt.qBrush_nf (colors state !! (fst coord `mod` length (colors state)))
             Qt.setBrush field b
 
 sequencerProcess :: Sequencer a -> Chan (Sequencer a -> Sequencer a) -> IO (Chan (Time, Sequencer a))
