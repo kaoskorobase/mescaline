@@ -21,13 +21,28 @@ import           Mescaline.Synth.Sequencer as Sequencer
 import           Mescaline.Synth.SequencerView
 import qualified Mescaline.Synth.FeatureSpace as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpaceView as FeatureSpaceView
-import qualified Qt as Q
 import qualified Sound.SC3.Server.State as State
 import qualified Sound.SC3.Server.Process as Server
 import qualified System.Environment as Env
 import           System.Environment.FindBin (getProgPath)
 import           System.FilePath
 import qualified System.Random as Random
+
+import qualified Qtc.Classes.Gui                as Qt
+import qualified Qtc.Classes.Qccs               as Qt
+import qualified Qtc.Classes.Qccs_h             as Qt
+import qualified Qtc.ClassTypes.Gui             as Qt
+import qualified Qtc.Core.Base                  as Qt
+import qualified Qtc.Core.QFile                 as Qt
+import qualified Qtc.Enums.Base                 as Qt
+import qualified Qtc.Enums.Core.QIODevice       as Qt
+import qualified Qtc.Enums.Core.Qt              as Qt
+import qualified Qtc.Enums.Gui.QGraphicsView    as Qt
+import qualified Qtc.Gui.Base                   as Qt
+import qualified Qtc.Gui.QApplication           as Qt
+import qualified Qtc.Gui.QGraphicsView          as Qt
+import qualified Qtc.Gui.QWidget                as Qt
+import qualified Qtc.Tools.QUiLoader            as Qt
 
 sequencer0 :: Sequencer ()
 sequencer0 = Sequencer.cons 4 16 0.125 (Bar (-1))
@@ -43,18 +58,18 @@ getUnits dbFile pattern features = do
         Left e -> fail e
         Right us -> return us
 
-sceneKeyPressEvent :: MVar Bool -> Chan (Sequencer a -> Sequencer a) -> SequencerView -> Q.QKeyEvent () -> IO ()
+sceneKeyPressEvent :: MVar Bool -> Chan (Sequencer a -> Sequencer a) -> SequencerView -> Qt.QKeyEvent () -> IO ()
 sceneKeyPressEvent mute chan this qkev = do
-    key <- Q.key qkev ()
-    if key == Q.qEnum_toInt Q.eKey_C
+    key <- Qt.key qkev ()
+    if key == Qt.qEnum_toInt Qt.eKey_C
         then writeChan chan Sequencer.deleteAll
-        else if key == Q.qEnum_toInt Q.eKey_M
+        else if key == Qt.qEnum_toInt Qt.eKey_M
             then modifyMVar_ mute (return . not)
             else return ()
 
 main :: IO ()
 main = do
-    app <- Q.qApplication  ()
+    app <- Qt.qApplication  ()
 
     -- Parse arguments
     args <- App.getArgs
@@ -66,7 +81,7 @@ main = do
                     _       -> "%"
         
     -- FIXME: .ui file is not found in the resource for some reason
-    -- rcc <- Q.registerResource "app/mescaline.rcc"
+    -- rcc <- Qt.registerResource "app/mescaline.rcc"
     -- engine <- qScriptEngine ()
     -- scriptFile <- qFile ":/calculator.js"
     -- open scriptFile fReadOnly
@@ -74,12 +89,12 @@ main = do
     -- ra <- readAll ss ()
     -- dv <- evaluate engine ra
     -- close scriptFile ()
-    uiLoader <- Q.qUiLoader ()
+    uiLoader <- Qt.qUiLoader ()
     -- setHandler uiLoader "(QWidget*)createWidget(const QString&,QWidget*,const QString&)" $ myCreateWidget seqView
-    uiFile <- Q.qFile =<< App.getResourcePath "mescaline.ui"
-    Q.open uiFile Q.fReadOnly
-    ui <- Q.load uiLoader uiFile
-    Q.close uiFile ()
+    uiFile <- Qt.qFile =<< App.getResourcePath "mescaline.ui"
+    Qt.open uiFile Qt.fReadOnly
+    ui <- Qt.load uiLoader uiFile
+    Qt.close uiFile ()
 
     units <- getUnits dbFile pattern [Feature.consDescriptor "es.globero.mescaline.spectral" 2]
     
@@ -87,9 +102,9 @@ main = do
     (seqView, seq_ochan) <- sequencerView 30 2 sequencer0 seq_ichan
     
     mute <- newMVar False
-    Q.setHandler seqView "keyPressEvent(QKeyEvent*)" $ sceneKeyPressEvent mute seq_ichan
-    graphicsView <- Q.findChild ui ("<QGraphicsView*>", "sequencerView")
-    Q.setScene graphicsView seqView
+    Qt.setHandler seqView "keyPressEvent(QKeyEvent*)" $ sceneKeyPressEvent mute seq_ichan
+    graphicsView <- Qt.findChild ui ("<QGraphicsView*>", "sequencerView")
+    Qt.setScene graphicsView seqView
 
     -- matrixBox <- G.xmlGetWidget xml G.castToContainer "matrix"
     -- G.containerAdd matrixBox canvas
@@ -103,11 +118,11 @@ main = do
     let fspace = FeatureSpace.fromList (map (second head) units) (Random.mkStdGen 0)
     (fspaceView, fspace_ochan) <- FeatureSpaceView.featureSpaceView fspace fspace_ichan
 
-    graphicsView <- Q.findChild ui ("<QGraphicsView*>", "featureSpaceView")
-    Q.setScene graphicsView fspaceView
-    Q.setDragMode graphicsView Q.eScrollHandDrag
-    -- Q.fitInView graphicsView (Q.rectF 0 0 1 1)
-    Q.qscale graphicsView (600::Double, 600::Double)
+    graphicsView <- Qt.findChild ui ("<QGraphicsView*>", "featureSpaceView")
+    Qt.setScene graphicsView fspaceView
+    Qt.setDragMode graphicsView Qt.eScrollHandDrag
+    -- Qt.fitInView graphicsView (Qt.rectF 0 0 1 1)
+    Qt.qscale graphicsView (600::Double, 600::Double)
 
     -- Pipe feature space view output to sample player
     synth <- Synth.newSampler
@@ -129,8 +144,8 @@ main = do
     -- ctor <- evaluate engine "Calculator"
     -- scriptUi <- newQObject engine ui
     -- calc <- construct ctor [scriptUi]
-    Q.qshow ui ()
-    Q.activateWindow ui ()
+    Qt.qshow ui ()
+    Qt.activateWindow ui ()
     
-    ok <- Q.qApplicationExec ()
-    return ()
+    ok <- Qt.qApplicationExec ()
+    Qt.returnGC

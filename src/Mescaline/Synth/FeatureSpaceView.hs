@@ -18,7 +18,29 @@ import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Database.Feature as Feature
 import           Mescaline.Synth.FeatureSpace as FSpace
 import qualified Mescaline.UI as UI
-import qualified Qt as Qt
+
+import qualified Qtc.Classes.Gui                    as Qt
+import qualified Qtc.Classes.Gui_h                  as Qt
+import qualified Qtc.Classes.Qccs                   as Qt
+import qualified Qtc.Classes.Qccs_h                 as Qt
+import qualified Qtc.ClassTypes.Core                as Qt
+import qualified Qtc.ClassTypes.Gui                 as Qt
+import qualified Qtc.Core.QEvent                    as Qt
+import qualified Qtc.Enums.Base                     as Qt
+import qualified Qtc.Enums.Core.Qt                  as Qt
+import qualified Qtc.Enums.Gui.QGraphicsItem        as Qt
+import qualified Qtc.Gui.QAbstractGraphicsShapeItem as Qt
+import qualified Qtc.Gui.QBrush                     as Qt
+import qualified Qtc.Gui.QGraphicsEllipseItem       as Qt
+import qualified Qtc.Gui.QGraphicsEllipseItem_h     as Qt
+import qualified Qtc.Gui.QGraphicsItem              as Qt
+import qualified Qtc.Gui.QGraphicsScene             as Qt
+import qualified Qtc.Gui.QGraphicsSceneMouseEvent   as Qt
+import qualified Qtc.Gui.QGraphicsScene_h           as Qt
+import qualified Qtc.Gui.QKeyEvent                  as Qt
+import qualified Qth.ClassTypes.Core                as Qt
+import qualified Qth.Core.Point                     as Qt
+import qualified Qth.Core.Rect                      as Qt
 
 -- type FeatureSpaceView = Qt.QGraphicsSceneSc (CFeatureSpaceView)
 type FeatureSpaceView = Qt.QGraphicsScene ()
@@ -35,8 +57,8 @@ pair v | V.length v >= 2 = (v V.! 0, v V.! 1)
        | V.length v >= 1 = (v V.! 0, 0)
        | otherwise       = (0, 0)
 
-mouseHandler :: Unit.Unit -> (Unit.Unit -> IO ()) -> Qt.QGraphicsRectItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
-mouseHandler unit action this evt = action unit >> Qt.mousePressEvent_h this evt
+-- mouseHandler :: Unit.Unit -> (Unit.Unit -> IO ()) -> Qt.QGraphicsRectItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
+-- mouseHandler unit action this evt = action unit >> Qt.mousePressEvent_h this evt
 
 sceneMousePressHandler :: MVar Bool -> Qt.QGraphicsScene () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
 sceneMousePressHandler state view evt = do
