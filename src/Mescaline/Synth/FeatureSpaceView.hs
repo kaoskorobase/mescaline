@@ -166,8 +166,9 @@ initScene view model state onChanged playUnit = do
         mkUnit u = do
             let (x, y) = pair (Feature.value (FSpace.feature u))
                 r      = minRadius
-                box    = Qt.rectF (x-r) (y-r) (r*2) (r*2)
+                box    = Qt.rectF (-r) (-r) (r*2) (r*2)
             item <- Qt.qGraphicsEllipseItem_nf box
+            Qt.setPos item (Qt.pointF x y)
             -- Qt.setHandler item "mousePressEvent(QGraphicsSceneMouseEvent*)" $ mouseHandler (unit u) action
             Qt.setHandler item "hoverEnterEvent(QGraphicsSceneHoverEvent*)" $ hoverHandler $
                 readMVar state >>= flip when (playUnit (FSpace.unit u)) . playUnits
