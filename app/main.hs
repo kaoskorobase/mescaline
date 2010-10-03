@@ -29,9 +29,12 @@ import           System.FilePath
 import qualified System.Random as Random
 
 import qualified Qtc.Classes.Gui                as Qt
+import qualified Qtc.Classes.Gui_h              as Qt
+import qualified Qtc.Classes.Object             as Qt
 import qualified Qtc.Classes.Qccs               as Qt
 import qualified Qtc.Classes.Qccs_h             as Qt
 import qualified Qtc.ClassTypes.Gui             as Qt
+import qualified Qtc.ClassTypes.Tools           as Qt
 import qualified Qtc.Core.Base                  as Qt
 import qualified Qtc.Core.QFile                 as Qt
 import qualified Qtc.Enums.Base                 as Qt
@@ -41,10 +44,18 @@ import qualified Qtc.Enums.Core.Qt              as Qt
 import qualified Qtc.Enums.Gui.QGraphicsView    as Qt
 import qualified Qtc.Enums.Gui.QPainter         as Qt
 import qualified Qtc.Gui.Base                   as Qt
+import qualified Qtc.Gui.QAction                as Qt
 import qualified Qtc.Gui.QApplication           as Qt
 import qualified Qtc.Gui.QGraphicsView          as Qt
+import qualified Qtc.Gui.QKeySequence           as Qt
+import qualified Qtc.Gui.QMainWindow            as Qt
+import qualified Qtc.Gui.QMenu                  as Qt
+import qualified Qtc.Gui.QMenuBar               as Qt
+import qualified Qtc.Gui.QMessageBox            as Qt
 import qualified Qtc.Gui.QWidget                as Qt
+import qualified Qtc.Gui.QWidget_h              as Qt
 import qualified Qtc.Tools.QUiLoader            as Qt
+import qualified Qtc.Tools.QUiLoader_h          as Qt
 
 numRegions :: Int
 numRegions = 4
@@ -63,14 +74,49 @@ getUnits dbFile pattern features = do
         Left e -> fail e
         Right us -> return us
 
-sceneKeyPressEvent :: MVar Bool -> Chan (Sequencer a -> Sequencer a) -> SequencerView -> Qt.QKeyEvent () -> IO ()
-sceneKeyPressEvent mute chan this qkev = do
-    key <- Qt.key qkev ()
-    if key == Qt.qEnum_toInt Qt.eKey_C
-        then writeChan chan Sequencer.deleteAll
-        else if key == Qt.qEnum_toInt Qt.eKey_M
-            then modifyMVar_ mute (return . not)
-            else return ()
+-- sceneKeyPressEvent :: MVar Bool -> Chan (Sequencer a -> Sequencer a) -> Qt.QWidget () -> Qt.QKeyEvent () -> IO ()
+-- sceneKeyPressEvent mute chan _ qkev = do
+--     key <- Qt.key qkev ()
+--     if key == Qt.qEnum_toInt Qt.eKey_C
+--         then writeChan chan Sequencer.deleteAll
+--         else if key == Qt.qEnum_toInt Qt.eKey_M
+--             then modifyMVar_ mute (return . not)
+--             else return ()
+
+type MainWindow = Qt.QMainWindowSc (CMainWindow)
+data CMainWindow = CMainWindow
+
+mainWindow :: Qt.QWidget () -> IO (MainWindow)
+mainWindow mw = Qt.qSubClass $ Qt.qCast_QMainWindow mw
+
+-- windowKeyPressEvent :: MainWindow -> Qt.QKeyEvent () -> IO ()
+-- windowKeyPressEvent this evt = putStrLn "yeah!" >> Qt.keyPressEvent_h this evt
+
+loadUI :: FilePath -> IO (MainWindow)
+loadUI path = do
+    uiLoader <- Qt.qUiLoader ()
+    uiFile <- Qt.qFile path
+    Qt.open uiFile Qt.fReadOnly
+    w <- Qt.load uiLoader uiFile
+    Qt.close uiFile ()
+    mainWindow w
+
+about :: Qt.QMainWindow () -> IO ()
+about mw
+  = Qt.qMessageBoxAbout (
+        mw
+      , "About Mescaline"
+      ,  "<h3>About Mescaline</h3><a href=\"http://mescaline.globero.es\">Mescaline</a> is a data-driven sequencer and synthesizer."
+      ++ "<h3>Contributors</h3><p><ul><li>Stefan Kersten</li><li>Wernfried Lackner</li></ul>")
+
+clearSequencer :: Chan (Sequencer a -> Sequencer a) -> Qt.QMainWindow () -> IO ()
+clearSequencer chan _ = writeChan chan Sequencer.deleteAll
+
+muteSequencer :: MVar Bool -> Qt.QMainWindow () -> IO ()
+muteSequencer mute _ = modifyMVar_ mute (return . not)
+
+scrubble :: Qt.QMainWindow () -> IO ()
+scrubble _ = putStrLn "Scrubble dat shit!"
 
 main :: IO ()
 main = do
@@ -94,21 +140,52 @@ main = do
     -- ra <- readAll ss ()
     -- dv <- evaluate engine ra
     -- close scriptFile ()
-    uiLoader <- Qt.qUiLoader ()
-    -- setHandler uiLoader "(QWidget*)createWidget(const QString&,QWidget*,const QString&)" $ myCreateWidget seqView
-    uiFile <- Qt.qFile =<< App.getResourcePath "mescaline.ui"
-    Qt.open uiFile Qt.fReadOnly
-    ui <- Qt.load uiLoader uiFile
-    Qt.close uiFile ()
+
+    mainWindow <- loadUI =<< App.getResourcePath "mescaline.ui"
 
     units <- getUnits dbFile pattern [Feature.consDescriptor "es.globero.mescaline.spectral" 2]
-    
+
     seq_ichan <- newChan
-    (seqView, seq_ochan) <- sequencerView 30 2 sequencer0 seq_ichan
-    
+    (seqView, seq_ochan) <- sequencerView 30 2 sequencer0 seq_ichan    
     mute <- newMVar False
-    Qt.setHandler seqView "keyPressEvent(QKeyEvent*)" $ sceneKeyPressEvent mute seq_ichan
-    graphicsView <- Qt.findChild ui ("<QGraphicsView*>", "sequencerView")
+    
+    -- Global key event handler
+    -- mainWindow <- Qt.findChild ui ("<QMainWindow*>", "mainWindow") :: IO (Qt.QMainWindow ())
+    -- print window
+    -- Qt.setHandler mainWindow "keyPressEvent(QKeyEvent*)" $ windowKeyPressEvent
+    
+    -- Set up actions
+    aboutAction <- Qt.qAction ("About Mescaline", mainWindow)
+    -- Qt.setShortcut aboutAction =<< Qt.qKeySequence "Ctrl+A"
+    Qt.setStatusTip aboutAction "Show about message box"
+    Qt.connectSlot aboutAction "triggered()" mainWindow "about()" about
+
+    clearAction <- Qt.qAction ("Clear Sequencer", mainWindow)
+    Qt.setShortcut  clearAction =<< Qt.qKeySequence "c"
+    Qt.setStatusTip clearAction "Clear sequencer"
+    Qt.connectSlot  clearAction "triggered()" mainWindow "clearSequencer()" $ clearSequencer seq_ichan
+
+    muteAction <- Qt.qAction ("Mute Sequencer", mainWindow)
+    Qt.setShortcut  muteAction =<< Qt.qKeySequence "m"
+    Qt.setStatusTip muteAction "Mute sequencer"
+    Qt.connectSlot  muteAction "triggered()" mainWindow "muteSequencer()" $ muteSequencer mute
+    
+    scrubbleAction <- Qt.qAction ("Scrubble", mainWindow)
+    Qt.setShortcut  scrubbleAction =<< Qt.qKeySequence "s"
+    Qt.setStatusTip scrubbleAction "Scrubble"
+    Qt.connectSlot  scrubbleAction "triggered()" mainWindow "scrubble()" $ scrubble
+    
+    -- Set up menus
+    menuBar <- Qt.menuBar mainWindow ()
+    aboutMenu <- Qt.addMenu menuBar "about.Mescaline"
+    Qt.addAction aboutMenu aboutAction
+
+    sequencerMenu <- Qt.addMenu menuBar "Sequencer"
+    Qt.addAction sequencerMenu muteAction
+    Qt.addAction sequencerMenu clearAction
+    Qt.addAction sequencerMenu scrubbleAction
+
+    graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "sequencerView")
     Qt.setScene graphicsView seqView
 
     -- matrixBox <- G.xmlGetWidget xml G.castToContainer "matrix"
@@ -123,7 +200,7 @@ main = do
     let fspace = FeatureSpace.fromList (map (second head) units) (Random.mkStdGen 0)
     (fspaceView, fspace_ochan) <- FeatureSpaceView.featureSpaceView numRegions fspace fspace_ichan
 
-    graphicsView <- Qt.findChild ui ("<QGraphicsView*>", "featureSpaceView")
+    graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "featureSpaceView")
     Qt.setRenderHints graphicsView (Qt.fAntialiasing :: Qt.RenderHints)
     Qt.setScene graphicsView fspaceView
     Qt.setDragMode graphicsView Qt.eScrollHandDrag
@@ -150,8 +227,8 @@ main = do
     -- ctor <- evaluate engine "Calculator"
     -- scriptUi <- newQObject engine ui
     -- calc <- construct ctor [scriptUi]
-    Qt.qshow ui ()
-    Qt.activateWindow ui ()
+    Qt.qshow mainWindow ()
+    Qt.activateWindow mainWindow ()
     
     ok <- Qt.qApplicationExec ()
     Qt.returnGC

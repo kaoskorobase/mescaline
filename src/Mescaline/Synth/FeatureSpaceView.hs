@@ -52,7 +52,7 @@ featureSpaceView_ :: IO (FeatureSpaceView)
 -- featureSpaceView_ = Qt.qSubClass (Qt.qGraphicsScene ())
 featureSpaceView_ = Qt.qGraphicsScene ()
 
-data Input     = Update (FeatureSpace -> FeatureSpace) | ActivateRegion (Double, Int) | Deactivate Unit.Unit
+data Input     = Update (FeatureSpace -> FeatureSpace) | ActivateRegion (Double, Int) | Deactivate Unit.Unit | ScrubMode Bool
 newtype Output = Activate (Double, Unit.Unit)
 
 pair v | V.length v >= 2 = (v V.! 0, v V.! 1)
@@ -195,18 +195,24 @@ addRegions regions fspace = foldl (\fs (i, r) -> FSpace.insertRegion i r fs)
                           fspace
                           (zip [0..] regions)
 
-inputLoop ichan ochan fspace = do
+inputLoop state ichan ochan fspace = do
     x <- readChan ichan
     case x of
         Update f -> let fspace' = f fspace
-                    in fspace' `seq` inputLoop ichan ochan fspace'
+                    in fspace' `seq` loop fspace'
         ActivateRegion (t, i) -> do
             let (u, fspace') = FSpace.activateRegion i fspace
             maybe (return ()) (\u -> writeChan ochan (Activate (t, FSpace.unit u))) u
-            inputLoop ichan ochan fspace'
+            loop fspace'
         Deactivate _ ->
-            inputLoop ichan ochan fspace
-
+            loop0
+        ScrubMode b -> do
+            modifyMVar_ state $ \s -> return $ s { playUnits = b }
+            loop0
+    where
+        loop  = inputLoop state ichan ochan
+        loop0 = loop fspace
+        
 data RegionState = RegionIdle | RegionMove Double Double | RegionResize Double
 
 data Region = Region {
@@ -229,6 +235,6 @@ featureSpaceView numRegions fspace0 ichan = do
 
     initScene this fspace state (writeChan ichan) (writeChan ochan . Activate . (,) (-1))
 
-    forkIO $ inputLoop ichan ochan fspace
+    forkIO $ inputLoop state ichan ochan fspace
     
     return (this, ochan)

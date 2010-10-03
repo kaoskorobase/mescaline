@@ -73,7 +73,7 @@ updateScene stateVar this _ = do
         update state (coord, field) = do
             -- print (coord, cursor_ (sequencer state))
             b <- if sequencer state `isCursorAtIndex` coord
-                    then Qt.qBrush_nf Qt.edarkRed
+                    then Qt.qBrush_nf Qt.eblack
                     else if sequencer state `isElemAtIndex` coord
                         then Qt.qBrush_nf Qt.edarkGray
                         else let cs = cycle $ concat $ map (replicate 4) $ colors state
