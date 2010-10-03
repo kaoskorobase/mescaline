@@ -220,9 +220,9 @@ data State = State {
   , playUnits :: Bool
   }
 
-featureSpaceView :: FeatureSpace -> Chan Input -> IO (FeatureSpaceView, Chan Output)
-featureSpaceView fspace0 ichan = do
-    let fspace = addRegions (replicate 4 (FSpace.Region (V.fromList [0.5, 0.5]) 0.025)) fspace0
+featureSpaceView :: Int -> FeatureSpace -> Chan Input -> IO (FeatureSpaceView, Chan Output)
+featureSpaceView numRegions fspace0 ichan = do
+    let fspace = addRegions (replicate numRegions (FSpace.Region (V.fromList [0.5, 0.5]) 0.025)) fspace0
     this <- featureSpaceView_
     ochan <- newChan
     state <- newMVar (State [] False)

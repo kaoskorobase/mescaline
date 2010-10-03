@@ -46,8 +46,11 @@ import qualified Qtc.Gui.QGraphicsView          as Qt
 import qualified Qtc.Gui.QWidget                as Qt
 import qualified Qtc.Tools.QUiLoader            as Qt
 
+numRegions :: Int
+numRegions = 4
+
 sequencer0 :: Sequencer ()
-sequencer0 = Sequencer.cons 4 16 0.125 (Bar (-1))
+sequencer0 = Sequencer.cons 16 16 0.125 (Bar (-1))
 
 setEnv = setVal (P.synth.>P.attackTime) 0.01 . setVal (P.synth.>P.releaseTime) 0.02
 
@@ -118,7 +121,7 @@ main = do
     
     fspace_ichan <- newChan
     let fspace = FeatureSpace.fromList (map (second head) units) (Random.mkStdGen 0)
-    (fspaceView, fspace_ochan) <- FeatureSpaceView.featureSpaceView fspace fspace_ichan
+    (fspaceView, fspace_ochan) <- FeatureSpaceView.featureSpaceView numRegions fspace fspace_ichan
 
     graphicsView <- Qt.findChild ui ("<QGraphicsView*>", "featureSpaceView")
     Qt.setRenderHints graphicsView (Qt.fAntialiasing :: Qt.RenderHints)
@@ -140,7 +143,7 @@ main = do
 
     forkIO $ fix $ \loop -> do
         (t, s) <- readChan seq_ochan
-        let is = map fst $ indicesAtCursor s
+        let is = map (flip div numRegions . fst) $ indicesAtCursor s
         mapM_ (writeChan fspace_ichan . FeatureSpaceView.ActivateRegion . (,) t) is
         loop
     

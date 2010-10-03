@@ -76,7 +76,8 @@ updateScene stateVar this _ = do
                     then Qt.qBrush_nf Qt.edarkRed
                     else if sequencer state `isElemAtIndex` coord
                         then Qt.qBrush_nf Qt.edarkGray
-                        else Qt.qBrush_nf (colors state !! (fst coord `mod` length (colors state)))
+                        else let cs = cycle $ concat $ map (replicate 4) $ colors state
+                             in Qt.qBrush_nf (cs !! fst coord)
             Qt.setBrush field b
 
 sequencerProcess :: Sequencer a -> Chan (Sequencer a -> Sequencer a) -> IO (Chan (Time, Sequencer a))
