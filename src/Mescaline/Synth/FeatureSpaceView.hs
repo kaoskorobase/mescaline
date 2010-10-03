@@ -156,7 +156,7 @@ initScene :: FeatureSpaceView -> FeatureSpace -> MVar State -> (Input -> IO ()) 
 initScene view model state onChanged playUnit = do
     -- Qt.setHandler view "mousePressEvent(QGraphicsSceneMouseEvent*)" $ sceneMousePressHandler state
     -- Qt.setHandler view "mouseReleaseEvent(QGraphicsSceneMouseEvent*)" $ sceneMouseReleaseHandler state
-    Qt.setSceneRect view (Qt.rectF 0 0 1 1)
+    -- Qt.setSceneRect view (Qt.rectF 0 0 1 1)
     Qt.setHandler view "keyPressEvent(QKeyEvent*)" $ sceneKeyPressEvent state
     Qt.setHandler view "keyReleaseEvent(QKeyEvent*)" $ sceneKeyReleaseEvent state
     mapM_ mkUnit (FSpace.units model)
