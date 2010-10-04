@@ -1,4 +1,4 @@
-{-# LANGUAGE Arrows #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 import           Control.Applicative
 import           Control.Arrow
 import           Control.Concurrent (forkIO)
@@ -21,8 +21,10 @@ import           Mescaline.Synth.Sequencer as Sequencer
 import           Mescaline.Synth.SequencerView
 import qualified Mescaline.Synth.FeatureSpace as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpaceView as FeatureSpaceView
+import qualified Sound.OpenSoundControl as OSC
 import qualified Sound.SC3.Server.State as State
 import qualified Sound.SC3.Server.Process as Server
+import qualified Sound.SC3.Server.Process.CommandLine as Server
 import qualified System.Environment as Env
 import           System.Environment.FindBin (getProgPath)
 import           System.FilePath
@@ -106,8 +108,7 @@ about mw
   = Qt.qMessageBoxAbout (
         mw
       , "About Mescaline"
-      ,  "<h3>About Mescaline</h3><a href=\"http://mescaline.globero.es\">Mescaline</a> is a data-driven sequencer and synthesizer."
-      ++ "<h3>Contributors</h3><p><ul><li>Stefan Kersten</li><li>Wernfried Lackner</li></ul>")
+      , "<h3>About Mescaline</h3><a href=\"http://mescaline.globero.es\">Mescaline</a> is a data-driven sequencer and synthesizer.")
 
 clearSequencer :: Chan (Sequencer a -> Sequencer a) -> Qt.QMainWindow () -> IO ()
 clearSequencer chan _ = writeChan chan Sequencer.deleteAll
@@ -117,6 +118,53 @@ muteSequencer mute _ = modifyMVar_ mute (return . not)
 
 scrubble :: Qt.QMainWindow () -> IO ()
 scrubble _ = putStrLn "Scrubble dat shit!"
+
+pipe :: (a -> IO b) -> Chan a -> Chan b -> IO ()
+pipe f ichan ochan = do
+    a <- readChan ichan
+    b <- f a
+    writeChan ochan b
+    pipe f ichan ochan
+
+startSynth :: IO (Chan (Either FeatureSpaceView.Output ()), Chan ())
+startSynth = do
+    ichan <- newChan
+    ochan <- newChan
+
+    forkIO $ do
+        scsynth <- App.getResourcePath "supercollider/scsynth"
+        plugins <- App.getResourcePath "supercollider/plugins"
+        let
+            serverOptions = Server.defaultServerOptions {
+                Server.serverProgram  = scsynth
+              , Server.loadSynthDefs  = False
+              , Server.ugenPluginPath = Just [plugins]
+              }
+            rtOptions = Server.defaultRTOptions { Server.udpPortNumber = 2278 }
+        putStrLn $ unwords $ Server.rtCommandLine serverOptions rtOptions
+        Server.withSynth
+            serverOptions
+            rtOptions
+            Server.defaultOutputHandler
+            $ \(t :: OSC.UDP) -> do
+                synth <- Synth.newSamplerWithTransport t serverOptions
+                fix $ \loop -> do
+                    e <- readChan ichan
+                    case e of
+                        Left (FeatureSpaceView.Activate (t, u)) -> do
+                            -- b <- readMVar mute
+                            -- unless b $ do
+                            -- print u
+                            Synth.playEvent synth (setEnv (P.fromUnit t u))
+                            -- return ()
+                            loop
+                        Right _ -> writeChan ochan ()
+    return (ichan, ochan)
+
+stopSynth :: (Chan (Either FeatureSpaceView.Output ()), Chan ()) -> IO ()
+stopSynth (ichan, ochan) = do
+    writeChan ichan (Right ())
+    readChan ochan
 
 main :: IO ()
 main = do
@@ -156,9 +204,8 @@ main = do
     
     -- Set up actions
     aboutAction <- Qt.qAction ("About Mescaline", mainWindow)
-    -- Qt.setShortcut aboutAction =<< Qt.qKeySequence "Ctrl+A"
     Qt.setStatusTip aboutAction "Show about message box"
-    Qt.connectSlot aboutAction "triggered()" mainWindow "about()" about
+    Qt.connectSlot  aboutAction "triggered()" mainWindow "about()" about
 
     clearAction <- Qt.qAction ("Clear Sequencer", mainWindow)
     Qt.setShortcut  clearAction =<< Qt.qKeySequence "c"
@@ -207,23 +254,19 @@ main = do
     -- Qt.fitInView graphicsView (Qt.rectF 0 0 1 1)
     Qt.qscale graphicsView (600::Double, 600::Double)
 
-    -- Pipe feature space view output to sample player
-    synth <- Synth.newSampler
-    forkIO $ fix $ \loop -> do
-        FeatureSpaceView.Activate (t, u) <- readChan fspace_ochan
-        b <- readMVar mute
-        unless b $ do
-            -- print u
-            Synth.playEvent synth (setEnv (P.fromUnit t u))
-            return ()
-        loop
-
+    -- Pipe sequencer output to feature space
     forkIO $ fix $ \loop -> do
         (t, s) <- readChan seq_ochan
         let is = map (flip div numRegions . fst) $ indicesAtCursor s
         mapM_ (writeChan fspace_ichan . FeatureSpaceView.ActivateRegion . (,) t) is
         loop
     
+    -- Fork synth process
+    (synth_ichan, synth_ochan) <- startSynth
+    
+    -- Pipe feature space view output to synth
+    forkIO $ pipe (return . Left) fspace_ochan synth_ichan
+
     -- ctor <- evaluate engine "Calculator"
     -- scriptUi <- newQObject engine ui
     -- calc <- construct ctor [scriptUi]
@@ -231,4 +274,10 @@ main = do
     Qt.activateWindow mainWindow ()
     
     ok <- Qt.qApplicationExec ()
+    
+    -- Signal synth thread and wait for it to exit.
+    -- Otherwise stale scsynth processes will be lingering around.
+    stopSynth (synth_ichan, synth_ochan)
+
+    putStrLn "Bye sucker."
     Qt.returnGC

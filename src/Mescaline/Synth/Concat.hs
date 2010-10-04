@@ -1,5 +1,6 @@
 module Mescaline.Synth.Concat (
-    newSampler
+    newSamplerWithTransport
+  , newSampler
   , playEvent
 ) where
 
@@ -181,15 +182,17 @@ initSampler = do
                        d_recv (synthdef (voiceDefName 2) (voiceDef 2)) ]
     BC.new (replicate 4 (BC.allocBytes 1 diskBufferSize) ++ replicate 4 (BC.allocBytes 1 diskBufferSize))
 
-newSampler :: IO Sampler
-newSampler = do
-    let s = State.new Process.defaultServerOptions
-    t <- Process.openTransport opts "127.0.0.1" :: IO UDP
+newSamplerWithTransport :: Transport t => t -> Process.ServerOptions -> IO Sampler
+newSamplerWithTransport t serverOpts = do
+    let s = State.new serverOpts
     conn <- Conn.new s t
     cache <- runServer initSampler conn
     return (Sampler conn cache)
-    where
-        opts = Process.defaultRTOptionsUDP
+
+newSampler :: IO Sampler
+newSampler = do
+    t <- Process.openTransport Process.defaultRTOptionsUDP "127.0.0.1" :: IO UDP
+    newSamplerWithTransport t Process.defaultServerOptions
     
 freeSampler :: Sampler -> IO ()
 freeSampler (Sampler conn cache) = flip runServer conn $ do
