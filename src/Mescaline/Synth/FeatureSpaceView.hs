@@ -133,7 +133,7 @@ regionMouseMoveHandler region onChanged item evt = do
             return ()
         RegionMove dx dy -> do
             let pos = (x+dx, y+dy)
-            putStrLn $ "Region " ++ show (regionId region) ++ " pos=" ++ show pos
+            -- putStrLn $ "Region " ++ show (regionId region) ++ " pos=" ++ show pos
             onChanged $ Update $ FSpace.updateRegion (regionId region) (\r -> r { FSpace.center = V.fromList [fst pos, snd pos] })
             Qt.setPos item pos
             return ()
@@ -142,7 +142,7 @@ regionMouseMoveHandler region onChanged item evt = do
             let dy = y0 - y
                 d' = max (minRadius*2) $ min 1 $ d + dy
                 r' = d'/2
-            putStrLn $ "Region " ++ show (regionId region) ++ " radius=" ++ show r'
+            -- putStrLn $ "Region " ++ show (regionId region) ++ " radius=" ++ show r'
             onChanged $ Update $ FSpace.updateRegion (regionId region) (\r -> r { FSpace.radius = r' })
             Qt.qsetRect item (Qt.IRect (-r') (-r') d' d')
             swapMVar (regionState region) (RegionResize y)
