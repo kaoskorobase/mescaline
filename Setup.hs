@@ -41,7 +41,9 @@ guiApps = [MacApp "Mescaline"
                   , "supercollider/plugins/UnaryOpUGens.scx"
                   , "supercollider/plugins/UnpackFFTUGens.scx"
                   ]
-                  DoNotChase -- Try changing to ChaseWithDefaults
+                  -- DoNotChase
+                  -- ChaseWithDefaults
+                  (ChaseWith (defaultExclusions ++ ["libstdc++"]))
           ]
 
 main :: IO ()
