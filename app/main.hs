@@ -158,7 +158,8 @@ startSynth = do
                             Synth.playEvent synth (setEnv (P.fromUnit t u))
                             -- return ()
                             loop
-                        Right _ -> writeChan ochan ()
+                        Right _ -> return ()
+        writeChan ochan ()
     return (ichan, ochan)
 
 stopSynth :: (Chan (Either FeatureSpaceView.Output ()), Chan ()) -> IO ()
