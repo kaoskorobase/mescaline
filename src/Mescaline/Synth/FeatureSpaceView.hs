@@ -31,6 +31,7 @@ import qualified Qtc.Core.QEvent                    as Qt
 import qualified Qtc.Enums.Base                     as Qt
 import qualified Qtc.Enums.Core.Qt                  as Qt
 import qualified Qtc.Enums.Gui.QGraphicsItem        as Qt
+import qualified Qtc.Enums.Gui.QGraphicsScene       as Qt
 import qualified Qtc.Gui.QAbstractGraphicsShapeItem as Qt
 import qualified Qtc.Gui.QBrush                     as Qt
 import qualified Qtc.Gui.QGraphicsEllipseItem       as Qt
@@ -157,11 +158,14 @@ initScene view model state onChanged playUnit = do
     -- Qt.setHandler view "mousePressEvent(QGraphicsSceneMouseEvent*)" $ sceneMousePressHandler state
     -- Qt.setHandler view "mouseReleaseEvent(QGraphicsSceneMouseEvent*)" $ sceneMouseReleaseHandler state
     -- Qt.setSceneRect view (Qt.rectF 0 0 1 1)
+    Qt.setItemIndexMethod view Qt.eNoIndex
     Qt.setHandler view "keyPressEvent(QKeyEvent*)" $ sceneKeyPressEvent state
     Qt.setHandler view "keyReleaseEvent(QKeyEvent*)" $ sceneKeyReleaseEvent state
     mapM_ mkUnit (FSpace.units model)
     colors <- UI.defaultColorsFromFile
     mapM_ (uncurry $ mkRegion state) $ zip (Map.toList (FSpace.regions model)) colors
+    Qt.setItemIndexMethod view Qt.eBspTreeIndex
+    -- Qt.setBspTreeDepth view 0
     where
         mkUnit u = do
             let (x, y) = pair (Feature.value (FSpace.feature u))
