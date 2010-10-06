@@ -136,8 +136,8 @@ startSynth = do
         plugins <- App.getResourcePath "supercollider/plugins"
         let
             serverOptions = Server.defaultServerOptions {
-                Server.serverProgram  = scsynth
-              , Server.loadSynthDefs  = False
+                Server.loadSynthDefs  = False
+              , Server.serverProgram  = scsynth
               , Server.ugenPluginPath = Just [plugins]
               }
             rtOptions = Server.defaultRTOptions { Server.udpPortNumber = 2278 }
