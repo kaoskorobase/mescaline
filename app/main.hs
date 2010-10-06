@@ -4,6 +4,7 @@ import           Control.Arrow
 import           Control.Concurrent (forkIO)
 import           Control.Concurrent.Chan
 import           Control.Concurrent.MVar
+import           Control.Exception
 import           Control.Monad (unless)
 import           Data.Accessor
 import           Data.Char (ord)
@@ -142,7 +143,7 @@ startSynth = do
               }
             rtOptions = Server.defaultRTOptions { Server.udpPortNumber = 2278 }
         putStrLn $ unwords $ Server.rtCommandLine serverOptions rtOptions
-        Server.withSynth
+        (Server.withSynth
             serverOptions
             rtOptions
             Server.defaultOutputHandler
@@ -158,8 +159,7 @@ startSynth = do
                             Synth.playEvent synth (setEnv (P.fromUnit t u))
                             -- return ()
                             loop
-                        Right _ -> return ()
-        writeChan ochan ()
+                        Right _ -> return ()) `finally` writeChan ochan ()
     return (ichan, ochan)
 
 stopSynth :: (Chan (Either FeatureSpaceView.Output ()), Chan ()) -> IO ()
