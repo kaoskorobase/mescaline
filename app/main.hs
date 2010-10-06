@@ -52,6 +52,7 @@ import qualified Qtc.Gui.QApplication           as Qt
 import qualified Qtc.Gui.QGraphicsView          as Qt
 import qualified Qtc.Gui.QKeySequence           as Qt
 import qualified Qtc.Gui.QMainWindow            as Qt
+import qualified Qtc.Gui.QMainWindow_h          as Qt
 import qualified Qtc.Gui.QMenu                  as Qt
 import qualified Qtc.Gui.QMenuBar               as Qt
 import qualified Qtc.Gui.QMessageBox            as Qt
@@ -90,10 +91,14 @@ type MainWindow = Qt.QMainWindowSc (CMainWindow)
 data CMainWindow = CMainWindow
 
 mainWindow :: Qt.QWidget () -> IO (MainWindow)
-mainWindow mw = Qt.qSubClass $ Qt.qCast_QMainWindow mw
+mainWindow mw = do
+    -- Qt.setHandler mw "keyPressEvent(QKeyEvent*)" $ windowKeyPressEvent
+    -- Qt.setFocus mw Qt.eOtherFocusReason
+    -- Qt.grabKeyboard mw ()
+    Qt.qSubClass $ Qt.qCast_QMainWindow mw
 
--- windowKeyPressEvent :: MainWindow -> Qt.QKeyEvent () -> IO ()
--- windowKeyPressEvent this evt = putStrLn "yeah!" >> Qt.keyPressEvent_h this evt
+windowKeyPressEvent :: Qt.QWidget () -> Qt.QKeyEvent () -> IO ()
+windowKeyPressEvent this evt = putStrLn "yeah!" -- >> Qt.keyPressEvent_h this evt
 
 loadUI :: FilePath -> IO (MainWindow)
 loadUI path = do
@@ -191,6 +196,7 @@ main = do
     -- close scriptFile ()
 
     mainWindow <- loadUI =<< App.getResourcePath "mescaline.ui"
+    -- Qt.setHandler mainWindow "keyPressEvent(QKeyEvent*)" $ windowKeyPressEvent
 
     units <- getUnits dbFile pattern [Feature.consDescriptor "es.globero.mescaline.spectral" 2]
 
@@ -201,7 +207,6 @@ main = do
     -- Global key event handler
     -- mainWindow <- Qt.findChild ui ("<QMainWindow*>", "mainWindow") :: IO (Qt.QMainWindow ())
     -- print window
-    -- Qt.setHandler mainWindow "keyPressEvent(QKeyEvent*)" $ windowKeyPressEvent
     
     -- Set up actions
     aboutAction <- Qt.qAction ("About Mescaline", mainWindow)
