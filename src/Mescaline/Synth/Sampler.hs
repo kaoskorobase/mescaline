@@ -150,7 +150,7 @@ playUnit cache time unit params = do
     -- tu <- utcr
     -- FIXME: Why is this necessary?!
     S.unsafeSync
-    -- C.send conn (startVoice voice t)
+    -- S.send (startVoice voice time unit params)
     -- print (t-tu, t+dur-tu)
     liftIO $ OSC.pauseThreadUntil (time + dur)
     S.send $ stopVoice voice (time + dur) params
@@ -192,9 +192,12 @@ new t serverOpts = do
                         BC.release cache
                 PlayUnit t u p -> do
                     h <- self
-                    notifyListeners h $ UnitStarted t u
-                    liftIO $ forkIO $ do
-                        runServer (playUnit cache t u p) conn
-                        notifyListeners h $ UnitStopped t u
+                    io $ flip runServer conn $ do
+                        fork $ do
+                            io $ notifyListeners h $ UnitStarted t u
+                            -- io $ putStrLn $ "playUnit: " ++ show (t, u, p)
+                            playUnit cache t u p
+                            -- io $ putStrLn $ "stoppedUnit: " ++ show (t, u, p)
+                            io $ notifyListeners h $ UnitStopped t u
                     return ()
             loop conn cache
