@@ -28,6 +28,7 @@ data Input =
   | AddRegion       !Double !Double !Double
   | UpdateRegion    !Model.Region
   | ActivateRegion  !Time !Model.RegionId
+  deriving (Show)
 
 data Output =
     DatabaseLoaded  [Model.Unit]
@@ -35,6 +36,7 @@ data Output =
   | UnitDeactivated Unit.Unit
   | RegionAdded     Model.Region
   | RegionChanged   Model.Region
+  deriving (Show)
 
 type FeatureSpace = Handle Input Output
 
