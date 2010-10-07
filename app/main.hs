@@ -111,8 +111,8 @@ about mw
       , "About Mescaline"
       , "<h3>About Mescaline</h3><a href=\"http://mescaline.globero.es\">Mescaline</a> is a data-driven sequencer and synthesizer.")
 
--- clearSequencer :: Chan (Sequencer a -> Sequencer a) -> Qt.QMainWindow () -> IO ()
--- clearSequencer chan _ = writeChan chan Sequencer.deleteAll
+clearSequencer :: SequencerP.Sequencer () -> Qt.QMainWindow () -> IO ()
+clearSequencer h _ = sendTo h $ SequencerP.ClearAll
 
 muteSequencer :: MVar Bool -> Qt.QMainWindow () -> IO ()
 muteSequencer mute _ = modifyMVar_ mute (return . not)
@@ -215,7 +215,7 @@ main = do
     clearAction <- Qt.qAction ("Clear Sequencer", mainWindow)
     Qt.setShortcut  clearAction =<< Qt.qKeySequence "c"
     Qt.setStatusTip clearAction "Clear sequencer"
-    -- Qt.connectSlot  clearAction "triggered()" mainWindow "clearSequencer()" $ clearSequencer seq_ichan
+    Qt.connectSlot  clearAction "triggered()" mainWindow "clearSequencer()" $ clearSequencer seqP
 
     muteAction <- Qt.qAction ("Mute Sequencer", mainWindow)
     Qt.setShortcut  muteAction =<< Qt.qKeySequence "m"
