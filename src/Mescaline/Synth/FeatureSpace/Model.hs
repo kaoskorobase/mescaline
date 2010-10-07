@@ -122,7 +122,7 @@ regionList = IntMap.elems . regions
 
 -- Return the next random unit from region i and an updated FeatureSpace.
 activateRegion :: RegionId -> FeatureSpace -> (Maybe Unit, FeatureSpace)
-activateRegion i f = (Nothing, f) -- (u'', au (f { randomGen = g' }))
+activateRegion i f = (u'', au (f { randomGen = g' }))
     where
         Just r = IntMap.lookup i (regions f)
         Unit (u, Feature.Feature (uid, d, _)) = head (BKTree.elems (featureSpace f))
