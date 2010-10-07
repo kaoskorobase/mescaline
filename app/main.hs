@@ -143,13 +143,13 @@ startSynth = do
               }
             rtOptions = Server.defaultRTOptions { Server.udpPortNumber = 2278 }
         putStrLn $ unwords $ Server.rtCommandLine serverOptions rtOptions
-        -- (Server.withSynth
-        --     serverOptions
-        --     rtOptions
-        --     Server.defaultOutputHandler
-        (Server.withTransport
+        (Server.withSynth
             serverOptions
             rtOptions
+            Server.defaultOutputHandler
+        -- (Server.withTransport
+        --     serverOptions
+        --     rtOptions
             $ \(t :: OSC.UDP) -> do
                 synth <- Synth.new t serverOptions
                 fix $ \loop -> do
