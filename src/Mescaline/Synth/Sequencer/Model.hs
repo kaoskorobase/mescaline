@@ -1,4 +1,4 @@
-module Mescaline.Synth.Sequencer where
+module Mescaline.Synth.Sequencer.Model where
 
 import           Data.Accessor
 import           Data.Maybe (maybeToList)

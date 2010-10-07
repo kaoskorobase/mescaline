@@ -4,6 +4,7 @@ import           Control.Arrow
 import           Control.Concurrent (forkIO)
 import           Control.Concurrent.Chan
 import           Control.Concurrent.MVar
+import           Control.Concurrent.Process
 import           Control.Exception
 import           Control.Monad (unless)
 import           Data.Accessor
@@ -16,12 +17,14 @@ import qualified Mescaline.Database as DB
 import qualified Mescaline.Database.SqlQuery as Sql
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.Unit as Unit
-import qualified Mescaline.Synth.Concat as Synth
+import qualified Mescaline.Synth.Sampler as Synth
 import qualified Mescaline.Synth.Pattern as P
-import           Mescaline.Synth.Sequencer as Sequencer
-import           Mescaline.Synth.SequencerView
-import qualified Mescaline.Synth.FeatureSpace as FeatureSpace
-import qualified Mescaline.Synth.FeatureSpaceView as FeatureSpaceView
+import qualified Mescaline.Synth.Sequencer.Model as Sequencer
+import qualified Mescaline.Synth.Sequencer.Process as SequencerP
+import qualified Mescaline.Synth.Sequencer.View as SequencerView
+import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
+import qualified Mescaline.Synth.FeatureSpace.Process as FeatureSpaceP
+import qualified Mescaline.Synth.FeatureSpace.View as FeatureSpaceView
 import qualified Sound.OpenSoundControl as OSC
 import qualified Sound.SC3.Server.State as State
 import qualified Sound.SC3.Server.Process as Server
@@ -64,19 +67,10 @@ import qualified Qtc.Tools.QUiLoader_h          as Qt
 numRegions :: Int
 numRegions = 4
 
-sequencer0 :: Sequencer ()
-sequencer0 = Sequencer.cons 16 16 0.125 (Bar (-1))
+sequencer0 :: Sequencer.Sequencer ()
+sequencer0 = Sequencer.cons 16 16 0.125 (Sequencer.Bar (-1))
 
-setEnv = setVal (P.synth.>P.attackTime) 0.01 . setVal (P.synth.>P.releaseTime) 0.02
-
-getUnits dbFile pattern features = do
-    (units, sfMap) <- DB.withDatabase dbFile $ \c -> do
-        Sql.unitQuery (quickQuery' c)
-              ((Sql.url Sql.sourceFile `Sql.like` pattern) `Sql.and` (Sql.segmentation Sql.unit `Sql.eq` Unit.Onset))
-              features
-    case units of
-        Left e -> fail e
-        Right us -> return us
+setEnv = setVal (P.attackTime) 0.01 . setVal (P.releaseTime) 0.02
 
 -- sceneKeyPressEvent :: MVar Bool -> Chan (Sequencer a -> Sequencer a) -> Qt.QWidget () -> Qt.QKeyEvent () -> IO ()
 -- sceneKeyPressEvent mute chan _ qkev = do
@@ -116,8 +110,8 @@ about mw
       , "About Mescaline"
       , "<h3>About Mescaline</h3><a href=\"http://mescaline.globero.es\">Mescaline</a> is a data-driven sequencer and synthesizer.")
 
-clearSequencer :: Chan (Sequencer a -> Sequencer a) -> Qt.QMainWindow () -> IO ()
-clearSequencer chan _ = writeChan chan Sequencer.deleteAll
+-- clearSequencer :: Chan (Sequencer a -> Sequencer a) -> Qt.QMainWindow () -> IO ()
+-- clearSequencer chan _ = writeChan chan Sequencer.deleteAll
 
 muteSequencer :: MVar Bool -> Qt.QMainWindow () -> IO ()
 muteSequencer mute _ = modifyMVar_ mute (return . not)
@@ -132,7 +126,7 @@ pipe f ichan ochan = do
     writeChan ochan b
     pipe f ichan ochan
 
-startSynth :: IO (Chan (Either FeatureSpaceView.Output ()), Chan ())
+startSynth :: IO (Chan (Either FeatureSpaceP.Output ()), Chan ())
 startSynth = do
     ichan <- newChan
     ochan <- newChan
@@ -153,21 +147,22 @@ startSynth = do
             rtOptions
             Server.defaultOutputHandler
             $ \(t :: OSC.UDP) -> do
-                synth <- Synth.newSamplerWithTransport t serverOptions
+                synth <- Synth.new t serverOptions
                 fix $ \loop -> do
                     e <- readChan ichan
                     case e of
-                        Left (FeatureSpaceView.Activate (t, u)) -> do
+                        Left (FeatureSpaceP.UnitActivated t u) -> do
                             -- b <- readMVar mute
                             -- unless b $ do
                             -- print u
-                            Synth.playEvent synth (setEnv (P.fromUnit t u))
+                            sendTo synth $ Synth.PlayUnit t u (setEnv P.defaultSynth)
                             -- return ()
                             loop
+                        Left _ -> loop
                         Right _ -> return ()) `finally` writeChan ochan ()
     return (ichan, ochan)
 
-stopSynth :: (Chan (Either FeatureSpaceView.Output ()), Chan ()) -> IO ()
+stopSynth :: (Chan (Either FeatureSpaceP.Output ()), Chan ()) -> IO ()
 stopSynth (ichan, ochan) = do
     writeChan ichan (Right ())
     readChan ochan
@@ -198,10 +193,11 @@ main = do
     mainWindow <- loadUI =<< App.getResourcePath "mescaline.ui"
     -- Qt.setHandler mainWindow "keyPressEvent(QKeyEvent*)" $ windowKeyPressEvent
 
-    units <- getUnits dbFile pattern [Feature.consDescriptor "es.globero.mescaline.spectral" 2]
+    -- units <- getUnits dbFile pattern [Feature.consDescriptor "es.globero.mescaline.spectral" 2]
 
-    seq_ichan <- newChan
-    (seqView, seq_ochan) <- sequencerView 30 2 sequencer0 seq_ichan    
+    seqP <- SequencerP.new sequencer0
+    (seqView, seqViewP) <- SequencerView.new 30 2 seqP
+    seqViewP `listenTo` seqP
     mute <- newMVar False
     
     -- Global key event handler
@@ -216,7 +212,7 @@ main = do
     clearAction <- Qt.qAction ("Clear Sequencer", mainWindow)
     Qt.setShortcut  clearAction =<< Qt.qKeySequence "c"
     Qt.setStatusTip clearAction "Clear sequencer"
-    Qt.connectSlot  clearAction "triggered()" mainWindow "clearSequencer()" $ clearSequencer seq_ichan
+    -- Qt.connectSlot  clearAction "triggered()" mainWindow "clearSequencer()" $ clearSequencer seq_ichan
 
     muteAction <- Qt.qAction ("Mute Sequencer", mainWindow)
     Qt.setShortcut  muteAction =<< Qt.qKeySequence "m"
@@ -249,10 +245,23 @@ main = do
     --     let t' = 60/t/4
     --     writeChan ichan (setVal tick t')
     
-    fspace_ichan <- newChan
-    let fspace = FeatureSpace.fromList (map (second head) units) (Random.mkStdGen 0)
-    (fspaceView, fspace_ochan) <- FeatureSpaceView.featureSpaceView numRegions fspace fspace_ichan
-
+    -- Feature space process
+    -- let fspace = FeatureSpace.fromList (map (second head) units) (Random.mkStdGen 0)
+    fspaceP <- FeatureSpaceP.new
+    -- Pipe sequencer output to feature space
+    fspaceSeqP <- spawn $ fix $ \loop -> do
+        x <- recv
+        case x of
+            SequencerP.Changed t s ->
+                let is = map (flip div numRegions . fst) $ Sequencer.indicesAtCursor s
+                in mapM_ (sendTo fspaceP . FeatureSpaceP.ActivateRegion t) is
+        loop
+    fspaceSeqP `listenTo` seqP
+    
+    -- Feature space view
+    (fspaceView, fspaceViewP) <- FeatureSpaceView.new fspaceP
+    fspaceViewP `listenTo` fspaceP
+    
     graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "featureSpaceView")
     Qt.setRenderHints graphicsView (Qt.fAntialiasing :: Qt.RenderHints)
     Qt.setScene graphicsView fspaceView
@@ -260,18 +269,14 @@ main = do
     -- Qt.fitInView graphicsView (Qt.rectF 0 0 1 1)
     Qt.qscale graphicsView (600::Double, 600::Double)
 
-    -- Pipe sequencer output to feature space
-    forkIO $ fix $ \loop -> do
-        (t, s) <- readChan seq_ochan
-        let is = map (flip div numRegions . fst) $ indicesAtCursor s
-        mapM_ (writeChan fspace_ichan . FeatureSpaceView.ActivateRegion . (,) t) is
-        loop
+    mapM_ (\i -> sendTo fspaceP $ FeatureSpaceP.AddRegion 0.5 0.5 0.025) [0..numRegions-1]
+    sendTo fspaceP $ FeatureSpaceP.LoadDatabase dbFile pattern
     
     -- Fork synth process
     (synth_ichan, synth_ochan) <- startSynth
     
     -- Pipe feature space view output to synth
-    forkIO $ pipe (return . Left) fspace_ochan synth_ichan
+    _ <- spawn $ fix $ \loop -> recv >>= io . writeChan synth_ichan . Left >> loop
 
     -- ctor <- evaluate engine "Calculator"
     -- scriptUi <- newQObject engine ui

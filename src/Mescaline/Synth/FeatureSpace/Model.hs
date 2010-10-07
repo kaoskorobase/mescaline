@@ -1,24 +1,29 @@
-module Mescaline.Synth.FeatureSpace (
+module Mescaline.Synth.FeatureSpace.Model (
     Unit
   , unit
   , feature
   , value
+  , RegionId
   , Region(..)
   , FeatureSpace
+  , randomGen
   , activeUnits
   , units
   , fromList
-  , insertRegion
+  , nextRegionId
+  , addRegion
   , deleteRegion
+  , updateRegionById
   , updateRegion
   , regions
   , regionList
   , activateRegion
   , activateRegions
+  , activateUnit
   , deactivateUnit
 ) where
 
-import           Control.Arrow
+import           Control.Arrow (first)
 import qualified Control.Monad.State as State
 import           Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
@@ -62,40 +67,58 @@ instance BKTree.Metric Unit where
             x = V.zipWith (-) (value a) (value b)
             d = sqrt (V.foldl (+) 0 (V.zipWith (*) x x))
 
+type RegionId = Int
+
 data Region = Region {
-    center :: Feature.Value -- Circle center in feature space
-  , radius :: Double        -- Circle radius in feature space  
+    regionId :: RegionId
+  , center   :: Feature.Value -- Circle center in feature space
+  , radius   :: Double        -- Circle radius in feature space  
   } deriving (Eq, Show)   
 
 data FeatureSpace = FeatureSpace { 
     featureSpace :: BKTree Unit
-  , randomGen :: Random.StdGen
-  , regions :: IntMap Region
-  , activeUnits :: Set Unit.Unit
+  , randomGen    :: Random.StdGen
+  , regions      :: IntMap Region
+  , activeUnits  :: Set Unit.Unit
   }
 
 units :: FeatureSpace -> [Unit]
 units = BKTree.elems . featureSpace
 
-fromList :: [(Unit.Unit, Feature.Feature)] -> Random.StdGen -> FeatureSpace
-fromList us g = FeatureSpace (BKTree.fromList (map Unit us)) g IntMap.empty Set.empty
+fromList :: Random.StdGen -> [(Unit.Unit, Feature.Feature)] -> FeatureSpace
+fromList g us = FeatureSpace (BKTree.fromList (map Unit us)) g IntMap.empty Set.empty
 
-insertRegion :: Int -> Region -> FeatureSpace -> FeatureSpace
-insertRegion i r f = f { regions = IntMap.insert i r (regions f) }
+nextRegionId :: FeatureSpace -> Int
+nextRegionId f
+    | null ids  = 0
+    | otherwise = loop (last ids + 1)
+    where
+        ids = IntMap.keys (regions f)
+        loop i
+            | not (i `elem` ids) = i
+            | otherwise          = loop (i+1)
 
-deleteRegion :: Int -> FeatureSpace -> FeatureSpace
-deleteRegion i f = f { regions = IntMap.delete i (regions f) }
+addRegion :: Region -> FeatureSpace -> FeatureSpace
+addRegion r f = f { regions = IntMap.insert (regionId r) r (regions f) }
 
-updateRegion :: Int -> (Region -> Region) -> FeatureSpace -> FeatureSpace
-updateRegion i f fs = fs { regions = IntMap.update (Just . f) i (regions fs) }
--- update :: (a -> Maybe a) -> Key -> IntMap a -> IntMap aSource
+deleteRegionById :: RegionId -> FeatureSpace -> FeatureSpace
+deleteRegionById i f = f { regions = IntMap.delete i (regions f) }
+
+deleteRegion :: Region -> FeatureSpace -> FeatureSpace
+deleteRegion r = deleteRegionById (regionId r)
+
+updateRegionById :: RegionId -> (Region -> Region) -> FeatureSpace -> FeatureSpace
+updateRegionById i f fs = fs { regions = IntMap.update (Just . f) i (regions fs) }
+
+updateRegion :: Region -> FeatureSpace -> FeatureSpace
+updateRegion r = updateRegionById (regionId r) (const r)
 
 regionList :: FeatureSpace -> [Region]
 regionList = IntMap.elems . regions
 
 -- Return the next random unit from region i and an updated FeatureSpace.
-activateRegion :: Int -> FeatureSpace -> (Maybe Unit, FeatureSpace)
-activateRegion i f = (u'', f { randomGen = g', activeUnits = au })
+activateRegion :: RegionId -> FeatureSpace -> (Maybe Unit, FeatureSpace)
+activateRegion i f = (Nothing, f) -- (u'', au (f { randomGen = g' }))
     where
         Just r = IntMap.lookup i (regions f)
         Unit (u, Feature.Feature (uid, d, _)) = head (BKTree.elems (featureSpace f))
@@ -104,13 +127,16 @@ activateRegion i f = (u'', f { randomGen = g', activeUnits = au })
         us = BKTree.elemsDistance n u' (featureSpace f)
         (j, g') = Random.randomR (0, length us - 1) (randomGen f)
         u'' = if null us then Nothing else Just (us !! j)
-        au = maybe (activeUnits f) (flip Set.insert (activeUnits f) . unit) u''
+        au f = maybe f (flip activateUnit f . unit) u''
 
 filterMaybe :: [Maybe a] -> [a]
 filterMaybe l = [ x | Just x <- l ]
 
-activateRegions :: [Int] -> FeatureSpace -> ([Unit], FeatureSpace)
+activateRegions :: [RegionId] -> FeatureSpace -> ([Unit], FeatureSpace)
 activateRegions is f = first filterMaybe $ State.runState (sequence (map (State.State . activateRegion) is)) f
+
+activateUnit :: Unit.Unit -> FeatureSpace -> FeatureSpace
+activateUnit u f = f { activeUnits = Set.insert u (activeUnits f) }
 
 deactivateUnit :: Unit.Unit -> FeatureSpace -> FeatureSpace
 deactivateUnit u f = f { activeUnits = Set.delete u (activeUnits f) }

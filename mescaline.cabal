@@ -43,6 +43,7 @@ library
                   , hsc3-process >= 0.3 && < 0.4
                   , hsndfile >= 0.4
                   , MissingH >= 1.0
+                  , MonadCatchIO-mtl >= 0.3 && < 0.4
                   , monadIO >= 0.9 && < 1.0
                   , mtl
                   , process >= 1.0
@@ -90,13 +91,15 @@ library
                     Mescaline.Synth.BufferCache
                     Mescaline.Synth.BufferCache.Alloc
                     Mescaline.Synth.BufferCache.Server
-                    Mescaline.Synth.Concat
-                    Mescaline.Synth.FeatureSpace
-                    Mescaline.Synth.FeatureSpaceView
+                    Mescaline.Synth.FeatureSpace.Model
+                    Mescaline.Synth.FeatureSpace.Process
+                    Mescaline.Synth.FeatureSpace.View
                     Mescaline.Synth.Pattern
                     Mescaline.Synth.Pattern.Load
-                    Mescaline.Synth.Sequencer
-                    Mescaline.Synth.SequencerView
+                    Mescaline.Synth.Sampler
+                    Mescaline.Synth.Sequencer.Model
+                    Mescaline.Synth.Sequencer.Process
+                    Mescaline.Synth.Sequencer.View
                     Mescaline.Synth.SSF
                     Mescaline.Synth.SSF.BufferCache
                     Mescaline.Synth.SSF.DiskSampler
