@@ -146,29 +146,31 @@ regionMousePressHandler _ region item evt = do
 
 regionMouseMoveHandler :: Process.FeatureSpace -> Region -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
 regionMouseMoveHandler fspace region item evt = do
-    Qt.IPoint x y <- Qt.scenePos evt ()
+    Qt.IPoint ex ey <- Qt.scenePos evt ()
     state <- readMVar (regionState region)
     case state of
         RegionIdle ->
             return ()
         RegionMove dx dy -> do
-            let pos = (x+dx, y+dy)
+            let ix = ex + dx
+                iy = ey + dy
             Qt.IRect _ _ d _ <- Qt.qboundingRect item ()
             -- putStrLn $ "Region " ++ show (regionId region) ++ " pos=" ++ show pos
             -- onChanged $ Update $ Model.updateRegionById (regionId region) (\r -> r { Model.center = V.fromList [fst pos, snd pos] })
-            sendTo fspace $ Process.UpdateRegion $ Model.Region (regionId region) (V.fromList [fst pos, snd pos]) (d/2)
+            sendTo fspace $ Process.UpdateRegion $ Model.Region (regionId region) (V.fromList [ix, iy]) (d/2)
             -- Qt.setPos item pos
             return ()
         RegionResize y0 -> do
             Qt.IRect _ _ d _ <- Qt.qboundingRect item ()
-            let dy = y0 - y
+            let dy = y0 - ey
                 d' = max (minRadius*2) $ min 1 $ d + dy
                 r' = d'/2
             -- putStrLn $ "Region " ++ show (regionId region) ++ " radius=" ++ show r'
             -- onChanged $ Update $ Model.updateRegionById (regionId region) (\r -> r { Model.radius = r' })
-            sendTo fspace $ Process.UpdateRegion $ Model.Region (regionId region) (V.fromList [x, y]) r'
+            Qt.IPoint ix iy <- Qt.scenePos item ()
+            sendTo fspace $ Process.UpdateRegion $ Model.Region (regionId region) (V.fromList [ix, iy]) r'
             -- Qt.qsetRect item (Qt.IRect (-r') (-r') d' d')
-            _ <- swapMVar (regionState region) (RegionResize y)
+            _ <- swapMVar (regionState region) (RegionResize ey)
             return ()
 
 regionMouseReleaseHandler :: Process.FeatureSpace -> Region -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
