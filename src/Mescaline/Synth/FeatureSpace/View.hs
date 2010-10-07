@@ -225,24 +225,6 @@ addUnit view state unit = do
     Qt.setAcceptsHoverEvents item True
     Qt.addItem view item
 
--- inputLoop state ichan ochan fspace = do
---     x <- readChan ichan
---     case x of
---         Update f -> let fspace' = f fspace
---                     in fspace' `seq` loop fspace'
---         ActivateRegion (t, i) -> do
---             let (u, fspace') = Model.activateRegion i fspace
---             maybe (return ()) (\u -> writeChan ochan (Activate (t, Model.unit u))) u
---             loop fspace'
---         Deactivate _ ->
---             loop0
---         ScrubMode b -> do
---             modifyMVar_ state $ \s -> return $ s { playUnits = b }
---             loop0
---     where
---         loop  = inputLoop state ichan ochan
---         loop0 = loop fspace
-
 process :: forall o m b .
            (Control.Monad.Trans.MonadIO m) =>
            FeatureSpaceView -> State -> ReceiverT Process.Output o m b
