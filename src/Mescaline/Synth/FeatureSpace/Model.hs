@@ -9,6 +9,7 @@ module Mescaline.Synth.FeatureSpace.Model (
   , randomGen
   , activeUnits
   , units
+  , setFeatureSpace
   , fromList
   , nextRegionId
   , addRegion
@@ -84,6 +85,9 @@ data FeatureSpace = FeatureSpace {
 
 units :: FeatureSpace -> [Unit]
 units = BKTree.elems . featureSpace
+
+setFeatureSpace :: FeatureSpace -> [(Unit.Unit, Feature.Feature)] -> FeatureSpace
+setFeatureSpace f us = f { featureSpace = BKTree.fromList (map Unit us) }
 
 fromList :: Random.StdGen -> [(Unit.Unit, Feature.Feature)] -> FeatureSpace
 fromList g us = FeatureSpace (BKTree.fromList (map Unit us)) g IntMap.empty Set.empty

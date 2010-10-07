@@ -61,14 +61,13 @@ new = do
             f' <- case x of
                     LoadDatabase path pattern -> do
                         units <- liftIO $ fmap (map (second head)) $ getUnits path pattern [Feature.consDescriptor "es.globero.mescaline.spectral" 2]
-                        let f' = Model.fromList (Model.randomGen f) units
+                        let f' = Model.setFeatureSpace f units
                         notify $ DatabaseLoaded (Model.units f')
                         return $ f'
                     AddRegion x y ra -> do
                         let i = Model.nextRegionId f
                             r = Model.Region i (V.fromList [x, y]) ra
                         notify $ RegionAdded r
-                        -- io $ putStrLn $ "AddRegion " ++ show r
                         return $ Model.addRegion r f
                     UpdateRegion r -> do
                         notify $ RegionChanged r
