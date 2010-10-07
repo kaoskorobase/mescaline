@@ -12,6 +12,7 @@ import           Data.Char (ord)
 import           Data.Function (fix)
 import           Data.Maybe
 import           Database.HDBC (quickQuery')
+import           Mescaline (Time)
 import qualified Mescaline.Application as App
 import qualified Mescaline.Database as DB
 import qualified Mescaline.Database.SqlQuery as Sql
@@ -126,7 +127,7 @@ pipe f ichan ochan = do
     writeChan ochan b
     pipe f ichan ochan
 
-startSynth :: IO (Chan (Either FeatureSpaceP.Output ()), Chan ())
+startSynth :: IO (Chan (Either (Time, Unit.Unit) ()), Chan ())
 startSynth = do
     ichan <- newChan
     ochan <- newChan
@@ -142,27 +143,29 @@ startSynth = do
               }
             rtOptions = Server.defaultRTOptions { Server.udpPortNumber = 2278 }
         putStrLn $ unwords $ Server.rtCommandLine serverOptions rtOptions
-        (Server.withSynth
+        -- (Server.withSynth
+        --     serverOptions
+        --     rtOptions
+        --     Server.defaultOutputHandler
+        (Server.withTransport
             serverOptions
             rtOptions
-            Server.defaultOutputHandler
             $ \(t :: OSC.UDP) -> do
                 synth <- Synth.new t serverOptions
                 fix $ \loop -> do
                     e <- readChan ichan
                     case e of
-                        Left (FeatureSpaceP.UnitActivated t u) -> do
+                        Left (t, u) -> do
                             -- b <- readMVar mute
                             -- unless b $ do
                             -- print u
                             sendTo synth $ Synth.PlayUnit t u (setEnv P.defaultSynth)
                             -- return ()
                             loop
-                        Left _ -> loop
                         Right _ -> return ()) `finally` writeChan ochan ()
     return (ichan, ochan)
 
-stopSynth :: (Chan (Either FeatureSpaceP.Output ()), Chan ()) -> IO ()
+stopSynth :: (Chan (Either (Time, Unit.Unit) ()), Chan ()) -> IO ()
 stopSynth (ichan, ochan) = do
     writeChan ichan (Right ())
     readChan ochan
@@ -276,7 +279,13 @@ main = do
     (synth_ichan, synth_ochan) <- startSynth
     
     -- Pipe feature space view output to synth
-    _ <- spawn $ fix $ \loop -> recv >>= io . writeChan synth_ichan . Left >> loop
+    toSynthP <- spawn $ fix $ \loop -> do
+        x <- recv
+        case x of
+            FeatureSpaceP.UnitActivated t u -> io $ writeChan synth_ichan (Left (t, u))
+            _                               -> return ()
+        loop
+    toSynthP `listenTo` fspaceP
 
     -- ctor <- evaluate engine "Calculator"
     -- scriptUi <- newQObject engine ui
