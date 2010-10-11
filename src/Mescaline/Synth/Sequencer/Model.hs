@@ -95,10 +95,12 @@ indicesAtCursor s =
         Point row col -> maybe [] (maybe [] (const [(row,col)]) . Map.lookup row) (Map.lookup col (matrix s))
 
 class Algorithm a where
+    reset :: a -> Sequencer e -> Sequencer e
     step :: a -> Sequencer e -> Sequencer e
 
 data Score = Score
 
 instance Algorithm Score where
+    reset _ = setVal cursor (Bar (-1))
     step _ s = setVal cursor (Bar (succ col `mod` cols s)) s
         where col = cursorColumn (cursor_ s)

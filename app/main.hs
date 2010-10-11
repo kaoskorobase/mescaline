@@ -117,8 +117,10 @@ clearSequencer h _ = sendTo h $ SequencerP.ClearAll
 muteSequencer :: MVar Bool -> Qt.QMainWindow () -> IO ()
 muteSequencer mute _ = modifyMVar_ mute (return . not)
 
-scrubble :: Qt.QMainWindow () -> IO ()
-scrubble _ = putStrLn "Scrubble dat shit!"
+playPauseSequencer :: SequencerP.Sequencer () -> Qt.QMainWindow () -> Bool -> IO ()
+playPauseSequencer h _ b = do
+    putStrLn $ "Scrubble dat shit! " ++ show b
+    sendTo h $ SequencerP.Transport $ if b then SequencerP.Start else SequencerP.Pause
 
 pipe :: (a -> IO b) -> Chan a -> Chan b -> IO ()
 pipe f ichan ochan = do
@@ -221,11 +223,13 @@ main = do
     Qt.setShortcut  muteAction =<< Qt.qKeySequence "m"
     Qt.setStatusTip muteAction "Mute sequencer"
     Qt.connectSlot  muteAction "triggered()" mainWindow "muteSequencer()" $ muteSequencer mute
-    
-    scrubbleAction <- Qt.qAction ("Scrubble", mainWindow)
-    Qt.setShortcut  scrubbleAction =<< Qt.qKeySequence "s"
-    Qt.setStatusTip scrubbleAction "Scrubble"
-    Qt.connectSlot  scrubbleAction "triggered()" mainWindow "scrubble()" $ scrubble
+      
+    playAction <- Qt.qAction ("Play", mainWindow)
+    Qt.setCheckable playAction True
+    Qt.setShortcut  playAction =<< Qt.qKeySequence "p"
+    Qt.setStatusTip playAction "Start or pause the sequencer"
+    Qt.connectSlot  playAction "toggled()" mainWindow "playPauseSequencer()" $ playPauseSequencer seqP
+    Qt.isCheckable playAction () >>= print
     
     -- Set up menus
     menuBar <- Qt.menuBar mainWindow ()
@@ -233,9 +237,9 @@ main = do
     Qt.addAction aboutMenu aboutAction
 
     sequencerMenu <- Qt.addMenu menuBar "Sequencer"
+    Qt.addAction sequencerMenu playAction
     Qt.addAction sequencerMenu muteAction
     Qt.addAction sequencerMenu clearAction
-    Qt.addAction sequencerMenu scrubbleAction
 
     graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "sequencerView")
     Qt.setScene graphicsView seqView
