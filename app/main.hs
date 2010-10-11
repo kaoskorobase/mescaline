@@ -69,7 +69,7 @@ numRegions :: Int
 numRegions = 4
 
 sequencer0 :: Sequencer.Sequencer ()
-sequencer0 = Sequencer.cons 16 16 0.125 (Sequencer.Bar (-1))
+sequencer0 = Sequencer.cons 16 16 0.125 (Sequencer.Bar 0)
 
 setEnv = setVal (P.attackTime) 0.01 . setVal (P.releaseTime) 0.02
 
@@ -117,10 +117,13 @@ clearSequencer h _ = sendTo h $ SequencerP.ClearAll
 muteSequencer :: MVar Bool -> Qt.QMainWindow () -> IO ()
 muteSequencer mute _ = modifyMVar_ mute (return . not)
 
-playPauseSequencer :: SequencerP.Sequencer () -> Qt.QMainWindow () -> Bool -> IO ()
-playPauseSequencer h _ b = do
-    putStrLn $ "Scrubble dat shit! " ++ show b
+playPauseSequencer :: Qt.QAction () -> SequencerP.Sequencer () -> Qt.QMainWindow () -> Bool -> IO ()
+playPauseSequencer a h _ _ = do
+    b <- Qt.isChecked a ()
     sendTo h $ SequencerP.Transport $ if b then SequencerP.Start else SequencerP.Pause
+
+resetSequencer :: SequencerP.Sequencer () -> Qt.QMainWindow () -> Bool -> IO ()
+resetSequencer h _ _ = sendTo h $ SequencerP.Transport SequencerP.Reset
 
 pipe :: (a -> IO b) -> Chan a -> Chan b -> IO ()
 pipe f ichan ochan = do
@@ -226,10 +229,14 @@ main = do
       
     playAction <- Qt.qAction ("Play", mainWindow)
     Qt.setCheckable playAction True
-    Qt.setShortcut  playAction =<< Qt.qKeySequence "p"
+    Qt.setShortcut  playAction =<< Qt.qKeySequence "SPACE"
     Qt.setStatusTip playAction "Start or pause the sequencer"
-    Qt.connectSlot  playAction "toggled()" mainWindow "playPauseSequencer()" $ playPauseSequencer seqP
-    Qt.isCheckable playAction () >>= print
+    Qt.connectSlot  playAction "triggered()" mainWindow "playPauseSequencer()" $ playPauseSequencer playAction seqP
+
+    resetAction <- Qt.qAction ("Reset", mainWindow)
+    Qt.setShortcut  resetAction =<< Qt.qKeySequence "RETURN"
+    Qt.setStatusTip resetAction "Reset the sequencer"
+    Qt.connectSlot  resetAction "triggered()" mainWindow "resetSequencer()" $ resetSequencer seqP
     
     -- Set up menus
     menuBar <- Qt.menuBar mainWindow ()
@@ -238,6 +245,7 @@ main = do
 
     sequencerMenu <- Qt.addMenu menuBar "Sequencer"
     Qt.addAction sequencerMenu playAction
+    Qt.addAction sequencerMenu resetAction
     Qt.addAction sequencerMenu muteAction
     Qt.addAction sequencerMenu clearAction
 
@@ -253,15 +261,16 @@ main = do
     --     writeChan ichan (setVal tick t')
     
     -- Feature space process
-    -- let fspace = FeatureSpace.fromList (map (second head) units) (Random.mkStdGen 0)
     fspaceP <- FeatureSpaceP.new
     -- Pipe sequencer output to feature space
     fspaceSeqP <- spawn $ fix $ \loop -> do
         x <- recv
         case x of
-            SequencerP.Changed t s ->
-                let is = map (flip div numRegions . fst) $ Sequencer.indicesAtCursor s
-                in mapM_ (sendTo fspaceP . FeatureSpaceP.ActivateRegion t) is
+            SequencerP.Changed t s transport ->
+                case transport of
+                    SequencerP.Running -> let is = map (flip div numRegions . fst) $ Sequencer.indicesAtCursor s
+                                          in mapM_ (sendTo fspaceP . FeatureSpaceP.ActivateRegion t) is
+                    _                 -> return ()
         loop
     fspaceSeqP `listenTo` seqP
     

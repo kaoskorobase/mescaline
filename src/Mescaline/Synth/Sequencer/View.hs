@@ -88,7 +88,7 @@ updateScene state view _ = do
             Qt.setBrush field b
 
 process view state = do
-    Process.Changed _ s <- recv
+    Process.Changed _ s _ <- recv
     io $ do
         _ <- swapMVar (sequencer state) s
         Qt.emitSignal view "updateScene()" ()

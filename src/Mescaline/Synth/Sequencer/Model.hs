@@ -1,4 +1,26 @@
-module Mescaline.Synth.Sequencer.Model where
+module Mescaline.Synth.Sequencer.Model (
+    Sequencer
+  , Cursor(..)
+  , rows
+  , cols
+  , tick
+  , cursor
+  , cons
+  , alter
+  , insert
+  , delete
+  , deleteAll
+  , toggle
+  , cursorPosition
+  , cursorRow
+  , cursorColumn
+  , isCursorAtIndex
+  , isElemAtIndex
+  , elemsAtCursor
+  , indicesAtCursor
+  , Algorithm(..)
+  , Score
+) where
 
 import           Data.Accessor
 import           Data.Maybe (maybeToList)
@@ -8,6 +30,8 @@ import Debug.Trace
 data Matrix a = Matrix Int Int (Map.IntMap (Map.IntMap a)) deriving (Eq, Show)
 
 data Cursor = Bar Int | Point Int Int deriving (Eq, Show)
+
+data TransportState = Stopped | Running deriving (Eq, Show)
 
 data Sequencer a = Sequencer {
     rows :: Int
@@ -101,6 +125,6 @@ class Algorithm a where
 data Score = Score
 
 instance Algorithm Score where
-    reset _ = setVal cursor (Bar (-1))
+    reset _ = setVal cursor (Bar 0)
     step _ s = setVal cursor (Bar (succ col `mod` cols s)) s
         where col = cursorColumn (cursor_ s)
