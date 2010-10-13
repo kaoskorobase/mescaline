@@ -56,7 +56,7 @@ value :: Unit -> Feature.Value
 value = Feature.value . feature
 
 precision :: Double
-precision = 100
+precision = fromIntegral (maxBound :: Int)
 
 withPrecision :: Double -> Int
 withPrecision = round . (*) precision
