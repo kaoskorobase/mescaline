@@ -62,9 +62,6 @@ pair v | V.length v >= 2 = (v V.! 0, v V.! 1)
        | V.length v >= 1 = (v V.! 0, 0)
        | otherwise       = (0, 0)
 
-minRadius :: Double
-minRadius = 0.005
-
 -- mouseHandler :: Unit.Unit -> (Unit.Unit -> IO ()) -> Qt.QGraphicsRectItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
 -- mouseHandler unit action this evt = action unit >> Qt.mousePressEvent_h this evt
 
@@ -156,19 +153,18 @@ regionMouseMoveHandler fspace region item evt = do
                 iy = ey + dy
             Qt.IRect _ _ d _ <- Qt.qboundingRect item ()
             -- putStrLn $ "Region " ++ show (regionId region) ++ " pos=" ++ show pos
-            -- onChanged $ Update $ Model.updateRegionById (regionId region) (\r -> r { Model.center = V.fromList [fst pos, snd pos] })
-            sendTo fspace $ Process.UpdateRegion $ Model.Region (regionId region) (V.fromList [ix, iy]) (d/2)
+            sendTo fspace $ Process.UpdateRegion $ Model.mkRegion (regionId region) (V.fromList [ix, iy]) (d/2)
             -- Qt.setPos item pos
             return ()
         RegionResize y0 -> do
             Qt.IRect _ _ d _ <- Qt.qboundingRect item ()
             let dy = y0 - ey
-                d' = max (minRadius*2) $ min 1 $ d + dy
+                d' = d + dy
                 r' = d'/2
             -- putStrLn $ "Region " ++ show (regionId region) ++ " radius=" ++ show r'
             -- onChanged $ Update $ Model.updateRegionById (regionId region) (\r -> r { Model.radius = r' })
             Qt.IPoint ix iy <- Qt.scenePos item ()
-            sendTo fspace $ Process.UpdateRegion $ Model.Region (regionId region) (V.fromList [ix, iy]) r'
+            sendTo fspace $ Process.UpdateRegion $ Model.mkRegion (regionId region) (V.fromList [ix, iy]) r'
             -- Qt.qsetRect item (Qt.IRect (-r') (-r') d' d')
             _ <- swapMVar (regionState region) (RegionResize ey)
             return ()
@@ -214,7 +210,7 @@ addRegion view region state = do
 addUnit :: FeatureSpaceView -> State -> Model.Unit -> IO ()
 addUnit view state unit = do
     let (x, y) = pair (Feature.value (Model.feature unit))
-        r      = minRadius
+        r      = Model.minRadius
         box    = Qt.rectF (-r) (-r) (r*2) (r*2)
     item <- Qt.qGraphicsEllipseItem_nf box
     Qt.setPos item (Qt.pointF x y)

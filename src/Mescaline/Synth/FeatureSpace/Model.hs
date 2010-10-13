@@ -4,7 +4,13 @@ module Mescaline.Synth.FeatureSpace.Model (
   , feature
   , value
   , RegionId
-  , Region(..)
+  , Region
+  , mkRegion
+  , regionId
+  , center
+  , radius
+  , minRadius
+  , maxRadius
   , FeatureSpace
   , randomGen
   , activeUnits
@@ -14,7 +20,7 @@ module Mescaline.Synth.FeatureSpace.Model (
   , nextRegionId
   , addRegion
   , deleteRegion
-  , updateRegionById
+  -- , updateRegionById
   , updateRegion
   , regions
   , regionList
@@ -82,6 +88,28 @@ data FeatureSpace = FeatureSpace {
   , regions      :: IntMap Region
   , activeUnits  :: Set Unit.Unit
   }
+
+minPos :: Double
+minPos = 0
+
+maxPos :: Double
+maxPos = 1
+
+minRadius :: Double
+minRadius = 0.005
+
+maxRadius :: Double
+maxRadius = 0.8
+
+clip :: Double -> Double -> Double -> Double
+clip lo hi x
+    | x < lo    = lo
+    | x > hi    = hi
+    | otherwise = x
+
+mkRegion :: RegionId -> Feature.Value -> Double -> Region
+mkRegion i c r = Region i (V.fromList [clip minPos maxPos (c V.! 0), clip minPos maxPos (c V.! 1)])
+                          (clip minRadius maxRadius r)
 
 units :: FeatureSpace -> [Unit]
 units = BKTree.elems . featureSpace

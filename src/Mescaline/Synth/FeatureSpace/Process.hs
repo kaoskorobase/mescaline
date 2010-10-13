@@ -68,7 +68,7 @@ new = do
                         return $ f'
                     AddRegion x y ra -> do
                         let i = Model.nextRegionId f
-                            r = Model.Region i (V.fromList [x, y]) ra
+                            r = Model.mkRegion i (V.fromList [x, y]) ra
                         notify $ RegionAdded r
                         return $ Model.addRegion r f
                     UpdateRegion r -> do
