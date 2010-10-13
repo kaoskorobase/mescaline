@@ -220,7 +220,7 @@ addRegion view region state = do
 addUnit :: FeatureSpaceView -> State -> Model.Unit -> IO ()
 addUnit view state unit = do
     let (x, y) = pair (Feature.value (Model.feature unit))
-        r      = Model.minRadius
+        r      = 0.0025 -- Model.minRadius
         box    = Qt.rectF (-r) (-r) (r*2) (r*2)
     item <- Qt.qGraphicsEllipseItem_nf box
     Qt.setPos item (Qt.pointF x y)
