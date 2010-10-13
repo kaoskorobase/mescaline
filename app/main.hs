@@ -129,6 +129,7 @@ mkFeatureSpaceView parent = do
     Qt.setHandler view "keyPressEvent(QKeyEvent*)" featureSpaceViewKeyPressEvent
     Qt.setHandler view "keyReleaseEvent(QKeyEvent*)" featureSpaceViewKeyReleaseEvent
     -- Qt.fitInView graphicsView (Qt.rectF 0 0 1 1)
+    Qt.setTransformationAnchor view Qt.eAnchorUnderMouse
     return view
 
 -- | Custom createWidget handler.
