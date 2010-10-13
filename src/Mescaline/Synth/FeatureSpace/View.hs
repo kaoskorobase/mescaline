@@ -85,14 +85,14 @@ pair v | V.length v >= 2 = (v V.! 0, v V.! 1)
 sceneKeyPressEvent :: State -> FeatureSpaceView -> Qt.QKeyEvent () -> IO ()
 sceneKeyPressEvent state view evt = do
     key <- Qt.key evt ()
-    if key == Qt.qEnum_toInt Qt.eKey_Shift
+    if key == Qt.qEnum_toInt Qt.eKey_Alt
         then modifyMVar_ (playUnits state) $ return . const True
         else return ()
 
 sceneKeyReleaseEvent :: State -> FeatureSpaceView -> Qt.QKeyEvent () -> IO ()
 sceneKeyReleaseEvent state view evt = do
     key <- Qt.key evt ()
-    if key == Qt.qEnum_toInt Qt.eKey_Shift
+    if key == Qt.qEnum_toInt Qt.eKey_Alt
         then modifyMVar_ (playUnits state) $ return . const False
         else return ()
 

@@ -59,7 +59,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QGraphicsView" name="featureSpaceView">
+        <widget class="FeatureSpaceView" name="featureSpaceView">
          <property name="frameShape">
           <enum>QFrame::NoFrame</enum>
          </property>
@@ -88,6 +88,13 @@
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>FeatureSpaceView</class>
+   <extends>QGraphicsView</extends>
+   <header>featurespaceview.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>
