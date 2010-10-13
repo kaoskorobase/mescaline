@@ -96,7 +96,7 @@ maxPos :: Double
 maxPos = 1
 
 minRadius :: Double
-minRadius = 0.005
+minRadius = 1e-9
 
 maxRadius :: Double
 maxRadius = 0.8
