@@ -26,6 +26,7 @@ import qualified Mescaline.UI as UI
 
 import qualified Qtc.Classes.Gui                    as Qt
 import qualified Qtc.Classes.Gui_h                  as Qt
+import qualified Qtc.Classes.Object                 as Qt
 import qualified Qtc.Classes.Qccs                   as Qt
 import qualified Qtc.Classes.Qccs_h                 as Qt
 import qualified Qtc.ClassTypes.Core                as Qt
@@ -38,6 +39,7 @@ import qualified Qtc.Enums.Gui.QGraphicsItem        as Qt
 import qualified Qtc.Enums.Gui.QGraphicsScene       as Qt
 import qualified Qtc.Gui.QAbstractGraphicsShapeItem as Qt
 import qualified Qtc.Gui.QBrush                     as Qt
+import qualified Qtc.Gui.QCursor                    as Qt
 import qualified Qtc.Gui.QGraphicsEllipseItem       as Qt
 import qualified Qtc.Gui.QGraphicsEllipseItem_h     as Qt
 import qualified Qtc.Gui.QGraphicsItem              as Qt
@@ -45,6 +47,7 @@ import qualified Qtc.Gui.QGraphicsScene             as Qt
 import qualified Qtc.Gui.QGraphicsSceneMouseEvent   as Qt
 import qualified Qtc.Gui.QGraphicsScene_h           as Qt
 import qualified Qtc.Gui.QKeyEvent                  as Qt
+import qualified Qtc.Gui.QWidget                    as Qt
 import qualified Qth.ClassTypes.Core                as Qt
 import qualified Qth.Core.Point                     as Qt
 import qualified Qth.Core.Rect                      as Qt
@@ -86,14 +89,21 @@ sceneKeyPressEvent :: State -> FeatureSpaceView -> Qt.QKeyEvent () -> IO ()
 sceneKeyPressEvent state view evt = do
     key <- Qt.key evt ()
     if key == Qt.qEnum_toInt Qt.eKey_Alt
-        then modifyMVar_ (playUnits state) $ return . const True
+        then do
+            c <- Qt.qCursor Qt.eCrossCursor
+            Qt.setCursor (Qt.objectCast view :: Qt.QWidget ()) c
+            _ <- swapMVar (playUnits state) True
+            return ()
         else return ()
 
 sceneKeyReleaseEvent :: State -> FeatureSpaceView -> Qt.QKeyEvent () -> IO ()
 sceneKeyReleaseEvent state view evt = do
     key <- Qt.key evt ()
     if key == Qt.qEnum_toInt Qt.eKey_Alt
-        then modifyMVar_ (playUnits state) $ return . const False
+        then do
+            Qt.unsetCursor (Qt.objectCast view :: Qt.QWidget a) ()
+            _ <- swapMVar (playUnits state) False
+            return ()
         else return ()
 
 hoverHandler :: IO () -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneHoverEvent () -> IO ()
