@@ -1,10 +1,13 @@
--- import Distribution.Simple
--- main = defaultMain
+{-# LANGUAGE CPP #-}
 
-
+#if darwin_HOST_OS == 1
 import Distribution.MacOSX
+#endif
 import Distribution.Simple
 
+main :: IO ()
+
+#if darwin_HOST_OS == 1
 guiApps :: [MacApp]
 guiApps = [MacApp "Mescaline"
                   (Just "app/mescaline.icns")
@@ -46,7 +49,9 @@ guiApps = [MacApp "Mescaline"
                   -- (ChaseWith (defaultExclusions ++ ["libstdc++"]))
           ]
 
-main :: IO ()
 main = defaultMainWithHooks $ simpleUserHooks {
          postBuild = appBundleBuildHook guiApps -- no-op if not MacOS X
        }
+#else
+main = defaultMain
+#endif

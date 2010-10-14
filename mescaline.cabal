@@ -21,7 +21,6 @@ library
                   , binary
                   , bytestring
                   , Cabal >= 1.6
-                  , cabal-macosx >= 0.1 && < 0.2
                   , CCA >= 0.1.3 && < 0.2
                   , containers
                   , Control-Engine
@@ -54,6 +53,8 @@ library
                   , template-haskell
                   , uuid >= 1.0
                   , vector >= 0.5
+    if os(darwin)
+        build-depends: cabal-macosx >= 0.1 && < 0.2
     exposed-modules:
                     Control.CCA.ArrowP
                     Control.Concurrent.Chan.Chunked
