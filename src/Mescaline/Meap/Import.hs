@@ -79,26 +79,36 @@ insertModel c a = Table.insert c a >> return a
 meapFrames :: Meap.MEAP -> [[Double]]
 meapFrames meap = map (Meap.frame_l meap) [0..Meap.n_frames meap - 1]
 
-insertFile :: IConnection c => [Unit.Segmentation] -> c -> FilePath -> (Chain.Options -> FilePath -> IO Meap.MEAP) -> IO ()
-insertFile segs conn path getMeap = do
-    -- mapM_ print (Meap.features meap)
-    -- mapM_ print (meapFrames meap)
+-- | Insert a single file and its analysis data into the database.
+--
+-- Currently, concurrent database accesses don't seem to be possible.
+insertFile :: IConnection c
+           => c
+           -> FilePath
+           -> Unit.Segmentation
+           -> Meap.MEAP
+           -> IO ()
+insertFile conn path seg meap = do
     sf <- SourceFile.newLocal path
-    p <- Table.isStored conn sf
+    p  <- Table.isStored conn sf
     putStrLn (path ++ " " ++ show sf ++ " " ++ show p)
     unless p $ do
         Table.insert conn sf
-        mapM_ (insert sf) segs
+        ds <- mapM (insertModel conn . convFeatureDesc) $ Meap.features meap
+        us <- mapM (insertModel conn . convUnit sf seg) $ Meap.segments_l meap
+        flip mapM_ (zip ds (Meap.features meap)) $ \(d, f) ->
+            flip mapM_ (zip us (meapFrames meap)) $
+                insertModel conn . uncurry (convFeature d f)
         DB.commit conn
-    where
-        insert sf seg = do
-            meap <- getMeap (options seg) path
-            ds <- mapM (insertModel conn . convFeatureDesc) $ Meap.features meap
-            us <- mapM (insertModel conn . convUnit sf seg) $ Meap.segments_l meap
-            flip mapM_ (zip ds (Meap.features meap)) $ \(d, f) ->
-                flip mapM_ (zip us (meapFrames meap)) $
-                    insertModel conn . uncurry (convFeature d f)
 
+-- | Import a directory containing sound files into the database.
+--
+-- The first argument, @np@, determines the number of concurrent threads used and should match the number of physical processors.
 importDirectory :: IConnection c => Int -> FilePath -> c -> IO ()
-importDirectory np dir c = Chain.mapDirectory np (insertFile segs c) dir
-    where segs = [Unit.Onset {- , Unit.Beat -}]
+importDirectory np dir c =
+    Chain.mapDirectory np (options seg) dir
+    >>= mapM_ (\(p, e) ->
+            either (\s -> putStrLn $ "ERROR: " ++ p ++ ": " ++ s)
+                   (insertFile c p seg)
+                   e)
+    where seg = Unit.Onset

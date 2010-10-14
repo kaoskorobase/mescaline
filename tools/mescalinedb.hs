@@ -64,8 +64,8 @@ featurePCA d fs = zipWith (\(f:_) x -> Feature.cons (Feature.unit f) d x) fs enc
 -- | Analyse a directory recursively, writing the results to a database.
 cmd_import :: FilePath -> FilePath -> IO ()
 cmd_import dbFile dir = DB.handleSqlError
-                   $ DB.withDatabase dbFile
-                   $ Meap.importDirectory GHC.numCapabilities dir
+                      $ DB.withDatabase dbFile
+                      $ Meap.importDirectory GHC.numCapabilities dir
 
 cmd_query :: FilePath -> Segmentation -> String -> [String] -> IO ()
 cmd_query dbFile seg pattern features = do
