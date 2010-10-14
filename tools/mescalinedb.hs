@@ -12,6 +12,7 @@ import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Database.Table as Table
 import qualified Mescaline.Meap.Import as Meap
 import qualified Mescaline.Statistics.PCA as PCA
+import qualified Mescaline.Synth.Database.Model as DB
 import           Numeric.LinearAlgebra as H
 import           Database.HDBC (quickQuery')
 import           System.Environment (getArgs)
@@ -19,60 +20,13 @@ import           System.IO
 import           Text.Printf (printf)
 import           Prelude hiding (and)
 
-featureTable :: Feature.Feature -> Table.Table
-featureTable = Table.toTable . Feature.FeatureOf . Feature.descriptor
-
-deleteFeature :: DB.IConnection c => c -> Feature.Feature -> IO ()
-deleteFeature c f = do
-    DB.run c (printf "delete from %s where unit=? and descriptor=?" (Table.name (featureTable f)))
-        [DB.toSql (Feature.unit f), DB.toSql (Feature.descriptor f)]
-    return ()
-
-transformFeature :: ([[Feature.Feature]] -> [Feature.Feature]) -> FilePath -> [String] -> IO ()
-transformFeature func dbFile featureNames = do
-    DB.withDatabase dbFile $ \c -> do
-        DB.withTransaction c $ \_ -> do
-            (units, sfMap) <- unitQuery
-                (DB.quickQuery' c)
-                    -- (segmentation unit `eq` seg)
-                    Sql.all
-                    (map (fromJust . flip lookup Meap.features) featureNames)
-            case units of
-                Left e   -> fail e
-                Right us -> do
-                    case func (map snd us) of
-                        [] -> return ()
-                        features -> do
-                            mapM_ (\f -> Table.insert c (Feature.descriptor f) >> Table.create c (featureTable f) >> deleteFeature c f >> Table.insert c f) features
-                            DB.commit c
-
--- | Map a list of vectors to a target range.
-linearMap :: Vector Double -> Vector Double -> [Vector Double] -> [Vector Double]
-linearMap dstMin dstMax xs = map (\v -> (v `sub` srcMin) `mul` srcScale) xs
-    where
-        (srcMin, srcMax) = first fromList $ unzip $ map (\c -> (vectorMin c, vectorMax c)) (toColumns $ fromRows xs)
-        srcScale         = recip (fromList srcMax `sub` srcMin)
-        dstScale         = dstMax `sub` dstMin
-
-featurePCA :: Feature.Descriptor -> [[Feature.Feature]] -> [Feature.Feature]
-featurePCA d fs = zipWith (\(f:_) x -> Feature.cons (Feature.unit f) d x) fs encoded
-    where
-        observations = map (foldl (V.++) V.empty . map Feature.value) fs
-        (encode, _)  = PCA.pca (Feature.degree d) (H.fromRows observations)
-        encoded      = linearMap 0 1 (map encode observations)
-
 -- | Analyse a directory recursively, writing the results to a database.
 cmd_import :: FilePath -> FilePath -> IO ()
-cmd_import dbFile dir = DB.handleSqlError
-                      $ DB.withDatabase dbFile
-                      $ Meap.importDirectory GHC.numCapabilities dir
+cmd_import = DB.importDirectory
 
 cmd_query :: FilePath -> Segmentation -> String -> [String] -> IO ()
 cmd_query dbFile seg pattern features = do
-    (units, sfMap) <- DB.withDatabase dbFile $ \c -> do
-        unitQuery (DB.quickQuery' c)
-              ((url sourceFile `like` pattern) `and` (segmentation unit `eq` seg))
-              (map (fromJust . flip lookup Meap.features) features)
+    (units, sfMap) <- DB.query dbFile seg pattern features
     case units of
         Left e -> fail e
         Right us -> let ls = map (\(u, fs) -> Unique.toString (Unit.id u) : map show (concatMap (V.toList.Feature.value) fs)) us
@@ -98,11 +52,11 @@ cmd_delete :: FilePath -> IO ()
 cmd_delete _ = return ()
 
 cmd_transform :: FilePath -> String -> String -> [String] -> IO ()
-cmd_transform dbFile transform dstFeature srcFeatures = DB.handleSqlError $ transformFeature func dbFile srcFeatures
-    where
-        func = case transform of
-                "pca"     -> featurePCA (Feature.consDescriptor dstFeature 2)
-                otherwise -> const []
+cmd_transform dbFile transName dstFeature = do
+    trans <- case transName of
+                "pca"     -> return $ DB.PCA 2
+                otherwise -> fail $ "Unknown transform: " ++ transName
+    DB.handleSqlError . DB.transformFeature dbFile trans dstFeature
 
 usage :: String -> String
 usage = ("Usage: mkdb " ++)

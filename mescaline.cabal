@@ -92,6 +92,7 @@ library
                     Mescaline.Synth.BufferCache
                     Mescaline.Synth.BufferCache.Alloc
                     Mescaline.Synth.BufferCache.Server
+                    Mescaline.Synth.Database.Model
                     Mescaline.Synth.FeatureSpace.Model
                     Mescaline.Synth.FeatureSpace.Process
                     Mescaline.Synth.FeatureSpace.View
