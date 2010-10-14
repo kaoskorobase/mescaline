@@ -28,7 +28,7 @@ library
                   , Crypto >= 4.2
                   , data-accessor >= 0.2
                   , directory
-                  , FileManip >= 0.3
+                  , filemanip >= 0.3 && < 0.4
                   , filepath
                   , FindBin >= 0.0 && < 0.1
                   , fingertree
