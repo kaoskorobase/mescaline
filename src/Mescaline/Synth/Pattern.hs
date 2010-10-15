@@ -1,26 +1,35 @@
 {-# LANGUAGE Arrows, CPP, DeriveDataTypeable, TemplateHaskell #-}
 
-module Mescaline.Synth.Pattern where
+module Mescaline.Synth.Pattern (
+    Event
+  , time
+  , delta
+  , unit
+  , synth
+  , SynthParams
+  , defaultSynth
+  , attackTime
+  , releaseTime
+  , sustainLevel
+  , gateLevel
+  , latency
+  , PCons(..)
+) where
 
-import           Control.CCA.Types
-import           Control.Arrow
 import           Control.Applicative
--- import           Control.Concurrent
 import           Control.Concurrent.Chan
 import           Control.Monad
 import           Data.Accessor
 -- import           Data.Accessor.Template
 import           Data.List (scanl1)
-import           Data.Signal.SF as SF
 import           Data.Typeable (Typeable)
 import           Debug.Trace (traceShow)
-import           Mescaline
+import           Mescaline (Time)
 import qualified Sound.SC3.Lang.Pattern.List as P
-import           Mescaline.Database.FlatFile (Database)
 import qualified Mescaline.Database.Unit as Unit
 
-import           Sound.OpenSoundControl hiding (Time)
-import qualified Data.PriorityQueue.FingerTree as PQ
+-- import           Sound.OpenSoundControl hiding (Time)
+-- import qualified Data.PriorityQueue.FingerTree as PQ
 
 import           Prelude hiding (filter, init, scanl)
 
@@ -33,69 +42,70 @@ import           Prelude hiding (filter, init, scanl)
 -- * construct linear sequences (for time based manipulation) or sets (for feature based manipulation)
 
 data SynthParams = SynthParams {
-    attackTime_   :: Double,
-    releaseTime_  :: Double,
-    sustainLevel_ :: Double,
-    gateLevel_    :: Double,
-    latency_      :: Double
+    _attackTime   :: Double
+  , _releaseTime  :: Double
+  , _sustainLevel :: Double
+  , _gateLevel    :: Double
+  , _latency      :: Double
 } deriving (Eq, Show)
 
 defaultSynth :: SynthParams
 defaultSynth = SynthParams {
-    attackTime_   = 0,
-    releaseTime_  = 0,
-    sustainLevel_ = 1,
-    gateLevel_    = 0,
-    latency_      = 0.2
+    _attackTime   = 0,
+    _releaseTime  = 0,
+    _sustainLevel = 1,
+    _gateLevel    = 0,
+    _latency      = 0.2
 }
 
-ACCESSOR(attackTime, attackTime_, SynthParams, Double)
-ACCESSOR(releaseTime, releaseTime_, SynthParams, Double)
-ACCESSOR(sustainLevel, sustainLevel_, SynthParams, Double)
-ACCESSOR(gateLevel, gateLevel_, SynthParams, Double)
-ACCESSOR(latency, latency_, SynthParams, Double)
+ACCESSOR(attackTime,    _attackTime,    SynthParams, Double)
+ACCESSOR(releaseTime,   _releaseTime,   SynthParams, Double)
+ACCESSOR(sustainLevel,  _sustainLevel,  SynthParams, Double)
+ACCESSOR(gateLevel,     _gateLevel,     SynthParams, Double)
+ACCESSOR(latency,       _latency,       SynthParams, Double)
 
 -- $(deriveAccessors ''SynthParams)
 
--- attackTime_ :: Double -> Event -> Event
--- attackTime_ x e = e { synth = (synth e) { attackTime = x } }
--- 
--- releaseTime_ :: Double -> Event -> Event
--- releaseTime_ x e = e { synth = (synth e) { releaseTime = x } }
--- 
--- amp_ :: Double -> Event -> Event
--- amp_ x e = e { synth = (synth e) { sustainLevel = x } }
--- 
--- latency_ :: Double -> Event -> Event
--- latency_ x e = e { synth = (synth e) { latency = x } }
-
-data SynthEvent = SynthEvent {
-    time_  :: Double,
-    unit_  :: Unit.Unit,
-    synth_ :: SynthParams
+data Event = Event {
+    _time  :: Time
+  , _delta :: Double
+  , _unit  :: Unit.Unit
+  , _synth :: SynthParams
 } deriving (Eq, Show)
 
-ACCESSOR(time, time_, SynthEvent, Double)
-ACCESSOR(unit, unit_, SynthEvent, Unit.Unit)
-ACCESSOR(synth, synth_, SynthEvent, SynthParams)
+ACCESSOR(time,  _time,  Event, Time)
+ACCESSOR(delta, _delta,  Event, Double)
+ACCESSOR(unit,  _unit,  Event, Unit.Unit)
+ACCESSOR(synth, _synth, Event, SynthParams)
 
 -- $(deriveAccessors ''SynthEvent)
 
-fromUnit :: Double -> Unit.Unit -> SynthEvent
-fromUnit t u = SynthEvent t u defaultSynth
+fromUnit :: Double -> Unit.Unit -> Event
+fromUnit t u = Event t (Unit.duration u) u defaultSynth
 
-data Env = Env {
-    e_time     :: Time
+data Environment = Environment {
+    -- tracks :: [
 }
 
-data Input    = Input
-type Output   = Event SynthEvent
-type Pattern  = SF (Env, Event Input) Output
+-- data Event = Event | Rest
 
-newtype PCons = PCons (Database -> Pattern) deriving (Typeable)
+-- Enviroment -> P Event
 
-pattern :: (Database -> Pattern) -> PCons
-pattern = PCons
+-- (ptrack Track1) `fmap` (\e -> setVal time e (getVal unit.time) e
+
+-- data Env = Env {
+--     e_time     :: Time
+-- }
+
+-- data Input    = Input
+-- type Output   = Event SynthEvent
+-- type Pattern  = SF (Env, Event Input) Output
+
+-- newtype PCons = PCons (Database -> Pattern) deriving (Typeable)
+data PCons = PCons deriving (Typeable)
+
+-- pattern :: (Database -> Pattern) -> PCons
+-- pattern = PCons
 
 -- event :: Unit.Unit -> Event
 -- event u = Event {
@@ -155,22 +165,22 @@ pattern = PCons
 --                     env <- newEnv
 --                     loop c env (Just p)
 
-pq `popUntil` t = f pq []
-    where
-        f pq l = case PQ.minViewWithKey pq of
-                    Nothing       -> (reverse l, pq)
-                    Just (x, pq') -> if fst x > t
-                                     then (reverse l, pq)
-                                     else f pq' (snd x:l)
-
-execute :: Double -> Pattern -> Chan Input -> Chan (Env, Output) -> IO ()
-execute tick sf ichan ochan = loop (Env 0) sf
-    where
-        loop env sf = do
-            empty <- isEmptyChan ichan
-            i <- if empty then return NoEvent else liftM Event (readChan ichan)
-            let (o, sf') = runSF sf (env, i)
-                t' = e_time env + tick
-            writeChan ochan (env, o)
-            pauseThreadUntil t'
-            loop (Env t') sf'
+-- pq `popUntil` t = f pq []
+--     where
+--         f pq l = case PQ.minViewWithKey pq of
+--                     Nothing       -> (reverse l, pq)
+--                     Just (x, pq') -> if fst x > t
+--                                      then (reverse l, pq)
+--                                      else f pq' (snd x:l)
+-- 
+-- execute :: Double -> Pattern -> Chan Input -> Chan (Env, Output) -> IO ()
+-- execute tick sf ichan ochan = loop (Env 0) sf
+--     where
+--         loop env sf = do
+--             empty <- isEmptyChan ichan
+--             i <- if empty then return NoEvent else liftM Event (readChan ichan)
+--             let (o, sf') = runSF sf (env, i)
+--                 t' = e_time env + tick
+--             writeChan ochan (env, o)
+--             pauseThreadUntil t'
+--             loop (Env t') sf'
