@@ -1,4 +1,6 @@
-{-# LANGUAGE Arrows, CPP, DeriveDataTypeable, TemplateHaskell #-}
+{-# LANGUAGE CPP, DeriveDataTypeable #-}
+
+#include "Accessor.h"
 
 module Mescaline.Synth.Pattern (
     Event
@@ -32,10 +34,6 @@ import qualified Mescaline.Database.Unit as Unit
 -- import qualified Data.PriorityQueue.FingerTree as PQ
 
 import           Prelude hiding (filter, init, scanl)
-
--- import Language.Haskell.TH              (Dec, Name, Q)
-#define ACCESSOR(N,F,T,V) \
-    N = accessor F (\x a -> a { F = x }) :: Accessor T V
 
 -- Segment set combinators
 -- * select segments from sound file based on time, features

@@ -5,6 +5,8 @@
   , GeneralizedNewtypeDeriving
   , MultiParamTypeClasses #-}
 
+#include "Accessor.h"
+
 module Sound.SC3.Server.State (
     State
   , options
@@ -64,9 +66,6 @@ data BusIdAllocator = forall a . IdAllocator BusId a => BusIdAllocator a
 instance IdAllocator BusId BusIdAllocator where
     alloc  (BusIdAllocator a) = liftM (second BusIdAllocator) $ Alloc.alloc a
     free i (BusIdAllocator a) = liftM         BusIdAllocator  $ Alloc.free i a
-
-#define ACCESSOR(N,F,T,V) \
-    N = accessor F (\x a -> a { F = x }) :: Accessor T V
 
 data State = State {
    options_      :: ServerOptions

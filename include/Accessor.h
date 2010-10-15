@@ -1,0 +1,7 @@
+#ifndef ACCESSOR_H_INCLUDED
+#define ACCESSOR_H_INCLUDED
+
+#define ACCESSOR(N,F,T,V) \
+    N = accessor F (\x a -> a { F = x }) :: Accessor T V
+
+#endif /* ACCESSOR_H_INCLUDED */
