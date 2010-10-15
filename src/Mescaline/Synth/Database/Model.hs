@@ -1,5 +1,5 @@
 module Mescaline.Synth.Database.Model (
-    importDirectory
+    importPaths
   , query
   , Transform(..)
   , transformFeature
@@ -36,15 +36,15 @@ deleteFeature c f = do
         [DB.toSql (Feature.unit f), DB.toSql (Feature.descriptor f)]
     return ()
 
-transformFeature' :: ([[Feature.Feature]] -> [Feature.Feature]) -> FilePath -> [String] -> IO ()
-transformFeature' func dbFile featureNames = do
+transformFeature' :: ([[Feature.Feature]] -> [Feature.Feature]) -> FilePath -> [Feature.Descriptor] -> IO ()
+transformFeature' func dbFile features = do
     DB.withDatabase dbFile $ \c -> do
         DB.withTransaction c $ \_ -> do
             (units, sfMap) <- Sql.unitQuery
                 (DB.quickQuery' c)
                     -- (segmentation unit `eq` seg)
                     Sql.all
-                    (map (fromJust . flip lookup Meap.features) featureNames)
+                    features
             case units of
                 Left e   -> fail e
                 Right us -> do
@@ -70,17 +70,17 @@ featurePCA d fs = zipWith (\(f:_) x -> Feature.cons (Feature.unit f) d x) fs enc
         encoded      = linearMap 0 1 (map encode observations)
 
 -- | Analyse a directory recursively, writing the results to a database.
-importDirectory :: FilePath -> FilePath -> IO ()
-importDirectory dbFile dir = DB.handleSqlError
+importPaths :: FilePath -> [FilePath] -> IO ()
+importPaths dbFile paths = DB.handleSqlError
                            $ DB.withDatabase dbFile
-                           $ Meap.importDirectory GHC.numCapabilities dir
+                           $ Meap.importPaths Nothing paths
 
-query :: FilePath -> Segmentation -> String -> [String] -> IO (Either String [(Unit.Unit, [Feature.Feature])], Sql.SourceFileMap)
+query :: FilePath -> Segmentation -> String -> [Feature.Descriptor] -> IO (Either String [(Unit.Unit, [Feature.Feature])], Sql.SourceFileMap)
 query dbFile seg pattern features = do
     DB.withDatabase dbFile $ \c -> do
         Sql.unitQuery (DB.quickQuery' c)
               ((url sourceFile `like` pattern) `and` (segmentation unit `eq` seg))
-              (map (fromJust . flip lookup Meap.features) features)
+              features
 
 -- cmd_insert :: FilePath -> Segmentation -> String -> Int -> FilePath -> IO ()
 -- cmd_insert dbFile _ name degree file = do
@@ -101,10 +101,10 @@ query dbFile seg pattern features = do
 -- cmd_delete :: FilePath -> IO ()
 -- cmd_delete _ = return ()
 
-data Transform = PCA Int deriving (Eq, Show)
+data Transform = PCA deriving (Eq, Show)
 
-transformFeature :: FilePath -> Transform -> String -> [String] -> IO ()
+transformFeature :: FilePath -> Transform -> Feature.Descriptor -> [Feature.Descriptor] -> IO ()
 transformFeature dbFile transform dstFeature srcFeatures = DB.handleSqlError $ transformFeature' func dbFile srcFeatures
     where
         func = case transform of
-                PCA n -> featurePCA (Feature.consDescriptor dstFeature n)
+                PCA -> featurePCA dstFeature

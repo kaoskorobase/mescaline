@@ -16,7 +16,9 @@ module Control.Concurrent.Process (
     self, sendTo, recv, poll, recvIn, sendRecv
 -- ** Notifications
   , Listener
-  , addListener, listenTo, notifyListeners, notify
+  , addListener, listenTo
+  , addListenerWith
+  , notifyListeners, notify
   , io
 ) where
 
@@ -124,6 +126,15 @@ addListener (PH _ _ mv) b = modifyMVar_ mv $ \ls -> return $ (Listener b) : ls
 
 listenTo :: Handle o o' -> Handle i o -> IO ()
 listenTo = flip addListener
+
+addListenerWith :: (o -> i') -> Handle i o -> Handle i' o' -> IO ()
+addListenerWith f p l = do
+    h <- spawn $ fix $ \loop -> do
+        o <- recv
+        let i' = f o
+        i' `seq` sendTo l i'
+        loop
+    p `addListener` h
 
 notifyListeners :: MonadIO m => Handle i o -> o -> m ()
 notifyListeners (PH _ _ ls) o = liftIO (readMVar ls >>= mapM_ (\(Listener h) -> sendTo h o))

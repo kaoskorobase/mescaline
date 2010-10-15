@@ -1,12 +1,15 @@
 module Mescaline.Meap.Import (
     features
-  , importDirectory
+  , lookupFeature
+  , importPaths
+  , audioFileExtensions
 ) where
 
 import           Control.Monad
+import           Data.Char
 import qualified Data.Vector.Generic as V
 import           Database.HDBC (IConnection)
-
+import qualified GHC.Conc as GHC
 import qualified Mescaline.Database as DB
 import           Mescaline.Database.Feature (Feature)
 import qualified Mescaline.Database.Feature as Feature
@@ -21,6 +24,8 @@ import qualified Mescaline.Meap.Extractor as Extractor
 import qualified Mescaline.Meap.Segmenter as Segmenter
 import           Mescaline.Meap.Chain as Chain
 import qualified Sound.Analysis.Meapsoft as Meap
+import           System.Directory
+import qualified System.FilePath.Find as Find
 
 meapFeatures :: [(String, Int)]
 meapFeatures = [
@@ -46,6 +51,9 @@ meapFeaturePrefix = "com.meapsoft."
 
 features :: [(String, Feature.Descriptor)]
 features = map (\(n, d) -> let n' = meapFeaturePrefix ++ n in (n', Feature.consDescriptor n' d)) meapFeatures
+
+lookupFeature :: String -> Maybe Feature.Descriptor
+lookupFeature = flip lookup features
 
 options :: Unit.Segmentation -> Chain.Options
 options seg = Chain.defaultOptions {
@@ -90,23 +98,48 @@ insertFile :: IConnection c
            -> IO ()
 insertFile conn path seg meap = do
     sf <- SourceFile.newLocal path
-    p  <- Table.isStored conn sf
-    putStrLn (path ++ " " ++ show sf ++ " " ++ show p)
-    unless p $ do
-        Table.insert conn sf
-        ds <- mapM (insertModel conn . convFeatureDesc) $ Meap.features meap
-        us <- mapM (insertModel conn . convUnit sf seg) $ Meap.segments_l meap
-        flip mapM_ (zip ds (Meap.features meap)) $ \(d, f) ->
-            flip mapM_ (zip us (meapFrames meap)) $
-                insertModel conn . uncurry (convFeature d f)
-        DB.commit conn
+    putStrLn (path ++ " " ++ show sf)
+    Table.insert conn sf
+    ds <- mapM (insertModel conn . convFeatureDesc) $ Meap.features meap
+    us <- mapM (insertModel conn . convUnit sf seg) $ Meap.segments_l meap
+    flip mapM_ (zip ds (Meap.features meap)) $ \(d, f) ->
+        flip mapM_ (zip us (meapFrames meap)) $
+            insertModel conn . uncurry (convFeature d f)
+    DB.commit conn
 
--- | Import a directory containing sound files into the database.
---
--- The first argument, @np@, determines the number of concurrent threads used and should match the number of physical processors.
-importDirectory :: IConnection c => Int -> FilePath -> c -> IO ()
-importDirectory np dir c =
-    Chain.mapDirectory np (options seg) dir
+-- | List of audio file extensions Meap can handle at the moment.
+audioFileExtensions :: [String]
+audioFileExtensions = map ("."++) (xs ++ (map (map toUpper) xs))
+    where xs = ["aif", "aiff", "wav"]
+
+flatten :: [FilePath] -> IO [FilePath]
+flatten [] = return []
+flatten (p:ps) = do
+    d <- doesDirectoryExist p
+    if d
+        then do
+            ps' <- Find.find
+                    Find.always
+                    (fmap (flip elem audioFileExtensions) Find.extension)
+                    p
+            ps'' <- flatten ps
+            return $ ps' ++ ps''
+        else do
+            f <- doesFileExist p
+            if f
+                then do
+                    ps' <- flatten ps
+                    return $ p : ps'
+                else
+                    flatten ps
+
+-- | Import a file or directory into the database.
+importPaths :: IConnection c => Maybe Int -> [FilePath] -> c -> IO ()
+importPaths np ps c = do
+    files <- flatten ps
+    -- FIXME: Avoid computing the source file hash twice.
+    files' <- filterM (\p -> do { sf <- SourceFile.newLocal p ; fmap not $ Table.isStored c sf }) files
+    Chain.mapFiles (maybe GHC.numCapabilities id np) (options seg) files'
     >>= mapM_ (\(p, e) ->
             either (\s -> putStrLn $ "ERROR: " ++ p ++ ": " ++ s)
                    (insertFile c p seg)

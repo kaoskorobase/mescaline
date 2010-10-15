@@ -16,6 +16,7 @@ import qualified Mescaline.Database as DB
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.SqlQuery as Sql
 import qualified Mescaline.Database.Unit as Unit
+import qualified Mescaline.Synth.Database.Model as DB
 import qualified Mescaline.Synth.FeatureSpace.Model as Model
 import qualified System.Random as Random
 
@@ -45,12 +46,9 @@ getUnits :: FilePath
          -> [Feature.Descriptor]
          -> IO [(Unit.Unit, [Feature.Feature])]
 getUnits dbFile pattern features = do
-    (units, _) <- DB.withDatabase dbFile $ \c -> do
-        Sql.unitQuery (DB.quickQuery' c)
-              ((Sql.url Sql.sourceFile `Sql.like` pattern) `Sql.and` (Sql.segmentation Sql.unit `Sql.eq` Unit.Onset))
-              features
+    (units, _) <- DB.query dbFile Unit.Onset pattern features
     case units of
-        Left e -> fail e
+        Left e   -> putStrLn ("ERROR[DB]: " ++ e) >> return []
         Right us -> return us
 
 new :: IO FeatureSpace

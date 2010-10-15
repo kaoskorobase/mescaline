@@ -220,11 +220,12 @@ addRegion view region state = do
 addUnit :: FeatureSpaceView -> State -> Model.Unit -> IO ()
 addUnit view state unit = do
     let (x, y) = pair (Feature.value (Model.feature unit))
-        r      = 0.0025 -- Model.minRadius
+        r      = 2 -- 0.0025 -- Model.minRadius
         box    = Qt.rectF (-r) (-r) (r*2) (r*2)
     item <- Qt.qGraphicsEllipseItem_nf box
     Qt.setPos item (Qt.pointF x y)
     Qt.setZValue item (-1 :: Double)
+    Qt.setFlags item Qt.fItemIgnoresTransformations
     -- Qt.setHandler item "mousePressEvent(QGraphicsSceneMouseEvent*)" $ mouseHandler (unit u) action
     Qt.setHandler item "hoverEnterEvent(QGraphicsSceneHoverEvent*)" $ hoverHandler $
         readMVar (playUnits state) >>= flip when (sendTo (featureSpace state) $ Process.ActivateUnit (-1) (Model.unit unit))

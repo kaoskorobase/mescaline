@@ -2,7 +2,7 @@ module Mescaline.Meap.Chain (
     Options(..)
   , defaultOptions
   , run
-  , mapDirectory
+  , mapFiles
 ) where
 
 import qualified Data.ByteString as ByteString
@@ -85,22 +85,13 @@ run opts audioFile =
                                 ExitSuccess -> do
                                     Meap.read_meap featFile
 
--- | List of audio file extensions Meap can handle at the moment.
-audioFileExtensions :: [String]
-audioFileExtensions = map ("."++) (xs ++ (map (map toUpper) xs))
-    where xs = ["aif", "aiff", "mp3", "wav"]
-
--- | Run the segmenter and extractor chain on each sound file found in a directory.
+-- | Run the segmenter and extractor chain on a list of files.
 --
 -- The results are returned as a lazy list of pairs of file names and analysis results.
-mapDirectory :: Int -> Options -> FilePath -> IO [(FilePath, Either String MEAP)]
-mapDirectory np opts path = do
+mapFiles :: Int -> Options -> [FilePath] -> IO [(FilePath, Either String MEAP)]
+mapFiles np opts paths = do
     (ichan, ochan) <- threadPoolIO np (\path -> run opts path >>= evaluate >>= return . (,) path)
-    files <- Find.find
-                Find.always
-                (fmap (flip elem audioFileExtensions) Find.extension)
-                path
     -- Push jobs to input channel
-    mapM_ (Chan.writeChan ichan) files
+    mapM_ (Chan.writeChan ichan) paths
     -- Pull results from output channel as a lazy list
-    Chan.getChanContents ochan >>= return . take (length files)
+    Chan.getChanContents ochan >>= return . take (length paths)

@@ -21,12 +21,15 @@ import           Text.Printf (printf)
 import           Prelude hiding (and)
 
 -- | Analyse a directory recursively, writing the results to a database.
-cmd_import :: FilePath -> FilePath -> IO ()
-cmd_import = DB.importDirectory
+cmd_import :: FilePath -> [FilePath] -> IO ()
+cmd_import dbFile paths = do
+    DB.importPaths dbFile paths
+    DB.transformFeature dbFile DB.PCA (Feature.consDescriptor "es.globero.mescaline.spectral" 2)
+                                      [fromJust (Meap.lookupFeature "com.meapsoft.AvgMFCC")]
 
 cmd_query :: FilePath -> Segmentation -> String -> [String] -> IO ()
 cmd_query dbFile seg pattern features = do
-    (units, sfMap) <- DB.query dbFile seg pattern features
+    (units, sfMap) <- DB.query dbFile seg pattern (map (fromJust . Meap.lookupFeature) features)
     case units of
         Left e -> fail e
         Right us -> let ls = map (\(u, fs) -> Unique.toString (Unit.id u) : map show (concatMap (V.toList.Feature.value) fs)) us
@@ -52,11 +55,14 @@ cmd_delete :: FilePath -> IO ()
 cmd_delete _ = return ()
 
 cmd_transform :: FilePath -> String -> String -> [String] -> IO ()
-cmd_transform dbFile transName dstFeature = do
+cmd_transform dbFile transName dstFeature srcFeatures = do
     trans <- case transName of
-                "pca"     -> return $ DB.PCA 2
+                "pca"     -> return DB.PCA
                 otherwise -> fail $ "Unknown transform: " ++ transName
-    DB.handleSqlError . DB.transformFeature dbFile trans dstFeature
+    DB.handleSqlError $ DB.transformFeature
+                            dbFile trans
+                            (Feature.consDescriptor dstFeature 2)
+                            (map (fromJust . Meap.lookupFeature) srcFeatures)
 
 usage :: String -> String
 usage = ("Usage: mkdb " ++)
@@ -73,7 +79,7 @@ main = do
                         otherwise -> putStrLn $ usage "delete DBFILE"
                 "import" -> do
                     case args of
-                        (dbFile:dir:[]) -> cmd_import dbFile dir
+                        (dbFile:paths) -> cmd_import dbFile paths
                         otherwise -> putStrLn $ usage "import DBFILE DIRECTORY"
                 "insert" -> do
                     case args of
