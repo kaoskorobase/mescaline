@@ -68,20 +68,20 @@ instance IdAllocator BusId BusIdAllocator where
     free i (BusIdAllocator a) = liftM         BusIdAllocator  $ Alloc.free i a
 
 data State = State {
-   options_      :: ServerOptions
- , syncId_       :: IntAllocator
- , nodeId_       :: NodeIdAllocator
- , bufferId_     :: BufferIdAllocator
- , controlBusId_ :: BusIdAllocator
- , audioBusId_   :: BusIdAllocator
+   _options      :: ServerOptions
+ , _syncId       :: IntAllocator
+ , _nodeId       :: NodeIdAllocator
+ , _bufferId     :: BufferIdAllocator
+ , _controlBusId :: BusIdAllocator
+ , _audioBusId   :: BusIdAllocator
  }
 
-ACCESSOR(options, options_, State, ServerOptions)
-ACCESSOR(syncId,  syncId_, State, IntAllocator)
-ACCESSOR(nodeId,  nodeId_, State, NodeIdAllocator)
-ACCESSOR(bufferId, bufferId_, State, BufferIdAllocator)
-ACCESSOR(controlBusId, controlBusId_, State, BusIdAllocator)
-ACCESSOR(audioBusId, audioBusId_, State, BusIdAllocator)
+ACCESSOR(options,      _options,      State, ServerOptions)
+ACCESSOR(syncId,       _syncId,       State, IntAllocator)
+ACCESSOR(nodeId,       _nodeId,       State, NodeIdAllocator)
+ACCESSOR(bufferId,     _bufferId,     State, BufferIdAllocator)
+ACCESSOR(controlBusId, _controlBusId, State, BusIdAllocator)
+ACCESSOR(audioBusId,   _audioBusId,   State, BusIdAllocator)
 
 rootNode :: State -> NodeId
 rootNode = const (NodeId 0)
@@ -89,12 +89,12 @@ rootNode = const (NodeId 0)
 new :: ServerOptions -> State
 new os =
     State {
-        options_      = os
-      , syncId_       = sid
-      , nodeId_       = nid
-      , bufferId_     = bid
-      , controlBusId_ = cid
-      , audioBusId_   = aid
+        _options      = os
+      , _syncId       = sid
+      , _nodeId       = nid
+      , _bufferId     = bid
+      , _controlBusId = cid
+      , _audioBusId   = aid
     }
     where
         sid = IntAllocator      (SAlloc.cons $ Alloc.range 0                           maxBound :: SimpleAllocator Int     )
