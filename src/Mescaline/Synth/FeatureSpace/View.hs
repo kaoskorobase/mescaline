@@ -131,10 +131,11 @@ data Region = Region {
 
 data State = State {
     featureSpace :: Process.FeatureSpace
-  , colors    :: [Qt.QColor ()]
-  , regions   :: IntMap Region
-  , playUnits :: MVar Bool
-  , guiChan   :: Chan (IO ())
+  , unitGroup    :: MVar (Maybe (Qt.QGraphicsItem ()))
+  , colors       :: [Qt.QColor ()]
+  , regions      :: IntMap Region
+  , playUnits    :: MVar Bool
+  , guiChan      :: Chan (IO ())
   }
 
 regionMousePressHandler :: Process.FeatureSpace -> Region -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
@@ -217,20 +218,29 @@ addRegion view region state = do
 --     -- Qt.setBspTreeDepth view 0
 --     where
 
-addUnit :: FeatureSpaceView -> State -> Model.Unit -> IO ()
-addUnit view state unit = do
+showUnits :: FeatureSpaceView -> State -> [Model.Unit] -> IO ()
+showUnits view state us = do
+    g <- takeMVar (unitGroup state)
+    maybe (return ()) (Qt.removeItem view) g
+    g <- Qt.qGraphicsItem_nf ()
+    putMVar (unitGroup state) (Just g)
+    mapM_ (addUnit g state) us
+    Qt.setZValue g (-1 :: Double)
+    Qt.addItem view g
+
+addUnit :: Qt.QGraphicsItem () -> State -> Model.Unit -> IO ()
+addUnit parent state unit = do
     let (x, y) = pair (Feature.value (Model.feature unit))
-        r      = 2 -- 0.0025 -- Model.minRadius
+        r      = 0.0025 -- Model.minRadius
         box    = Qt.rectF (-r) (-r) (r*2) (r*2)
     item <- Qt.qGraphicsEllipseItem_nf box
+    Qt.setParentItem item parent
     Qt.setPos item (Qt.pointF x y)
-    Qt.setZValue item (-1 :: Double)
-    Qt.setFlags item Qt.fItemIgnoresTransformations
+    -- Qt.setFlags item Qt.fItemIgnoresTransformations
     -- Qt.setHandler item "mousePressEvent(QGraphicsSceneMouseEvent*)" $ mouseHandler (unit u) action
     Qt.setHandler item "hoverEnterEvent(QGraphicsSceneHoverEvent*)" $ hoverHandler $
         readMVar (playUnits state) >>= flip when (sendTo (featureSpace state) $ Process.ActivateUnit (-1) (Model.unit unit))
     Qt.setAcceptsHoverEvents item True
-    Qt.addItem view item
 
 process :: forall o m b .
            (Control.Monad.Trans.MonadIO m) =>
@@ -242,9 +252,8 @@ process view state = do
             Process.DatabaseLoaded us -> do
                 defer view state $ do
                     Qt.setItemIndexMethod view Qt.eNoIndex
-                    mapM_ (addUnit view state) us
+                    showUnits view state us
                     Qt.setItemIndexMethod view Qt.eBspTreeIndex
-                    -- Qt.setBspTreeDepth view 0
                 return state
             Process.UnitActivated t u -> do
                 return state
@@ -276,10 +285,11 @@ defer view state action = io $ do
 
 newState :: Process.FeatureSpace -> IO State
 newState fspace = do
+    ug <- newMVar Nothing
     cs <- UI.defaultColorsFromFile
     pu <- newMVar False
     gc <- newChan
-    return $ State fspace (cycle cs) Map.empty pu gc
+    return $ State fspace ug (cycle cs) Map.empty pu gc
 
 new :: Process.FeatureSpace -> IO (FeatureSpaceView, Handle Input Output)
 new fspace = do
@@ -289,8 +299,7 @@ new fspace = do
     Qt.setItemIndexMethod view Qt.eNoIndex
     Qt.setHandler view "keyPressEvent(QKeyEvent*)"   $ sceneKeyPressEvent state
     Qt.setHandler view "keyReleaseEvent(QKeyEvent*)" $ sceneKeyReleaseEvent state
-    Qt.connectSlot view "update()" view "update()" $ update (guiChan state)
-    -- Qt.emitSignal this "updateScene()" ()
+    Qt.connectSlot view "update()" view "update()"   $ update (guiChan state)
 
     handle <- spawn $ process view state
 
