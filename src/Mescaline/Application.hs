@@ -1,6 +1,12 @@
 {-# LANGUAGE CPP #-}
 module Mescaline.Application (
-    name
+    OS(..)
+  , Arch(..)
+  , Platform(..)
+  , buildOS
+  , buildArch
+  , buildPlatform
+  , name
   , getArgs
   , getResourceDirectory
   , getResourcePath
@@ -9,6 +15,7 @@ module Mescaline.Application (
 ) where
 
 import           Data.List (isPrefixOf)
+import           Distribution.System(OS(..), Arch(..), Platform(..), buildOS, buildArch, buildPlatform)
 import           System.Directory
 import           System.Environment.FindBin (getProgPath)
 import           System.FilePath
