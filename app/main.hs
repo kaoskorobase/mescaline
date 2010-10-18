@@ -168,8 +168,8 @@ pipe f ichan ochan = do
     writeChan ochan b
     pipe f ichan ochan
 
-startSynth :: IO (Chan (Either (Time, Unit.Unit) ()), Chan ())
-startSynth = do
+startSynth :: FeatureSpaceP.FeatureSpace -> IO (Chan (Either (Time, Unit.Unit) ()), Chan ())
+startSynth fspaceP = do
     ichan <- newChan
     ochan <- newChan
 
@@ -193,6 +193,13 @@ startSynth = do
         --     rtOptions
             $ \(t :: OSC.UDP) -> do
                 synth <- Synth.new t serverOptions
+                fromSynthP <- spawn $ fix $ \loop -> do
+                    x <- recv
+                    case x of
+                        Synth.UnitStopped time unit -> sendTo fspaceP $ FeatureSpaceP.DeactivateUnit time unit
+                        _                           -> return ()
+                    loop
+                fromSynthP `listenTo` synth
                 fix $ \loop -> do
                     e <- readChan ichan
                     case e of
@@ -385,13 +392,13 @@ main = do
     sendTo dbP $ DatabaseP.Load dbFile pattern
     
     -- Fork synth process
-    (synth_ichan, synth_ochan) <- startSynth
+    (synth_ichan, synth_ochan) <- startSynth fspaceP
     
     -- Pipe feature space view output to synth
     toSynthP <- spawn $ fix $ \loop -> do
         x <- recv
         case x of
-            FeatureSpaceP.UnitActivated t u -> io $ writeChan synth_ichan (Left (t, u))
+            FeatureSpaceP.UnitActivated t u -> io $ writeChan synth_ichan (Left (t, (FeatureSpace.unit u)))
             _                               -> return ()
         loop
     toSynthP `listenTo` fspaceP

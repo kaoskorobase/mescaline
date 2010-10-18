@@ -24,8 +24,8 @@ import qualified System.Random as Random
 
 data Input =
     LoadDatabase    !FilePath !String
-  | ActivateUnit    !Time !Unit.Unit
-  | DeactivateUnit  !Unit.Unit
+  | ActivateUnit    !Time !Model.Unit
+  | DeactivateUnit  !Time !Unit.Unit
   | AddRegion       !Double !Double !Double
   | UpdateRegion    !Model.Region
   | ActivateRegion  !Time !Model.RegionId
@@ -33,8 +33,8 @@ data Input =
 
 data Output =
     DatabaseLoaded  [Model.Unit]
-  | UnitActivated   Time Unit.Unit
-  | UnitDeactivated Unit.Unit
+  | UnitActivated   Time Model.Unit
+  | UnitDeactivated Time Unit.Unit
   | RegionAdded     Model.Region
   | RegionChanged   Model.Region
   deriving (Show)
@@ -77,12 +77,13 @@ new = do
                         let (u, f') = Model.activateRegion i f
                         case u of
                             Nothing -> return ()
-                            Just u  -> notify $ UnitActivated t (Model.unit u)
+                            Just u  -> notify $ UnitActivated t u
                         return f'
                     ActivateUnit t u -> do
                         notify $ UnitActivated t u
-                        return $ Model.activateUnit u f
-                    DeactivateUnit u -> do
-                        notify $ UnitDeactivated u
+                        return $ Model.activateUnit (Model.unit u) f
+                        return f
+                    DeactivateUnit t u -> do
+                        notify $ UnitDeactivated t u
                         return $ Model.deactivateUnit u f
             loop f'
