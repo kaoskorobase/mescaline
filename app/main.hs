@@ -397,10 +397,13 @@ main = do
     toSynthP `listenTo` fspaceP
 
     -- Set up actions and menus
-    let menuDef = [
-              Menu "about" "about.Mescaline"
-                [ Action "about" "About Mescaline" "Show about message box" Trigger Nothing action_about ]
-            , Menu "file" "File"
+    let aboutAction = Action "about" "About Mescaline" "Show about message box" Trigger Nothing action_about
+        darwinMenuDef = [ Menu "about" "about.Mescaline" [ aboutAction ] ]
+        helpMenuDef   = [ Menu "help" "Help" [ aboutAction ] ]
+        menuDef =
+            (if App.buildOS == App.OSX then darwinMenuDef else [])
+            ++
+            [ Menu "file" "File"
               [ Action "importFile" "Import File..." "Import a file" Trigger (Just "Ctrl+i") (action_file_importFile dbP)
               , Action "importDirectory" "Import Directory..." "Import a directory" Trigger (Just "Ctrl+Shift+I") (action_file_importDirectory dbP) ]
             , Menu "sequencer" "Sequencer"
@@ -414,6 +417,8 @@ main = do
                 [ Action "zoomIn" "Zoom In" "Zoom into feature space" Trigger (Just "Ctrl++") (action_featureSpace_zoom_zoomIn fspace_graphicsView)
                 , Action "zoomOut" "Zoom Out" "Zoom out of feature space" Trigger (Just "Ctrl+-") (action_featureSpace_zoom_zoomOut fspace_graphicsView)
                 , Action "reset" "Reset" "Reset feature space zoom" Trigger (Just "Ctrl+0") (action_featureSpace_zoom_reset fspace_graphicsView) ] ] ]
+            ++
+            (if App.buildOS /= App.OSX then helpMenuDef else [])
 
     menuBar <- Qt.menuBar mainWindow ()
     actions <- defineMenu menuDef menuBar (Qt.objectCast mainWindow)
