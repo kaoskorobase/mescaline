@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 module Mescaline.Application (
     OS(..)
   , Arch(..)
@@ -27,26 +26,22 @@ name = "Mescaline"
 
 getArgs :: IO [String]
 getArgs =
-#if darwin_HOST_OS == 1
-    -- Get rid of Process Serial Number that is passed to an application bundle binary.
-    filter (not . isPrefixOf "-psn") `fmap` Env.getArgs
-#else
-    Env.getArgs
-#endif
+    if buildOS == OSX
+        -- Get rid of Process Serial Number that is passed to an application bundle binary.
+        then filter (not . isPrefixOf "-psn") `fmap` Env.getArgs
+        else Env.getArgs
 
 -- | Returns the directory where application resources can be found.
 getResourceDirectory :: IO FilePath
 getResourceDirectory = do
     p <- getProgPath
-#if darwin_HOST_OS == 1
-    return $ takeDirectory p </> "Resources"
+    if buildOS == OSX
+        then return $ takeDirectory p </> "Resources"
 -- #elif mingw32_HOST_OS == 1
 --     return p
 -- #else
 --     return $ takeDirectory p </> "lib" </> map toLower name
-#else
-    getUserDataDirectory
-#endif
+        else getUserDataDirectory
 
 getResourcePath :: FilePath -> IO FilePath
 getResourcePath f = do
@@ -65,12 +60,12 @@ getResourcePath f = do
 
 getUserDataDirectory :: IO FilePath
 getUserDataDirectory = do
-#if darwin_HOST_OS == 1
-    h <- getHomeDirectory
-    return $ h </> "Library/Application Support" </> name
-#else
-    getAppUserDataDirectory name
-#endif
+    if buildOS == OSX
+        then do
+            h <- getHomeDirectory
+            return $ h </> "Library/Application Support" </> name
+        else
+            getAppUserDataDirectory name
 
 getUserDataPath :: FilePath -> IO FilePath
 getUserDataPath f = do
