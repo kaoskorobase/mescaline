@@ -13,8 +13,8 @@ guiApps = [MacApp "Mescaline"
                   (Just "app/mescaline.icns")
                   Nothing -- Build a default Info.plist for the icon.
                   -- Resources to include
-                  [ "app/mescaline.ui"
-                  , "app/colors.txt" ]
+                  [ "resources/mescaline.ui"
+                  , "resources/colors.txt" ]
                   -- Binaries to include
                   [ "supercollider/scsynth"
                   , "supercollider/plugins/BinaryOpUGens.scx"
@@ -50,7 +50,8 @@ guiApps = [MacApp "Mescaline"
           ]
 
 main = defaultMainWithHooks $ simpleUserHooks {
-         postBuild = appBundleBuildHook guiApps -- no-op if not MacOS X
+            -- TODO: Make this dependent on a configure flag (preConfHook)
+            postBuild = appBundleBuildHook guiApps -- no-op if not MacOS X
        }
 #else
 main = defaultMain

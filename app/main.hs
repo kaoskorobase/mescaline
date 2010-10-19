@@ -13,6 +13,7 @@ import           Data.Char (ord)
 import           Data.Function (fix)
 import qualified Data.List as List
 import           Data.Maybe
+import           Data.Version (showVersion)
 import           Database.HDBC (quickQuery')
 import           Mescaline (Time)
 import qualified Mescaline.Application as App
@@ -176,13 +177,28 @@ startSynth fspaceP = do
     ochan <- newChan
 
     forkIO $ do
-        scsynth <- App.getResourcePath "supercollider/scsynth"
-        plugins <- App.getResourcePath "supercollider/plugins"
+        exe <- App.getResourceExecutable "supercollider/scsynth"
+        (scsynth, plugins) <-
+            case exe of
+                Nothing -> do
+                    exe <- App.findExecutable "scsynth"
+                    case exe of
+                        -- TODO: Display this in the UI
+                        Nothing -> do
+                            d <- App.getResourceDirectory
+                            fail $ unwords [
+                                    "I couldn't find the SuperCollider audio engine `scsynth'."
+                                  , "You need to put it either in `" ++ d </> "supercollider" ++ "' or into your PATH."
+                                  , "WARNING: Sound output will not work!" ]
+                        Just exe -> return (exe, Nothing)
+                Just exe -> do
+                    plg <- App.getResourcePath "supercollider/plugins"
+                    return (exe, Just [plg])
         let
             serverOptions = Server.defaultServerOptions {
                 Server.loadSynthDefs  = False
               , Server.serverProgram  = scsynth
-              , Server.ugenPluginPath = Just [plugins]
+              , Server.ugenPluginPath = plugins
               }
             rtOptions = Server.defaultRTOptions { Server.udpPortNumber = 2278 }
         putStrLn $ unwords $ Server.rtCommandLine serverOptions rtOptions
@@ -264,9 +280,11 @@ action_about :: Qt.QWidget () -> Qt.QAction () -> IO ()
 action_about mw _ = Qt.qMessageBoxAbout (
         mw
       , "About Mescaline"
-      , "<h3>About Mescaline</h3>"
-        ++ "<a href=\"http://mescaline.globero.es\">Mescaline</a> "
-        ++ "is a data-driven sequencer and synthesizer." )
+      , unwords [
+            "<center><h2>Mescaline</h2></center>"
+          , "<center><h4>Version " ++ showVersion App.version ++ "</h4></center>"
+          , "<a href=\"http://mescaline.globero.es\">Mescaline</a>"
+          , "is a data-driven sequencer and synthesizer." ] )
 
 importDialog :: Qt.FileMode -> Qt.QWidget () -> IO [FilePath]
 importDialog fileMode w = do
