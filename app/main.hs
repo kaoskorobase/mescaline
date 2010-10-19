@@ -174,13 +174,28 @@ startSynth fspaceP = do
     ochan <- newChan
 
     forkIO $ do
-        scsynth <- App.getResourcePath "supercollider/scsynth"
-        plugins <- App.getResourcePath "supercollider/plugins"
+        exe <- App.getResourceExecutable "supercollider/scsynth"
+        (scsynth, plugins) <-
+            case exe of
+                Nothing -> do
+                    exe <- App.findExecutable "scsynth"
+                    case exe of
+                        -- TODO: Display this in the UI
+                        Nothing -> do
+                            d <- App.getResourceDirectory
+                            fail $ unwords [
+                                    "I couldn't find the SuperCollider audio engine `scsynth'."
+                                  , "You need to put it either in `" ++ d </> "supercollider" ++ "' or into your PATH."
+                                  , "WARNING: Sound output will not work!" ]
+                        Just exe -> return (exe, Nothing)
+                Just exe -> do
+                    plg <- App.getResourcePath "supercollider/plugins"
+                    return (exe, Just [plg])
         let
             serverOptions = Server.defaultServerOptions {
                 Server.loadSynthDefs  = False
               , Server.serverProgram  = scsynth
-              , Server.ugenPluginPath = Just [plugins]
+              , Server.ugenPluginPath = plugins
               }
             rtOptions = Server.defaultRTOptions { Server.udpPortNumber = 2278 }
         putStrLn $ unwords $ Server.rtCommandLine serverOptions rtOptions

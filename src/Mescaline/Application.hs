@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Mescaline.Application (
     OS(..)
   , Arch(..)
@@ -9,13 +10,17 @@ module Mescaline.Application (
   , getArgs
   , getResourceDirectory
   , getResourcePath
+  , getResourceExecutable
+  , findExecutable
   , getUserDataDirectory
   , getUserDataPath
 ) where
 
+import           Control.Exception
 import           Data.List (isPrefixOf)
 import           Distribution.System(OS(..), Arch(..), Platform(..), buildOS, buildArch, buildPlatform)
-import           System.Directory
+import           Prelude hiding (catch)
+import qualified System.Directory as Dir
 import           System.Environment.FindBin (getProgPath)
 import           System.FilePath
 import qualified System.Environment as Env
@@ -37,16 +42,31 @@ getResourceDirectory = do
     p <- getProgPath
     if buildOS == OSX
         then return $ takeDirectory p </> "Resources"
--- #elif mingw32_HOST_OS == 1
---     return p
--- #else
---     return $ takeDirectory p </> "lib" </> map toLower name
-        else getUserDataDirectory
+        else if buildOS == Linux
+             then return $ takeDirectory p </> "lib" </> name
+             else getUserDataDirectory
 
 getResourcePath :: FilePath -> IO FilePath
 getResourcePath f = do
     d <- getResourceDirectory
     return $ d </> f
+
+-- | Get an executable path in the resource directory.
+getResourceExecutable :: FilePath -> IO (Maybe FilePath)
+getResourceExecutable f = do
+    p <- getResourcePath f
+    e <- catch (Dir.executable `fmap` Dir.getPermissions p) (\(_ :: IOError) -> return False)
+    return $ if e then Just p else Nothing
+
+-- | Search an executable, first in the resource directory, then in PATH.
+--
+-- The executable can be a path into the resource directory, for searching PATH only the filename component will be used.
+findExecutable :: FilePath -> IO (Maybe FilePath)
+findExecutable path = do
+    resPath <- getResourceExecutable path
+    case resPath of
+        Nothing -> Dir.findExecutable (takeFileName path)
+        _       -> return resPath
 
 -- getSystemDataDirectory :: IO FilePath
 -- getSystemDataDirectory =
@@ -62,10 +82,10 @@ getUserDataDirectory :: IO FilePath
 getUserDataDirectory = do
     if buildOS == OSX
         then do
-            h <- getHomeDirectory
+            h <- Dir.getHomeDirectory
             return $ h </> "Library/Application Support" </> name
         else
-            getAppUserDataDirectory name
+            Dir.getAppUserDataDirectory name
 
 getUserDataPath :: FilePath -> IO FilePath
 getUserDataPath f = do
