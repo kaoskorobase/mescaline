@@ -12,6 +12,16 @@ maintainer:         devot@globero.es
 build-type:         Custom
 cabal-version:      >= 1.6
 
+extra-source-files:
+    README
+
+data-dir:
+    resources
+
+data-files:
+    mescaline.ui
+    colors.txt
+
 library
     hs-source-dirs: src
     ghc-options:    -Wall
@@ -117,6 +127,8 @@ library
                     Sound.SC3.Server.Notification
                     Sound.SC3.Server.State
                     Sound.SC3.Server.State.IO
+    other-modules:
+        Paths_mescaline
 
 -- executable sampler
 --     main-is:        sampler.hs
@@ -134,7 +146,7 @@ executable mescaline
     build-depends:  qt >= 1.1 && < 1.2
     ghc-options:      -threaded
     ghc-prof-options: -threaded -auto-all
-
+    
 --executable looper
 --    main-is:        looper.hs
 --    other-modules:  Mescaline.Sampler.GUI
