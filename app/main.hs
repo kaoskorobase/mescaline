@@ -13,6 +13,7 @@ import           Data.Char (ord)
 import           Data.Function (fix)
 import qualified Data.List as List
 import           Data.Maybe
+import           Data.Version (showVersion)
 import           Database.HDBC (quickQuery')
 import           Mescaline (Time)
 import qualified Mescaline.Application as App
@@ -277,9 +278,11 @@ action_about :: Qt.QWidget () -> Qt.QAction () -> IO ()
 action_about mw _ = Qt.qMessageBoxAbout (
         mw
       , "About Mescaline"
-      , "<h3>About Mescaline</h3>"
-        ++ "<a href=\"http://mescaline.globero.es\">Mescaline</a> "
-        ++ "is a data-driven sequencer and synthesizer." )
+      , unwords [
+            "<center><h2>Mescaline</h2></center>"
+          , "<center><h4>Version " ++ showVersion App.version ++ "</h4></center>"
+          , "<a href=\"http://mescaline.globero.es\">Mescaline</a>"
+          , "is a data-driven sequencer and synthesizer." ] )
 
 importDialog :: Qt.FileMode -> Qt.QWidget () -> IO [FilePath]
 importDialog fileMode w = do
