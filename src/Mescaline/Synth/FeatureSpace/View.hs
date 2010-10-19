@@ -205,7 +205,7 @@ addRegion view region state = do
         x = Model.center region V.! 0
         y = Model.center region V.! 1
     item <- Qt.qGraphicsEllipseItem_nf (Qt.rectF (-r) (-r) (r*2) (r*2))
-    Qt.setBrush item =<< Qt.qBrush_nf c
+    Qt.setBrush item =<< Qt.qBrush c
     -- Qt.setFlags item $ Qt.fItemIsMovable + (Qt.qFlags_fromInt 2048) -- FIXME: Huh? Wtf? QGraphicsItem::ItemSendsGeometryChanges?
     Qt.addItem view item
     Qt.setPos item (Qt.pointF x y)

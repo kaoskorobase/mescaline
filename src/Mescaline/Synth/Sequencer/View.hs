@@ -80,11 +80,11 @@ updateScene state view _ = do
         update s (coord, field) = do
             -- print (coord, cursor_ (sequencer state))
             b <- if Model.isCursorAtIndex s coord
-                    then Qt.qBrush_nf Qt.eblack
+                    then Qt.qBrush Qt.eblack
                     else if Model.isElemAtIndex s coord
-                        then Qt.qBrush_nf Qt.edarkGray
+                        then Qt.qBrush Qt.edarkGray
                         else let cs = cycle $ concat $ map (replicate 4) $ colors state
-                             in Qt.qBrush_nf (cs !! fst coord)
+                             in Qt.qBrush (cs !! fst coord)
             Qt.setBrush field b
 
 process view state = do
