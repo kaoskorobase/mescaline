@@ -1,20 +1,29 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 module Mescaline.Synth.Pattern.Load (
-    loadFile
+    MakePatch
+  , makePatch
+  , loadFile
   , loadDirectory
 ) where
 
 import           Control.Monad.Trans (liftIO)
+import           Data.Typeable
 import           Language.Haskell.Interpreter (Interpreter, InterpreterError, as)
 import qualified Language.Haskell.Interpreter as Interp
--- import Sound.SC3.Lang.Pattern
-import Mescaline.Synth.Pattern
+import           Mescaline.Synth.Pattern.Environment
+import           Mescaline.Synth.Pattern.Patch
 import           System.FilePath
 import qualified System.FilePath.Find as Find
 
-loadFile :: FilePath -> IO (Either InterpreterError PCons)
+data MakePatch = MakePatch (Environment -> Patch) deriving (Typeable)
+
+makePatch :: (Environment -> Patch) -> MakePatch
+makePatch = MakePatch
+
+loadFile :: FilePath -> IO (Either InterpreterError MakePatch)
 loadFile = Interp.runInterpreter . interpretFile
 
-loadDirectory :: FilePath -> IO [(FilePath, Either InterpreterError PCons)]
+loadDirectory :: FilePath -> IO [(FilePath, Either InterpreterError MakePatch)]
 loadDirectory path = do
     files <- Find.find
                 Find.always
@@ -39,7 +48,7 @@ loadDirectory path = do
 -- 
 --     Interp.interpret expr (as :: PCons)
 
-interpretFile :: FilePath -> Interpreter PCons
+interpretFile :: FilePath -> Interpreter MakePatch
 interpretFile path = do
     Interp.setImportsQ [
         ("Prelude", Nothing)
@@ -54,4 +63,4 @@ interpretFile path = do
       , ("Sound.SC3.Lang.Collection", Nothing)
         ]
     expr <- liftIO $ readFile path
-    Interp.interpret expr (as :: PCons)
+    Interp.interpret expr (as :: MakePatch)

@@ -16,8 +16,8 @@ import qualified Mescaline.Database.SourceFile as SourceFile
 import           Mescaline.Synth.SSF as SF
 import           Mescaline.Synth.SSF.BufferCache (Buffer, BufferCache)
 import qualified Mescaline.Synth.SSF.BufferCache as BC
-import           Mescaline.Synth.Pattern (SynthParams)
-import qualified Mescaline.Synth.Pattern as P
+import           Mescaline.Synth.Pattern.Event (SynthParams)
+import qualified Mescaline.Synth.Pattern.Event as P
 
 import           Prelude hiding (init)
 import qualified Prelude as P

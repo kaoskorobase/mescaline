@@ -12,6 +12,7 @@ module Mescaline.Synth.FeatureSpace.Model (
   , minRadius
   , maxRadius
   , FeatureSpace
+  , featureSpace
   , randomGen
   , activeUnits
   , units

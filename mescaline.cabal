@@ -99,6 +99,12 @@ library
                     Mescaline.Synth.FeatureSpace.Process
                     Mescaline.Synth.FeatureSpace.View
                     Mescaline.Synth.Pattern
+                    Mescaline.Synth.Pattern.Event
+                    Mescaline.Synth.Pattern.Ppar
+                    Mescaline.Synth.Pattern.Player
+                    Mescaline.Synth.Pattern.Process
+                    Mescaline.Synth.Pattern.Step
+                    Mescaline.Synth.Pattern.Track
                     Mescaline.Synth.Pattern.Load
                     Mescaline.Synth.Sampler
                     Mescaline.Synth.Sequencer.Model
@@ -107,6 +113,7 @@ library
                     Mescaline.Synth.SSF
                     Mescaline.Synth.SSF.BufferCache
                     Mescaline.Synth.SSF.DiskSampler
+                    Mescaline.Time
                     Mescaline.UI
                     Sound.OpenSoundControl.BufferedTransport
                     Sound.SC3.Server.Allocator

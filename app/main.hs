@@ -21,7 +21,6 @@ import qualified Mescaline.Database.SqlQuery as Sql
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Synth.Database.Process as DatabaseP
-import qualified Mescaline.Synth.Pattern as P
 import qualified Mescaline.Synth.Sampler as Synth
 import qualified Mescaline.Synth.Sequencer.Model as Sequencer
 import qualified Mescaline.Synth.Sequencer.Process as SequencerP
@@ -29,6 +28,9 @@ import qualified Mescaline.Synth.Sequencer.View as SequencerView
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpace.Process as FeatureSpaceP
 import qualified Mescaline.Synth.FeatureSpace.View as FeatureSpaceView
+import qualified Mescaline.Synth.Pattern.Event as Event
+import qualified Mescaline.Synth.Pattern as Pattern
+import qualified Mescaline.Synth.Pattern.Process as PatternP
 import qualified Sound.OpenSoundControl as OSC
 import qualified Sound.SC3.Server.State as State
 import qualified Sound.SC3.Server.Process as Server
@@ -80,7 +82,7 @@ numRegions = 4
 sequencer0 :: Sequencer.Sequencer ()
 sequencer0 = Sequencer.cons 16 16 0.125 (Sequencer.Bar 0)
 
-setEnv = setVal (P.attackTime) 0.01 . setVal (P.releaseTime) 0.02
+setEnv = setVal (Event.attackTime) 0.01 . setVal (Event.releaseTime) 0.02
 
 -- sceneKeyPressEvent :: MVar Bool -> Chan (Sequencer a -> Sequencer a) -> Qt.QWidget () -> Qt.QKeyEvent () -> IO ()
 -- sceneKeyPressEvent mute chan _ qkev = do
@@ -207,7 +209,7 @@ startSynth fspaceP = do
                             -- b <- readMVar mute
                             -- unless b $ do
                             -- print u
-                            sendTo synth $ Synth.PlayUnit t u (setEnv P.defaultSynth)
+                            sendTo synth $ Synth.PlayUnit t u (setEnv Event.defaultSynth)
                             -- return ()
                             loop
                         Right _ -> return ()) `finally` writeChan ochan ()

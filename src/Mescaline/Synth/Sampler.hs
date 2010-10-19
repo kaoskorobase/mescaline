@@ -15,8 +15,8 @@ import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Database.SourceFile as SourceFile
 import           Mescaline.Synth.BufferCache.Server (Buffer, BufferCache)
 import qualified Mescaline.Synth.BufferCache.Server as BC
-import           Mescaline.Synth.Pattern (SynthParams)
-import qualified Mescaline.Synth.Pattern as P
+import           Mescaline.Synth.Pattern.Event (SynthParams)
+import qualified Mescaline.Synth.Pattern.Event as P
 import           Sound.OpenSoundControl (OSC(..))
 import qualified Sound.OpenSoundControl as OSC
 import           Sound.OpenSoundControl.Transport (Transport)
