@@ -20,16 +20,14 @@ import qualified Mescaline.Synth.Database.Model as DB
 import qualified Mescaline.Synth.FeatureSpace.Model as Model
 import qualified System.Random as Random
 
--- type Property a = Either a (a -> m b, Listener b)
-
 data Input =
-    LoadDatabase    !FilePath !String
-  | ActivateUnit    !Time !Model.Unit
-  | DeactivateUnit  !Time !Unit.Unit
-  | AddRegion       !Double !Double !Double
-  | UpdateRegion    !Model.Region
-  | ActivateRegion  !Time !Model.RegionId
-  deriving (Show)
+    LoadDatabase    FilePath String
+  | ActivateUnit    Time Model.Unit
+  | DeactivateUnit  Time Unit.Unit
+  | AddRegion       Double Double Double
+  | UpdateRegion    Model.Region
+  | ActivateRegion  Time Model.RegionId
+  | GetModel        (Query Model.FeatureSpace)
 
 data Output =
     DatabaseLoaded  [Model.Unit]
@@ -37,7 +35,6 @@ data Output =
   | UnitDeactivated Time Unit.Unit
   | RegionAdded     Model.Region
   | RegionChanged   Model.Region
-  deriving (Show)
 
 type FeatureSpace = Handle Input Output
 
@@ -86,4 +83,7 @@ new = do
                     DeactivateUnit t u -> do
                         notify $ UnitDeactivated t u
                         return $ Model.deactivateUnit u f
+                    GetModel query -> do
+                        answer query f
+                        return f
             loop f'
