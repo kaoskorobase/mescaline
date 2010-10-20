@@ -21,6 +21,14 @@ data-dir:
 data-files:
     mescaline.ui
     colors.txt
+    meap/2.0/getopt-1.0.12.jar
+    meap/2.0/jl1.0.jar
+    meap/2.0/MEAPsoft.jar
+    meap/2.0/mp3spi1.9.4.jar
+    meap/2.0/swing-layout-1.0.jar
+    meap/2.0/tritonus_misc.jar
+    meap/2.0/tritonus_mp3.jar
+    meap/2.0/tritonus_share.jar
 
 library
     hs-source-dirs: src
