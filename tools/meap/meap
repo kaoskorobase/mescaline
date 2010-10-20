@@ -17,7 +17,7 @@ else
   exit(1)
 end
 
-java_class_path = [ File.join(File.dirname(__FILE__), "lib/meap-#{MEAP_VERSION}/*.jar"),
+java_class_path = [ File.join(File.dirname(__FILE__), "../resources/meap/#{MEAP_VERSION}/*.jar"),
                     File.expand_path("~/lib/meap") ] \
                   .collect { |x| Dir.glob(File.join(x, "*.jar")) } \
                   .find { |x| !x.empty? }
