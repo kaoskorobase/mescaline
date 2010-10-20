@@ -7,7 +7,7 @@ license:            GPL-3
 license-file:       COPYING
 author:             globero.es
 copyright:          (c) 2009-2010 globero.es
-maintainer:         devot@globero.es
+maintainer:         mescaline@globero.es
 homepage:           http://mescaline.globero.es
 bug-reports:        http://sourceforge.net/tracker/?group_id=266308&atid=1133628
 cabal-version:      >= 1.6
