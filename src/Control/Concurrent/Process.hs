@@ -19,6 +19,7 @@ module Control.Concurrent.Process (
   , addListener, listenTo
   , addListenerWith
   , notifyListeners, notify
+  , Query, query, answer
   , io
 ) where
 
@@ -27,6 +28,7 @@ import Control.Monad.State.Class
 import Control.Monad.Writer.Class
 import Control.Monad.Error.Class
 import Control.Monad.CatchIO
+import qualified Data.IVar as IVar
 import Data.Monoid
 import Control.Concurrent
 
@@ -142,6 +144,28 @@ notifyListeners (PH _ _ ls) o = liftIO (readMVar ls >>= mapM_ (\(Listener h) -> 
 notify :: MonadIO m => o -> ReceiverT i o m ()
 notify o = RT $ ask >>= flip notifyListeners o
 
+-- | Query type.
+newtype Query a = Query (IVar.IVar a)
+
+-- | Answer a query.
+--
+-- Queries can only be answered once, otherwise an error will be thrown.
+answer :: MonadIO m =>
+    Query a
+ -> a
+ -> ReceiverT i o m ()
+answer (Query v) = io . IVar.write v
+
+-- | Synchronously query a process, using the conversion function f.
+query ::
+    Handle i o
+ -> (Query a -> i)
+ -> IO a
+query h f = do
+    v <- IVar.new
+    sendTo h (f (Query v))
+    IVar.blocking (IVar.read v)
+
 -- | /spawn/ starts a process and returns its handle. Usage:
 -- @
 --      handle <- spawn process
@@ -205,3 +229,4 @@ onInner f (RT m) = RT $ mapReaderT f m
 
 io :: (MonadIO m) => IO a -> m a
 io = liftIO
+
