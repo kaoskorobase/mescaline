@@ -5,12 +5,12 @@ module Mescaline.Synth.Pattern.Ppar (
 import           Data.Accessor
 import           Data.List (foldl')
 import qualified Mescaline.Data.PriorityQueue as PQ
-import           Mescaline.Synth.Pattern.Step
+import           Mescaline.Synth.Pattern.Base
 import           Mescaline.Time
 
 -- | Parallel pattern composition
 ppar :: HasDuration a => [P s a] -> P s a
-ppar ps = punfoldr' f x0
+ppar ps = punfoldr f x0
     where
         x0 = (0, foldl' (\pq p -> PQ.insert 0 p pq) PQ.empty ps)
         f s (t, pq) =

@@ -1,13 +1,14 @@
 {-# LANGUAGE BangPatterns #-}
 module Mescaline.Synth.FeatureSpace.Process (
-    FeatureSpace
+    Handle
   , Input(..)
   , Output(..)
   , new
 ) where
 
 import           Control.Arrow (second)
-import           Control.Concurrent.Process
+import           Control.Concurrent.Process hiding (Handle)
+import qualified Control.Concurrent.Process as Process
 import           Control.Monad.Reader
 import qualified Data.Vector.Generic as V
 import qualified Database.HDBC as DB
@@ -36,7 +37,7 @@ data Output =
   | RegionAdded     Model.Region
   | RegionChanged   Model.Region
 
-type FeatureSpace = Handle Input Output
+type Handle = Process.Handle Input Output
 
 getUnits :: FilePath
          -> String
@@ -48,7 +49,7 @@ getUnits dbFile pattern features = do
         Left e   -> putStrLn ("ERROR[DB]: " ++ e) >> return []
         Right us -> return us
 
-new :: IO FeatureSpace
+new :: IO Handle
 new = do
     rgen <- Random.getStdGen
     spawn $ loop (Model.fromList rgen [])

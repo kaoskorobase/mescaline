@@ -1,10 +1,10 @@
 {-# LANGUAGE ExistentialQuantification #-}
 
-module Mescaline.Synth.Pattern.Step where
+module Mescaline.Synth.Pattern.Base where
 
 import qualified Control.Applicative as A
 import qualified Control.Monad as M
--- import qualified Data.Array as A
+import qualified Data.Array as A
 import qualified Data.HashTable as H
 import qualified Data.IntMap as M
 import qualified Data.List as L
@@ -149,11 +149,8 @@ pcontinue = Continue
 pscan :: (x -> y -> (x, a)) -> Maybe (x -> a) -> x -> P s y -> P s a
 pscan = Scan
 
-punfoldr' :: (s -> x -> (s, Maybe (a, x))) -> x -> P s a
-punfoldr' = Unfoldr
-
-punfoldr :: (x -> Maybe (a, x)) -> x -> P s a
-punfoldr f = punfoldr' $ \s x -> (s, f x)
+punfoldr :: (s -> x -> (s, Maybe (a, x))) -> x -> P s a
+punfoldr = Unfoldr
 
 -- * Control
 
@@ -350,16 +347,12 @@ prrandexp :: (R.RandomGen s, Floating a, R.Random a) =>
              a -> a -> P s a
 prrandexp = prrandf (\l r x -> l * (log (r / l) * x))
 
--- pchoosea :: (R.RandomGen s) => A.Array Int (P s a) -> P s a
--- pchoosea r = prp (\g -> let (i, g') = R.randomR (A.bounds r) g 
---                         in (r A.! i, g'))
+pchoosea :: (R.RandomGen s) => A.Array Int (P s a) -> P s a
+pchoosea r = prp (\g -> let (i, g') = R.randomR (A.bounds r) g 
+                        in (r A.! i, g'))
 
--- pchoose :: R.RandomGen s => [P s a] -> P s a
--- pchoose l = pchoosea (A.listArray (0, length l - 1) l)
-
-pchoose :: (R.RandomGen s) => [P s a] -> P s a
-pchoose r = prp (\g -> let (i, g') = R.randomR (0, length r - 1) g 
-                       in (r !! i, g'))
+pchoose :: R.RandomGen s => [P s a] -> P s a
+pchoose l = pchoosea (A.listArray (0, length l - 1) l)
 
 prand :: R.RandomGen s => [P s a] -> P s Int -> P s a
 prand p = pseq [pchoose p]

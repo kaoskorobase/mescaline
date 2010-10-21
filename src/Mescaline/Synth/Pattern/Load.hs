@@ -1,8 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module Mescaline.Synth.Pattern.Load (
-    MakePatch
-  , makePatch
-  , loadFile
+    loadFile
   , loadDirectory
 ) where
 
@@ -15,15 +13,10 @@ import           Mescaline.Synth.Pattern.Patch
 import           System.FilePath
 import qualified System.FilePath.Find as Find
 
-data MakePatch = MakePatch (Environment -> Patch) deriving (Typeable)
-
-makePatch :: (Environment -> Patch) -> MakePatch
-makePatch = MakePatch
-
-loadFile :: FilePath -> IO (Either InterpreterError MakePatch)
+loadFile :: FilePath -> IO (Either InterpreterError Patch)
 loadFile = Interp.runInterpreter . interpretFile
 
-loadDirectory :: FilePath -> IO [(FilePath, Either InterpreterError MakePatch)]
+loadDirectory :: FilePath -> IO [(FilePath, Either InterpreterError Patch)]
 loadDirectory path = do
     files <- Find.find
                 Find.always
@@ -48,7 +41,7 @@ loadDirectory path = do
 -- 
 --     Interp.interpret expr (as :: PCons)
 
-interpretFile :: FilePath -> Interpreter MakePatch
+interpretFile :: FilePath -> Interpreter Patch
 interpretFile path = do
     Interp.setImportsQ [
         ("Prelude", Nothing)
@@ -63,4 +56,4 @@ interpretFile path = do
       , ("Sound.SC3.Lang.Collection", Nothing)
         ]
     expr <- liftIO $ readFile path
-    Interp.interpret expr (as :: MakePatch)
+    Interp.interpret expr (as :: Patch)

@@ -29,6 +29,7 @@ import qualified Mescaline.Synth.Sequencer.View as SequencerView
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpace.Process as FeatureSpaceP
 import qualified Mescaline.Synth.FeatureSpace.View as FeatureSpaceView
+import qualified Mescaline.Synth.Pattern.Environment as Pattern
 import qualified Mescaline.Synth.Pattern.Event as Event
 import qualified Mescaline.Synth.Pattern as Pattern
 import qualified Mescaline.Synth.Pattern.Process as PatternP
@@ -41,6 +42,8 @@ import qualified System.Environment as Env
 import           System.Environment.FindBin (getProgPath)
 import           System.FilePath
 import qualified System.Random as Random
+
+import           ThePatch
 
 import qualified Qtc.Classes.Gui                as Qt
 import qualified Qtc.Classes.Gui_h              as Qt
@@ -171,7 +174,7 @@ pipe f ichan ochan = do
     writeChan ochan b
     pipe f ichan ochan
 
-startSynth :: FeatureSpaceP.FeatureSpace -> IO (Chan (Either (Time, Unit.Unit) ()), Chan ())
+startSynth :: FeatureSpaceP.Handle -> IO (Chan (Either (Time, Unit.Unit) ()), Chan ())
 startSynth fspaceP = do
     ichan <- newChan
     ochan <- newChan
@@ -413,6 +416,28 @@ main = do
     
     -- Fork synth process
     (synth_ichan, synth_ochan) <- startSynth fspaceP
+    
+    -- Pattern process
+    patternP <- PatternP.new thePatch fspaceP
+    patternToFSpaceP <- spawn $ fix $ \loop -> do
+        x <- recv
+        case x of
+            PatternP.Event time track event ->
+                -- FIXME: Use unit/item map in fspace view
+                -- sendTo fspaceP (FeatureSpaceP.ActivateUnit time (getVal Event.unit event))
+                io $ writeChan synth_ichan (Left (time, (getVal Event.unit event)))
+            _ -> return ()
+        loop
+    patternToFSpaceP `listenTo` patternP
+    fspaceToPatternP <- spawn $ fix $ \loop -> do
+        x <- recv
+        case x of
+            FeatureSpaceP.RegionChanged _ -> do
+                fspace <- query fspaceP FeatureSpaceP.GetModel
+                sendTo patternP $ PatternP.SetFeatureSpace fspace
+            _ -> return ()
+        loop
+    fspaceToPatternP `listenTo` fspaceP
     
     -- Pipe feature space view output to synth
     toSynthP <- spawn $ fix $ \loop -> do

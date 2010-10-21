@@ -157,14 +157,14 @@ answer :: MonadIO m =>
 answer (Query v) = io . IVar.write v
 
 -- | Synchronously query a process, using the conversion function f.
-query ::
+query :: MonadIO m =>
     Handle i o
  -> (Query a -> i)
- -> IO a
+ -> m a
 query h f = do
-    v <- IVar.new
+    v <- io $ IVar.new
     sendTo h (f (Query v))
-    IVar.blocking (IVar.read v)
+    io $ IVar.blocking (IVar.read v)
 
 -- | /spawn/ starts a process and returns its handle. Usage:
 -- @

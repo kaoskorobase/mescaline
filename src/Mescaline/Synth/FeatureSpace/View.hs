@@ -142,7 +142,7 @@ data Region = Region {
 data UnitActivation = UnitActivation !(Qt.QGraphicsItem ()) !Int
 
 data State = State {
-    featureSpace :: Process.FeatureSpace
+    featureSpace :: Process.Handle
   , unitGroup    :: MVar (Maybe (Qt.QGraphicsItem ()))
   , activations  :: MVar (Unique.Map UnitActivation)
   , colors       :: [Qt.QColor ()]
@@ -151,7 +151,7 @@ data State = State {
   , guiChan      :: Chan (IO ())
   }
 
-regionMousePressHandler :: Process.FeatureSpace -> Region -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
+regionMousePressHandler :: Process.Handle -> Region -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
 regionMousePressHandler _ region item evt = do
     mods <- Qt.modifiers evt ()
     if (Qt.qFlags_toInt mods) .&. (Qt.qFlags_toInt Qt.fControlModifier) /= 0
@@ -165,7 +165,7 @@ regionMousePressHandler _ region item evt = do
             _ <- swapMVar (regionState region) (RegionMove (ix-ex) (iy-ey))
             Qt.accept evt ()
 
-regionMouseMoveHandler :: Process.FeatureSpace -> Region -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
+regionMouseMoveHandler :: Process.Handle -> Region -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
 regionMouseMoveHandler fspace region item evt = do
     Qt.IPoint ex ey <- Qt.scenePos evt ()
     state <- readMVar (regionState region)
@@ -193,7 +193,7 @@ regionMouseMoveHandler fspace region item evt = do
             _ <- swapMVar (regionState region) (RegionResize ey)
             return ()
 
-regionMouseReleaseHandler :: Process.FeatureSpace -> Region -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
+regionMouseReleaseHandler :: Process.Handle -> Region -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
 regionMouseReleaseHandler _ region _ _ = do
     _ <- swapMVar (regionState region) RegionIdle
     return ()
@@ -326,7 +326,7 @@ defer view state action = io $ do
     writeChan (guiChan state) action
     Qt.emitSignal view "update()" ()
 
-newState :: Process.FeatureSpace -> IO State
+newState :: Process.Handle -> IO State
 newState fspace = do
     ug <- newMVar Nothing
     hl <- newMVar Map.empty
@@ -335,7 +335,7 @@ newState fspace = do
     gc <- newChan
     return $ State fspace ug hl (cycle cs) IMap.empty pu gc
 
-new :: Process.FeatureSpace -> IO (FeatureSpaceView, Handle Input Output)
+new :: Process.Handle -> IO (FeatureSpaceView, Handle Input Output)
 new fspace = do
     state <- newState fspace
     

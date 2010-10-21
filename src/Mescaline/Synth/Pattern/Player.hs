@@ -6,7 +6,7 @@ module Mescaline.Synth.Pattern.Player (
 
 import           Data.Accessor
 import           Mescaline.Time
-import qualified Mescaline.Synth.Pattern.Step as P
+import qualified Mescaline.Synth.Pattern.Base as P
 
 data Player s a = Player {
     time    :: Time

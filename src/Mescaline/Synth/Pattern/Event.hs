@@ -4,6 +4,7 @@
 
 module Mescaline.Synth.Pattern.Event (
     Event
+  , fromUnit
   , duration
   , unit
   , synth
@@ -64,12 +65,12 @@ data Event =
       , _synth    :: SynthParams
       } deriving (Eq, Show)
 
+fromUnit :: Unit.Unit -> Event
+fromUnit u = Event (Unit.duration u) u defaultSynth
+
 ACCESSOR(duration, _duration, Event, Double)
 ACCESSOR(unit,     _unit,     Event, Unit.Unit)
 ACCESSOR(synth,    _synth,    Event, SynthParams)
-
-fromUnit :: Unit.Unit -> Event
-fromUnit u = Event (Unit.duration u) u defaultSynth
 
 instance Time.HasDuration (Event) where
     duration = duration

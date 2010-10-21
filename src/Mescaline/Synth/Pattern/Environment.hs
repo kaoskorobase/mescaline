@@ -1,10 +1,35 @@
+{-# LANGUAGE CPP #-}
+
+#include "Accessor.h"
+
 module Mescaline.Synth.Pattern.Environment (
-    Environment(..)
+    Environment
+  , mkEnvironment
+  , featureSpace
   , TrackId
 ) where
 
-data Environment = Environment
+import           Data.Accessor
+import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
+import qualified System.Random as Random
+
 type TrackId = Int
+
+data Environment = Environment {
+    _randomGen    :: Random.StdGen
+  , _featureSpace :: FeatureSpace.FeatureSpace
+  }
+
+instance Random.RandomGen Environment where
+    next e  = let (i, g) = Random.next (_randomGen e)
+              in (i, e { _randomGen = g })
+    split e = let (g, g') = Random.split (_randomGen e)
+              in (e { _randomGen = g }, e { _randomGen = g' })
+
+mkEnvironment :: Int -> FeatureSpace.FeatureSpace -> Environment
+mkEnvironment seed = Environment (Random.mkStdGen seed)
+
+ACCESSOR(featureSpace, _featureSpace, Environment, FeatureSpace.FeatureSpace)
 
 -- data EnvironmentSink = EnvironmentSink {
 --     es_tracks  :: Map TrackId (Chan TrackData)

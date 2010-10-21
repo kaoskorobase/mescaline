@@ -12,7 +12,8 @@ module Mescaline.Synth.FeatureSpace.Model (
   , minRadius
   , maxRadius
   , FeatureSpace
-  , featureSpace
+  , UnitSet
+  , unitSet
   , randomGen
   , activeUnits
   , units
@@ -25,6 +26,7 @@ module Mescaline.Synth.FeatureSpace.Model (
   , updateRegion
   , regions
   , regionList
+  , regionUnits
   , activateRegion
   , activateRegions
   , activateUnit
@@ -46,6 +48,7 @@ import qualified Mescaline.Database.Unit as Unit
 import qualified System.Random as Random
 
 newtype Unit = Unit (Unit.Unit, Feature.Feature) deriving (Show)
+type UnitSet = BKTree Unit
 
 unit :: Unit -> Unit.Unit
 unit (Unit (u, _)) = u
@@ -84,10 +87,10 @@ data Region = Region {
   } deriving (Eq, Show)   
 
 data FeatureSpace = FeatureSpace { 
-    featureSpace :: BKTree Unit
-  , randomGen    :: Random.StdGen
-  , regions      :: IntMap Region
-  , activeUnits  :: Set Unit.Unit
+    unitSet     :: UnitSet
+  , randomGen   :: Random.StdGen
+  , regions     :: IntMap Region
+  , activeUnits :: Set Unit.Unit
   }
 
 minPos :: Double
@@ -113,10 +116,10 @@ mkRegion i c r = Region i (V.fromList [clip minPos maxPos (c V.! 0), clip minPos
                           (clip minRadius maxRadius r)
 
 units :: FeatureSpace -> [Unit]
-units = BKTree.elems . featureSpace
+units = BKTree.elems . unitSet
 
 setFeatureSpace :: FeatureSpace -> [(Unit.Unit, Feature.Feature)] -> FeatureSpace
-setFeatureSpace f us = f { featureSpace = BKTree.fromList (map Unit us) }
+setFeatureSpace f us = f { unitSet = BKTree.fromList (map Unit us) }
 
 fromList :: Random.StdGen -> [(Unit.Unit, Feature.Feature)] -> FeatureSpace
 fromList g us = FeatureSpace (BKTree.fromList (map Unit us)) g IntMap.empty Set.empty
@@ -149,18 +152,27 @@ updateRegion r = updateRegionById (regionId r) (const r)
 regionList :: FeatureSpace -> [Region]
 regionList = IntMap.elems . regions
 
+-- | Return a list of all units contained in a particular region.
+regionUnits :: RegionId -> FeatureSpace -> [Unit]
+regionUnits i f =
+    case IntMap.lookup i (regions f) of
+        Nothing -> []
+        Just r  ->
+            case BKTree.elems (unitSet f) of
+                (Unit (u, Feature.Feature (uid, d, _)) : _) ->
+                    let u' = Unit (u, Feature.cons uid d (center r))
+                        n  = withPrecision (radius r)
+                    in BKTree.elemsDistance n u' (unitSet f)
+                [] -> []
+
 -- Return the next random unit from region i and an updated FeatureSpace.
 activateRegion :: RegionId -> FeatureSpace -> (Maybe Unit, FeatureSpace)
-activateRegion i f = (u'', au (f { randomGen = g' }))
+activateRegion i f = (u, au (f { randomGen = g' }))
     where
-        Just r = IntMap.lookup i (regions f)
-        Unit (u, Feature.Feature (uid, d, _)) = head (BKTree.elems (featureSpace f))
-        u' = Unit (u, Feature.cons uid d (center r))
-        n = withPrecision (radius r)
-        us = BKTree.elemsDistance n u' (featureSpace f)
+        us      = regionUnits i f
         (j, g') = Random.randomR (0, length us - 1) (randomGen f)
-        u'' = if null us then Nothing else Just (us !! j)
-        au f = maybe f (flip activateUnit f . unit) u''
+        u       = if null us then Nothing else Just (us !! j)
+        au f    = maybe f (flip activateUnit f . unit) u
 
 filterMaybe :: [Maybe a] -> [a]
 filterMaybe l = [ x | Just x <- l ]

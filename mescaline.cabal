@@ -37,6 +37,7 @@ library
     include-dirs:   include
     build-depends:
         base >= 4 && < 5
+      , array >= 0.3 && < 0.4
       , arrows
       , bktrees >= 0.3 && < 0.4
       , binary
@@ -66,6 +67,7 @@ library
       , MissingH >= 1.0
       , MonadCatchIO-mtl >= 0.3 && < 0.4
       , monadIO >= 0.9 && < 1.0
+      , MonadRandom >= 0.1.5 && < 0.1.6
       , mtl
       , process >= 1.0
       , qt >= 1.1 && < 1.2
@@ -121,13 +123,15 @@ library
         Mescaline.Synth.FeatureSpace.Process
         Mescaline.Synth.FeatureSpace.View
         Mescaline.Synth.Pattern
+        Mescaline.Synth.Pattern.Base
+        Mescaline.Synth.Pattern.Environment
         Mescaline.Synth.Pattern.Event
+        Mescaline.Synth.Pattern.Load
         Mescaline.Synth.Pattern.Ppar
         Mescaline.Synth.Pattern.Player
         Mescaline.Synth.Pattern.Process
-        Mescaline.Synth.Pattern.Step
+        Mescaline.Synth.Pattern.Sequencer
         Mescaline.Synth.Pattern.Track
-        Mescaline.Synth.Pattern.Load
         Mescaline.Synth.Sampler
         Mescaline.Synth.Sequencer.Model
         Mescaline.Synth.Sequencer.Process
