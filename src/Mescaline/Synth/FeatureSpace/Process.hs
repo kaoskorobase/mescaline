@@ -23,17 +23,13 @@ import qualified System.Random as Random
 
 data Input =
     LoadDatabase    FilePath String
-  | ActivateUnit    Time Model.Unit
-  | DeactivateUnit  Time Unit.Unit
   | AddRegion       Double Double Double
   | UpdateRegion    Model.Region
-  | ActivateRegion  Time Model.RegionId
+  -- | ActivateRegion  Time Model.RegionId
   | GetModel        (Query Model.FeatureSpace)
 
 data Output =
     DatabaseLoaded  [Model.Unit]
-  | UnitActivated   Time Model.Unit
-  | UnitDeactivated Time Unit.Unit
   | RegionAdded     Model.Region
   | RegionChanged   Model.Region
 
@@ -71,19 +67,12 @@ new = do
                         notify $ RegionChanged r
                         -- io $ putStrLn $ "UpdateRegion " ++ show r
                         return $ Model.updateRegion r f
-                    ActivateRegion t i -> do
-                        let (u, f') = Model.activateRegion i f
-                        case u of
-                            Nothing -> return ()
-                            Just u  -> notify $ UnitActivated t u
-                        return f'
-                    ActivateUnit t u -> do
-                        notify $ UnitActivated t u
-                        return $ Model.activateUnit (Model.unit u) f
-                        return f
-                    DeactivateUnit t u -> do
-                        notify $ UnitDeactivated t u
-                        return $ Model.deactivateUnit u f
+                    -- ActivateRegion t i -> do
+                    --     let (u, f') = Model.activateRegion i f
+                    --     case u of
+                    --         Nothing -> return ()
+                    --         Just u  -> notify $ UnitActivated t u
+                    --     return f'
                     GetModel query -> do
                         answer query f
                         return f

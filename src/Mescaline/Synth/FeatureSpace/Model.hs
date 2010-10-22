@@ -15,7 +15,6 @@ module Mescaline.Synth.FeatureSpace.Model (
   , UnitSet
   , unitSet
   , randomGen
-  , activeUnits
   , units
   , setFeatureSpace
   , fromList
@@ -29,8 +28,6 @@ module Mescaline.Synth.FeatureSpace.Model (
   , regionUnits
   , activateRegion
   , activateRegions
-  , activateUnit
-  , deactivateUnit
 ) where
 
 import           Control.Arrow (first)
@@ -90,7 +87,6 @@ data FeatureSpace = FeatureSpace {
     unitSet     :: UnitSet
   , randomGen   :: Random.StdGen
   , regions     :: IntMap Region
-  , activeUnits :: Set Unit.Unit
   }
 
 minPos :: Double
@@ -122,7 +118,7 @@ setFeatureSpace :: FeatureSpace -> [(Unit.Unit, Feature.Feature)] -> FeatureSpac
 setFeatureSpace f us = f { unitSet = BKTree.fromList (map Unit us) }
 
 fromList :: Random.StdGen -> [(Unit.Unit, Feature.Feature)] -> FeatureSpace
-fromList g us = FeatureSpace (BKTree.fromList (map Unit us)) g IntMap.empty Set.empty
+fromList g us = FeatureSpace (BKTree.fromList (map Unit us)) g IntMap.empty
 
 nextRegionId :: FeatureSpace -> Int
 nextRegionId f
@@ -167,21 +163,14 @@ regionUnits i f =
 
 -- Return the next random unit from region i and an updated FeatureSpace.
 activateRegion :: RegionId -> FeatureSpace -> (Maybe Unit, FeatureSpace)
-activateRegion i f = (u, au (f { randomGen = g' }))
+activateRegion i f = (u, f { randomGen = g' })
     where
         us      = regionUnits i f
         (j, g') = Random.randomR (0, length us - 1) (randomGen f)
         u       = if null us then Nothing else Just (us !! j)
-        au f    = maybe f (flip activateUnit f . unit) u
 
 filterMaybe :: [Maybe a] -> [a]
 filterMaybe l = [ x | Just x <- l ]
 
 activateRegions :: [RegionId] -> FeatureSpace -> ([Unit], FeatureSpace)
 activateRegions is f = first filterMaybe $ State.runState (sequence (map (State.State . activateRegion) is)) f
-
-activateUnit :: Unit.Unit -> FeatureSpace -> FeatureSpace
-activateUnit u f = f { activeUnits = Set.insert u (activeUnits f) }
-
-deactivateUnit :: Unit.Unit -> FeatureSpace -> FeatureSpace
-deactivateUnit u f = f { activeUnits = Set.delete u (activeUnits f) }

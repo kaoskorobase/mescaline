@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE CPP, ScopedTypeVariables #-}
 import           Control.Applicative
 import           Control.Arrow
 import           Control.Concurrent (forkIO)
@@ -22,17 +22,19 @@ import qualified Mescaline.Database.SqlQuery as Sql
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Synth.Database.Process as DatabaseP
-import qualified Mescaline.Synth.Sampler as Synth
+import qualified Mescaline.Synth.Sampler.Process as SynthP
 import qualified Mescaline.Synth.Sequencer.Model as Sequencer
 import qualified Mescaline.Synth.Sequencer.Process as SequencerP
 import qualified Mescaline.Synth.Sequencer.View as SequencerView
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpace.Process as FeatureSpaceP
 import qualified Mescaline.Synth.FeatureSpace.View as FeatureSpaceView
+import           Mescaline.Synth.Pattern.DefaultPatch (defaultPatch)
 import qualified Mescaline.Synth.Pattern.Environment as Pattern
 import qualified Mescaline.Synth.Pattern.Event as Event
 import qualified Mescaline.Synth.Pattern as Pattern
 import qualified Mescaline.Synth.Pattern.Process as PatternP
+import qualified Mescaline.Synth.Pattern.View as PatternView
 import qualified Sound.OpenSoundControl as OSC
 import qualified Sound.SC3.Server.State as State
 import qualified Sound.SC3.Server.Process as Server
@@ -42,8 +44,6 @@ import qualified System.Environment as Env
 import           System.Environment.FindBin (getProgPath)
 import           System.FilePath
 import qualified System.Random as Random
-
-import           ThePatch
 
 import qualified Qtc.Classes.Gui                as Qt
 import qualified Qtc.Classes.Gui_h              as Qt
@@ -174,71 +174,6 @@ pipe f ichan ochan = do
     writeChan ochan b
     pipe f ichan ochan
 
-startSynth :: FeatureSpaceP.Handle -> IO (Chan (Either (Time, Unit.Unit) ()), Chan ())
-startSynth fspaceP = do
-    ichan <- newChan
-    ochan <- newChan
-
-    forkIO $ do
-        exe <- App.getResourceExecutable "supercollider/scsynth"
-        (scsynth, plugins) <-
-            case exe of
-                Nothing -> do
-                    exe <- App.findExecutable "scsynth"
-                    case exe of
-                        -- TODO: Display this in the UI
-                        Nothing -> do
-                            d <- App.getResourceDirectory
-                            fail $ unwords [
-                                    "I couldn't find the SuperCollider audio engine `scsynth'."
-                                  , "You need to put it either in `" ++ d </> "supercollider" ++ "' or into your PATH."
-                                  , "WARNING: Sound output will not work!" ]
-                        Just exe -> return (exe, Nothing)
-                Just exe -> do
-                    plg <- App.getResourcePath "supercollider/plugins"
-                    return (exe, Just [plg])
-        let
-            serverOptions = Server.defaultServerOptions {
-                Server.loadSynthDefs  = False
-              , Server.serverProgram  = scsynth
-              , Server.ugenPluginPath = plugins
-              }
-            rtOptions = Server.defaultRTOptions { Server.udpPortNumber = 2278 }
-        putStrLn $ unwords $ Server.rtCommandLine serverOptions rtOptions
-        (Server.withSynth
-            serverOptions
-            rtOptions
-            Server.defaultOutputHandler
-        -- (Server.withTransport
-        --     serverOptions
-        --     rtOptions
-            $ \(t :: OSC.UDP) -> do
-                synth <- Synth.new t serverOptions
-                fromSynthP <- spawn $ fix $ \loop -> do
-                    x <- recv
-                    case x of
-                        Synth.UnitStopped time unit -> sendTo fspaceP $ FeatureSpaceP.DeactivateUnit time unit
-                        _                           -> return ()
-                    loop
-                fromSynthP `listenTo` synth
-                fix $ \loop -> do
-                    e <- readChan ichan
-                    case e of
-                        Left (t, u) -> do
-                            -- b <- readMVar mute
-                            -- unless b $ do
-                            -- print u
-                            sendTo synth $ Synth.PlayUnit t u (setEnv Event.defaultSynth)
-                            -- return ()
-                            loop
-                        Right _ -> return ()) `finally` writeChan ochan ()
-    return (ichan, ochan)
-
-stopSynth :: (Chan (Either (Time, Unit.Unit) ()), Chan ()) -> IO ()
-stopSynth (ichan, ochan) = do
-    writeChan ichan (Right ())
-    readChan ochan
-
 -- ====================================================================
 -- Menu definition utilities
 -- TODO: Factor this into a separate module.
@@ -322,6 +257,11 @@ action_sequencer_playPause h _ a = do
     b <- Qt.isChecked a ()
     sendTo h $ SequencerP.Transport $ if b then SequencerP.Start else SequencerP.Pause
 
+action_pattern_playPause :: PatternP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_pattern_playPause h _ a = do
+    b <- Qt.isChecked a ()
+    sendTo h $ PatternP.Transport $ if b then PatternP.Start else PatternP.Pause
+
 action_sequencer_reset :: SequencerP.Sequencer () -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_sequencer_reset h _ _ = sendTo h $ SequencerP.Transport SequencerP.Reset
 
@@ -368,27 +308,31 @@ main = do
     mainWindow <- loadUI =<< App.getResourcePath "mescaline.ui"
     -- Qt.setHandler mainWindow "keyPressEvent(QKeyEvent*)" $ windowKeyPressEvent
 
+    -- Feature space process
+    fspaceP <- FeatureSpaceP.new
+
     -- Sequencer process
+#if USE_OLD_SEQUENCER == 1
     seqP <- SequencerP.new sequencer0
     (seqView, seqViewP) <- SequencerView.new 30 2 seqP
     seqViewP `listenTo` seqP
     mute <- newMVar False
+#endif
+
+    patternP <- PatternP.new defaultPatch fspaceP
+    (patternView, patternViewP) <- PatternView.new 30 2 patternP
+    patternViewP `listenTo` patternP
     
     -- Sequencer view
     seq_graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "sequencerView")
+#if USE_OLD_SEQUENCER == 1
     Qt.setScene seq_graphicsView seqView
+#else
+    Qt.setScene seq_graphicsView patternView
+#endif
 
-    -- matrixBox <- G.xmlGetWidget xml G.castToContainer "matrix"
-    -- G.containerAdd matrixBox canvas
-    -- tempo <- G.xmlGetWidget xml G.castToSpinButton "tempo"
-    -- G.onValueSpinned tempo $ do
-    --     t <- G.spinButtonGetValue tempo
-    --     let t' = 60/t/4
-    --     writeChan ichan (setVal tick t')
-    
-    -- Feature space process
-    fspaceP <- FeatureSpaceP.new
     -- Pipe sequencer output to feature space
+#if USE_OLD_SEQUENCER == 1
     fspaceSeqP <- spawn $ fix $ \loop -> do
         x <- recv
         case x of
@@ -399,10 +343,11 @@ main = do
                     _                 -> return ()
         loop
     fspaceSeqP `listenTo` seqP
-    
+#endif
+
     -- Feature space view
     (fspaceView, fspaceViewP) <- FeatureSpaceView.new fspaceP
-    fspaceViewP `listenTo` fspaceP
+    connect Left fspaceP fspaceViewP
     
     fspace_graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "featureSpaceView")
     Qt.setScene fspace_graphicsView fspaceView
@@ -411,21 +356,23 @@ main = do
     
     -- Database process
     dbP <- DatabaseP.new
-    addListenerWith (\(DatabaseP.Changed path pattern) -> FeatureSpaceP.LoadDatabase path pattern) dbP fspaceP
+    connect (\(DatabaseP.Changed path pattern) -> FeatureSpaceP.LoadDatabase path pattern) dbP fspaceP
     sendTo dbP $ DatabaseP.Load dbFile pattern
     
-    -- Fork synth process
-    (synth_ichan, synth_ochan) <- startSynth fspaceP
-    
+    -- Synth process
+    (synthP, synthQuit) <- SynthP.new
+    connect (\x -> case x of
+                SynthP.UnitStarted _ u -> Right $ FeatureSpaceView.HighlightOn u
+                SynthP.UnitStopped _ u -> Right $ FeatureSpaceView.HighlightOff u)
+            synthP fspaceViewP
+
     -- Pattern process
-    patternP <- PatternP.new thePatch fspaceP
     patternToFSpaceP <- spawn $ fix $ \loop -> do
         x <- recv
         case x of
-            PatternP.Event time track event ->
-                -- FIXME: Use unit/item map in fspace view
-                -- sendTo fspaceP (FeatureSpaceP.ActivateUnit time (getVal Event.unit event))
-                io $ writeChan synth_ichan (Left (time, (getVal Event.unit event)))
+            PatternP.Event time event -> do
+                -- io $ putStrLn $ "PatternP.Event " ++ show time ++ " " ++ show event
+                unless (Event.isRest event) $ sendTo synthP $ SynthP.PlayUnit time (getVal Event.unit event) (setEnv Event.defaultSynth)
             _ -> return ()
         loop
     patternToFSpaceP `listenTo` patternP
@@ -440,13 +387,13 @@ main = do
     fspaceToPatternP `listenTo` fspaceP
     
     -- Pipe feature space view output to synth
-    toSynthP <- spawn $ fix $ \loop -> do
-        x <- recv
-        case x of
-            FeatureSpaceP.UnitActivated t u -> io $ writeChan synth_ichan (Left (t, (FeatureSpace.unit u)))
-            _                               -> return ()
-        loop
-    toSynthP `listenTo` fspaceP
+    -- toSynthP <- spawn $ fix $ \loop -> do
+    --     x <- recv
+    --     case x of
+    --         FeatureSpaceP.UnitActivated t u -> io $ writeChan synth_ichan (Left (t, (FeatureSpace.unit u)))
+    --         _                               -> return ()
+    --     loop
+    -- toSynthP `listenTo` fspaceP
 
     -- Set up actions and menus
     let aboutAction = Action "about" "About Mescaline" "Show about message box" Trigger Nothing action_about
@@ -458,12 +405,17 @@ main = do
             [ Menu "file" "File"
               [ Action "importFile" "Import File..." "Import a file" Trigger (Just "Ctrl+i") (action_file_importFile dbP)
               , Action "importDirectory" "Import Directory..." "Import a directory" Trigger (Just "Ctrl+Shift+I") (action_file_importDirectory dbP) ]
+#if USE_OLD_SEQUENCER == 1
             , Menu "sequencer" "Sequencer"
               [ Action "play" "Play" "Start or pause the sequencer" Checkable (Just "SPACE") (action_sequencer_playPause seqP)
               , Action "reset" "Reset" "Reset the sequencer" Trigger (Just "RETURN") (action_sequencer_reset seqP)
               , Action "clear" "Clear" "Clear sequencer" Trigger (Just "Ctrl+k") (action_sequencer_clear seqP)
               -- , Action "mute" "Mute" "Mute sequencer" Trigger (Just "m") (action_sequencer_mute mute)
               ]
+#else
+            , Menu "sequencer" "Sequencer"
+              [ Action "play" "Play" "Start or pause the sequencer" Checkable (Just "SPACE") (action_pattern_playPause patternP) ]
+#endif
             , Menu "featureSpace" "FeatureSpace"
               [ Menu "zoom" "Zoom"
                 [ Action "zoomIn" "Zoom In" "Zoom into feature space" Trigger (Just "Ctrl++") (action_featureSpace_zoom_zoomIn fspace_graphicsView)
@@ -488,7 +440,7 @@ main = do
     
     -- Signal synth thread and wait for it to exit.
     -- Otherwise stale scsynth processes will be lingering around.
-    stopSynth (synth_ichan, synth_ochan)
+    synthQuit
 
     putStrLn "Bye sucker."
     Qt.returnGC

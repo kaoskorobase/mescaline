@@ -1,11 +1,12 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Sound.SC3.Server.Monad (
   -- *Server Monad
-    Server
+    ServerT
+  , runServerT
+  , Server
   , runServer
   , lift
   , liftIO
-  , liftSTM
   , rootNode
   -- *Allocators
   , BufferId
@@ -28,10 +29,9 @@ module Sound.SC3.Server.Monad (
 ) where
 
 import           Control.Concurrent (ThreadId)
-import           Control.Concurrent.STM (STM, atomically)
 import           Control.Concurrent.MVar
 import           Control.Monad.Reader (MonadReader, ReaderT(..), ask, asks, lift)
-import           Control.Monad.Trans (MonadIO, liftIO)
+import           Control.Monad.Trans (MonadIO, MonadTrans, liftIO)
 import           Data.Accessor
 import           Sound.SC3 (Rate(..))
 import           Sound.SC3.Server.Allocator (IdAllocator, RangeAllocator, Range)
@@ -44,24 +44,26 @@ import qualified Sound.SC3.Server.State.IO as IOState
 
 import           Sound.OpenSoundControl (OSC)
 
-newtype Server a = Server (ReaderT Connection IO a)
-    deriving (Functor, Monad, MonadReader Connection, MonadIO)
+newtype ServerT m a = ServerT (ReaderT Connection m a)
+    deriving (Functor, Monad, MonadReader Connection, MonadIO, MonadTrans)
+
+type Server = ServerT IO
 
 type Allocator a = Accessor State a
 
-liftSTM :: STM a -> Server a
-liftSTM = liftIO . atomically
+liftConn :: MonadIO m => (Connection -> IO a) -> ServerT m a
+liftConn f = ask >>= \c -> liftIO (f c)
 
-liftConnIO :: (Connection -> IO a) -> Server a
-liftConnIO f = ask >>= liftIO . f
-
-liftState :: (State -> a) -> Server a
+liftState :: MonadIO m => (State -> a) -> ServerT m a
 liftState f = asks C.state >>= liftIO . readMVar >>= return . f
 
-runServer :: Server a -> Connection -> IO a
-runServer (Server r) = runReaderT r
+runServerT :: ServerT m a -> Connection -> m a
+runServerT (ServerT r) = runReaderT r
 
-rootNode :: Server NodeId
+runServer :: Server a -> Connection -> IO a
+runServer = runServerT
+
+rootNode :: MonadIO m => ServerT m NodeId
 rootNode = liftState State.rootNode
 
 
@@ -77,35 +79,35 @@ busId KR = State.controlBusId
 busId r  = error ("No bus allocator for rate " ++ show r)
 
 
-alloc :: IdAllocator i a => Allocator a -> Server i
+alloc :: (IdAllocator i a, MonadIO m) => Allocator a -> ServerT m i
 alloc a = asks C.state >>= liftIO . IOState.alloc a
 
-allocMany :: IdAllocator i a => Allocator a -> Int -> Server [i]
+allocMany :: (IdAllocator i a, MonadIO m) => Allocator a -> Int -> ServerT m [i]
 allocMany a n = asks C.state >>= liftIO . flip (IOState.allocMany a) n
 
-allocRange :: RangeAllocator i a => Allocator a -> Int -> Server (Range i)
+allocRange :: (RangeAllocator i a, MonadIO m) => Allocator a -> Int -> ServerT m (Range i)
 allocRange a n = asks C.state >>= liftIO . flip (IOState.allocRange a) n
 
-fork :: Server () -> Server ThreadId
-fork = liftConnIO . flip C.fork . runServer
+fork :: (MonadIO m) => ServerT IO () -> ServerT m ThreadId
+fork = liftConn . flip C.fork . runServerT
 
-send :: OSC -> Server ()
-send = liftConnIO . flip C.send
+send :: (MonadIO m) => OSC -> ServerT m ()
+send = liftConn . flip C.send
 
--- communicate :: Server (Consumer a) -> Server a
+-- communicate :: ServerT (Consumer a) -> ServerT a
 -- communicate a = do
 --     c <- ask
---     liftIO $ Conn.communicate c (runServer a c)
+--     liftIO $ Conn.communicate c (runServerT a c)
 
-waitFor :: (OSC -> Maybe a) -> Server a
-waitFor = liftConnIO . flip C.waitFor
+waitFor :: (MonadIO m) => (OSC -> Maybe a) -> ServerT m a
+waitFor = liftConn . flip C.waitFor
 
 -- | Wait for an OSC message matching a specific address.
-wait :: String -> Server OSC
-wait = liftConnIO . flip C.wait
+wait :: (MonadIO m) => String -> ServerT m OSC
+wait = liftConn . flip C.wait
 
-sync :: OSC -> Server ()
-sync = liftConnIO . flip C.sync
+sync :: (MonadIO m) => OSC -> ServerT m ()
+sync = liftConn . flip C.sync
 
-unsafeSync :: Server ()
-unsafeSync = liftConnIO C.unsafeSync
+unsafeSync :: (MonadIO m) => ServerT m ()
+unsafeSync = liftConn C.unsafeSync

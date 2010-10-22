@@ -1,13 +1,11 @@
 {-# LANGUAGE BangPatterns #-}
-module Mescaline.Synth.Sampler (
+module Mescaline.Synth.Sampler.Model (
     Sampler
-  , Input(..)
-  , Output(..)
   , new
+  , free
+  , playUnit
 ) where
 
-import           Control.Concurrent
-import           Control.Concurrent.Process
 import           Control.Monad.Reader
 import           Data.Accessor ((^.))
 import           Mescaline (Time)
@@ -19,16 +17,11 @@ import           Mescaline.Synth.Pattern.Event (SynthParams)
 import qualified Mescaline.Synth.Pattern.Event as P
 import           Sound.OpenSoundControl (OSC(..))
 import qualified Sound.OpenSoundControl as OSC
-import           Sound.OpenSoundControl.Transport (Transport)
 import           Sound.SC3 hiding (Output, free, gate, sync)
 import           Sound.SC3.Lang.Collection
 import           Sound.SC3.Server.Command.Completion
-import           Sound.SC3.Server.Connection (Connection)
-import qualified Sound.SC3.Server.Connection as Conn
 import           Sound.SC3.Server.Monad as S
 import           Sound.SC3.Server.Notification (n_end)
-import qualified Sound.SC3.Server.Process as Process
-import qualified Sound.SC3.Server.State as State
 
 data Voice = Voice NodeId Buffer deriving (Eq, Show)
 
@@ -138,8 +131,22 @@ freeVoice cache (Voice _ buf) = do
     S.sync $ b_close (fromIntegral $ BC.uid buf)
     BC.freeBuffer cache buf
 
-playUnit :: BufferCache -> Time -> Unit.Unit -> SynthParams -> Server ()
-playUnit cache time unit params = do
+newtype Sampler = Sampler { bufferCache :: BufferCache }
+
+new :: Server Sampler
+new = do
+    S.sync $ Bundle OSC.immediately [ d_recv (synthdef (voiceDefName 1) (voiceDef 1)),
+                                      d_recv (synthdef (voiceDefName 2) (voiceDef 2)) ]
+    cache <- BC.new (replicate 4 (BC.allocBytes 1 diskBufferSize) ++ replicate 4 (BC.allocBytes 1 diskBufferSize))
+    return $ Sampler cache
+
+free :: Sampler -> Server ()
+free sampler = do
+    S.send (g_freeAll [0])
+    BC.release (bufferCache sampler)
+
+playUnit :: Sampler -> Time -> Unit.Unit -> SynthParams -> Server ()
+playUnit sampler time unit params = do
     voice@(Voice nid buf) <- allocVoice cache unit (\voice ->
             Just $ b_read'
                     (startVoice voice time unit params)
@@ -154,50 +161,12 @@ playUnit cache time unit params = do
     -- print (t-tu, t+dur-tu)
     liftIO $ OSC.pauseThreadUntil (time + dur)
     S.send $ stopVoice voice (time + dur) params
-    S.waitFor $ n_end nid
+    _ <- S.waitFor $ n_end nid
     -- tu' <- utcr
     -- liftIO $ putStrLn ("node end: " ++ show voice)
     freeVoice cache voice
     return ()
     where
-        dur = Unit.duration unit
+        cache      = bufferCache sampler
+        dur        = Unit.duration unit
         sourceFile = Unit.sourceFile unit
-
-data Input =
-    Reset
-  | PlayUnit !Time !Unit.Unit !SynthParams
-
-data Output =
-    UnitStarted Time Unit.Unit
-  | UnitStopped Time Unit.Unit
-
-type Sampler = Handle Input Output
-
-new :: Transport t => t -> Process.ServerOptions -> IO Sampler
-new t serverOpts = do
-    conn <- Conn.new (State.new serverOpts) t
-    cache <- flip runServer conn $ do
-        S.sync $ Bundle OSC.immediately [ d_recv (synthdef (voiceDefName 1) (voiceDef 1)),
-                                          d_recv (synthdef (voiceDefName 2) (voiceDef 2)) ]
-        BC.new (replicate 4 (BC.allocBytes 1 diskBufferSize) ++ replicate 4 (BC.allocBytes 1 diskBufferSize))
-    spawn $ loop conn cache
-    where
-        loop !conn !cache = do
-            -- TODO: Create a ServerT monad transformer!
-            x <- recv
-            case x of
-                Reset ->
-                    liftIO $ flip runServer conn $ do
-                        S.send (g_freeAll [0])
-                        BC.release cache
-                PlayUnit t u p -> do
-                    h <- self
-                    io $ flip runServer conn $ do
-                        fork $ do
-                            io $ notifyListeners h $ UnitStarted t u
-                            -- io $ putStrLn $ "playUnit: " ++ show (t, u, p)
-                            playUnit cache t u p
-                            -- io $ putStrLn $ "stoppedUnit: " ++ show (t, u, p)
-                            io $ notifyListeners h $ UnitStopped t u
-                    return ()
-            loop conn cache

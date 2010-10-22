@@ -124,6 +124,7 @@ library
         Mescaline.Synth.FeatureSpace.View
         Mescaline.Synth.Pattern
         Mescaline.Synth.Pattern.Base
+        Mescaline.Synth.Pattern.DefaultPatch
         Mescaline.Synth.Pattern.Environment
         Mescaline.Synth.Pattern.Event
         Mescaline.Synth.Pattern.Load
@@ -131,8 +132,9 @@ library
         Mescaline.Synth.Pattern.Player
         Mescaline.Synth.Pattern.Process
         Mescaline.Synth.Pattern.Sequencer
-        Mescaline.Synth.Pattern.Track
-        Mescaline.Synth.Sampler
+        Mescaline.Synth.Pattern.View
+        Mescaline.Synth.Sampler.Model
+        Mescaline.Synth.Sampler.Process
         Mescaline.Synth.Sequencer.Model
         Mescaline.Synth.Sequencer.Process
         Mescaline.Synth.Sequencer.View
@@ -148,6 +150,7 @@ library
         Sound.SC3.Server.Connection
         Sound.SC3.Server.Monad
         Sound.SC3.Server.Notification
+        Sound.SC3.Server.Process.Monad
         Sound.SC3.Server.State
         Sound.SC3.Server.State.IO
     other-modules:
