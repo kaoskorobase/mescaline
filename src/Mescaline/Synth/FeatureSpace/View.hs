@@ -25,6 +25,8 @@ import qualified Mescaline.Database.Unit as Unit
 import           Mescaline.Synth.FeatureSpace.Model (FeatureSpace)
 import qualified Mescaline.Synth.FeatureSpace.Model as Model
 import qualified Mescaline.Synth.FeatureSpace.Process as Process
+import qualified Mescaline.Synth.Pattern.Event as Synth
+import qualified Mescaline.Synth.Sampler.Process as Synth
 import qualified Mescaline.UI as UI
 
 import qualified Qtc.Classes.Gui                    as Qt
@@ -63,8 +65,8 @@ featureSpaceView_ :: IO (FeatureSpaceView)
 featureSpaceView_ = Qt.qSubClass (Qt.qGraphicsScene ())
 
 data Highlight = HighlightOn Unit.Unit | HighlightOff Unit.Unit
-type Input = Either Process.Output Highlight
-type Output = ()
+type Input     = Either Process.Output Highlight
+type Output    = ()
 
 pair :: (V.Vector v a, Num a) => v a -> (a, a)
 pair v | V.length v >= 2 = (v V.! 0, v V.! 1)
@@ -125,6 +127,7 @@ data UnitActivation = UnitActivation !(Qt.QGraphicsItem ()) !Int
 
 data State = State {
     featureSpace :: Process.Handle
+  , synth        :: Synth.Handle
   , unitGroup    :: MVar (Maybe (Qt.QGraphicsItem ()))
   , units        :: MVar (Unique.Map (Qt.QGraphicsItem ()))
   , activations  :: MVar (Unique.Map UnitActivation)
@@ -235,13 +238,15 @@ addUnit parent state unit = do
     item <- Qt.qGraphicsEllipseItem_nf box
     Qt.setParentItem item parent
     Qt.setPos item (Qt.pointF x y)
-    return (Unit.id (Model.unit unit), Qt.objectCast item)
+
     -- Qt.setFlags item Qt.fItemIgnoresTransformations
     -- Qt.setHandler item "mousePressEvent(QGraphicsSceneMouseEvent*)" $ mouseHandler (unit u) action
 
-    -- Qt.setHandler item "hoverEnterEvent(QGraphicsSceneHoverEvent*)" $ hoverHandler $
-    --     readMVar (playUnits state) >>= flip when (sendTo (featureSpace state) $ Process.ActivateUnit (-1) unit)
-    -- Qt.setAcceptsHoverEvents item True
+    Qt.setHandler item "hoverEnterEvent(QGraphicsSceneHoverEvent*)" $ hoverHandler $
+        readMVar (playUnits state) >>= flip when (sendTo (synth state) $ Synth.PlayUnit (-1) (Model.unit unit) Synth.defaultSynth)
+    Qt.setAcceptsHoverEvents item True
+
+    return (Unit.id (Model.unit unit), Qt.objectCast item)
 
 process :: forall o m b .
            (Control.Monad.Trans.MonadIO m) =>
@@ -319,19 +324,19 @@ defer view state action = io $ do
     writeChan (guiChan state) action
     Qt.emitSignal view "update()" ()
 
-newState :: Process.Handle -> IO State
-newState fspace = do
+newState :: Process.Handle -> Synth.Handle -> IO State
+newState fspace synth = do
     ug <- newMVar Nothing
     us <- newMVar Map.empty
     hl <- newMVar Map.empty
     cs <- UI.defaultColorsFromFile
     pu <- newMVar False
     gc <- newChan
-    return $ State fspace ug us hl (cycle cs) IMap.empty pu gc
+    return $ State fspace synth ug us hl (cycle cs) IMap.empty pu gc
 
-new :: Process.Handle -> IO (FeatureSpaceView, Handle Input Output)
-new fspace = do
-    state <- newState fspace
+new :: Process.Handle -> Synth.Handle -> IO (FeatureSpaceView, Handle Input Output)
+new fspace synth = do
+    state <- newState fspace synth
     
     view <- featureSpaceView_
     Qt.setItemIndexMethod view Qt.eNoIndex

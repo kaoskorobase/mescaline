@@ -345,9 +345,16 @@ main = do
     fspaceSeqP `listenTo` seqP
 #endif
 
+    -- Synth process
+    (synthP, synthQuit) <- SynthP.new
+
     -- Feature space view
-    (fspaceView, fspaceViewP) <- FeatureSpaceView.new fspaceP
+    (fspaceView, fspaceViewP) <- FeatureSpaceView.new fspaceP synthP
     connect Left fspaceP fspaceViewP
+    connect (\x -> case x of
+                SynthP.UnitStarted _ u -> Right $ FeatureSpaceView.HighlightOn u
+                SynthP.UnitStopped _ u -> Right $ FeatureSpaceView.HighlightOff u)
+            synthP fspaceViewP
     
     fspace_graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "featureSpaceView")
     Qt.setScene fspace_graphicsView fspaceView
@@ -359,13 +366,6 @@ main = do
     connect (\(DatabaseP.Changed path pattern) -> FeatureSpaceP.LoadDatabase path pattern) dbP fspaceP
     sendTo dbP $ DatabaseP.Load dbFile pattern
     
-    -- Synth process
-    (synthP, synthQuit) <- SynthP.new
-    connect (\x -> case x of
-                SynthP.UnitStarted _ u -> Right $ FeatureSpaceView.HighlightOn u
-                SynthP.UnitStopped _ u -> Right $ FeatureSpaceView.HighlightOff u)
-            synthP fspaceViewP
-
     -- Pattern process
     patternToFSpaceP <- spawn $ fix $ \loop -> do
         x <- recv
