@@ -1,6 +1,8 @@
 module Mescaline.Synth.Sampler.Process (
     Handle
+    -- * Input
   , Input(..)
+    -- * Output
   , Output(..)
   , new
 ) where
@@ -8,6 +10,7 @@ module Mescaline.Synth.Sampler.Process (
 import           Control.Concurrent
 import           Control.Concurrent.Process hiding (Handle)
 import qualified Control.Concurrent.Process as Process
+import           Control.Exception
 import           Mescaline (Time)
 import qualified Mescaline.Application as App
 import qualified Mescaline.Database.Unit as Unit
@@ -22,12 +25,13 @@ data Input =
     Reset
   | Quit
   | PlayUnit Time Unit.Unit SynthParams
+  | EngineException_ SomeException
   deriving (Show)
 
 data Output =
     UnitStarted Time Unit.Unit
   | UnitStopped Time Unit.Unit
-  -- | EngineStopped ExitCode
+  | EngineException SomeException
 
 type Handle = Process.Handle Input Output
 
@@ -60,64 +64,52 @@ new = do
           , Server.ugenPluginPath = plugins
           }
         rtOptions = Server.defaultRTOptions { Server.udpPortNumber = 2278 }
+    
     putStrLn $ unwords $ Server.rtCommandLine serverOptions rtOptions
-    handle <- newEmptyMVar
+    
+    chan <- newChan
     quit <- newEmptyMVar
-    _ <- forkIO $ runSynth serverOptions rtOptions handle quit
-    h <- takeMVar handle
-    return (h, sendTo h Quit >> takeMVar quit)
+    h <- spawn $ process chan
+    _ <- forkIO $ runSynth serverOptions rtOptions h chan quit
+
+    return (h, sendTo h Quit >> readMVar quit)
     where
-        runSynth serverOptions rtOptions handle quit = do
-            Server.withSynthUDP
-                serverOptions
-                rtOptions
-                Server.defaultOutputHandler
-                -- (Server.withTransport
-                --     serverOptions
-                --     rtOptions
-                $ do
-                    sampler <- Model.new
-                    io $ putStrLn "starting sampler loop"
-                    runHere $ do
-                        self >>= io . putMVar handle
-                        loop sampler
-                    return ()
+        runSynth serverOptions rtOptions h chan quit = do
+            e <- try $
+                Server.withSynthUDP
+                    serverOptions
+                    rtOptions
+                    Server.defaultOutputHandler
+                    -- (Server.withTransport
+                    --     serverOptions
+                    --     rtOptions
+                    (Model.new >>= loop h chan)
+            case e of
+                Left exc -> writeChan chan $ EngineException_ exc
+                _ -> return ()
             putMVar quit ()
-        loop :: Model.Sampler -> ReceiverT Input Output Server ()
-        loop sampler = do
+        process :: Chan Input -> ReceiverT Input Output IO ()
+        process chan = do
             x <- recv
-            io $ print x
+            case x of
+                EngineException_ exc -> notify $ EngineException exc
+                msg -> io $ writeChan chan msg
+            process chan
+        loop :: Handle -> Chan Input -> Model.Sampler -> Server ()
+        loop h chan sampler = do
+            x <- io $ readChan chan
             case x of
                 Quit ->
                     return ()
                 Reset -> do
-                    lift $ Model.free sampler
-                    loop sampler
+                    Model.free sampler
+                    loop h chan sampler
                 PlayUnit t u p -> do
-                    h <- self
-                    _ <- lift $ fork $ do
+                    _ <- fork $ do
                         io $ notifyListeners h $ UnitStarted t u
                         -- io $ putStrLn $ "playUnit: " ++ show (t, u, p)
                         Model.playUnit sampler t u p
                         -- io $ putStrLn $ "stoppedUnit: " ++ show (t, u, p)
                         io $ notifyListeners h $ UnitStopped t u
-                    loop sampler
-
---                     fromSynthP <- spawn $ fix $ \loop -> do
---                         x <- recv
---                         case x of
---                             Synth.UnitStopped time unit -> sendTo fspaceP $ FeatureSpaceP.DeactivateUnit time unit
---                             _                           -> return ()
---                         loop
---                     fromSynthP `listenTo` synth
---                     fix $ \loop -> do
---                         e <- readChan ichan
---                         case e of
---                             Left (t, u) -> do
---                                 -- b <- readMVar mute
---                                 -- unless b $ do
---                                 -- print u
---                                 sendTo synth $ Synth.PlayUnit t u (setEnv Event.defaultSynth)
---                                 -- return ()
---                                 loop
---                             Right _ -> return ()) `finally` writeChan ochan ()            -- TODO: Create a ServerT monad transformer!
+                    loop h chan sampler
+                _ -> loop h chan sampler
