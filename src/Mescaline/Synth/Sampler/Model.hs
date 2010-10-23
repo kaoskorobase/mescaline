@@ -1,4 +1,7 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP #-}
+
+#define SCHEDULE_COMPLETION_BUNDLES 0
+
 module Mescaline.Synth.Sampler.Model (
     Sampler
   , new
@@ -19,14 +22,15 @@ import           Sound.OpenSoundControl (OSC(..))
 import qualified Sound.OpenSoundControl as OSC
 import           Sound.SC3 hiding (Output, free, gate, sync)
 import           Sound.SC3.Lang.Collection
+#if SCHEDULE_COMPLETION_BUNDLES == 1
 import           Sound.SC3.Server.Command.Completion
+#endif -- SCHEDULE_COMPLETION_BUNDLES
 import           Sound.SC3.Server.Monad as S
 import           Sound.SC3.Server.Notification (n_end)
 
-data Voice = Voice NodeId Buffer deriving (Eq, Show)
-
-buffer :: Voice -> Buffer
-buffer (Voice _ b) = b
+data Voice = Voice { voiceId :: NodeId
+                   , buffer  :: Buffer
+                   } deriving (Eq, Show)
 
 diskBufferSize :: Int
 diskBufferSize = 8192*8
@@ -91,13 +95,13 @@ voiceDefName 2  = "es.globero.mescaline.voice_2"
 voiceDefName nc = "es.globero.mescaline.voice_" ++ (show nc)
 
 startVoice :: Voice -> Time -> Unit.Unit -> SynthParams -> OSC
-startVoice (Voice nid buf) time unit params =
+startVoice voice time unit params =
     let timeTag = if time <= 0
                   then OSC.immediately
                   else OSC.UTCr (time + params ^. P.latency)
     in Bundle timeTag
-        [s_new (voiceDefName $ BC.numChannels buf) (fromIntegral nid) AddToTail 0
-            ([ ("bufnum", fromIntegral $ BC.uid buf),
+        [s_new (voiceDefName $ BC.numChannels $ buffer voice) (fromIntegral $ voiceId voice) AddToTail 0
+            ([ ("bufnum", fromIntegral $ BC.uid $ buffer voice),
               ("attackTime",   params ^. P.attackTime),
               ("releaseTime",  params ^. P.attackTime),
               ("sustainLevel", params ^. P.sustainLevel) ]
@@ -108,10 +112,10 @@ startVoice (Voice nid buf) time unit params =
             ]
 
 stopVoice :: Voice -> Time -> SynthParams -> OSC
-stopVoice (Voice nid _) time params =
+stopVoice voice time params =
     if voiceGateEnvelope
         then Bundle (OSC.UTCr (time + params ^. P.latency))
-                [n_set1 (fromIntegral nid) "gate" (params ^. P.gateLevel)]
+                [n_set1 (fromIntegral $ voiceId voice) "gate" (params ^. P.gateLevel)]
         else Bundle OSC.immediately []
 
 allocVoice :: BufferCache -> Unit.Unit -> (Voice -> Maybe OSC) -> Server Voice
@@ -127,9 +131,9 @@ allocVoice cache unit completion = do
     return $ Voice nid buf
 
 freeVoice :: BufferCache -> Voice -> Server ()
-freeVoice cache (Voice _ buf) = do
-    S.sync $ b_close (fromIntegral $ BC.uid buf)
-    BC.freeBuffer cache buf
+freeVoice cache voice = do
+    S.sync $ b_close $ fromIntegral $ BC.uid $ buffer voice
+    BC.freeBuffer cache (buffer voice)
 
 newtype Sampler = Sampler { bufferCache :: BufferCache }
 
@@ -147,9 +151,14 @@ free sampler = do
 
 playUnit :: Sampler -> Time -> Unit.Unit -> SynthParams -> Server ()
 playUnit sampler time unit params = do
-    voice@(Voice nid buf) <- allocVoice cache unit (\voice ->
-            Just $ b_read'
+    voice <- allocVoice cache unit (\voice ->
+            Just $
+#if SCHEDULE_COMPLETION_BUNDLES == 1
+                b_read'
                     (startVoice voice time unit params)
+#else
+                b_read
+#endif -- SCHEDULE_COMPLETION_BUNDLES
                     (fromIntegral $ BC.uid $ buffer voice)
                     (SourceFile.path sourceFile)
                     (truncate $ SourceFile.sampleRate sourceFile * Unit.onset unit)
@@ -157,11 +166,13 @@ playUnit sampler time unit params = do
     -- tu <- utcr
     -- FIXME: Why is this necessary?!
     S.unsafeSync
-    -- S.send (startVoice voice time unit params)
+#if SCHEDULE_COMPLETION_BUNDLES != 1
+    S.send (startVoice voice time unit params)
+#endif -- SCHEDULE_COMPLETION_BUNDLES
     -- print (t-tu, t+dur-tu)
     liftIO $ OSC.pauseThreadUntil (time + dur)
     S.send $ stopVoice voice (time + dur) params
-    _ <- S.waitFor $ n_end nid
+    _ <- S.waitFor $ n_end $ voiceId voice
     -- tu' <- utcr
     -- liftIO $ putStrLn ("node end: " ++ show voice)
     freeVoice cache voice
