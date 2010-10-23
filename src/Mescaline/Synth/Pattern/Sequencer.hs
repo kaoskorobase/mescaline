@@ -14,9 +14,11 @@ module Mescaline.Synth.Pattern.Sequencer (
   , insert
   , delete
   , clear
+  , assocs
   , active
 ) where
 
+import           Control.Arrow (first)
 import           Control.Monad (join)
 import           Data.Accessor
 import           Data.Maybe (maybeToList)
@@ -77,6 +79,10 @@ delete = alter (const Nothing)
 
 clear :: Sequencer -> Sequencer
 clear s = s { matrix = Map.empty }
+
+-- | Get element values
+assocs :: Sequencer -> [((Int,Int), Double)]
+assocs s = concatMap (\(c,m) -> map (first (flip (,) c)) (Map.assocs m)) (Map.assocs (matrix s))
 
 -- | Get elements at cursors.
 active :: Sequencer -> [(Int, (Cursor, Double))]

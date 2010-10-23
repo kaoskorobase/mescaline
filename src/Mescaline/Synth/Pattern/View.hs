@@ -54,6 +54,7 @@ data State = State {
   , colors    :: [Qt.QColor ()]
   , fieldStyle :: (Qt.QPen (), Qt.QBrush ())
   , cursorStyle :: (Qt.QPen (), Qt.QBrush ())
+  , activeStyle :: (Qt.QPen (), Qt.QBrush ())
   }
 
 type Input  = Process.Output
@@ -79,16 +80,25 @@ initScene view p rows cols action = do
 updateScene :: State -> View -> View -> IO ()
 updateScene state view _ = do
     (prevSeq, curSeq) <- readMVar (sequencer state)
+    maybe (return ()) (mapM_ (setActive state fieldStyle) . Model.assocs) prevSeq
+    mapM_ (setActive state activeStyle) (Model.assocs curSeq)
     maybe (return ()) (mapM_ (setCursor state fieldStyle . snd) . Model.cursors) prevSeq
     mapM_ (setCursor state cursorStyle . snd) (Model.cursors curSeq)
     where
+        setActive state style ((row,col), value) = do
+            case Map.lookup (row,col) (fields state) of
+                Nothing -> return ()
+                Just item -> do
+                    let (p, b) = style state
+                    Qt.setPen item p
+                    Qt.setBrush item b
         setCursor state style cursor = do
             case Map.lookup (Model.row cursor, Model.column cursor) (fields state) of
                 Nothing -> return ()
                 Just item -> do
                     let (p, b) = style state
                     Qt.setPen item p
-                    Qt.setBrush item b
+                    -- Qt.setBrush item b
 
 updateProcess :: MonadIO m => View -> State -> ReceiverT Input Output m ()
 updateProcess view state = loop
@@ -107,39 +117,26 @@ new :: Double -> Double -> Process.Handle -> IO (View, Handle Input Output)
 new boxSize padding process = do
     view <- newView
     
-    -- FIXME: How to abstract this away?
-    -- Asynchronous messages vs. synchronous queries
     model <- query process $ Process.GetSequencer
     
     fields <- initScene view
                         (Params boxSize padding)
                         (Model.rows model)
                         (Model.cols model)
-                        (\(r, c) -> sendTo process . Process.SetCell r c)
+                        (\(r, c) _ -> sendTo process $ Process.ModifyCell r c (maybe (Just 1) (const Nothing)))
     colors <- UI.defaultColorsFromFile
 
     modelVar <- newMVar (Nothing, model)
     
     tb <- Qt.qBrush Qt.eblack
-    tw <- Qt.qBrush Qt.ewhite
-    normalPen <- Qt.qPen (tb, 1::Double, Qt.eSolidLine, Qt.eRoundCap, Qt.eRoundJoin)
-    cursorPen <- Qt.qPen (tb, 4::Double, Qt.eSolidLine, Qt.eRoundCap, Qt.eRoundJoin)
-    
-    let state = State modelVar fields colors (normalPen,tw) (cursorPen,tw)
+    tw <- Qt.qBrush Qt.etransparent
+    normalPen <- Qt.qPen (tb, 1::Double)
+    cursorPen <- Qt.qPen (tb, 2::Double)
+    activeBrush <- Qt.qBrush Qt.edarkGray
+    let state = State modelVar fields colors (normalPen,tw) (cursorPen,tw) (normalPen,activeBrush)
 
     Qt.connectSlot view "update()" view "update()" $ updateScene state
     Qt.emitSignal view "update()" ()
-
-    -- forkIO $ fix $ \loop -> do
-    --     readChan ichan >>= writeChan seq_ichan
-    --     loop
-    
-    -- forkIO $ fix $ \loop -> do
-    --     e@(t, s') <- readChan seq_ochan
-    --     writeChan ochan e
-    --     modifyMVar_ state (\s -> return $ s { sequencer = s' })
-    --     forkIO $ Qt.emitSignal this "updateScene()" ()
-    --     loop
 
     handle <- spawn $ updateProcess view state
 

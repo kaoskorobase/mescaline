@@ -37,6 +37,7 @@ data TransportChange = Start | Pause | Reset deriving (Eq, Show)
 
 data Input =
     SetCell         Int Int Double
+  | ModifyCell      Int Int (Maybe Double -> Maybe Double)
   | ClearCell       Int Int
   | ClearAll
   | Transport       TransportChange
@@ -111,18 +112,25 @@ new patch fspaceP = do
         sequencer = Sequencer.cons 8 8 (map (\i -> (i, Sequencer.Cursor i i)) [0..7])
     spawn $ loop (State patch sequencer t Nothing) player
     where
+        updateSequencer state update = do
+            case transport state of
+                Stopped ->
+                    return $ Just $ state { sequencer = update (sequencer state) }
+                Running -> do
+                    sendTo (fromJust (playerThread state)) (Model.sequencer ^: update)
+                    return Nothing
         loop state player = do
             x <- recv
             state' <-
                 case x of
-                    SetCell r c v -> do
-                        let update = Sequencer.insert r c v
-                        case transport state of
-                            Stopped ->
-                                return $ Just $ state { sequencer = update (sequencer state) }
-                            Running -> do
-                                sendTo (fromJust (playerThread state)) (Model.sequencer ^: update)
-                                return Nothing
+                    SetCell r c v ->
+                        updateSequencer state (Sequencer.insert r c v)
+                    ModifyCell r c f ->
+                        updateSequencer state (Sequencer.alter f r c)
+                    ClearCell r c ->
+                        updateSequencer state (Sequencer.delete r c)
+                    ClearAll ->
+                        updateSequencer state Sequencer.clear
                     Transport tc -> do
                         case transport state of
                             Stopped ->
@@ -166,7 +174,6 @@ new patch fspaceP = do
                             _ -> error "This shouldn't happen: Received an Event_ message but player thread not running"
                     Environment_ envir ->
                         return $ Just $ state { sequencer = envir ^. Model.sequencer }
-                    _ -> return Nothing
             case state' of
                 Just state' -> do
                     notify $ Changed (time state') (transport state') (sequencer state')
