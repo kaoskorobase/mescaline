@@ -67,7 +67,6 @@ library
       , hsc3-lang >= 0.8
       , hsc3-process >= 0.3 && < 0.4
       , hsndfile >= 0.4
-      , MissingH >= 1.0
       , MonadCatchIO-mtl >= 0.3 && < 0.4
       , monadIO >= 0.9 && < 1.0
       , MonadRandom >= 0.1.5 && < 0.1.6
@@ -103,9 +102,9 @@ library
         Mescaline.Data.Unique
         Mescaline.Database
         Mescaline.Database.Feature
-        Mescaline.Database.FlatFile
+        -- Mescaline.Database.FlatFile
         Mescaline.Database.Model
-        Mescaline.Database.Query
+        -- Mescaline.Database.Query
         Mescaline.Database.SoundFile
         Mescaline.Database.SourceFile
         Mescaline.Database.Sql
