@@ -19,6 +19,7 @@ import           Data.IntMap (IntMap)
 import qualified Data.IntMap as IMap
 import qualified Data.Map as Map
 import qualified Data.Vector.Generic as V
+import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Data.Unique as Unique
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.Unit as Unit
@@ -330,16 +331,21 @@ defer view state action = io $ do
 
 newState :: Process.Handle -> Synth.Handle -> IO State
 newState fspace synth = do
+    config <- Config.getConfig
+
     ug <- newMVar Nothing
     us <- newMVar Map.empty
     hl <- newMVar Map.empty
-    color <- Qt.qColor "orangered"
-    brush <- Qt.qBrush color
-    hlp <- Qt.qPen (brush, 0::Double)
-    cs <- UI.defaultColorsFromFile
+
+    hlColor <- Config.getColor config "FeatureSpace" "highlightColor"
+    hlBrush <- Qt.qBrush hlColor
+    hlPen <- Qt.qPen (hlBrush, 0::Double)
+
+    regionColors <- mapM (\i -> Config.getColor config "FeatureSpace" ("regionColor" ++ show i)) [1..4]
+
     pu <- newMVar False
     gc <- newChan
-    return $ State fspace synth ug us hl hlp (cycle cs) IMap.empty pu gc
+    return $ State fspace synth ug us hl hlPen (cycle regionColors) IMap.empty pu gc
 
 new :: Process.Handle -> Synth.Handle -> IO (FeatureSpaceView, Handle Input Output)
 new fspace synth = do
