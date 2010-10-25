@@ -77,8 +77,8 @@ initScene view p rows cols action = do
                 return (coord, item)
     return $ Map.fromList (concat xs)
 
-updateScene :: State -> View -> View -> IO ()
-updateScene state view _ = do
+update :: State -> View -> IO ()
+update state view = do
     (prevSeq, curSeq) <- readMVar (sequencer state)
     maybe (return ()) (mapM_ (setActive state fieldStyle) . Model.assocs) prevSeq
     mapM_ (setActive state activeStyle) (Model.assocs curSeq)
@@ -135,7 +135,7 @@ new boxSize padding process = do
     activeBrush <- Qt.qBrush Qt.edarkGray
     let state = State modelVar fields colors (normalPen,tw) (cursorPen,tw) (normalPen,activeBrush)
 
-    Qt.connectSlot view "update()" view "update()" $ updateScene state
+    Qt.connectSlot view "update()" view "update()" $ update state
     Qt.emitSignal view "update()" ()
 
     handle <- spawn $ updateProcess view state

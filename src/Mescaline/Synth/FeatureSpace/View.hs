@@ -316,8 +316,8 @@ process view state = do
                 return state
     process view state'
 
-update :: Chan (IO ()) -> FeatureSpaceView -> FeatureSpaceView -> IO ()
-update c _ _ = join (readChan c)
+update :: Chan (IO ()) -> FeatureSpaceView -> IO ()
+update c _ = join (readChan c)
 
 defer :: MonadIO m => FeatureSpaceView -> State -> IO () -> m ()
 defer view state action = io $ do
