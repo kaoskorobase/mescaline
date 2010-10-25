@@ -21,7 +21,6 @@ data-dir:
 
 data-files:
     mescaline.ui
-    colors.txt
     config
     meap/2.0/getopt-1.0.12.jar
     meap/2.0/jl1.0.jar

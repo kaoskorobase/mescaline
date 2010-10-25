@@ -124,7 +124,8 @@ new boxSize padding process = do
                         (Model.rows model)
                         (Model.cols model)
                         (\(r, c) _ -> sendTo process $ Process.ModifyCell r c (maybe (Just 1) (const Nothing)))
-    colors <- UI.defaultColorsFromFile
+    -- colors <- UI.defaultColorsFromFile
+    let colors = []
 
     modelVar <- newMVar (Nothing, model)
     
