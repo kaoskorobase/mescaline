@@ -44,6 +44,7 @@ import qualified Qtc.Enums.Gui.QGraphicsItem        as Qt
 import qualified Qtc.Enums.Gui.QGraphicsScene       as Qt
 import qualified Qtc.Gui.QAbstractGraphicsShapeItem as Qt
 import qualified Qtc.Gui.QBrush                     as Qt
+import qualified Qtc.Gui.QColor                     as Qt
 import qualified Qtc.Gui.QCursor                    as Qt
 import qualified Qtc.Gui.QGraphicsEllipseItem       as Qt
 import qualified Qtc.Gui.QGraphicsEllipseItem_h     as Qt
@@ -53,6 +54,7 @@ import qualified Qtc.Gui.QGraphicsScene             as Qt
 import qualified Qtc.Gui.QGraphicsSceneMouseEvent   as Qt
 import qualified Qtc.Gui.QGraphicsScene_h           as Qt
 import qualified Qtc.Gui.QKeyEvent                  as Qt
+import qualified Qtc.Gui.QPen                       as Qt
 import qualified Qtc.Gui.QWidget                    as Qt
 import qualified Qth.ClassTypes.Core                as Qt
 import qualified Qth.Core.Point                     as Qt
@@ -131,6 +133,7 @@ data State = State {
   , unitGroup    :: MVar (Maybe (Qt.QGraphicsItem ()))
   , units        :: MVar (Unique.Map (Qt.QGraphicsItem ()))
   , highlights   :: MVar (Unique.Map UnitActivation)
+  , highlightPen :: Qt.QPen ()
   , colors       :: [Qt.QColor ()]
   , regions      :: IntMap Region
   , playUnits    :: MVar Bool
@@ -293,6 +296,7 @@ process view state = do
                                     -- item <- Qt.qGraphicsRectItem_nf box
                                     item <- Qt.qGraphicsEllipseItem box
                                     Qt.setPos item (Qt.pointF x y)
+                                    Qt.setPen item (highlightPen state)
                                     Qt.addItem view item
                                     putMVar (highlights state) (Map.insert uid (UnitActivation (Qt.objectCast item) 1) as)
                         Just (UnitActivation item i) ->
@@ -329,10 +333,13 @@ newState fspace synth = do
     ug <- newMVar Nothing
     us <- newMVar Map.empty
     hl <- newMVar Map.empty
+    color <- Qt.qColor "orangered"
+    brush <- Qt.qBrush color
+    hlp <- Qt.qPen (brush, 0::Double)
     cs <- UI.defaultColorsFromFile
     pu <- newMVar False
     gc <- newChan
-    return $ State fspace synth ug us hl (cycle cs) IMap.empty pu gc
+    return $ State fspace synth ug us hl hlp (cycle cs) IMap.empty pu gc
 
 new :: Process.Handle -> Synth.Handle -> IO (FeatureSpaceView, Handle Input Output)
 new fspace synth = do
