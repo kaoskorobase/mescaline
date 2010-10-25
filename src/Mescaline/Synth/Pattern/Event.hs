@@ -21,9 +21,10 @@ module Mescaline.Synth.Pattern.Event (
 ) where
 
 import           Data.Accessor
-import qualified Mescaline.Database.Unit as Unit
 import           Mescaline.Time (Time, Duration)
 import qualified Mescaline.Time as Time
+import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
+import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
 import qualified Sound.SC3.Lang.Pattern.Step as P
 
 -- import           Sound.OpenSoundControl hiding (Time)

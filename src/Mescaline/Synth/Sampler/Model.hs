@@ -12,10 +12,10 @@ module Mescaline.Synth.Sampler.Model (
 import           Control.Monad.Reader
 import           Data.Accessor ((^.))
 import           Mescaline (Time)
-import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Database.SourceFile as SourceFile
 import           Mescaline.Synth.BufferCache.Server (Buffer, BufferCache)
 import qualified Mescaline.Synth.BufferCache.Server as BC
+import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
 import           Mescaline.Synth.Pattern.Event (SynthParams)
 import qualified Mescaline.Synth.Pattern.Event as P
 import           Sound.OpenSoundControl (OSC(..))

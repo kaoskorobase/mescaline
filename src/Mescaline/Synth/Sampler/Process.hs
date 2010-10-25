@@ -13,7 +13,7 @@ import qualified Control.Concurrent.Process as Process
 import           Control.Exception
 import           Mescaline (Time)
 import qualified Mescaline.Application as App
-import qualified Mescaline.Database.Unit as Unit
+import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
 import           Mescaline.Synth.Pattern.Event (SynthParams)
 import qualified Mescaline.Synth.Sampler.Model as Model
 import qualified Sound.SC3.Server.Process as Server

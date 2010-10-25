@@ -125,6 +125,7 @@ library
         Mescaline.Synth.Database.Process
         Mescaline.Synth.FeatureSpace.Model
         Mescaline.Synth.FeatureSpace.Process
+        Mescaline.Synth.FeatureSpace.Unit
         Mescaline.Synth.FeatureSpace.View
         Mescaline.Synth.Pattern
         Mescaline.Synth.Pattern.Base

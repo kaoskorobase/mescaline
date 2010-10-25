@@ -22,9 +22,9 @@ import qualified Data.Vector.Generic as V
 import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Data.Unique as Unique
 import qualified Mescaline.Database.Feature as Feature
-import qualified Mescaline.Database.Unit as Unit
 import           Mescaline.Synth.FeatureSpace.Model (FeatureSpace)
 import qualified Mescaline.Synth.FeatureSpace.Model as Model
+import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
 import qualified Mescaline.Synth.FeatureSpace.Process as Process
 import qualified Mescaline.Synth.Pattern.Event as Synth
 import qualified Mescaline.Synth.Sampler.Process as Synth
@@ -236,7 +236,7 @@ showUnits view state us = do
 
 addUnit :: Qt.QGraphicsItem () -> State -> Model.Unit -> IO (Unique.Id, Qt.QGraphicsItem ())
 addUnit parent state unit = do
-    let (x, y) = pair (Feature.value (Model.feature unit))
+    let (x, y) = pair (Unit.value 0 unit)
         r      = unitRadius -- Model.minRadius
         box    = Qt.rectF (-r) (-r) (r*2) (r*2)
     item <- Qt.qGraphicsEllipseItem_nf box
@@ -247,10 +247,10 @@ addUnit parent state unit = do
     -- Qt.setHandler item "mousePressEvent(QGraphicsSceneMouseEvent*)" $ mouseHandler (unit u) action
 
     Qt.setHandler item "hoverEnterEvent(QGraphicsSceneHoverEvent*)" $ hoverHandler $
-        readMVar (playUnits state) >>= flip when (sendTo (synth state) $ Synth.PlayUnit (-1) (Model.unit unit) Synth.defaultSynth)
+        readMVar (playUnits state) >>= flip when (sendTo (synth state) $ Synth.PlayUnit (-1) unit Synth.defaultSynth)
     Qt.setAcceptsHoverEvents item True
 
-    return (Unit.id (Model.unit unit), Qt.objectCast item)
+    return (Unit.id unit, Qt.objectCast item)
 
 process :: forall o m b .
            (Control.Monad.Trans.MonadIO m) =>
@@ -294,8 +294,8 @@ process view state = do
                                     let -- (x, y) = pair (Feature.value (Model.feature unit))
                                         r      = highlightRadius
                                         box    = Qt.rectF (-r) (-r) (r*2) (r*2)
-                                    -- item <- Qt.qGraphicsRectItem_nf box
-                                    item <- Qt.qGraphicsEllipseItem box
+                                    item <- Qt.qGraphicsRectItem box
+                                    -- item <- Qt.qGraphicsEllipseItem box
                                     Qt.setPos item (Qt.pointF x y)
                                     Qt.setPen item (highlightPen state)
                                     Qt.addItem view item

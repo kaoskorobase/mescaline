@@ -77,6 +77,9 @@ descriptor (Feature (_, d, _)) = d
 value :: Feature -> Value
 value (Feature (_, _, v)) = v
 
+setValue :: Value -> Feature -> Feature
+setValue v f = cons (unit f) (descriptor f) v
+
 -- column :: Feature -> Int
 -- column (Feature (_, c)) = c
 -- 

@@ -1,8 +1,5 @@
 module Mescaline.Synth.FeatureSpace.Model (
     Unit
-  , unit
-  , feature
-  , value
   , RegionId
   , Region
   , mkRegion
@@ -41,39 +38,33 @@ import qualified Data.Set.BKTree as BKTree
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Storable as SV
 import qualified Mescaline.Database.Feature as Feature
-import qualified Mescaline.Database.Unit as Unit
+import           Mescaline.Synth.FeatureSpace.Unit (Unit)
+import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
 import qualified System.Random as Random
 
-newtype Unit = Unit (Unit.Unit, Feature.Feature) deriving (Show)
 type UnitSet = BKTree Unit
 
-unit :: Unit -> Unit.Unit
-unit (Unit (u, _)) = u
+-- FIXME: These instances should be defined on a `UnitView' instead, i.e. some kind
+-- of lense that is defined on a specific feature (index)
 
-feature :: Unit -> Feature.Feature
-feature (Unit (_, f)) = f
+instance Eq (Unit) where
+    a == b = f a == f b
+        where
+            f :: Unit -> SV.Vector Int
+            f = V.map withPrecision . Unit.value 0 -- FIXME
 
-value :: Unit -> Feature.Value
-value = Feature.value . feature
+instance BKTree.Metric Unit where
+    -- Euclidian distance. Note: Assuming that feature dimensions are scaled to [0,1].
+    distance a b = withPrecision d
+        where
+            x = V.zipWith (-) (Unit.value 0 a) (Unit.value 0 b) -- FIXME
+            d = sqrt (V.foldl (+) 0 (V.zipWith (*) x x))
 
 precision :: Double
 precision = fromIntegral (maxBound :: Int)
 
 withPrecision :: Double -> Int
 withPrecision = round . (*) precision
-
-instance Eq (Unit) where
-    a == b = f a == f b
-        where
-            f :: Unit -> SV.Vector Int
-            f = V.map withPrecision . value
-
-instance BKTree.Metric Unit where
-    -- Euclidian distance. Note: Assuming that feature dimensions are scaled to [0,1].
-    distance a b = withPrecision d
-        where
-            x = V.zipWith (-) (value a) (value b)
-            d = sqrt (V.foldl (+) 0 (V.zipWith (*) x x))
 
 type RegionId = Int
 
@@ -114,11 +105,11 @@ mkRegion i c r = Region i (V.fromList [clip minPos maxPos (c V.! 0), clip minPos
 units :: FeatureSpace -> [Unit]
 units = BKTree.elems . unitSet
 
-setFeatureSpace :: FeatureSpace -> [(Unit.Unit, Feature.Feature)] -> FeatureSpace
-setFeatureSpace f us = f { unitSet = BKTree.fromList (map Unit us) }
+setFeatureSpace :: FeatureSpace -> [Unit.Unit] -> FeatureSpace
+setFeatureSpace f us = f { unitSet = BKTree.fromList us }
 
-fromList :: Random.StdGen -> [(Unit.Unit, Feature.Feature)] -> FeatureSpace
-fromList g us = FeatureSpace (BKTree.fromList (map Unit us)) g IntMap.empty
+fromList :: Random.StdGen -> [Unit.Unit] -> FeatureSpace
+fromList g us = FeatureSpace (BKTree.fromList us) g IntMap.empty
 
 nextRegionId :: FeatureSpace -> Int
 nextRegionId f
@@ -155,8 +146,8 @@ regionUnits i f =
         Nothing -> []
         Just r  ->
             case BKTree.elems (unitSet f) of
-                (Unit (u, Feature.Feature (uid, d, _)) : _) ->
-                    let u' = Unit (u, Feature.cons uid d (center r))
+                (u:_) ->
+                    let u' = Unit.withValues u [center r]
                         n  = withPrecision (radius r)
                     in BKTree.elemsDistance n u' (unitSet f)
                 [] -> []

@@ -16,9 +16,10 @@ import           Mescaline (Time)
 import qualified Mescaline.Database as DB
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.SqlQuery as Sql
-import qualified Mescaline.Database.Unit as Unit
+import qualified Mescaline.Database.Unit as DBUnit
 import qualified Mescaline.Synth.Database.Model as DB
 import qualified Mescaline.Synth.FeatureSpace.Model as Model
+import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
 import qualified System.Random as Random
 
 data Input =
@@ -29,7 +30,7 @@ data Input =
   | GetModel        (Query Model.FeatureSpace)
 
 data Output =
-    DatabaseLoaded  [Model.Unit]
+    DatabaseLoaded  [Unit.Unit]
   | RegionAdded     Model.Region
   | RegionChanged   Model.Region
 
@@ -38,12 +39,12 @@ type Handle = Process.Handle Input Output
 getUnits :: FilePath
          -> String
          -> [Feature.Descriptor]
-         -> IO [(Unit.Unit, [Feature.Feature])]
+         -> IO [Unit.Unit]
 getUnits dbFile pattern features = do
-    (units, _) <- DB.query dbFile Unit.Onset pattern features
+    (units, _) <- DB.query dbFile DBUnit.Onset pattern features
     case units of
         Left e   -> putStrLn ("ERROR[DB]: " ++ e) >> return []
-        Right us -> return us
+        Right us -> return $ map (uncurry Unit.cons) us
 
 new :: IO Handle
 new = do
@@ -54,7 +55,7 @@ new = do
             x <- recv
             f' <- case x of
                     LoadDatabase path pattern -> do
-                        units <- liftIO $ fmap (map (second head)) $ getUnits path pattern [Feature.consDescriptor "es.globero.mescaline.spectral" 2]
+                        units <- io $ getUnits path pattern [Feature.consDescriptor "es.globero.mescaline.spectral" 2]
                         let f' = Model.setFeatureSpace f units
                         notify $ DatabaseLoaded (Model.units f')
                         return $ f'

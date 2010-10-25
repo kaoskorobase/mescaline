@@ -17,6 +17,7 @@ import qualified Mescaline.Synth.Pattern.Patch as Patch
 import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
 import           Mescaline.Synth.Pattern
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
+import qualified Mescaline.Synth.FeatureSpace.Unit as FeatureSpace
 import           Data.List as L
 
 featureSpace :: Patch.Pattern FeatureSpace.FeatureSpace
@@ -32,7 +33,7 @@ regionUnits :: FeatureSpace.RegionId -> Patch.Pattern [FeatureSpace.Unit]
 regionUnits i = fmap (FeatureSpace.regionUnits i) featureSpace
 
 unitToEvent :: FeatureSpace.Unit -> Event.Event
-unitToEvent = Event.fromUnit . FeatureSpace.unit
+unitToEvent = Event.fromUnit
 
 unitEvent :: P s FeatureSpace.Unit -> P s Event.Event
 unitEvent = fmap unitToEvent
