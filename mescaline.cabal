@@ -47,7 +47,8 @@ library
       , containers
       , Control-Engine
       , Crypto >= 4.2
-      , data-accessor >= 0.2
+      , data-accessor >= 0.2 && < 0.3
+      , data-accessor-mtl >= 0.2 && < 0.3
       , data-ivar >= 0.30 && < 0.31
       , directory
       , filemanip >= 0.3 && < 0.4

@@ -1,6 +1,7 @@
 module Mescaline.Time (
     Time
   , Duration
+  , HasDelta(..)
   , HasDuration(..)
   , ToRest(..)
 ) where
@@ -12,6 +13,9 @@ type Duration = Double -- ^ Difference of times
 
 class HasTime a where
     time :: Accessor a Time
+
+class HasDelta a where
+    delta :: Accessor a Duration
 
 class HasDuration a where
     duration :: Accessor a Duration

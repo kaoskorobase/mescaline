@@ -5,7 +5,7 @@ module Mescaline.Synth.Pattern.Player (
 ) where
 
 import           Data.Accessor
-import           Mescaline.Time
+import           Mescaline.Time (Duration, Time, HasDelta(..))
 import qualified Mescaline.Synth.Pattern.Base as P
 
 data Player s a = Player {
@@ -16,10 +16,10 @@ data Player s a = Player {
 data Result s a = Result s a (Player s a) (Maybe Duration) | Done s
 
 -- | Advance player.
-step :: HasDuration a => s -> Player s a -> Result s a
+step :: HasDelta a => s -> Player s a -> Result s a
 step s player =
     case P.step s (pattern player) of
         P.Done s'        -> Done s'
-        P.Result s' a p' -> let dur = a ^. duration
-                                player' = player { time = time player + dur, pattern = p' }
-                            in dur `seq` player' `seq` Result s' a player' (if dur > 0 then Just dur else Nothing)
+        P.Result s' a p' -> let dt      = a ^. delta
+                                player' = player { time = time player + dt, pattern = p' }
+                            in dt `seq` player' `seq` Result s' a player' (if dt > 0 then Just dt else Nothing)

@@ -291,7 +291,7 @@ process view state = do
                                         r      = activationRadius
                                         box    = Qt.rectF (-r) (-r) (r*2) (r*2)
                                     -- item <- Qt.qGraphicsRectItem_nf box
-                                    item <- Qt.qGraphicsEllipseItem_nf box
+                                    item <- Qt.qGraphicsEllipseItem box
                                     Qt.setPos item (Qt.pointF x y)
                                     Qt.addItem view item
                                     putMVar (activations state) (Map.insert uid (UnitActivation (Qt.objectCast item) 1) as)

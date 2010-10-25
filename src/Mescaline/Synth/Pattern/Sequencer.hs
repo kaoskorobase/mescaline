@@ -4,7 +4,8 @@ module Mescaline.Synth.Pattern.Sequencer (
   , Sequencer
   , cons
   , cursors
-  , mapCursor
+  , getCursor
+  , modifyCursor
   , rows
   , cols
   , cursors
@@ -50,9 +51,12 @@ cons rows cols cursors = Sequencer rows cols Map.empty (Map.fromList cursors)
 cursors :: Sequencer -> [(Int, Cursor)]
 cursors = Map.assocs . _cursors
 
+getCursor :: Int -> Sequencer -> Maybe Cursor
+getCursor i = Map.lookup i . _cursors
+
 -- | Map a function to the cursor with id c.
-mapCursor :: (Cursor -> Cursor) -> Int -> Sequencer -> Sequencer
-mapCursor f c s = s { _cursors = Map.alter (fmap f) c (_cursors s) }
+modifyCursor :: (Cursor -> Cursor) -> Int -> Sequencer -> Sequencer
+modifyCursor f c s = s { _cursors = Map.alter (fmap f) c (_cursors s) }
 
 -- | Lookup the value in the matrix.
 lookup :: Int -> Int -> Sequencer -> Maybe Double

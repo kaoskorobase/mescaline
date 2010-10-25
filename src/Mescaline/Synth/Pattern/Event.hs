@@ -6,6 +6,7 @@ module Mescaline.Synth.Pattern.Event (
     Event
   , fromUnit
   , rest
+  , delta
   , duration
   , unit
   , synth
@@ -59,20 +60,23 @@ ACCESSOR(latency,       _latency,       SynthParams, Double)
 
 data Event =
     Rest {
-        _duration :: Duration
+        _delta    :: Duration
     }
   | Event {
-        _duration :: Double
+        _delta    :: Duration
+      , _duration :: Duration
       , _unit     :: Unit.Unit
       , _synth    :: SynthParams
       } deriving (Eq, Show)
 
 fromUnit :: Unit.Unit -> Event
-fromUnit u = Event (Unit.duration u) u defaultSynth
+fromUnit u = Event d d u defaultSynth
+    where d = Unit.duration u
 
 rest :: Duration -> Event
 rest = Rest
 
+ACCESSOR(delta,    _delta,    Event, Double)
 ACCESSOR(duration, _duration, Event, Double)
 ACCESSOR(unit,     _unit,     Event, Unit.Unit)
 ACCESSOR(synth,    _synth,    Event, SynthParams)
@@ -81,6 +85,9 @@ isRest :: Event -> Bool
 isRest e = case e of
             Rest _ -> True
             _      -> False
+
+instance Time.HasDelta (Event) where
+    delta = delta
 
 instance Time.HasDuration (Event) where
     duration = duration
