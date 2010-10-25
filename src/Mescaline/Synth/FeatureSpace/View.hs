@@ -76,8 +76,8 @@ pair v | V.length v >= 2 = (v V.! 0, v V.! 1)
 unitRadius :: Double
 unitRadius = 0.004
 
-activationRadius :: Double
-activationRadius = 2 * unitRadius
+highlightRadius :: Double
+highlightRadius = 2 * unitRadius
 
 sceneKeyPressEvent :: State -> FeatureSpaceView -> Qt.QKeyEvent () -> IO ()
 sceneKeyPressEvent state view evt = do
@@ -130,7 +130,7 @@ data State = State {
   , synth        :: Synth.Handle
   , unitGroup    :: MVar (Maybe (Qt.QGraphicsItem ()))
   , units        :: MVar (Unique.Map (Qt.QGraphicsItem ()))
-  , activations  :: MVar (Unique.Map UnitActivation)
+  , highlights   :: MVar (Unique.Map UnitActivation)
   , colors       :: [Qt.QColor ()]
   , regions      :: IntMap Region
   , playUnits    :: MVar Bool
@@ -278,7 +278,7 @@ process view state = do
             Right (HighlightOn unit) -> do
                 defer view state $ do
                     us <- readMVar (units state)
-                    as <- takeMVar (activations state)
+                    as <- takeMVar (highlights state)
                     let uid = Unit.id unit
                     case Map.lookup uid as of
                         Nothing -> do
@@ -288,31 +288,31 @@ process view state = do
                                 Just item -> do
                                     Qt.IPoint x y <- Qt.scenePos item ()
                                     let -- (x, y) = pair (Feature.value (Model.feature unit))
-                                        r      = activationRadius
+                                        r      = highlightRadius
                                         box    = Qt.rectF (-r) (-r) (r*2) (r*2)
                                     -- item <- Qt.qGraphicsRectItem_nf box
                                     item <- Qt.qGraphicsEllipseItem box
                                     Qt.setPos item (Qt.pointF x y)
                                     Qt.addItem view item
-                                    putMVar (activations state) (Map.insert uid (UnitActivation (Qt.objectCast item) 1) as)
+                                    putMVar (highlights state) (Map.insert uid (UnitActivation (Qt.objectCast item) 1) as)
                         Just (UnitActivation item i) ->
-                            -- Increase activation count
-                            putMVar (activations state) (Map.insert uid (UnitActivation item (i+1)) as)
+                            -- Increase highlight count
+                            putMVar (highlights state) (Map.insert uid (UnitActivation item (i+1)) as)
                 return state
             Right (HighlightOff unit) -> do
                 defer view state $ do
-                    as <- takeMVar (activations state)
+                    as <- takeMVar (highlights state)
                     case Map.lookup (Unit.id unit) as of
-                        Nothing -> putMVar (activations state) as
+                        Nothing -> putMVar (highlights state) as
                         Just (UnitActivation item i) ->
                             if i <= 1
                                 then do
                                     -- Remove highlight item
                                     Qt.removeItem view item
-                                    putMVar (activations state) (Map.delete (Unit.id unit) as)
+                                    putMVar (highlights state) (Map.delete (Unit.id unit) as)
                                 else do
-                                    -- Decrease activation count
-                                    putMVar (activations state) (Map.insert (Unit.id unit) (UnitActivation item (i-1)) as)
+                                    -- Decrease highlight count
+                                    putMVar (highlights state) (Map.insert (Unit.id unit) (UnitActivation item (i-1)) as)
                 return state
     process view state'
 
