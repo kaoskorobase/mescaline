@@ -23,9 +23,13 @@ import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Synth.Database.Process as DatabaseP
 import qualified Mescaline.Synth.Sampler.Process as SynthP
+#if USE_OLD_SEQUENCER == 1
 import qualified Mescaline.Synth.Sequencer.Model as Sequencer
 import qualified Mescaline.Synth.Sequencer.Process as SequencerP
 import qualified Mescaline.Synth.Sequencer.View as SequencerView
+#else
+import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
+#endif -- USE_OLD_SEQUENCER
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpace.Process as FeatureSpaceP
 import qualified Mescaline.Synth.FeatureSpace.View as FeatureSpaceView
@@ -83,8 +87,10 @@ import qualified Qtc.Tools.QUiLoader_h          as Qt
 numRegions :: Int
 numRegions = 4
 
+#if USE_OLD_SEQUENCER
 sequencer0 :: Sequencer.Sequencer ()
 sequencer0 = Sequencer.cons 16 16 0.125 (Sequencer.Bar 0)
+#endif -- USE_OLD_SEQUENCER
 
 setEnv = setVal (Event.attackTime) 0.01 . setVal (Event.releaseTime) 0.02
 
@@ -246,24 +252,29 @@ action_file_importDirectory db w _ = do
     putStrLn $ "Import directory: " ++ show ps
     sendTo db $ DatabaseP.Import ps
 
-action_sequencer_clear :: SequencerP.Sequencer () -> Qt.QWidget () -> Qt.QAction () -> IO ()
-action_sequencer_clear h _ _ = sendTo h $ SequencerP.ClearAll
-
-action_sequencer_mute :: MVar Bool -> Qt.QWidget () -> Qt.QAction () -> IO ()
-action_sequencer_mute mute _ _ = modifyMVar_ mute (return . not)
-
+#if USE_OLD_SEQUENCER
 action_sequencer_playPause :: SequencerP.Sequencer () -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_sequencer_playPause h _ a = do
     b <- Qt.isChecked a ()
     sendTo h $ SequencerP.Transport $ if b then SequencerP.Start else SequencerP.Pause
 
+action_sequencer_reset :: SequencerP.Sequencer () -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_sequencer_reset h _ _ = sendTo h $ SequencerP.Transport SequencerP.Reset
+
+action_sequencer_clear :: SequencerP.Sequencer () -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_sequencer_clear h _ _ = sendTo h $ SequencerP.ClearAll
+
+action_sequencer_mute :: MVar Bool -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_sequencer_mute mute _ _ = modifyMVar_ mute (return . not)
+#else
 action_pattern_playPause :: PatternP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_pattern_playPause h _ a = do
     b <- Qt.isChecked a ()
     sendTo h $ PatternP.Transport $ if b then PatternP.Start else PatternP.Pause
 
-action_sequencer_reset :: SequencerP.Sequencer () -> Qt.QWidget () -> Qt.QAction () -> IO ()
-action_sequencer_reset h _ _ = sendTo h $ SequencerP.Transport SequencerP.Reset
+action_pattern_reset :: PatternP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_pattern_reset h _ _ = sendTo h $ PatternP.Transport PatternP.Reset
+#endif -- USE_OLD_SEQUENCER
 
 scaleFeatureSpace :: Double -> Qt.QGraphicsView () -> IO ()
 scaleFeatureSpace s v = Qt.qscale v (s, s)
@@ -414,7 +425,8 @@ main = do
               ]
 #else
             , Menu "sequencer" "Sequencer"
-              [ Action "play" "Play" "Start or pause the sequencer" Checkable (Just "SPACE") (action_pattern_playPause patternP) ]
+              [ Action "play" "Play" "Start or pause the sequencer" Checkable (Just "SPACE") (action_pattern_playPause patternP)
+              ,  Action "reset" "Reset" "Reset the sequencer" Trigger (Just "RETURN") (action_pattern_reset patternP) ]
 #endif
             , Menu "featureSpace" "FeatureSpace"
               [ Menu "zoom" "Zoom"
