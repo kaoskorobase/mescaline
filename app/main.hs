@@ -85,7 +85,7 @@ import qualified Qtc.Tools.QUiLoader            as Qt
 import qualified Qtc.Tools.QUiLoader_h          as Qt
 
 numRegions :: Int
-numRegions = 4
+numRegions = length FeatureSpace.defaultRegions
 
 #if USE_OLD_SEQUENCER
 sequencer0 :: Sequencer.Sequencer ()
@@ -319,9 +319,25 @@ main = do
     mainWindow <- loadUI =<< App.getResourcePath "mescaline.ui"
     -- Qt.setHandler mainWindow "keyPressEvent(QKeyEvent*)" $ windowKeyPressEvent
 
+    -- Synth process
+    (synthP, synthQuit) <- SynthP.new
+
     -- Feature space process
     fspaceP <- FeatureSpaceP.new
 
+    -- Feature space view
+    (fspaceView, fspaceViewP) <- FeatureSpaceView.new fspaceP synthP
+    connect Left fspaceP fspaceViewP
+    connect (\x -> case x of
+                SynthP.UnitStarted _ u -> Right $ FeatureSpaceView.HighlightOn u
+                SynthP.UnitStopped _ u -> Right $ FeatureSpaceView.HighlightOff u)
+            synthP fspaceViewP
+    
+    fspace_graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "featureSpaceView")
+    Qt.setScene fspace_graphicsView fspaceView
+
+    mapM_ (\i -> sendTo fspaceP $ FeatureSpaceP.AddRegion 0.5 0.5 0.025) [0..numRegions-1]
+    
     -- Sequencer process
 #if USE_OLD_SEQUENCER == 1
     seqP <- SequencerP.new sequencer0
@@ -356,22 +372,6 @@ main = do
     fspaceSeqP `listenTo` seqP
 #endif
 
-    -- Synth process
-    (synthP, synthQuit) <- SynthP.new
-
-    -- Feature space view
-    (fspaceView, fspaceViewP) <- FeatureSpaceView.new fspaceP synthP
-    connect Left fspaceP fspaceViewP
-    connect (\x -> case x of
-                SynthP.UnitStarted _ u -> Right $ FeatureSpaceView.HighlightOn u
-                SynthP.UnitStopped _ u -> Right $ FeatureSpaceView.HighlightOff u)
-            synthP fspaceViewP
-    
-    fspace_graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "featureSpaceView")
-    Qt.setScene fspace_graphicsView fspaceView
-
-    mapM_ (\i -> sendTo fspaceP $ FeatureSpaceP.AddRegion 0.5 0.5 0.025) [0..numRegions-1]
-    
     -- Database process
     dbP <- DatabaseP.new
     connect (\(DatabaseP.Changed path pattern) -> FeatureSpaceP.LoadDatabase path pattern) dbP fspaceP

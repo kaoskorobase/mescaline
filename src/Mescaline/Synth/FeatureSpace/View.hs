@@ -7,6 +7,7 @@ module Mescaline.Synth.FeatureSpace.View (
   , Output
   , Highlight(..)
   , new
+  , getRegionColors
 ) where
 
 import           Control.Concurrent.Chan
@@ -294,8 +295,8 @@ process view state = do
                                     let -- (x, y) = pair (Feature.value (Model.feature unit))
                                         r      = highlightRadius
                                         box    = Qt.rectF (-r) (-r) (r*2) (r*2)
-                                    item <- Qt.qGraphicsRectItem box
-                                    -- item <- Qt.qGraphicsEllipseItem box
+                                    -- item <- Qt.qGraphicsRectItem box
+                                    item <- Qt.qGraphicsEllipseItem box
                                     Qt.setPos item (Qt.pointF x y)
                                     Qt.setPen item (highlightPen state)
                                     Qt.addItem view item
@@ -329,6 +330,10 @@ defer view state action = io $ do
     writeChan (guiChan state) action
     Qt.emitSignal view "update()" ()
 
+getRegionColors :: Config.ConfigParser -> IO [Qt.QColor ()]
+getRegionColors config = mapM (\i -> Config.getColor config "FeatureSpace" ("regionColor" ++ show i)) [1..n]
+    where n = length Model.defaultRegions
+
 newState :: Process.Handle -> Synth.Handle -> IO State
 newState fspace synth = do
     config <- Config.getConfig
@@ -341,10 +346,11 @@ newState fspace synth = do
     hlBrush <- Qt.qBrush hlColor
     hlPen <- Qt.qPen (hlBrush, 0::Double)
 
-    regionColors <- mapM (\i -> Config.getColor config "FeatureSpace" ("regionColor" ++ show i)) [1..4]
+    regionColors <- getRegionColors config
 
     pu <- newMVar False
     gc <- newChan
+    
     return $ State fspace synth ug us hl hlPen (cycle regionColors) IMap.empty pu gc
 
 new :: Process.Handle -> Synth.Handle -> IO (FeatureSpaceView, Handle Input Output)

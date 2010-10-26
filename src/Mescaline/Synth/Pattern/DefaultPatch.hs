@@ -9,10 +9,10 @@ import           Data.Accessor
 import qualified Data.Accessor.Monad.MTL.State as Accessor
 import           Data.Maybe (isJust, maybeToList)
 import           Mescaline (Duration, Time)
+import           Mescaline.Synth.Pattern (Pattern)
 import qualified Mescaline.Synth.Pattern.Environment as Environment
 import           Mescaline.Synth.Pattern.Event (delta, duration, rest)
 import qualified Mescaline.Synth.Pattern.Event as Event
-import           Mescaline.Synth.Pattern.Patch (Pattern)
 import qualified Mescaline.Synth.Pattern.Patch as Patch
 import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
 import           Mescaline.Synth.Pattern
@@ -20,16 +20,16 @@ import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpace.Unit as FeatureSpace
 import           Data.List as L
 
-featureSpace :: Patch.Pattern FeatureSpace.FeatureSpace
+featureSpace :: Pattern FeatureSpace.FeatureSpace
 featureSpace = askA (Environment.featureSpace)
 
-sequencer :: Patch.Pattern Sequencer.Sequencer
+sequencer :: Pattern Sequencer.Sequencer
 sequencer = askA (Environment.sequencer)
 
-units :: Patch.Pattern [FeatureSpace.Unit]
+units :: Pattern [FeatureSpace.Unit]
 units = fmap FeatureSpace.units featureSpace
 
-regionUnits :: FeatureSpace.RegionId -> Patch.Pattern [FeatureSpace.Unit]
+regionUnits :: FeatureSpace.RegionId -> Pattern [FeatureSpace.Unit]
 regionUnits i = fmap (FeatureSpace.regionUnits i) featureSpace
 
 unitToEvent :: FeatureSpace.Unit -> Event.Event
@@ -85,7 +85,7 @@ defaultPatch = Patch.fromPattern $
     --   , fmap unit2event $ join $ (flip pseq 1 . map return . L.take 1) `fmap` regionUnits 2
     -- ]
     -- regionUnits 3 `pzip` prrand
-    ppar $ flip map [0..3] $ \i ->
+    flip map [0..n-1] $ \i ->
         let p = pzipWith
                     (\b e -> if b then e else (rest tick))
                     (isJust `fmap` cursorValue i)
@@ -93,3 +93,4 @@ defaultPatch = Patch.fromPattern $
         in advanceCursor (prepeat (Just i)) *> p
     where
         tick = 0.125
+        n = length FeatureSpace.defaultRegions

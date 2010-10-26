@@ -3,6 +3,7 @@ module Mescaline.Synth.FeatureSpace.Model (
   , RegionId
   , Region
   , mkRegion
+  , defaultRegions
   , regionId
   , center
   , radius
@@ -29,6 +30,7 @@ module Mescaline.Synth.FeatureSpace.Model (
 
 import           Control.Arrow (first)
 import qualified Control.Monad.State as State
+import           Data.Complex
 import           Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import           Data.Set (Set)
@@ -101,6 +103,16 @@ clip lo hi x
 mkRegion :: RegionId -> Feature.Value -> Double -> Region
 mkRegion i c r = Region i (V.fromList [clip minPos maxPos (c V.! 0), clip minPos maxPos (c V.! 1)])
                           (clip minRadius maxRadius r)
+
+defaultRegions :: [Region]
+defaultRegions = zipWith (\i v -> mkRegion i v radius) [0..n-1] centers
+    where
+        n = 8
+        radius = 0.025
+        phis = take n $ iterate (+2*pi/fromIntegral n) 0
+        centers = map (c2v . mkPolar (radius*3)) phis
+        offset = 0.5
+        c2v c = V.fromList [offset + realPart c, offset + imagPart c]
 
 units :: FeatureSpace -> [Unit]
 units = BKTree.elems . unitSet

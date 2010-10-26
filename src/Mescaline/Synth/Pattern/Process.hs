@@ -55,14 +55,14 @@ type Handle = Process.Handle Input Output
 
 data TransportState = Stopped | Running deriving (Eq, Show)
 
-data State a = State {
+data State = State {
     patch        :: Patch.Patch
   , sequencer    :: Sequencer.Sequencer
   , time         :: Time
   , playerThread :: Maybe PlayerHandle
   }
 
-transport :: State a -> TransportState
+transport :: State -> TransportState
 transport = maybe Stopped (const Running) . playerThread
 
 type EnvironmentUpdate = Environment -> Environment
@@ -90,7 +90,7 @@ playerProcess handle envir0 player0 time0 = loop envir0 player0 time0
                     return ()
                 Model.Result envir' event player' delta -> do
                     -- TODO: Write this to log
-                    -- io $ print event
+                    io $ print event
                     sendTo handle $ Event_ time event
                     case delta of
                         Nothing -> loop envir' player' time
@@ -111,7 +111,8 @@ new :: Patch.Patch -> FeatureSpaceP.Handle -> IO Handle
 new patch fspaceP = do
     t <- io Time.utcr
     let player = Model.Player t (Patch.pattern patch)
-        sequencer = Sequencer.cons 8 8 (map (\i -> (i, Sequencer.Cursor i 0)) [0..7])
+        sequencer = Patch.sequencer patch
+    mapM_ (sendTo fspaceP . FeatureSpaceP.UpdateRegion) (Patch.regions patch)
     spawn $ loop (State patch sequencer t Nothing) player
     where
         updateSequencer state update = do

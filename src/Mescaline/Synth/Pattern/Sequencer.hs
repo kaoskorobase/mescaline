@@ -3,6 +3,7 @@ module Mescaline.Synth.Pattern.Sequencer (
   , position
   , Sequencer
   , cons
+  , empty
   , cursors
   , getCursor
   , modifyCursor
@@ -47,6 +48,9 @@ data Sequencer = Sequencer {
 
 cons :: Int -> Int -> [(Int, Cursor)] -> Sequencer
 cons rows cols cursors = Sequencer rows cols Map.empty (Map.fromList cursors)
+
+empty :: Int -> Int -> Sequencer
+empty rows cols = cons rows cols (map (\r -> (r, Cursor r 0)) [0..rows-1])
 
 cursors :: Sequencer -> [(Int, Cursor)]
 cursors = Map.assocs . _cursors

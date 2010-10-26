@@ -1,29 +1,35 @@
 {-# LANGUAGE DeriveDataTypeable
            , FlexibleInstances #-}
 module Mescaline.Synth.Pattern.Patch (
-    Pattern
-  , Patch
+    Patch
+  , cons
   , fromPattern
   , pattern
+  , sequencer
+  , regions
 ) where
 
 import           Control.Applicative
 import           Data.Accessor
 import           Data.Typeable
-import           Mescaline.Synth.Pattern.Environment
-import           Mescaline.Synth.Pattern.Event
+import           Mescaline.Synth.FeatureSpace.Model (Region, defaultRegions)
 import           Mescaline.Synth.Pattern
+import           Mescaline.Synth.Pattern.Event
+import           Mescaline.Synth.Pattern.Sequencer (Sequencer)
+import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
 import qualified Mescaline.Time as Time
 
-data Patch = Patch { pattern :: Pattern Event } deriving (Typeable)
+data Patch = Patch {
+    pattern   :: Pattern Event
+  , sequencer :: Sequencer
+  , regions   :: [Region]
+  } deriving (Typeable)
 
-fromPattern :: Pattern Event -> Patch
-fromPattern = Patch
+cons :: Pattern Event -> Sequencer -> [Region] -> Patch
+cons = Patch
 
--- instance Time.HasDuration (TrackId, Event) where
---     duration = accessor (\(_, e) -> getVal duration e) (\d (t, e) -> (t, setVal duration d e))
-
--- toPattern :: Patch -> Pattern (TrackId, Event)
--- toPattern (Patch ps) = ppar ps'
---     where
---         ps' = map (\(t, p) -> pzip (pure t) p) ps
+fromPattern :: [Pattern Event] -> Patch
+fromPattern pattern = Patch (ppar pattern) (Sequencer.empty n n) regions
+    where
+        regions = defaultRegions
+        n       = length regions
