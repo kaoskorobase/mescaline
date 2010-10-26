@@ -127,16 +127,21 @@ data Region = Region {
   , regionState :: MVar RegionState
   }
 
-data UnitActivation = UnitActivation !(Qt.QGraphicsItem ()) !Int
+data UnitHighlight  = UnitHighlight !(Qt.QGraphicsItem ()) !Int
+
+data HighlightState = HighlightState {
+    highlightPen :: Qt.QPen ()
+  , highlights   :: MVar (Unique.Map UnitHighlight)
+  }
+
 
 data State = State {
     featureSpace :: Process.Handle
   , synth        :: Synth.Handle
   , unitGroup    :: MVar (Maybe (Qt.QGraphicsItem ()))
   , units        :: MVar (Unique.Map (Qt.QGraphicsItem ()))
-  , highlights   :: MVar (Unique.Map UnitActivation)
-  , highlightPen :: Qt.QPen ()
-  , colors       :: [Qt.QColor ()]
+  , highlight    :: Maybe HighlightState
+  , regionColors :: IntMap (Qt.QBrush ())
   , regions      :: IntMap Region
   , playUnits    :: MVar Bool
   , guiChan      :: Chan (IO ())
@@ -191,12 +196,12 @@ regionMouseReleaseHandler _ region _ _ = do
 
 addRegion :: FeatureSpaceView -> Model.Region -> State -> IO State
 addRegion view region state = do
-    let c = colors state !! Model.regionId region
-        r = Model.radius region
-        x = Model.center region V.! 0
-        y = Model.center region V.! 1
+    let Just b = IMap.lookup (Model.regionId region) (regionColors state)
+        r      = Model.radius region
+        x      = Model.center region V.! 0
+        y      = Model.center region V.! 1
     item <- Qt.qGraphicsEllipseItem_nf (Qt.rectF (-r) (-r) (r*2) (r*2))
-    Qt.setBrush item =<< Qt.qBrush_nf c
+    Qt.setBrush item b
     -- Qt.setFlags item $ Qt.fItemIsMovable + (Qt.qFlags_fromInt 2048) -- FIXME: Huh? Wtf? QGraphicsItem::ItemSendsGeometryChanges?
     Qt.addItem view item
     Qt.setPos item (Qt.pointF x y)
@@ -280,46 +285,55 @@ process view state = do
                             Qt.setPos item pos
                             Qt.qsetRect item (Qt.IRect (-rad) (-rad) dia dia)
                 return state
-            Right (HighlightOn unit) -> do
-                defer view state $ do
-                    us <- readMVar (units state)
-                    as <- takeMVar (highlights state)
-                    let uid = Unit.id unit
-                    case Map.lookup uid as of
-                        Nothing -> do
-                            -- Insert new highlight item
-                            case Map.lookup uid us of
-                                Nothing -> return ()
-                                Just item -> do
-                                    Qt.IPoint x y <- Qt.scenePos item ()
-                                    let -- (x, y) = pair (Feature.value (Model.feature unit))
-                                        r      = highlightRadius
-                                        box    = Qt.rectF (-r) (-r) (r*2) (r*2)
-                                    -- item <- Qt.qGraphicsRectItem box
-                                    item <- Qt.qGraphicsEllipseItem box
-                                    Qt.setPos item (Qt.pointF x y)
-                                    Qt.setPen item (highlightPen state)
-                                    Qt.addItem view item
-                                    putMVar (highlights state) (Map.insert uid (UnitActivation (Qt.objectCast item) 1) as)
-                        Just (UnitActivation item i) ->
-                            -- Increase highlight count
-                            putMVar (highlights state) (Map.insert uid (UnitActivation item (i+1)) as)
-                return state
-            Right (HighlightOff unit) -> do
-                defer view state $ do
-                    as <- takeMVar (highlights state)
-                    case Map.lookup (Unit.id unit) as of
-                        Nothing -> putMVar (highlights state) as
-                        Just (UnitActivation item i) ->
-                            if i <= 1
-                                then do
-                                    -- Remove highlight item
-                                    Qt.removeItem view item
-                                    putMVar (highlights state) (Map.delete (Unit.id unit) as)
-                                else do
-                                    -- Decrease highlight count
-                                    putMVar (highlights state) (Map.insert (Unit.id unit) (UnitActivation item (i-1)) as)
-                return state
+            Right (HighlightOn unit) ->
+                case highlight state of
+                    Nothing ->
+                        return state
+                    Just hlState -> do
+                        defer view state $ do
+                            us <- readMVar (units state)
+                            as <- takeMVar (highlights hlState)
+                            let uid = Unit.id unit
+                            case Map.lookup uid as of
+                                Nothing -> do
+                                    -- Insert new highlight item
+                                    case Map.lookup uid us of
+                                        Nothing -> return ()
+                                        Just item -> do
+                                            Qt.IPoint x y <- Qt.scenePos item ()
+                                            let -- (x, y) = pair (Feature.value (Model.feature unit))
+                                                r      = highlightRadius
+                                                box    = Qt.rectF (-r) (-r) (r*2) (r*2)
+                                            -- item <- Qt.qGraphicsRectItem box
+                                            item <- Qt.qGraphicsEllipseItem box
+                                            Qt.setPos item (Qt.pointF x y)
+                                            Qt.setPen item (highlightPen hlState)
+                                            Qt.addItem view item
+                                            putMVar (highlights hlState) (Map.insert uid (UnitHighlight (Qt.objectCast item) 1) as)
+                                Just (UnitHighlight item i) ->
+                                    -- Increase highlight count
+                                    putMVar (highlights hlState) (Map.insert uid (UnitHighlight item (i+1)) as)
+                        return state
+            Right (HighlightOff unit) ->
+                case highlight state of
+                    Nothing ->
+                        return state
+                    Just hlState -> do
+                        defer view state $ do
+                            as <- takeMVar (highlights hlState)
+                            case Map.lookup (Unit.id unit) as of
+                                Nothing ->
+                                    putMVar (highlights hlState) as
+                                Just (UnitHighlight item i) ->
+                                    if i <= 1
+                                        then do
+                                            -- Remove highlight item
+                                            Qt.removeItem view item
+                                            putMVar (highlights hlState) (Map.delete (Unit.id unit) as)
+                                        else do
+                                            -- Decrease highlight count
+                                            putMVar (highlights hlState) (Map.insert (Unit.id unit) (UnitHighlight item (i-1)) as)
+                        return state
     process view state'
 
 update :: Chan (IO ()) -> FeatureSpaceView -> IO ()
@@ -340,18 +354,24 @@ newState fspace synth = do
 
     ug <- newMVar Nothing
     us <- newMVar Map.empty
-    hl <- newMVar Map.empty
 
-    hlColor <- Config.getColor config "FeatureSpace" "highlightColor"
-    hlBrush <- Qt.qBrush hlColor
-    hlPen <- Qt.qPen (hlBrush, 0::Double)
+    hl <- Config.getIO config "FeatureSpace" "highlightUnits" :: IO Bool
+    hlState <-
+        if hl
+            then do
+                hls     <- newMVar Map.empty
+                hlColor <- Config.getColor config "FeatureSpace" "highlightColor"
+                hlBrush <- Qt.qBrush hlColor
+                hlPen   <- Qt.qPen (hlBrush, 0::Double)
+                return $ Just $ HighlightState hlPen hls
+            else return Nothing
 
-    regionColors <- getRegionColors config
+    regionBrushes <- getRegionColors config >>= mapM Qt.qBrush
 
     pu <- newMVar False
     gc <- newChan
     
-    return $ State fspace synth ug us hl hlPen (cycle regionColors) IMap.empty pu gc
+    return $ State fspace synth ug us hlState (IMap.fromList (zip [0..] regionBrushes)) IMap.empty pu gc
 
 new :: Process.Handle -> Synth.Handle -> IO (FeatureSpaceView, Handle Input Output)
 new fspace synth = do

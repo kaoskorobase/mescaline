@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables #-}
 module Mescaline.Application.Config (
     module Data.ConfigFile
+  , getIO
   , getColor
   , getConfig
 ) where
@@ -32,26 +33,31 @@ hexAlphaRegex = mkRegex "^(#[A-Ba-b0-9][A-Ba-b0-9][A-Ba-b0-9][A-Ba-b0-9][A-Ba-b0
 alphaRegex :: Regex
 alphaRegex = mkRegex "^([^*]+)\\*([0-9]+(\\.[0-9]+)?)$"
 
+getIO :: Get_C a => ConfigParser -> SectionSpec -> OptionSpec -> IO a
+getIO config section option = do
+    case get config section option of
+        Left e  -> throw (ConfigParserError e)
+        Right a -> return a
+
 getColor :: ConfigParser -> SectionSpec -> OptionSpec -> IO (Qt.QColor ())
 getColor config section option = do
-    case get config section option of
-        Left e -> throw $ ConfigParserError e
-        Right (colorSpec :: String) -> do
-            case matchRegex hexAlphaRegex colorSpec of
-                Just (rgb:alpha:_) -> do
-                    color <- Qt.qColor rgb
-                    case readMaybe ("0x" ++ alpha) of
-                        Nothing         -> return ()
-                        Just (a :: Int) -> Qt.setAlpha color a
+    colorSpec <- getIO config section option
+    case matchRegex hexAlphaRegex colorSpec of
+        Just (rgb:alpha:_) -> do
+            color <- Qt.qColor rgb
+            case readMaybe ("0x" ++ alpha) of
+                Nothing         -> return ()
+                Just (a :: Int) -> Qt.setAlpha color a
+            return color
+        Nothing ->
+            case matchRegex alphaRegex colorSpec of
+                Just (name:alpha:_) -> do
+                    color <- Qt.qColor name
+                    case readMaybe alpha of
+                        Nothing -> return ()
+                        Just a  -> Qt.setAlphaF color a
                     return color
-                Nothing -> case matchRegex alphaRegex colorSpec of
-                            Just (name:alpha:_) -> do
-                                color <- Qt.qColor name
-                                case readMaybe alpha of
-                                    Nothing -> return ()
-                                    Just a  -> Qt.setAlphaF color a
-                                return color
-                            Nothing -> Qt.qColor colorSpec
+                Nothing -> Qt.qColor colorSpec
 
 defaultConfig :: ConfigParser
 defaultConfig = emptyCP { optionxform = id
