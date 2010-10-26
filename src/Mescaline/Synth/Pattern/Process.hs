@@ -22,6 +22,7 @@ import           Data.Accessor
 import           Data.Maybe (fromJust)
 import           Data.Typeable
 import           Mescaline (Time)
+import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpace.Process as FeatureSpaceP
 import           Mescaline.Synth.Pattern.Environment (Environment)
@@ -85,12 +86,11 @@ playerProcess handle envir0 player0 time0 = loop envir0 player0 time0
             (envir, _) <- applyUpdates _envir
             case Model.step envir player of
                 Model.Done envir' -> do
-                    io $ putStrLn "playerProcess: Model.Done"
+                    io $ Log.debugM "Sequencer" "playerProcess: Model.Done"
                     -- loop envir' player0 time
                     return ()
                 Model.Result envir' event player' delta -> do
-                    -- TODO: Write this to log
-                    io $ print event
+                    io $ Log.debugM "Sequencer" $ "Event: " ++ show event
                     sendTo handle $ Event_ time event
                     case delta of
                         Nothing -> loop envir' player' time

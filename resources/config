@@ -11,3 +11,11 @@ regionColor5   = greenyellow*0.7
 regionColor6   = magenta*0.7
 regionColor7   = navy*0.7
 regionColor8   = darkviolet*0.7
+
+[Sequencer]
+
+logLevel       = EMERGENCY
+
+[Synth]
+
+logLevel       = EMERGENCY

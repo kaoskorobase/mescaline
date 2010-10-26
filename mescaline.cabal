@@ -62,6 +62,7 @@ library
       , hmatrix >= 0.9 && < 1.0
       , hmeap >= 0.8
       , hosc >= 0.8
+      , hslogger >= 1.0 && < 1.1
       , hsc3 >= 0.8
       , hsc3-lang >= 0.8
       , hsc3-process >= 0.3 && < 0.4
@@ -94,6 +95,7 @@ library
         Mescaline
         Mescaline.Application
         Mescaline.Application.Config
+        Mescaline.Application.Logger
         Mescaline.Control.Concurrent
         Mescaline.Control.Concurrent.Pool
         Mescaline.Data.ByteString

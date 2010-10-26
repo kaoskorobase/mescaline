@@ -17,6 +17,7 @@ import           Data.Version (showVersion)
 import           Database.HDBC (quickQuery')
 import           Mescaline (Time)
 import qualified Mescaline.Application as App
+import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Database as DB
 import qualified Mescaline.Database.SqlQuery as Sql
 import qualified Mescaline.Database.Feature as Feature
@@ -295,6 +296,8 @@ action_featureSpace_zoom_reset v _ _ = setScaleFeatureSpace 600 v
 
 main :: IO ()
 main = do
+    Log.initialize
+
     app <- Qt.qApplication  ()
 
     -- Parse arguments
@@ -305,7 +308,7 @@ main = do
     let pattern = case args of
                     (_:p:_) -> p
                     _       -> "%"
-        
+
     -- FIXME: .ui file is not found in the resource for some reason
     -- rcc <- Qt.registerResource "app/mescaline.rcc"
     -- engine <- qScriptEngine ()

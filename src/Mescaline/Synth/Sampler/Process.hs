@@ -13,6 +13,7 @@ import qualified Control.Concurrent.Process as Process
 import           Control.Exception
 import           Mescaline (Time)
 import qualified Mescaline.Application as App
+import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
 import           Mescaline.Synth.Pattern.Event (SynthParams)
 import qualified Mescaline.Synth.Sampler.Model as Model
@@ -107,9 +108,9 @@ new = do
                 PlayUnit t u p -> do
                     _ <- fork $ do
                         io $ notifyListeners h $ UnitStarted t u
-                        -- io $ putStrLn $ "playUnit: " ++ show (t, u, p)
+                        io $ Log.debugM "Synth" $ "PlayUnit: " ++ show (t, u, p)
                         Model.playUnit sampler t u p
-                        -- io $ putStrLn $ "stoppedUnit: " ++ show (t, u, p)
+                        io $ Log.debugM "Synth" $ "StopUnit: " ++ show (t, u, p)
                         io $ notifyListeners h $ UnitStopped t u
                     loop h chan sampler
                 _ -> loop h chan sampler
