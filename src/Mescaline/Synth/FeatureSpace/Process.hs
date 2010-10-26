@@ -13,6 +13,7 @@ import           Control.Monad.Reader
 import qualified Data.Vector.Generic as V
 import qualified Database.HDBC as DB
 import           Mescaline (Time)
+import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Database as DB
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.SqlQuery as Sql
@@ -66,7 +67,7 @@ new = do
                         return $ Model.addRegion r f
                     UpdateRegion r -> do
                         notify $ RegionChanged r
-                        -- io $ putStrLn $ "UpdateRegion " ++ show r
+                        io $ Log.debugM "FeatureSpace" $ "UpdateRegion: " ++ show r
                         return $ Model.updateRegion r f
                     -- ActivateRegion t i -> do
                     --     let (u, f') = Model.activateRegion i f

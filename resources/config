@@ -1,21 +1,23 @@
 [FeatureSpace]
 
-highlightUnits = false
-highlightColor = orangered
+highlightUnits  = false
+highlightColor  = orangered
 
-regionColor1   = red*0.7
-regionColor2   = green*0.7
-regionColor3   = blue*0.7
-regionColor4   = orange*0.7
-regionColor5   = greenyellow*0.7
-regionColor6   = magenta*0.7
-regionColor7   = navy*0.7
-regionColor8   = darkviolet*0.7
+regionColor1    = red*0.7
+regionColor2    = green*0.7
+regionColor3    = blue*0.7
+regionColor4    = orange*0.7
+regionColor5    = greenyellow*0.7
+regionColor6    = magenta*0.7
+regionColor7    = navy*0.7
+regionColor8    = darkviolet*0.7
+
+logLevel        = DEBUG
 
 [Sequencer]
 
-logLevel       = NOTICE
+logLevel        = NOTICE
 
 [Synth]
 
-logLevel       = NOTICE
+logLevel        = NOTICE

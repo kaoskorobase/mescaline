@@ -23,5 +23,6 @@ initLogLevel conf component variable =
 initialize :: IO ()
 initialize = do
     conf <- Config.getConfig
-    initLogLevel conf "Sequencer" "logLevel"
-    initLogLevel conf "Synth" "logLevel"
+    initLogLevel conf "FeatureSpace" "logLevel"
+    initLogLevel conf "Sequencer"    "logLevel"
+    initLogLevel conf "Synth"        "logLevel"
