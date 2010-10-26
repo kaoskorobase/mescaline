@@ -14,8 +14,8 @@ regionColor8   = darkviolet*0.7
 
 [Sequencer]
 
-logLevel       = EMERGENCY
+logLevel       = NOTICE
 
 [Synth]
 
-logLevel       = EMERGENCY
+logLevel       = NOTICE

@@ -12,6 +12,8 @@ module Mescaline.Synth.Sampler.Model (
 import           Control.Monad.Reader
 import           Data.Accessor ((^.))
 import           Mescaline (Time)
+import qualified Mescaline.Application.Config as Config
+import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Database.SourceFile as SourceFile
 import           Mescaline.Synth.BufferCache.Server (Buffer, BufferCache)
 import qualified Mescaline.Synth.BufferCache.Server as BC
@@ -22,9 +24,7 @@ import           Sound.OpenSoundControl (OSC(..))
 import qualified Sound.OpenSoundControl as OSC
 import           Sound.SC3 hiding (Output, free, gate, sync)
 import           Sound.SC3.Lang.Collection
-#if SCHEDULE_COMPLETION_BUNDLES == 1
 import           Sound.SC3.Server.Command.Completion
-#endif -- SCHEDULE_COMPLETION_BUNDLES
 import           Sound.SC3.Server.Monad as S
 import           Sound.SC3.Server.Notification (n_end)
 
@@ -135,14 +135,23 @@ freeVoice cache voice = do
     S.sync $ b_close $ fromIntegral $ BC.uid $ buffer voice
     BC.freeBuffer cache (buffer voice)
 
-newtype Sampler = Sampler { bufferCache :: BufferCache }
+data Sampler = Sampler {
+    bufferCache  :: !BufferCache
+  , playUnitFunc :: Sampler -> Time -> Unit.Unit -> SynthParams -> Server ()
+  }
 
 new :: Server Sampler
 new = do
+    b <- liftIO $ do
+        conf <- Config.getConfig
+        either (const $ return False) return (Config.get conf "Synth" "scheduleCompletionBundles")
+
+    liftIO $ Log.noticeM "Synth" $ (if b then "U" else "Not u") ++ "sing completion bundle scheduling."
+    
     S.sync $ Bundle OSC.immediately [ d_recv (synthdef (voiceDefName 1) (voiceDef 1)),
                                       d_recv (synthdef (voiceDefName 2) (voiceDef 2)) ]
     cache <- BC.new (replicate 4 (BC.allocBytes 1 diskBufferSize) ++ replicate 4 (BC.allocBytes 1 diskBufferSize))
-    return $ Sampler cache
+    return $ Sampler cache (if b then playUnit_schedComplBundles else playUnit_noSchedComplBundles)
 
 free :: Sampler -> Server ()
 free sampler = do
@@ -150,15 +159,39 @@ free sampler = do
     BC.release (bufferCache sampler)
 
 playUnit :: Sampler -> Time -> Unit.Unit -> SynthParams -> Server ()
-playUnit sampler time unit params = do
+playUnit sampler = (playUnitFunc sampler) sampler
+
+playUnit_noSchedComplBundles :: Sampler -> Time -> Unit.Unit -> SynthParams -> Server ()
+playUnit_noSchedComplBundles sampler time unit params = do
     voice <- allocVoice cache unit (\voice ->
             Just $
-#if SCHEDULE_COMPLETION_BUNDLES == 1
+                b_read
+                    (fromIntegral $ BC.uid $ buffer voice)
+                    (SourceFile.path sourceFile)
+                    (truncate $ SourceFile.sampleRate sourceFile * Unit.onset unit)
+                    (-1) 0 1)
+    -- tu <- utcr
+    S.unsafeSync
+    S.send (startVoice voice time unit params)
+    -- print (t-tu, t+dur-tu)
+    liftIO $ OSC.pauseThreadUntil (time + dur)
+    S.send $ stopVoice voice (time + dur) params
+    _ <- S.waitFor $ n_end $ voiceId voice
+    -- tu' <- utcr
+    -- liftIO $ putStrLn ("node end: " ++ show voice)
+    freeVoice cache voice
+    return ()
+    where
+        cache      = bufferCache sampler
+        dur        = Unit.duration unit
+        sourceFile = Unit.sourceFile unit
+
+playUnit_schedComplBundles :: Sampler -> Time -> Unit.Unit -> SynthParams -> Server ()
+playUnit_schedComplBundles sampler time unit params = do
+    voice <- allocVoice cache unit (\voice ->
+            Just $
                 b_read'
                     (startVoice voice time unit params)
-#else
-                b_read
-#endif -- SCHEDULE_COMPLETION_BUNDLES
                     (fromIntegral $ BC.uid $ buffer voice)
                     (SourceFile.path sourceFile)
                     (truncate $ SourceFile.sampleRate sourceFile * Unit.onset unit)
@@ -166,9 +199,6 @@ playUnit sampler time unit params = do
     -- tu <- utcr
     -- FIXME: Why is this necessary?!
     S.unsafeSync
-#if SCHEDULE_COMPLETION_BUNDLES != 1
-    S.send (startVoice voice time unit params)
-#endif -- SCHEDULE_COMPLETION_BUNDLES
     -- print (t-tu, t+dur-tu)
     liftIO $ OSC.pauseThreadUntil (time + dur)
     S.send $ stopVoice voice (time + dur) params
