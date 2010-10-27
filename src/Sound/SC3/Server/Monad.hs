@@ -20,10 +20,11 @@ module Sound.SC3.Server.Monad (
   , allocRange
   -- *Synchronization
   , fork
+  , Send
   , send
-  -- , communicate
-  , waitFor
-  , wait
+  , async
+  , syncWith
+  , syncAddress
   , sync
   , unsafeSync
 ) where
@@ -35,7 +36,7 @@ import           Control.Monad.Trans (MonadIO, MonadTrans, liftIO)
 import           Data.Accessor
 import           Sound.SC3 (Rate(..))
 import           Sound.SC3.Server.Allocator (IdAllocator, RangeAllocator, Range)
-import           Sound.SC3.Server.Connection (Connection)
+import           Sound.SC3.Server.Connection (Connection, Send)
 import qualified Sound.SC3.Server.Connection as C
 -- import           Sound.SC3.Server.Process.Options (ServerOptions, numberOfInputBusChannels, numberOfOutputBusChannels)
 import           Sound.SC3.Server.State (BufferId, BufferIdAllocator, BusId, BusIdAllocator, NodeId, NodeIdAllocator, State)
@@ -91,23 +92,20 @@ allocRange a n = asks C.state >>= liftIO . flip (IOState.allocRange a) n
 fork :: (MonadIO m) => ServerT IO () -> ServerT m ThreadId
 fork = liftConn . flip C.fork . runServerT
 
-send :: (MonadIO m) => OSC -> ServerT m ()
-send = liftConn . flip C.send
+send :: OSC -> Send ()
+send = C.send
 
--- communicate :: ServerT (Consumer a) -> ServerT a
--- communicate a = do
---     c <- ask
---     liftIO $ Conn.communicate c (runServerT a c)
+async :: (MonadIO m) => Send () -> ServerT m ()
+async = liftConn . C.async
 
-waitFor :: (MonadIO m) => (OSC -> Maybe a) -> ServerT m a
-waitFor = liftConn . flip C.waitFor
+syncWith :: (MonadIO m) => Send () -> (OSC -> Maybe a) -> ServerT m a
+syncWith s = liftConn . C.syncWith s
 
--- | Wait for an OSC message matching a specific address.
-wait :: (MonadIO m) => String -> ServerT m OSC
-wait = liftConn . flip C.wait
+syncAddress :: (MonadIO m) => Send () -> String -> ServerT m OSC
+syncAddress s = liftConn . C.syncAddress s
 
-sync :: (MonadIO m) => OSC -> ServerT m ()
-sync = liftConn . flip C.sync
+sync :: (MonadIO m) => Send () -> ServerT m ()
+sync = liftConn . C.sync
 
 unsafeSync :: (MonadIO m) => ServerT m ()
 unsafeSync = liftConn C.unsafeSync

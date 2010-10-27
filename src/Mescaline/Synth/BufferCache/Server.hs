@@ -32,9 +32,9 @@ new allocs = do
     buffers <- forM allocs $ \a -> do
         bid <- S.alloc bufferId
         let buf = BC.fromAlloc bid a
-        S.sync $ b_alloc (fromIntegral bid)
-                         (BC.numFrames buf)
-                         (BC.numChannels buf)
+        S.sync $ S.send $ b_alloc (fromIntegral bid)
+                                  (BC.numFrames buf)
+                                  (BC.numChannels buf)
         return buf
     newMVar $ BC.fromList buffers
 
@@ -42,7 +42,7 @@ release :: BufferCache -> Server ()
 release bc = do
     cache <- takeMVar bc
     mapM_
-        (S.sync . b_free . fromIntegral . BC.uid)
+        (S.sync . S.send . b_free . fromIntegral . BC.uid)
         (Set.elems (BC.usedBuffers cache)
             ++ Set.elems (BC.freeBuffers cache))
     putMVar bc BC.empty
@@ -58,13 +58,13 @@ allocBuffer completion bc alloc = do
                 let buf = BC.fromAlloc bid alloc
                     msg = maybe b_alloc (($) b_alloc') (completion buf)
                 -- Allocate buffer
-                S.sync $ msg (fromIntegral bid)
-                             (BC.numFrames buf)
-                             (BC.numChannels buf)
+                S.sync $ S.send $ msg (fromIntegral bid)
+                                      (BC.numFrames buf)
+                                      (BC.numChannels buf)
                 -- Insert into used
                 return (BC.insertBuffer cache buf, buf)
             Just (cache', buf) -> do
-                maybe (return ()) S.send (completion buf)
+                maybe (return ()) (S.async . S.send) (completion buf)
                 return (cache', buf)
     putMVar bc cache'
     return buf

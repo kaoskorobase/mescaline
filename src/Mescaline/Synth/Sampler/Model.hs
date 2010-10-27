@@ -132,7 +132,7 @@ allocVoice cache unit completion = do
 
 freeVoice :: BufferCache -> Voice -> Server ()
 freeVoice cache voice = do
-    S.sync $ b_close $ fromIntegral $ BC.uid $ buffer voice
+    S.sync $ S.send $ b_close $ fromIntegral $ BC.uid $ buffer voice
     BC.freeBuffer cache (buffer voice)
 
 data Sampler = Sampler {
@@ -148,14 +148,14 @@ new = do
 
     liftIO $ Log.noticeM "Synth" $ (if b then "U" else "Not u") ++ "sing completion bundle scheduling."
     
-    S.sync $ Bundle OSC.immediately [ d_recv (synthdef (voiceDefName 1) (voiceDef 1)),
-                                      d_recv (synthdef (voiceDefName 2) (voiceDef 2)) ]
+    S.sync $ S.send $ Bundle OSC.immediately [ d_recv (synthdef (voiceDefName 1) (voiceDef 1)),
+                                               d_recv (synthdef (voiceDefName 2) (voiceDef 2)) ]
     cache <- BC.new (replicate 4 (BC.allocBytes 1 diskBufferSize) ++ replicate 4 (BC.allocBytes 1 diskBufferSize))
     return $ Sampler cache (if b then playUnit_schedComplBundles else playUnit_noSchedComplBundles)
 
 free :: Sampler -> Server ()
 free sampler = do
-    S.send (g_freeAll [0])
+    S.async $ S.send $ g_freeAll [0]
     BC.release (bufferCache sampler)
 
 playUnit :: Sampler -> Time -> Unit.Unit -> SynthParams -> Server ()
@@ -172,11 +172,10 @@ playUnit_noSchedComplBundles sampler time unit params = do
                     (-1) 0 1)
     -- tu <- utcr
     S.unsafeSync
-    S.send (startVoice voice time unit params)
+    S.async $ S.send (startVoice voice time unit params)
     -- print (t-tu, t+dur-tu)
     liftIO $ OSC.pauseThreadUntil (time + dur)
-    S.send $ stopVoice voice (time + dur) params
-    _ <- S.waitFor $ n_end $ voiceId voice
+    _ <- S.send (stopVoice voice (time + dur) params) `S.syncWith` n_end (voiceId voice)
     -- tu' <- utcr
     -- liftIO $ putStrLn ("node end: " ++ show voice)
     freeVoice cache voice
@@ -201,8 +200,7 @@ playUnit_schedComplBundles sampler time unit params = do
     S.unsafeSync
     -- print (t-tu, t+dur-tu)
     liftIO $ OSC.pauseThreadUntil (time + dur)
-    S.send $ stopVoice voice (time + dur) params
-    _ <- S.waitFor $ n_end $ voiceId voice
+    _ <- S.send (stopVoice voice (time + dur) params) `S.syncWith` n_end (voiceId voice)
     -- tu' <- utcr
     -- liftIO $ putStrLn ("node end: " ++ show voice)
     freeVoice cache voice
