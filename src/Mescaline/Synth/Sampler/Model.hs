@@ -138,7 +138,7 @@ freeVoice cache voice = do
 
 data Sampler = Sampler {
     bufferCache  :: !BufferCache
-  , playUnitFunc :: Sampler -> Time -> Unit.Unit -> SynthParams -> Server ()
+  , playUnitFunc :: !(Sampler -> Time -> Unit.Unit -> SynthParams -> Server ())
   }
 
 new :: Server Sampler
