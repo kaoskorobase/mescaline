@@ -14,17 +14,15 @@ module Mescaline.Synth.BufferCache.Server (
 ) where
 
 import           Control.Concurrent.MonadIO (MVar, newMVar, putMVar, takeMVar)
-import           Control.Monad (forM)
+import           Control.Monad (forM, forM_)
 import qualified Data.Set as Set
 import qualified Mescaline.Application.Logger as Log
 import           Mescaline.Synth.BufferCache (Alloc, Buffer, uid, numChannels, numFrames, allocBytes, allocFrames)
 import qualified Mescaline.Synth.BufferCache as BC
-import qualified Mescaline.Synth.BufferCache.Alloc as Alloc
-import           Sound.OpenSoundControl (OSC, Transport)
+import           Sound.OpenSoundControl (OSC)
 import           Sound.SC3 hiding (free)
 import           Sound.SC3.Server.Command.Completion
 import           Sound.SC3.Server.Monad as S
-import qualified Sound.SC3.Server.State as State
 
 type BufferCache = MVar BC.BufferCache
 
@@ -42,10 +40,10 @@ new allocs = do
 release :: BufferCache -> Server ()
 release bc = do
     cache <- takeMVar bc
-    mapM_
-        (S.sync . S.send . b_free . fromIntegral . BC.uid)
-        (Set.elems (BC.usedBuffers cache)
-            ++ Set.elems (BC.freeBuffers cache))
+    forM_ (Set.elems (BC.usedBuffers cache)
+        ++ Set.elems (BC.freeBuffers cache)) $ \b -> do
+            S.free S.bufferId (BC.uid b)
+            S.sync $ S.send $ b_free (fromIntegral (BC.uid b))
     putMVar bc BC.empty
 
 allocBuffer :: (Buffer -> Maybe OSC) -> BufferCache -> Alloc -> Server Buffer
