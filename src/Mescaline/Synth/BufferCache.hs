@@ -36,8 +36,8 @@ matchBuffer a b = Alloc.numChannels a == numChannels b
 type BufferSet = Set.Set Buffer
 
 data BufferCache = BufferCache {
-    freeBuffers :: BufferSet
-  , usedBuffers :: BufferSet
+    freeBuffers :: !BufferSet
+  , usedBuffers :: !BufferSet
 } deriving (Eq, Show)
 
 empty :: BufferCache
