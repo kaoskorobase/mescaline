@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Mescaline.Synth.Sampler.Process (
     Handle
     -- * Input
@@ -11,12 +12,16 @@ import           Control.Concurrent
 import           Control.Concurrent.Process hiding (Handle)
 import qualified Control.Concurrent.Process as Process
 import           Control.Exception
+import           Control.Monad.Error
 import           Mescaline (Time)
 import qualified Mescaline.Application as App
+import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
 import           Mescaline.Synth.Pattern.Event (SynthParams)
 import qualified Mescaline.Synth.Sampler.Model as Model
+import qualified Sound.OpenSoundControl as OSC
+import           Sound.SC3 (dumpOSC, PrintLevel(..))
 import qualified Sound.SC3.Server.Process as Server
 import qualified Sound.SC3.Server.Process.Monad as Server
 import           Sound.SC3.Server.Monad as S
@@ -55,6 +60,16 @@ getEnginePaths = do
             plg <- App.getResourcePath "supercollider/plugins"
             return (exe', Just [plg])
 
+getPrintLevel :: MonadError Config.CPError m => Config.ConfigParser -> Config.SectionSpec -> Config.OptionSpec -> m PrintLevel
+getPrintLevel conf section option = do
+    s <- Config.get conf section option
+    case s of
+        "none" -> return NoPrinter
+        "hex"  -> return HexPrinter
+        "text" -> return TextPrinter
+        "all"  -> return AllPrinter
+        _      -> throwError (Config.ParseError $ "Invalid OSC print level " ++ s, "")
+
 new :: IO (Handle, IO ())
 new = do
     (scsynth, plugins) <- getEnginePaths
@@ -68,14 +83,18 @@ new = do
     
     putStrLn $ unwords $ Server.rtCommandLine serverOptions rtOptions
     
+    conf <- Config.getConfig
+    let printLevel = either (const NoPrinter) id (getPrintLevel conf "Synth" "dumpOSC")
+        initBundle = OSC.Bundle OSC.immediately [dumpOSC printLevel]
+
     chan <- newChan
     quit <- newEmptyMVar
     h <- spawn $ process chan
-    _ <- forkIO $ runSynth serverOptions rtOptions h chan quit
+    _ <- forkIO $ runSynth serverOptions rtOptions initBundle h chan quit
 
     return (h, sendTo h Quit >> readMVar quit)
     where
-        runSynth serverOptions rtOptions h chan quit = do
+        runSynth serverOptions rtOptions initBundle h chan quit = do
             e <- try $
                 Server.withSynthUDP
                     serverOptions
@@ -84,7 +103,7 @@ new = do
                     -- (Server.withTransport
                     --     serverOptions
                     --     rtOptions
-                    (Model.new >>= loop h chan)
+                    (S.async (S.send initBundle) >> Model.new >>= loop h chan)
             case e of
                 Left exc -> writeChan chan $ EngineException_ exc
                 _ -> return ()
