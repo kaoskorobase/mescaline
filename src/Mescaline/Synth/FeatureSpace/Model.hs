@@ -52,6 +52,7 @@ type UnitSet = BKTree Unit
 instance Eq (Unit) where
     a == b = f a == f b
         where
+            {-# INLINE f #-}
             f :: Unit -> SV.Vector Int
             f = V.map withPrecision . Unit.value 0 -- FIXME
 
@@ -65,8 +66,9 @@ instance BKTree.Metric Unit where
 precision :: Double
 precision = fromIntegral (maxBound :: Int)
 
+{-# INLINE withPrecision #-}
 withPrecision :: Double -> Int
-withPrecision = round . (*) precision
+withPrecision = truncate . (*) precision
 
 type RegionId = Int
 
