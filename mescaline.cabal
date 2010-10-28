@@ -51,6 +51,7 @@ library
       , data-accessor >= 0.2 && < 0.3
       , data-accessor-mtl >= 0.2 && < 0.3
       , data-ivar >= 0.30 && < 0.31
+      , deepseq >= 1.1 && < 1.2
       , directory
       , filemanip >= 0.3 && < 0.4
       , filepath
@@ -86,6 +87,7 @@ library
     exposed-modules:
         Control.CCA.ArrowP
         Control.Concurrent.Chan.Chunked
+        Control.Concurrent.MVar.StrictModify
         -- Data.Iteratee.Chan
         -- Data.Iteratee.OSC
         -- Data.Iteratee.Util

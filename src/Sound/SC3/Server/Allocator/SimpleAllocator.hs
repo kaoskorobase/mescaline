@@ -4,20 +4,28 @@ module Sound.SC3.Server.Allocator.SimpleAllocator (
   , cons
 ) where
 
+import Control.DeepSeq (NFData(..))
 import Data.Set as Set
 import Sound.SC3.Server.Allocator
 import Sound.SC3.Server.Allocator.Range as Range
 
 data SimpleAllocator i = SimpleAllocator {
-    sa_range :: Range i
-  , sa_used  :: Set.Set i
-  , sa_next  :: i
-  , sa_succ  :: i -> i
+    sa_range :: !(Range i)
+  , sa_used  :: !(Set.Set i)
+  , sa_next  :: !i
+  , sa_succ  :: !(i -> i)
 }
 
 instance Show i => Show (SimpleAllocator i) where
     show a = show (show $ sa_range a, show $ sa_used a, show $ sa_next a)
-    
+
+instance NFData i => NFData (SimpleAllocator i) where
+    rnf (SimpleAllocator x1 x2 x3 x4) =
+        rnf x1 `seq`
+        rnf x2 `seq`
+        rnf x3 `seq`
+            x4 `seq` ()
+
 cons :: Enum i => Range i -> SimpleAllocator i
 cons r = SimpleAllocator r Set.empty (lowerBound r) succ
 
@@ -32,13 +40,13 @@ getNext (SimpleAllocator r u n f) = (n, SimpleAllocator r u' n' f)
         u' = Set.insert n u
 
 findInSet :: (Enum i, Ord i, Monad m) => SimpleAllocator i -> i -> m (i, SimpleAllocator i)
-findInSet s@(SimpleAllocator r u n f) i
+findInSet s@(SimpleAllocator r u _ f) i
     | not (i `within` r) = fail "SimpleAllocator: No free Ids left"
     | Set.notMember i u  = return (i, SimpleAllocator r u (succ i) f)
     | otherwise          = findInSet s (succ i)
 
 findNext :: (Enum i, Ord i, Monad m) => SimpleAllocator i -> Range i -> m (i, SimpleAllocator i)
-findNext s@(SimpleAllocator r u n f) r' =
+findNext s@(SimpleAllocator r u _ _) r' =
     if not (Range.null ru)
     then return (getNext (SimpleAllocator r u (lowerBound ru) succ))
     else if not (Range.null rl)

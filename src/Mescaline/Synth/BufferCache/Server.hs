@@ -66,11 +66,11 @@ allocBuffer completion bc alloc = do
             Just (cache', buf) -> do
                 maybe (return ()) (S.async . S.send) (completion buf)
                 return (cache', buf)
-    putMVar bc cache'
+    cache' `seq` putMVar bc cache'
     return buf
 
 freeBuffer :: BufferCache -> Buffer -> Server ()
 freeBuffer bc buf = do
     cache <- takeMVar bc
     let cache' = BC.freeBuffer cache buf
-    putMVar bc cache'
+    cache' `seq` putMVar bc cache'

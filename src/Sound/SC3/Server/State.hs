@@ -31,6 +31,7 @@ module Sound.SC3.Server.State (
 ) where
 
 import           Control.Arrow (second)
+import           Control.DeepSeq (NFData(..))
 import           Control.Monad (liftM)
 import           Data.Accessor
 import           Sound.SC3.Server.Allocator (IdAllocator, RangeAllocator)
@@ -40,41 +41,62 @@ import qualified Sound.SC3.Server.Allocator.SimpleAllocator as SAlloc
 import           Sound.SC3.Server.Process.Options (ServerOptions, numberOfInputBusChannels, numberOfOutputBusChannels)
 
 -- Hide the actual allocator
-data IntAllocator = forall a . IdAllocator Int a => IntAllocator a
+data IntAllocator = forall a . (IdAllocator Int a, NFData a) => IntAllocator !a
 
 instance IdAllocator Int IntAllocator where
     alloc  (IntAllocator a) = liftM (second IntAllocator) $ Alloc.alloc a
     free i (IntAllocator a) = liftM         IntAllocator  $ Alloc.free i a
 
-newtype NodeId = NodeId   Int deriving (Bounded, Enum, Eq, Integral, Num, Ord, Real, Show)
-data NodeIdAllocator = forall a . IdAllocator NodeId a => NodeIdAllocator a
+instance NFData IntAllocator where
+    rnf (IntAllocator a) = rnf a `seq` ()
+
+newtype NodeId       = NodeId Int deriving (Bounded, Enum, Eq, Integral, NFData, Num, Ord, Real, Show)
+data NodeIdAllocator = forall a . (IdAllocator NodeId a, NFData a) => NodeIdAllocator !a
 
 instance IdAllocator NodeId NodeIdAllocator where
     alloc  (NodeIdAllocator a) = liftM (second NodeIdAllocator) $ Alloc.alloc a
     free i (NodeIdAllocator a) = liftM         NodeIdAllocator  $ Alloc.free i a
 
-newtype BufferId = BufferId Int deriving (Bounded, Enum, Eq, Integral, Num, Ord, Real, Show)
-data BufferIdAllocator = forall a . IdAllocator BufferId a => BufferIdAllocator a
+instance NFData NodeIdAllocator where
+    rnf (NodeIdAllocator a) = rnf a `seq` ()
+
+newtype BufferId       = BufferId Int deriving (Bounded, Enum, Eq, Integral, NFData, Num, Ord, Real, Show)
+data BufferIdAllocator = forall a . (IdAllocator BufferId a, NFData a) => BufferIdAllocator !a
 
 instance IdAllocator BufferId BufferIdAllocator where
     alloc  (BufferIdAllocator a) = liftM (second BufferIdAllocator) $ Alloc.alloc a
     free i (BufferIdAllocator a) = liftM         BufferIdAllocator  $ Alloc.free i a
 
-newtype BusId = BusId    Int deriving (Bounded, Enum, Eq, Integral, Num, Ord, Real, Show)
-data BusIdAllocator = forall a . IdAllocator BusId a => BusIdAllocator a
+instance NFData BufferIdAllocator where
+    rnf (BufferIdAllocator a) = rnf a `seq` ()
+
+newtype BusId       = BusId Int deriving (Bounded, Enum, Eq, Integral, NFData, Num, Ord, Real, Show)
+data BusIdAllocator = forall a . (IdAllocator BusId a, NFData a) => BusIdAllocator !a
 
 instance IdAllocator BusId BusIdAllocator where
     alloc  (BusIdAllocator a) = liftM (second BusIdAllocator) $ Alloc.alloc a
     free i (BusIdAllocator a) = liftM         BusIdAllocator  $ Alloc.free i a
 
+instance NFData BusIdAllocator where
+    rnf (BusIdAllocator a) = rnf a `seq` ()
+
 data State = State {
-   _options      :: ServerOptions
- , _syncId       :: IntAllocator
- , _nodeId       :: NodeIdAllocator
- , _bufferId     :: BufferIdAllocator
- , _controlBusId :: BusIdAllocator
- , _audioBusId   :: BusIdAllocator
+   _options      :: !ServerOptions
+ , _syncId       :: !IntAllocator
+ , _nodeId       :: !NodeIdAllocator
+ , _bufferId     :: !BufferIdAllocator
+ , _controlBusId :: !BusIdAllocator
+ , _audioBusId   :: !BusIdAllocator
  }
+
+instance NFData State where
+    rnf (State x1 x2 x3 x4 x5 x6) =
+            x1 `seq`
+        rnf x2 `seq`
+        rnf x3 `seq`
+        rnf x4 `seq`
+        rnf x5 `seq`
+        rnf x6 `seq` ()
 
 ACCESSOR(options,      _options,      State, ServerOptions)
 ACCESSOR(syncId,       _syncId,       State, IntAllocator)
