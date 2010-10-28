@@ -4,6 +4,7 @@ module Mescaline.Application.Logger (
 ) where
 
 import           Control.Monad.Error
+import           Data.Char (toUpper)
 import qualified Mescaline.Application.Config as Config
 import           Mescaline.Util (readMaybe)
 import           System.Log.Logger
@@ -11,7 +12,7 @@ import           System.Log.Logger
 instance Config.Get_C (Priority) where
     get config section option = do
         s <- Config.get config section option
-        case readMaybe s of
+        case readMaybe (map toUpper s) of
             Nothing -> throwError (Config.ParseError $ "Invalid logging priority " ++ s, "")
             Just p  -> return p
 
