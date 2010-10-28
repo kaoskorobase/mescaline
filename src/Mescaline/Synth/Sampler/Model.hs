@@ -25,7 +25,8 @@ import qualified Sound.OpenSoundControl as OSC
 import           Sound.SC3 hiding (Output, free, gate, sync)
 import           Sound.SC3.Lang.Collection
 import           Sound.SC3.Server.Command.Completion
-import           Sound.SC3.Server.Monad as S
+import           Sound.SC3.Server.Monad (NodeId, Server)
+import qualified Sound.SC3.Server.Monad as S
 import           Sound.SC3.Server.Notification (n_end)
 
 data Voice = Voice { voiceId :: NodeId
@@ -120,18 +121,18 @@ stopVoice voice time params =
 
 allocVoice :: BufferCache -> Unit.Unit -> (Voice -> Maybe OSC) -> Server Voice
 allocVoice cache unit completion = do
-    nid <- alloc nodeId
+    nid <- S.alloc S.nodeId
     buf <- BC.allocBuffer
             (completion . Voice nid)
             cache
             (BC.allocBytes
                 (SourceFile.numChannels (Unit.sourceFile unit))
                 diskBufferSize)
-                          
     return $ Voice nid buf
 
 freeVoice :: BufferCache -> Voice -> Server ()
 freeVoice cache voice = do
+    S.free S.nodeId (voiceId voice)
     S.sync $ S.send $ b_close $ fromIntegral $ BC.uid $ buffer voice
     BC.freeBuffer cache (buffer voice)
 
@@ -163,26 +164,18 @@ playUnit sampler = (playUnitFunc sampler) sampler
 
 playUnit_noSchedComplBundles :: Sampler -> Time -> Unit.Unit -> SynthParams -> Server ()
 playUnit_noSchedComplBundles sampler time unit params = do
-    voice <- allocVoice cache unit (\voice ->
-            Just $
-                b_read
-                    (fromIntegral $ BC.uid $ buffer voice)
-                    (SourceFile.path sourceFile)
-                    (truncate $ SourceFile.sampleRate sourceFile * Unit.onset unit)
-                    (-1) 0 1)
-    -- tu <- utcr
-    S.unsafeSync
-    S.async $ S.send (startVoice voice time unit params)
-    -- print (t-tu, t+dur-tu)
-    liftIO $ OSC.pauseThreadUntil (time + dur)
-    _ <- S.send (stopVoice voice (time + dur) params) `S.syncWith` n_end (voiceId voice)
-    -- tu' <- utcr
-    -- liftIO $ putStrLn ("node end: " ++ show voice)
+    voice <- allocVoice cache unit (const Nothing)
+    S.sync $ S.send $ b_read
+                        (fromIntegral $ BC.uid $ buffer voice)
+                        (SourceFile.path sourceFile)
+                        (truncate $ SourceFile.sampleRate sourceFile * Unit.onset unit)
+                        (-1) 0 1
+    _ <- S.send (startVoice voice time unit params) `S.syncWith` n_end (voiceId voice)
     freeVoice cache voice
     return ()
     where
         cache      = bufferCache sampler
-        dur        = Unit.duration unit
+        -- dur        = Unit.duration unit
         sourceFile = Unit.sourceFile unit
 
 playUnit_schedComplBundles :: Sampler -> Time -> Unit.Unit -> SynthParams -> Server ()
