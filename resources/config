@@ -1,3 +1,7 @@
+[BufferCache]
+
+logLevel        = INFO
+
 [FeatureSpace]
 
 highlightUnits  = false
