@@ -16,7 +16,7 @@ regionColor6    = magenta*0.7
 regionColor7    = navy*0.7
 regionColor8    = darkviolet*0.7
 
-logLevel        = DEBUG
+logLevel        = NOTICE
 
 [Sequencer]
 
@@ -26,3 +26,4 @@ debugFill       = true
 [Synth]
 
 logLevel        = NOTICE
+dumpOSC         = none
