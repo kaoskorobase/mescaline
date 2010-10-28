@@ -148,10 +148,17 @@ new = do
         either (const $ return False) return (Config.get conf "Synth" "scheduleCompletionBundles")
 
     liftIO $ Log.noticeM "Synth" $ (if b then "U" else "Not u") ++ "sing completion bundle scheduling."
-    
+
+    -- Load synthdefs
     S.sync $ S.send $ Bundle OSC.immediately [ d_recv (synthdef (voiceDefName 1) (voiceDef 1)),
                                                d_recv (synthdef (voiceDefName 2) (voiceDef 2)) ]
-    cache <- BC.new (replicate 4 (BC.allocBytes 1 diskBufferSize) ++ replicate 4 (BC.allocBytes 1 diskBufferSize))
+
+    -- Pre-allocate disk buffers, mono and stereo
+    let nb = 64
+    cache <- BC.new $
+        replicate nb (BC.allocBytes 1 diskBufferSize)
+     ++ replicate nb (BC.allocBytes 2 diskBufferSize)
+
     return $ Sampler cache (if b then playUnit_schedComplBundles else playUnit_noSchedComplBundles)
 
 free :: Sampler -> Server ()
