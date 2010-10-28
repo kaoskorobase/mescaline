@@ -17,7 +17,9 @@ module Sound.SC3.Server.Monad (
   , busId
   , alloc
   , allocMany
+  , free
   , allocRange
+  , freeRange
   -- *Synchronization
   , fork
   , Send
@@ -86,8 +88,14 @@ alloc a = asks C.state >>= liftIO . IOState.alloc a
 allocMany :: (IdAllocator i a, MonadIO m) => Allocator a -> Int -> ServerT m [i]
 allocMany a n = asks C.state >>= liftIO . flip (IOState.allocMany a) n
 
+free :: (IdAllocator i a, MonadIO m) => Allocator a -> i -> ServerT m ()
+free a i = asks C.state >>= liftIO . flip (IOState.free a) i
+
 allocRange :: (RangeAllocator i a, MonadIO m) => Allocator a -> Int -> ServerT m (Range i)
 allocRange a n = asks C.state >>= liftIO . flip (IOState.allocRange a) n
+
+freeRange :: (RangeAllocator i a, MonadIO m) => Allocator a -> Range i -> ServerT m ()
+freeRange a r = asks C.state >>= liftIO . flip (IOState.freeRange a) r
 
 fork :: (MonadIO m) => ServerT IO () -> ServerT m ThreadId
 fork = liftConn . flip C.fork . runServerT

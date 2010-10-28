@@ -4,7 +4,9 @@ module Sound.SC3.Server.State.IO (
   , new
   , alloc
   , allocMany
+  , free
   , allocRange
+  , freeRange
 ) where
 
 import           Control.Arrow (second)
@@ -40,5 +42,17 @@ alloc f s = modifyMVar s (\s -> fmap (swap . second (flip (setVal f) s)) . error
 allocMany :: IdAllocator i a => (Accessor State a) -> IOState -> Int -> IO [i]
 allocMany f s n = modifyMVar s (\s -> fmap (swap . second (flip (setVal f) s)) . errorToIO . Alloc.allocMany n . getVal f $ s)
 
+free :: IdAllocator i a => (Accessor State a) -> IOState -> i -> IO ()
+free f ios i = modifyMVar_ ios $ \s -> do
+    let a  = s ^. f
+    a' <- errorToIO $ Alloc.free i a
+    return $ f ^= a' $ s
+
 allocRange :: RangeAllocator i a => (Accessor State a) -> IOState -> Int -> IO (Range i)
 allocRange f s n = modifyMVar s (\s -> fmap (swap . second (flip (setVal f) s)) . errorToIO . Alloc.allocRange n . getVal f $ s)
+
+freeRange :: RangeAllocator i a => (Accessor State a) -> IOState -> Range i -> IO ()
+freeRange f ios r = modifyMVar_ ios $ \s -> do
+    let a  = s ^. f
+    a' <- errorToIO $ Alloc.freeRange r a
+    return $ f ^= a' $ s
