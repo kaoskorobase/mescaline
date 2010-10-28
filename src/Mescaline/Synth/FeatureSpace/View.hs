@@ -88,8 +88,6 @@ sceneKeyPressEvent state view evt = do
     key <- Qt.key evt ()
     if key == Qt.qEnum_toInt Qt.eKey_Alt
         then do
-            c <- Qt.qCursor Qt.eCrossCursor
-            Qt.setCursor (Qt.objectCast view :: Qt.QWidget ()) c
             _ <- swapMVar (playUnits state) True
             return ()
         else return ()
@@ -99,7 +97,6 @@ sceneKeyReleaseEvent state view evt = do
     key <- Qt.key evt ()
     if key == Qt.qEnum_toInt Qt.eKey_Alt
         then do
-            Qt.unsetCursor (Qt.objectCast view :: Qt.QWidget a) ()
             _ <- swapMVar (playUnits state) False
             return ()
         else return ()
