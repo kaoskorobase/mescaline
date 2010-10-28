@@ -23,6 +23,7 @@ import           Data.Maybe (fromJust)
 import           Data.Typeable
 import           Mescaline (Time)
 import qualified Mescaline.Application.Logger as Log
+import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpace.Process as FeatureSpaceP
 import           Mescaline.Synth.Pattern.Environment (Environment)
@@ -57,10 +58,10 @@ type Handle = Process.Handle Input Output
 data TransportState = Stopped | Running deriving (Eq, Show)
 
 data State = State {
-    patch        :: Patch.Patch
-  , sequencer    :: Sequencer.Sequencer
-  , time         :: Time
-  , playerThread :: Maybe PlayerHandle
+    -- patch        :: Patch.Patch
+    sequencer    :: !Sequencer.Sequencer
+  , time         :: !Time
+  , playerThread :: !(Maybe PlayerHandle)
   }
 
 transport :: State -> TransportState
@@ -109,11 +110,18 @@ stopPlayerThread = kill
 
 new :: Patch.Patch -> FeatureSpaceP.Handle -> IO Handle
 new patch fspaceP = do
-    t <- io Time.utcr
-    let player = Model.Player t (Patch.pattern patch)
-        sequencer = Patch.sequencer patch
+    time <- io Time.utcr
     mapM_ (sendTo fspaceP . FeatureSpaceP.UpdateRegion) (Patch.regions patch)
-    spawn $ loop (State patch sequencer t Nothing) player
+    h <- spawn $ loop (State {- patch -} (Patch.sequencer patch) time Nothing)
+
+    -- If specified in the config file, fill the whole sequencer in order to facilitate debugging.
+    fill <- fmap (\conf -> either (const False) id $ Config.get conf "Sequencer" "debugFill") Config.getConfig
+    when fill $ do
+        forM_ [0..Sequencer.rows (Patch.sequencer patch)]$ \r ->
+            forM_ [0..Sequencer.cols (Patch.sequencer patch)] $ \c ->
+                sendTo h $ SetCell r c 1
+
+    return h
     where
         updateSequencer state update = do
             case transport state of
@@ -122,7 +130,7 @@ new patch fspaceP = do
                 Running -> do
                     sendTo (fromJust (playerThread state)) (Environment.sequencer ^: update)
                     return Nothing
-        loop state player = do
+        loop !state = do
             x <- recv
             state' <-
                 case x of
@@ -142,7 +150,9 @@ new patch fspaceP = do
                                         proc <- self
                                         time <- io Time.utcr
                                         fspace <- query fspaceP FeatureSpaceP.GetModel
-                                        let env = Environment.mkEnvironment 0 fspace (sequencer state)
+                                        let player = Model.Player time (Patch.pattern patch)
+                                            -- sequencer = Patch.sequencer patch
+                                            env = Environment.mkEnvironment 0 fspace (sequencer state)
                                         tid  <- io $ startPlayerThread proc player env time
                                         return $ Just $ state { time = time
                                                               , playerThread = Just tid }
@@ -159,7 +169,9 @@ new patch fspaceP = do
                                         proc <- self
                                         time <- io Time.utcr
                                         fspace <- query fspaceP FeatureSpaceP.GetModel
-                                        let env = Environment.mkEnvironment 0 fspace (sequencer state)
+                                        let player = Model.Player time (Patch.pattern patch)
+                                            -- sequencer = Patch.sequencer patch
+                                            env = Environment.mkEnvironment 0 fspace (sequencer state)
                                         tid <- io $ startPlayerThread proc player env time
                                         return $ Just $ state { time = time
                                                               , playerThread = Just tid }
@@ -180,6 +192,6 @@ new patch fspaceP = do
             case state' of
                 Just state' -> do
                     notify $ Changed (time state') (transport state') (sequencer state')
-                    loop state' player
+                    loop state'
                 Nothing ->
-                    loop state player
+                    loop state
