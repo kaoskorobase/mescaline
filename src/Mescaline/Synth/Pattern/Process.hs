@@ -28,11 +28,13 @@ import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpace.Process as FeatureSpaceP
 import           Mescaline.Synth.Pattern.Environment (Environment)
 import qualified Mescaline.Synth.Pattern.Environment as Environment
+import           Mescaline.Synth.Pattern.Event (Event)
 import qualified Mescaline.Synth.Pattern.Event as Model
 import           Mescaline.Synth.Pattern.Sequencer (Sequencer)
 import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
+import           Mescaline.Synth.Pattern (Pattern)
+import qualified Mescaline.Synth.Pattern as Model
 import qualified Mescaline.Synth.Pattern.Patch as Patch
-import qualified Mescaline.Synth.Pattern.Player as Model
 import           Prelude hiding (catch)
 import qualified Sound.OpenSoundControl.Time as Time
 
@@ -68,7 +70,7 @@ transport :: State -> TransportState
 transport = maybe Stopped (const Running) . playerThread
 
 type EnvironmentUpdate = Environment -> Environment
-type Player = Model.Player Environment Model.Event
+-- type Player = Model.Player Environment Model.Event
 type PlayerHandle = Process.Handle EnvironmentUpdate ()
 
 applyUpdates :: MonadIO m => Environment -> ReceiverT EnvironmentUpdate () m (Environment, Bool)
@@ -80,30 +82,29 @@ applyUpdates a = loop (a, False)
                 Nothing -> return (a, b)
                 Just f  -> let a' = f a in a' `seq` loop (a', True)
 
-playerProcess :: MonadIO m => Handle -> Environment -> Player -> Time -> ReceiverT EnvironmentUpdate () m ()
-playerProcess handle envir0 player0 time0 = loop envir0 player0 time0
+playerProcess :: MonadIO m => Handle -> Environment -> Pattern Event -> Time -> ReceiverT EnvironmentUpdate () m ()
+playerProcess handle = loop
     where
-        loop !_envir !player !time = do
+        loop !_envir !pattern !time = do
             (envir, _) <- applyUpdates _envir
-            case Model.step envir player of
-                Model.Done envir' -> do
+            case Model.step envir pattern of
+                Model.Done _ -> do
                     io $ Log.debugM "Sequencer" "playerProcess: Model.Done"
-                    -- loop envir' player0 time
                     return ()
-                Model.Result envir' event player' delta -> do
+                Model.Result !envir' !event !pattern' -> do
                     io $ Log.debugM "Sequencer" $ "Event: " ++ show event
                     sendTo handle $ Event_ time event
-                    case delta of
-                        Nothing -> loop envir' player' time
-                        Just dt -> do
-                            let time' = time + dt
+                    let dt = event ^. Model.delta
+                    if dt > 0
+                        then do
                             sendTo handle $ Environment_ envir'
-                            -- io $ print $ map (Sequencer.column.snd) $ take 4 $ Sequencer.cursors $ envir' ^. Environment.sequencer
+                            let time' = time + dt
                             io $ Time.pauseThreadUntil time'
-                            loop envir' player' time'
+                            loop envir' pattern' time'
+                        else loop envir' pattern' time
 
-startPlayerThread :: Handle -> Player -> Environment -> Time -> IO PlayerHandle
-startPlayerThread handle patternPlayer envir time = spawn $ playerProcess handle envir patternPlayer time
+startPlayerThread :: Handle -> Pattern Event -> Environment -> Time -> IO PlayerHandle
+startPlayerThread handle pattern envir time = spawn $ playerProcess handle envir pattern time
 
 stopPlayerThread :: PlayerHandle -> IO ()
 stopPlayerThread = kill
@@ -150,10 +151,10 @@ new patch fspaceP = do
                                         proc <- self
                                         time <- io Time.utcr
                                         fspace <- query fspaceP FeatureSpaceP.GetModel
-                                        let player = Model.Player time (Patch.pattern patch)
+                                        let pattern = Patch.pattern patch
                                             -- sequencer = Patch.sequencer patch
                                             env = Environment.mkEnvironment 0 fspace (sequencer state)
-                                        tid  <- io $ startPlayerThread proc player env time
+                                        tid  <- io $ startPlayerThread proc pattern env time
                                         return $ Just $ state { time = time
                                                               , playerThread = Just tid }
                                     Pause -> return Nothing
@@ -169,10 +170,10 @@ new patch fspaceP = do
                                         proc <- self
                                         time <- io Time.utcr
                                         fspace <- query fspaceP FeatureSpaceP.GetModel
-                                        let player = Model.Player time (Patch.pattern patch)
+                                        let pattern = Patch.pattern patch
                                             -- sequencer = Patch.sequencer patch
                                             env = Environment.mkEnvironment 0 fspace (sequencer state)
-                                        tid <- io $ startPlayerThread proc player env time
+                                        tid <- io $ startPlayerThread proc pattern env time
                                         return $ Just $ state { time = time
                                                               , playerThread = Just tid }
                     GetSequencer query -> do
