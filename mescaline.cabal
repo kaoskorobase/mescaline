@@ -41,6 +41,7 @@ library
       , arrows
       , bktrees >= 0.3 && < 0.4
       , binary
+      , bitset >= 1.0 && < 1.1
       , bytestring
       , Cabal >= 1.6
       , CCA >= 0.1.3 && < 0.2
