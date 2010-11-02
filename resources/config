@@ -21,7 +21,7 @@ logLevel        = NOTICE
 [Sequencer]
 
 logLevel        = NOTICE
-debugFill       = true
+debugFill       = false
 
 [Synth]
 
