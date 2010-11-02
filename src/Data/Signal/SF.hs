@@ -73,13 +73,13 @@ f -=> (SF tf) = SF (\a0 -> let (b0, tf') = tf a0 in (f b0, tf'))
 -- Event sources
 
 -- | Event source that never occurs.
-never :: SF a (Event b)
-never = pure NoEvent
+never :: SF a (Maybe b)
+never = pure Nothing
 
 -- | Event source with a single occurrence at time 0. The value of the event
 -- is given by the function argument.
-once :: b -> SF a (Event b)
-once b0 = (Event b0 --> never)
+once :: b -> SF a (Maybe b)
+once b0 = (Just b0 --> never)
 
 -- ====================================================================
 -- Event modifiers
@@ -92,16 +92,16 @@ tag b = arr (b <$)
 tagList :: [b] -> SF (Event a) (Event b)
 tagList bs = SF (tf bs)
     where
-        tf [] _             = (NoEvent, pure NoEvent)
-        tf bs NoEvent       = (NoEvent, SF (tf bs))
-        tf (b:bs) (Event _) = (Event b, SF (tf bs))
+        tf [] _            = (Nothing, pure Nothing)
+        tf bs Nothing      = (Nothing, SF (tf bs))
+        tf (b:bs) (Just _) = (Just b, SF (tf bs))
 
 -- | Filter out events that don't satisfy a predicate.
 filter :: (a -> Bool) -> SF (Event a) (Event a)
 filter p = arr f
     where
-        f e@(Event a) = if (p a) then e else NoEvent
-        f NoEvent     = NoEvent
+        f e@(Just a) = if (p a) then e else Nothing
+        f Nothing    = Nothing
 
 -- ====================================================================
 -- Event/signal conversion
@@ -110,20 +110,20 @@ filter p = arr f
 hold :: a -> SF (Event a) a
 hold a0 = scanl f a0
     where
-        f a NoEvent   = a
-        f _ (Event a) = a
+        f a Nothing  = a
+        f _ (Just a) = a
 
 -- | Signal to event
 edge :: SF Bool (Event ())
-edge = scanl f (False, NoEvent) >>> arr snd
+edge = scanl f (False, Nothing) >>> arr snd
     where
-        f (False, _) False = (False, NoEvent)
-        f (False, _) True  = (True, Event ())
-        f (True, _)  False = (False, NoEvent)
-        f (True, _)  True  = (True, NoEvent)
+        f (False, _) False = (False, Nothing)
+        f (False, _) True  = (True, Just ())
+        f (True, _)  False = (False, Nothing)
+        f (True, _)  True  = (True, Nothing)
 
 sample :: SF (a, Event b) (Event (a, b))
-sample = arr (\(a, e) -> event NoEvent (\b -> Event (a, b)) e)
+sample = arr (\(a, e) -> event Nothing (\b -> Just (a, b)) e)
 
 sample_ :: SF (a, Event b) (Event a)
 sample_ = sample >>> arr (fmap fst)
@@ -135,14 +135,14 @@ sample_ = sample >>> arr (fmap fst)
 accum :: a -> SF (Event (a -> a)) (Event a)
 accum a0 = SF (tf a0)
     where
-        tf a NoEvent   = (NoEvent, SF (tf a))
-        tf a (Event f) = let a' = f a in a' `seq` (Event a', SF (tf a'))
+        tf a Nothing  = (Nothing, SF (tf a))
+        tf a (Just f) = let a' = f a in a' `seq` (Just a', SF (tf a'))
 
 accumHold :: a -> SF (Event (a -> a)) a
 accumHold a0 = scanl g a0
     where
-        g a NoEvent   = a
-        g a (Event f) = f a
+        g a Nothing  = a
+        g a (Just f) = f a
 
 scanl :: (b -> a -> b) -> b -> SF a b
 scanl f b0 =
@@ -194,8 +194,8 @@ switch :: SF a (b, Event c) -> (c -> SF a b) -> SF a b
 switch sf f = SF (g sf)
     where
         g sf a = case runSF sf a of
-                    ((b, NoEvent), sf') -> (b, SF (g sf'))
-                    ((_, Event c), _)   -> runSF (f c) a
+                    ((b, Nothing), sf') -> (b, SF (g sf'))
+                    ((_, Just c), _)    -> runSF (f c) a
 
 -- | Recurring switch.
 -- rswitch :: SF a b -> SF (a, Event (SF a b)) b
@@ -203,7 +203,7 @@ switch sf f = SF (g sf)
 
 -- | Recurring switch.
 rSwitch :: SF a b -> SF (a, Event (SF a b)) b
-rSwitch sf = switch (first sf) ((second (const NoEvent) >=-) . rSwitch)
+rSwitch sf = switch (first sf) ((second (const Nothing) >=-) . rSwitch)
 
 -- | Parallel switch parameterized on the routing function. This is the most
 -- general switch from which all other (non-delayed) switches in principle
@@ -238,8 +238,8 @@ pSwitch rf sfs0 sfe0 k = SF tf0
                 sfs   = fmap snd sfcs0
             in
             case runSF sfe0 (a0, cs0) of
-                (NoEvent, sfe) -> (cs0, pSwitch rf sfs sfe k)
-                (Event d0, _)  -> runSF (k sfs0 d0) a0
+                (Nothing, sfe) -> (cs0, pSwitch rf sfs sfe k)
+                (Just d0, _)   -> runSF (k sfs0 d0) a0
 
 -- Recurring parallel switch parameterized on the routing function.
 -- rf .........	Routing function: determines the input to each signal function
@@ -254,4 +254,4 @@ rpSwitch :: Functor col =>
     -> col (SF b c) -> SF (a, Event (col (SF b c) -> col (SF b c))) (col c)
 rpSwitch rf sfs =
     pSwitch (rf . fst) sfs (arr (snd . fst)) $ \sfs' f ->
-        second (const NoEvent) >=- rpSwitch rf (f sfs')
+        second (const Nothing) >=- rpSwitch rf (f sfs')

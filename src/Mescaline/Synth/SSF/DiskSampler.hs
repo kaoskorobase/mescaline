@@ -191,7 +191,7 @@ voiceSF voice =
 
 updateSampler :: (Event Voice, IL Voice) -> Event (IL VoiceSF -> IL VoiceSF)
 updateSampler (e_voice, (IL voices)) =
-    Event $
+    Just $
         IL
         -- Add voice in event to collection
       . (event id (\voice -> ((nodeId voice, voiceSF voice):)) e_voice)
@@ -214,10 +214,10 @@ samplerCore vs =     core vs
     where
         core vs = pSwitch
                     ignore reduceIL vs
-                    (arr updateSampler >>> init NoEvent)
+                    (arr updateSampler >>> init Nothing)
                     (\vs' f -> core (f vs'))
-        ilToEvent (IL []) = NoEvent
-        ilToEvent (IL xs) = Event $ fmap snd xs
+        ilToEvent (IL []) = Nothing
+        ilToEvent (IL xs) = Just $ fmap snd xs
 
 sampler :: SF (Event AllocVoice) Sampler
 sampler =

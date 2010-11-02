@@ -83,7 +83,7 @@ data State = State {
 }
 
 newState :: Time -> Server.State -> State
-newState time state = State time time state NoEvent []
+newState time state = State time time state Nothing []
 
 newtype SF a b = SF { runState :: SF.SF (a, State) (b, State) }
 
@@ -243,10 +243,10 @@ switch = liftSwitch SF.switch
 --         f'  = runState . f
 
 rSwitch :: SF a b -> SF (a, Event (SF a b)) b
-rSwitch sf = switch (first sf) ((second (const NoEvent) >=-) . rSwitch)
+rSwitch sf = switch (first sf) ((second (const Nothing) >=-) . rSwitch)
 
 -- rswitch' :: SF a b -> SF (a, Event (SF a b)) b
--- rswitch' sf = switch' (first sf) ((second (const NoEvent) >=-) . rswitch')
+-- rswitch' sf = switch' (first sf) ((second (const Nothing) >=-) . rswitch')
 
 -- | Parallel switch parameterized on the routing function. This is the most
 -- general switch from which all other (non-delayed) switches in principle
@@ -282,8 +282,8 @@ pSwitch rf ff sfs0 sfe0 k = SF (SF.SF tf0)
                 sfs        = fmap snd sfcs0
             in
             case SF.runSF (runState sfe0) ((a0, cs0), s) of
-                ((NoEvent, s'), sfe) -> ((cs0, s'), runState (pSwitch rf ff sfs (SF sfe) k))
-                ((Event d0, s'), _)  -> SF.runSF (runState (k sfs0 d0)) (a0, s')
+                ((Nothing, s'), sfe) -> ((cs0, s'), runState (pSwitch rf ff sfs (SF sfe) k))
+                ((Just d0, s'), _)  -> SF.runSF (runState (k sfs0 d0)) (a0, s')
 
 -- Recurring parallel switch parameterized on the routing function.
 -- rf .........	Routing function: determines the input to each signal function
@@ -299,7 +299,7 @@ rpSwitch :: Functor col =>
    -> col (SF b c) -> SF (a, Event (col (SF b c) -> col (SF b c))) (col c)
 rpSwitch rf ff sfs =
     pSwitch (rf . fst) ff sfs (arr (snd . fst)) $ \sfs' f ->
-        second (const NoEvent) >=- rpSwitch rf ff (f sfs')
+        second (const Nothing) >=- rpSwitch rf ff (f sfs')
 
 -- ====================================================================
 -- Sampled Signal functions
@@ -311,22 +311,22 @@ logicalTime :: SF a Time
 logicalTime = fetch >>> arr s_logicalTime
 
 eitherToEvent :: Either a b -> Event b
-eitherToEvent (Left _)  = NoEvent
-eitherToEvent (Right b) = Event b
+eitherToEvent (Left _)  = Nothing
+eitherToEvent (Right b) = Just b
 
 -- ID allocation
 alloc :: IdAllocator i a => (Accessor Server.State a) -> SF (Event b) (Event (b, i))
 alloc f =
     proc e -> do
         case e of
-            NoEvent -> returnA -< NoEvent
-            Event b -> do
+            Nothing -> returnA -< Nothing
+            Just b -> do
                 s <- fetch -< ()
                 case Alloc.alloc (getVal f (s_state s)) of
-                    Left _       -> returnA -< NoEvent -- TODO: signal error condition
+                    Left _       -> returnA -< Nothing -- TODO: signal error condition
                     Right (i, a) -> do
                         store -< s { s_state = setVal f a (s_state s) }
-                        returnA -< Event (b, i)
+                        returnA -< Just (b, i)
 
 alloc_ :: IdAllocator i a => (Accessor Server.State a) -> SF (Event b) (Event i)
 alloc_ = fmap (fmap snd) . alloc
@@ -400,7 +400,7 @@ execute opts ssf ichan ochan = do
         dt = tickInterval opts
         loop state0 sf = do
             empty <- isEmptyChan ichan
-            as <- if empty then return [NoEvent] else map Event `fmap` readChanAvailable ichan
+            as <- if empty then return [Nothing] else map Just `fmap` readChanAvailable ichan
             rt <- OSC.utcr
             let state1 = state0 { s_realTime = rt }
                 ((bs, state2), sf') = List.foldl'
@@ -430,14 +430,14 @@ executeOSC opts ssf ichan ochan = do
     where
         dt = tickInterval opts
         loop oscChan state0 sf = do
-            osc <- withChanContents [] (map Event) oscChan
-            as <- withChanContents [] (map Event) ichan
+            osc <- withChanContents [] (map Just) oscChan
+            as <- withChanContents [] (map Just) ichan
             rt <- OSC.utcr
             let input = if null osc && null as
-                        then [(NoEvent, NoEvent)]
+                        then [(Nothing, Nothing)]
                         else let n = max (length osc) (length as)
-                                 osc' = osc ++ replicate n NoEvent
-                                 as'  = as  ++ replicate n NoEvent
+                                 osc' = osc ++ replicate n Nothing
+                                 as'  = as  ++ replicate n Nothing
                              in zip osc' as'
                 state1 = state0 { s_realTime = rt }
                 ((bs, state2), sf') = List.foldl'
@@ -452,7 +452,7 @@ executeOSC opts ssf ichan ochan = do
             mapM_ (OSC.send (transport opts)) (s_oscOutput state2)
             let state3 = state2 {
                 s_logicalTime = s_logicalTime state2 + dt
-              , s_oscInput    = NoEvent
+              , s_oscInput    = Nothing
               , s_oscOutput   = []
                 }
             OSC.pauseThreadUntil (s_logicalTime state3)

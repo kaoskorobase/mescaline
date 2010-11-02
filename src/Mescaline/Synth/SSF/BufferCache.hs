@@ -152,7 +152,7 @@ allocBuffer = second never &&& (sample >>> arr (fmap (uncurry doAlloc))) >>> rSw
                     cache' = insertBuffer cache buf
                 in
                     maybe never send_ (completion buf)
-                >>> pure (cache', Event buf)
+                >>> pure (cache', Just buf)
             where
                 fbs = Set.filter (matchBuffer alloc) (freeBuffers cache)
 
