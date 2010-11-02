@@ -6,17 +6,12 @@ module Mescaline.Synth.FeatureSpace.Process (
   , new
 ) where
 
-import           Control.Arrow (second)
 import           Control.Concurrent.Process hiding (Handle)
 import qualified Control.Concurrent.Process as Process
-import           Control.Monad.Reader
+import           Control.Seq
 import qualified Data.Vector.Generic as V
-import qualified Database.HDBC as DB
-import           Mescaline (Time)
 import qualified Mescaline.Application.Logger as Log
-import qualified Mescaline.Database as DB
 import qualified Mescaline.Database.Feature as Feature
-import qualified Mescaline.Database.SqlQuery as Sql
 import qualified Mescaline.Database.Unit as DBUnit
 import qualified Mescaline.Synth.Database.Model as DB
 import qualified Mescaline.Synth.FeatureSpace.Model as Model
@@ -42,10 +37,12 @@ getUnits :: FilePath
          -> [Feature.Descriptor]
          -> IO [Unit.Unit]
 getUnits dbFile pattern features = do
-    (units, _) <- DB.query dbFile DBUnit.Onset pattern features
+    units <- DB.query dbFile DBUnit.Onset pattern features
     case units of
-        Left e   -> putStrLn ("ERROR[DB]: " ++ e) >> return []
-        Right us -> return $ map (uncurry Unit.cons) us
+        Left e -> putStrLn ("ERROR[DB]: " ++ e) >> return []
+        Right (us, _) -> do
+            let us' = map (uncurry Unit.cons) us
+            seqList rseq us' `seq` return us'
 
 new :: IO Handle
 new = do
@@ -53,8 +50,8 @@ new = do
     spawn $ loop (Model.fromList rgen [])
     where
         loop !f = do
-            x <- recv
-            f' <- case x of
+            msg <- recv
+            f' <- case msg of
                     LoadDatabase path pattern -> do
                         units <- io $ getUnits path pattern [Feature.consDescriptor "es.globero.mescaline.spectral" 2]
                         let f' = Model.setFeatureSpace f units
@@ -75,7 +72,7 @@ new = do
                     --         Nothing -> return ()
                     --         Just u  -> notify $ UnitActivated t u
                     --     return f'
-                    GetModel query -> do
-                        answer query f
+                    GetModel q -> do
+                        answer q f
                         return f
             loop f'

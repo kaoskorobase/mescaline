@@ -29,11 +29,11 @@ cmd_import dbFile paths = do
 
 cmd_query :: FilePath -> Segmentation -> String -> [String] -> IO ()
 cmd_query dbFile seg pattern features = do
-    (units, sfMap) <- DB.query dbFile seg pattern (map (fromJust . Meap.lookupFeature) features)
+    units <- DB.query dbFile seg pattern (map (fromJust . Meap.lookupFeature) features)
     case units of
         Left e -> fail e
-        Right us -> let ls = map (\(u, fs) -> Unique.toString (Unit.id u) : map show (concatMap (V.toList.Feature.value) fs)) us
-                    in putStr $ unlines (map unwords ls)
+        Right (us, _) -> let ls = map (\(u, fs) -> Unique.toString (Unit.id u) : map show (concatMap (V.toList.Feature.value) fs)) us
+                         in putStr $ unlines (map unwords ls)
 
 cmd_insert :: FilePath -> Segmentation -> String -> Int -> FilePath -> IO ()
 cmd_insert dbFile _ name degree file = do

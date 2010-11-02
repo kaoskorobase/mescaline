@@ -73,6 +73,7 @@ library
       , monadIO >= 0.9 && < 1.0
       , MonadRandom >= 0.1.5 && < 0.1.6
       , mtl
+      , parallel >= 3 && < 4
       , process >= 1.0
       , qt >= 1.1 && < 1.2
       , random

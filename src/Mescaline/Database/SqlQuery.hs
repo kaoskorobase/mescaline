@@ -3,7 +3,8 @@ module Mescaline.Database.SqlQuery where
 import           Control.Arrow
 import qualified Control.Monad.Error as Error
 import           Control.Monad.Writer
-import qualified Control.Monad.State as State
+import qualified Control.Monad.State.Strict as State
+import           Control.Seq
 import qualified Data.Foldable as Seq
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -112,7 +113,8 @@ tables :: [String]
 tables = [ Table.name $ Table.toTable (undefined :: SourceFile.SourceFile)
          , Table.name $ Table.toTable (undefined :: Unit.Unit) ]
 
-type SourceFileMap = Map.Map Unique.Id SourceFile.SourceFile
+type SqlQueryFunc = String -> [SqlValue] -> IO [[SqlValue]]
+type SourceFileMap = Unique.Map SourceFile.SourceFile
 
 -- | Return an Sql query string with arguments for a 'Unit' query.
 unitQueryString :: Query -> [Feature.Descriptor] -> (String, [SqlValue])
@@ -133,12 +135,22 @@ unitQueryString q ds = (printf "SELECT %s FROM %s JOIN %s ON %s WHERE %s"
             ++ concatMap (\d -> map ((Feature.sqlTableName d ++ ".") ++) (Feature.sqlColumnNames d)) ds
         (cond, args) = queryCond q
 
-unitQuery :: (String -> [SqlValue] -> IO [[SqlValue]]) -> Query -> [Feature.Descriptor] -> IO (Either String [(Unit.Unit, [Feature.Feature])], SourceFileMap)
+-- getSourceFileMap :: SqlQueryFunc -> IO (Either String SourceFileMap)
+-- getSourceFileMap action = do
+--     rows <- action queryString []
+--     List.foldl' (\row -> 
+--     where
+--         sfTable = Table.toTable (undefined :: SourceFile.SourceFile)
+--         queryString = printf "SELECT * FROM %s" (Table.name sfTable)
+
+unitQuery :: SqlQueryFunc -> Query -> [Feature.Descriptor] -> IO (Either String ([(Unit.Unit, [Feature.Feature])], SourceFileMap))
 unitQuery action q ds = do
     -- print (unitQueryString q ds)
     rows <- uncurry action (unitQueryString q ds)
     -- print $ Prelude.length rows
-    return $ State.runState (Error.runErrorT (mapM readUnit rows)) Map.empty
+    case State.runState (Error.runErrorT (mapM readUnit rows)) Map.empty of
+        (Right us, sfMap) -> seqList (seqTuple2 rseq (seqList rseq)) us `seq` return (Right (us, sfMap))
+        (Left e, _)       -> return (Left e)
     where
         -- readUnit :: [SqlValue] -> Error.ErrorT String (State.State SourceFileMap) Unit.Unit
         readUnit xs = do
@@ -153,18 +165,22 @@ unitQuery action q ds = do
                     let sf = Unit.sourceFile unit
                         sfid = SourceFile.id sf
                     sf' <- case Map.lookup sfid sfMap of
-                            Nothing  -> State.lift $ State.put (Map.insert sfid sf sfMap) >> return sf
-                            Just sf' -> return sf'
+                            Nothing -> do
+                                let sfMap' = Map.insert sfid sf sfMap
+                                seqMap rseq rseq sfMap' `seq` State.lift (State.put sfMap')
+                                return sf
+                            Just sf' ->
+                                return sf'
                     return (Unit.unsafeCons
                                 (Unit.id unit) sf'
                                 (Unit.segmentation unit)
                                 (Unit.onset unit)
                                 (Unit.duration unit), fs)
 
-unitQuery_ :: (String -> [SqlValue] -> IO [[SqlValue]]) -> Query -> IO (Either String [Unit.Unit], SourceFileMap)
+unitQuery_ :: (String -> [SqlValue] -> IO [[SqlValue]]) -> Query -> IO (Either String ([Unit.Unit], SourceFileMap))
 unitQuery_ f q = do
-    (res, sfMap) <- unitQuery f q []
+    res <- unitQuery f q []
     case res of
-        Left e -> return (Left e, sfMap)
-        Right us -> return (Right (map fst us), sfMap)
+        Right (us, sfMap) -> return $ Right (map fst us, sfMap)
+        Left e            -> return $ Left e
     
