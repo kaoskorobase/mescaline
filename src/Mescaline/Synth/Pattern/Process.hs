@@ -20,6 +20,7 @@ import           Control.Monad.Fix (fix)
 -- import           Control.Monad.Reader
 import           Data.Accessor
 import           Data.Maybe (fromJust)
+import           Data.Signal.SF hiding (Event)
 import           Data.Typeable
 import           Mescaline (Time)
 import qualified Mescaline.Application.Logger as Log
@@ -82,16 +83,16 @@ applyUpdates a = loop (a, False)
                 Nothing -> return (a, b)
                 Just f  -> let a' = f a in a' `seq` loop (a', True)
 
-playerProcess :: MonadIO m => Handle -> Environment -> Pattern Event -> Time -> ReceiverT EnvironmentUpdate () m ()
+playerProcess :: MonadIO m => Handle -> Environment -> Pattern () (Maybe Event) -> Time -> ReceiverT EnvironmentUpdate () m ()
 playerProcess handle = loop
     where
         loop !_envir !pattern !time = do
             (envir, _) <- applyUpdates _envir
-            case Model.step envir pattern of
-                Model.Done _ -> do
+            case runSF pattern (envir, ()) of
+                ((_, Nothing), _) -> do
                     io $ Log.debugM "Sequencer" "playerProcess: Model.Done"
                     return ()
-                Model.Result !envir' !event !pattern' -> do
+                ((envir', Just event), pattern') -> do
                     io $ Log.debugM "Sequencer" $ "Event: " ++ show event
                     sendTo handle $ Event_ time event
                     let dt = event ^. Model.delta
@@ -103,7 +104,7 @@ playerProcess handle = loop
                             loop envir' pattern' time'
                         else loop envir' pattern' time
 
-startPlayerThread :: Handle -> Pattern Event -> Environment -> Time -> IO PlayerHandle
+startPlayerThread :: Handle -> Pattern () (Maybe Event) -> Environment -> Time -> IO PlayerHandle
 startPlayerThread handle pattern envir time = spawn $ playerProcess handle envir pattern time
 
 stopPlayerThread :: PlayerHandle -> IO ()
