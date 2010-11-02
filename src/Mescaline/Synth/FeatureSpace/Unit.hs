@@ -31,15 +31,19 @@ data Unit = Unit {
 cons :: Unit.Unit -> [Feature.Feature] -> Unit
 cons u = Unit u . V.fromList
 
+{-# INLINE id #-}
 id :: Unit -> Unique.Id
 id = Unit.id . unit
 
+{-# INLINE sourceFile #-}
 sourceFile :: Unit -> SourceFile
 sourceFile = Unit.sourceFile . unit
 
+{-# INLINE onset #-}
 onset :: Unit -> Time
 onset = Unit.onset . unit
 
+{-# INLINE duration #-}
 duration :: Unit -> Duration
 duration = Unit.duration . unit
 
