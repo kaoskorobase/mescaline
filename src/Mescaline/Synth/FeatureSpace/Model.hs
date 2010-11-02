@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns, FlexibleContexts #-}
 module Mescaline.Synth.FeatureSpace.Model (
     Unit
   , RegionId
@@ -33,12 +34,11 @@ import qualified Control.Monad.State as State
 import           Data.Complex
 import           Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import           Data.Set (Set)
-import qualified Data.Set as Set
 import           Data.Set.BKTree (BKTree)
 import qualified Data.Set.BKTree as BKTree
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Storable as SV
+import qualified GHC.Float as GHC
 import qualified Mescaline.Database.Feature as Feature
 import           Mescaline.Synth.FeatureSpace.Unit (Unit)
 import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
@@ -50,25 +50,41 @@ type UnitSet = BKTree Unit
 -- of lense that is defined on a specific feature (index)
 
 instance Eq (Unit) where
-    a == b = f a == f b
-        where
-            {-# INLINE f #-}
-            f :: Unit -> SV.Vector Int
-            f = V.map withPrecision . Unit.value 0 -- FIXME
+    (==) = unitEq
 
 instance BKTree.Metric Unit where
-    -- Euclidian distance. Note: Assuming that feature dimensions are scaled to [0,1].
-    distance a b = withPrecision d
-        where
-            x = V.zipWith (-) (Unit.value 0 a) (Unit.value 0 b) -- FIXME
-            d = sqrt (V.foldl (+) 0 (V.zipWith (*) x x))
+    distance = unitDistance
+
+unitEq :: Unit -> Unit -> Bool
+{-# INLINE unitEq #-}
+unitEq a b = f a == f b
+    where
+        {-# INLINE f #-}
+        f :: Unit -> SV.Vector Int
+        f = V.map withPrecision . Unit.value 0 -- FIXME
+
+-- Euclidian distance. Note: Assuming that feature dimensions are scaled to [0,1].
+unitDistance :: Unit -> Unit -> Int
+{-# INLINE unitDistance #-}
+unitDistance a b = withPrecision $ euclidianDistance (Unit.value 0 a) (Unit.value 0 b)
+
+euclidianDistance :: V.Vector v Double => v Double -> v Double -> Double
+{-# INLINE euclidianDistance #-}
+euclidianDistance a b =
+    -- sqrt $ V.foldl (\acc x -> acc + x * x) 0 (V.zipWith (-) a b)
+    sqrt $ loop 0 0 (V.length a `min` V.length b)
+    where
+        loop !acc !i !n
+            | i >= n = acc
+            | otherwise = let x = (a V.! i) - (b V.! i) in loop (acc + x*x) (i+1) n
 
 precision :: Double
-precision = fromIntegral (maxBound :: Int)
+{-# INLINE precision #-}
+precision = GHC.int2Double (maxBound :: Int)
 
-{-# INLINE withPrecision #-}
 withPrecision :: Double -> Int
-withPrecision = truncate . (*) precision
+{-# INLINE withPrecision #-}
+withPrecision = GHC.double2Int . (*) precision
 
 type RegionId = Int
 
