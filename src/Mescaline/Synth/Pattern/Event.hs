@@ -21,16 +21,10 @@ module Mescaline.Synth.Pattern.Event (
 ) where
 
 import           Data.Accessor
-import           Mescaline.Time (Time, Duration)
+import           Mescaline.Time (Duration)
 import qualified Mescaline.Time as Time
-import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
+import           Mescaline.Synth.FeatureSpace.Model ()
 import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
-import qualified Sound.SC3.Lang.Pattern.Step as P
-
--- import           Sound.OpenSoundControl hiding (Time)
-import qualified Data.PriorityQueue.FingerTree as PQ
-
-import           Prelude hiding (filter, init, scanl)
 
 -- Segment set combinators
 -- * select segments from sound file based on time, features

@@ -7,7 +7,7 @@ import           Control.Monad (join)
 import qualified Control.Monad.Random as R
 import           Data.Accessor
 import qualified Data.Accessor.Monad.MTL.State as Accessor
-import           Data.Maybe (isJust, maybeToList)
+import           Data.Maybe (isJust, listToMaybe, maybeToList)
 import           Mescaline (Duration, Time)
 import           Mescaline.Synth.Pattern (Pattern)
 import qualified Mescaline.Synth.Pattern.Environment as Environment
@@ -19,6 +19,8 @@ import           Mescaline.Synth.Pattern
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpace.Unit as FeatureSpace
 import           Data.List as L
+
+import Debug.Trace
 
 featureSpace :: Pattern FeatureSpace.FeatureSpace
 featureSpace = askA (Environment.featureSpace)
@@ -77,20 +79,31 @@ advanceCursor tr = pcontinue tr $ \x tr' ->
                     let c' = c + 1
                     in Sequencer.Cursor r (if c' >= (Sequencer.cols s) then 0 else c')
 
-defaultPatch :: Patch.Patch
-defaultPatch = Patch.fromPattern $
+defaultPatch1 :: Patch.Patch
+defaultPatch1 = Patch.fromPattern $ \i ->
     -- fmap unit2event $ join $ (return . head) `fmap` units
     -- ppar [
         -- fmap unit2event $ join $ (flip pseq 1 . map return . L.take 1) `fmap` regionUnits 3
     --   , fmap unit2event $ join $ (flip pseq 1 . map return . L.take 1) `fmap` regionUnits 2
     -- ]
     -- regionUnits 3 `pzip` prrand
-    flip map [0..n-1] $ \i ->
         let p = pzipWith
-                    (\b e -> if b then e else (rest tick))
+                    (\b e -> if b then e else rest tick)
                     (isJust `fmap` cursorValue i)
-                    (fmap (delta ^= tick) . maybeEvent (rest tick) . pchooseFrom $ regionUnits i)
+                    (fmap (delta ^= tick) . maybeEvent (rest tick) . pchooseFrom {- . fmap (\e -> traceShow e e) -} $ (regionUnits i))
+                    -- (fmap (delta ^= tick) . maybeEvent (rest tick) . pchooseFrom . fmap (\e -> traceShow e e) $ prepeat [])
+                    -- (fmap (maybe (rest tick) id) . fmap (\e -> traceShow e e) $ pchooseFrom $ prepeat [(rest tick)])
+        in advanceCursor (prepeat (Just i)) *> p
+    where
+        tick = 0.125
+
+defaultPatch2 :: Patch.Patch
+defaultPatch2 = Patch.fromPattern $ \i ->
+        let p = prepeat $ rest tick
         in advanceCursor (prepeat (Just i)) *> p
     where
         tick = 0.125
         n = length FeatureSpace.defaultRegions
+
+defaultPatch :: Patch.Patch
+defaultPatch = defaultPatch1

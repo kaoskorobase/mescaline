@@ -20,16 +20,20 @@ import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
 import qualified Mescaline.Time as Time
 
 data Patch = Patch {
-    pattern   :: Pattern Event
+    tracks    :: Int -> Pattern Event
   , sequencer :: Sequencer
   , regions   :: [Region]
   } deriving (Typeable)
 
-cons :: Pattern Event -> Sequencer -> [Region] -> Patch
+cons :: (Int -> Pattern Event) -> Sequencer -> [Region] -> Patch
 cons = Patch
 
-fromPattern :: [Pattern Event] -> Patch
-fromPattern pattern = Patch (ppar pattern) (Sequencer.empty n n) regions
+fromPattern :: (Int -> Pattern Event) -> Patch
+fromPattern pattern = cons pattern (Sequencer.empty n n) regions
     where
         regions = defaultRegions
         n       = length regions
+
+pattern :: Patch -> Pattern Event
+pattern patch = ppar (map (tracks patch) [0..n-1])
+    where n = Sequencer.rows (sequencer patch)
