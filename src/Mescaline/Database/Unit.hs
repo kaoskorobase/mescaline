@@ -13,20 +13,19 @@ import qualified Data.Binary as Binary
 import           Mescaline.Data.Unique (Unique)
 import qualified Mescaline.Data.Unique as Unique
 import           Mescaline.Database.SourceFile (SourceFile)
+import           Mescaline.Time (Duration, Time)
 import           Prelude hiding(id)
 
-type Time  = Double
-type DTime = Double
-
-data Segmentation = Onset | Beat deriving (Enum, Eq, Read, Show)
+data Segmentation = Onset | Beat
+                    deriving (Enum, Eq, Read, Show)
 
 data Unit = Unit {
-    id           :: Unique.Id
-  , sourceFile   :: SourceFile
-  , segmentation :: Segmentation
-  , onset        :: Time
-  , duration     :: DTime
-} deriving (Show)
+    id           :: !Unique.Id
+  , sourceFile   :: !SourceFile
+  , segmentation :: !Segmentation
+  , onset        :: !Time
+  , duration     :: !Duration
+  } deriving (Show)
 
 -- $(nameDeriveAccessors ''Unit (return.(++"_")))
 
@@ -42,9 +41,9 @@ instance Eq Unit where
 instance Ord Unit where
     compare a b = compare (id a) (id b)
 
-unsafeCons :: Unique.Id -> SourceFile -> Segmentation -> Time -> DTime -> Unit
+unsafeCons :: Unique.Id -> SourceFile -> Segmentation -> Time -> Duration -> Unit
 unsafeCons = Unit
 
-cons :: SourceFile -> Segmentation -> Time -> DTime -> Unit
+cons :: SourceFile -> Segmentation -> Time -> Duration -> Unit
 cons sf s o d = unsafeCons (Unique.fromBinary namespace p) sf s o d
     where p = Binary.put (fromEnum o) >> Binary.put o >> Binary.put d

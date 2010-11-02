@@ -7,7 +7,6 @@ import           Data.Binary (Binary)
 import qualified Data.Binary as Binary
 import           Data.Digest.SHA1 (Word160(..))
 import           Data.List (intercalate)
-import qualified Data.Map as Map
 import           Data.Word (Word32)
 import           Database.HDBC (SqlType(..))
 import           Mescaline.Data.ByteString as BS
@@ -23,13 +22,13 @@ newtype Hash = Hash String deriving (Binary, Eq, Ord, Read, Show)
 
 -- | Sourcefile.
 data SourceFile = SourceFile {
-    id          :: Unique.Id,
-    url         :: URL,
-    hash        :: Hash,
+    id          :: !Unique.Id
+  , url         :: !URL
+  , hash        :: !Hash
 
-    numChannels :: Int,
-    sampleRate  :: Double,
-    frames      :: SF.Count
+  , numChannels :: {-# UNPACK #-} !Int
+  , sampleRate  :: {-# UNPACK #-} !Double
+  , frames      :: {-# UNPACK #-} !SF.Count
 } deriving (Show)
 
 -- $(nameDeriveAccessors ''SourceFile (return.(++"_")))

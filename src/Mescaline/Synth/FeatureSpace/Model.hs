@@ -79,7 +79,7 @@ data Region = Region {
   } deriving (Eq, Show)   
 
 data FeatureSpace = FeatureSpace { 
-    unitSet     :: UnitSet
+    unitSet     :: !UnitSet
   , randomGen   :: Random.StdGen
   , regions     :: IntMap Region
   }
