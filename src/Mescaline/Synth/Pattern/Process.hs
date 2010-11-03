@@ -72,9 +72,8 @@ transport :: State -> TransportState
 transport = maybe Stopped (const Running) . playerThread
 
 type EnvironmentUpdate = Environment -> Environment
--- type Player = Model.Player Environment Model.Event
-type PlayerHandle = Process.Handle EnvironmentUpdate ()
-type Pattern' = BaseSF.SF ((), Environment) (Maybe Event, Environment)
+type PlayerHandle      = Process.Handle EnvironmentUpdate ()
+type Pattern'          = BaseSF.SF ((), Environment) (Maybe Event, Environment)
 
 applyUpdates :: MonadIO m => Environment -> ReceiverT EnvironmentUpdate () m (Environment, Bool)
 applyUpdates a = loop (a, False)
