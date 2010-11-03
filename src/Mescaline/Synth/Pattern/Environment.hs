@@ -15,7 +15,7 @@ import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified System.Random as Random
 
 data Environment = Environment {
-    _randomGen    :: !Random.StdGen
+    _randomGen    :: Random.StdGen
   , _featureSpace :: !FeatureSpace.FeatureSpace
   , _sequencer    :: !Sequencer.Sequencer
   }

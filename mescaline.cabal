@@ -95,8 +95,8 @@ library
         -- Data.Iteratee.OSC
         -- Data.Iteratee.Util
         Data.Signal.SF
-        Data.Signal.SF.Base
-        Data.Signal.SF.Event
+        Data.Signal.SF.Par
+        Euterpea.Signal.SF
         Mescaline
         Mescaline.Application
         Mescaline.Application.Config
@@ -140,19 +140,19 @@ library
         Mescaline.Synth.Pattern.Environment
         Mescaline.Synth.Pattern.Event
         Mescaline.Synth.Pattern.Load
-        Mescaline.Synth.Pattern.Ppar
         Mescaline.Synth.Pattern.Player
         Mescaline.Synth.Pattern.Process
         Mescaline.Synth.Pattern.Sequencer
+        Mescaline.Synth.Pattern.Type
         Mescaline.Synth.Pattern.View
         Mescaline.Synth.Sampler.Model
         Mescaline.Synth.Sampler.Process
         Mescaline.Synth.Sequencer.Model
         Mescaline.Synth.Sequencer.Process
         Mescaline.Synth.Sequencer.View
-        Mescaline.Synth.SSF
-        Mescaline.Synth.SSF.BufferCache
-        Mescaline.Synth.SSF.DiskSampler
+        -- Mescaline.Synth.SSF
+        -- Mescaline.Synth.SSF.BufferCache
+        -- Mescaline.Synth.SSF.DiskSampler
         Mescaline.Time
         Mescaline.UI
         Mescaline.Util

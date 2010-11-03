@@ -20,7 +20,8 @@ import           Control.Monad.Fix (fix)
 -- import           Control.Monad.Reader
 import           Data.Accessor
 import           Data.Maybe (fromJust)
-import           Data.Signal.SF hiding (Event)
+import qualified Data.Signal.SF as SF
+import qualified Euterpea.Signal.SF as BaseSF
 import           Data.Typeable
 import           Mescaline (Time)
 import qualified Mescaline.Application.Logger as Log
@@ -73,6 +74,7 @@ transport = maybe Stopped (const Running) . playerThread
 type EnvironmentUpdate = Environment -> Environment
 -- type Player = Model.Player Environment Model.Event
 type PlayerHandle = Process.Handle EnvironmentUpdate ()
+type Pattern' = BaseSF.SF ((), Environment) (Maybe Event, Environment)
 
 applyUpdates :: MonadIO m => Environment -> ReceiverT EnvironmentUpdate () m (Environment, Bool)
 applyUpdates a = loop (a, False)
@@ -83,16 +85,16 @@ applyUpdates a = loop (a, False)
                 Nothing -> return (a, b)
                 Just f  -> let a' = f a in a' `seq` loop (a', True)
 
-playerProcess :: MonadIO m => Handle -> Environment -> Pattern () (Maybe Event) -> Time -> ReceiverT EnvironmentUpdate () m ()
+playerProcess :: MonadIO m => Handle -> Environment -> Pattern' -> Time -> ReceiverT EnvironmentUpdate () m ()
 playerProcess handle = loop
     where
         loop !_envir !pattern !time = do
             (envir, _) <- applyUpdates _envir
-            case runSF pattern (envir, ()) of
-                ((_, Nothing), _) -> do
+            case SF.runSF pattern ((), envir) of
+                ((Nothing, _), _) -> do
                     io $ Log.debugM "Sequencer" "playerProcess: Model.Done"
                     return ()
-                ((envir', Just event), pattern') -> do
+                ((Just event, envir'), pattern') -> do
                     io $ Log.debugM "Sequencer" $ "Event: " ++ show event
                     sendTo handle $ Event_ time event
                     let dt = event ^. Model.delta
@@ -104,7 +106,7 @@ playerProcess handle = loop
                             loop envir' pattern' time'
                         else loop envir' pattern' time
 
-startPlayerThread :: Handle -> Pattern () (Maybe Event) -> Environment -> Time -> IO PlayerHandle
+startPlayerThread :: Handle -> Pattern' -> Environment -> Time -> IO PlayerHandle
 startPlayerThread handle pattern envir time = spawn $ playerProcess handle envir pattern time
 
 stopPlayerThread :: PlayerHandle -> IO ()
@@ -152,7 +154,7 @@ new patch fspaceP = do
                                         proc <- self
                                         time <- io Time.utcr
                                         fspace <- query fspaceP FeatureSpaceP.GetModel
-                                        let pattern = Patch.pattern patch
+                                        let pattern = SF.runState $ Patch.pattern patch
                                             -- sequencer = Patch.sequencer patch
                                             env = Environment.mkEnvironment 0 fspace (sequencer state)
                                         tid  <- io $ startPlayerThread proc pattern env time
@@ -171,7 +173,7 @@ new patch fspaceP = do
                                         proc <- self
                                         time <- io Time.utcr
                                         fspace <- query fspaceP FeatureSpaceP.GetModel
-                                        let pattern = Patch.pattern patch
+                                        let pattern = SF.runState $ Patch.pattern patch
                                             -- sequencer = Patch.sequencer patch
                                             env = Environment.mkEnvironment 0 fspace (sequencer state)
                                         tid <- io $ startPlayerThread proc pattern env time

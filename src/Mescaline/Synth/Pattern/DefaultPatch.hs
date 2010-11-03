@@ -8,10 +8,9 @@ import           Control.Arrow
 import           Control.Monad (join)
 import qualified Control.Monad.Random as R
 import           Data.Accessor
--- import qualified Data.Accessor.Monad.MTL.State as Accessor
 import           Data.Maybe (isJust, listToMaybe, maybeToList)
 import           Data.Signal.SF
-import qualified Data.Zip as Zip
+import           Data.Zip (zip, zipWith)
 import           Mescaline (Duration, Time)
 import           Mescaline.Synth.Pattern (Pattern, askA)
 import qualified Mescaline.Synth.Pattern.Environment as Environment
@@ -22,7 +21,8 @@ import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
 import           Mescaline.Synth.Pattern
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpace.Unit as FeatureSpace
-import           Data.List as L
+import qualified Data.List as L
+import           Prelude hiding (zip, zipWith)
 
 import Debug.Trace
 
@@ -33,22 +33,22 @@ sequencer :: Pattern a Sequencer.Sequencer
 sequencer = askA (Environment.sequencer)
 
 units :: Pattern a [FeatureSpace.Unit]
-units = fmap (second FeatureSpace.units) featureSpace
+units = fmap FeatureSpace.units featureSpace
 
 regionUnits :: FeatureSpace.RegionId -> Pattern a [FeatureSpace.Unit]
-regionUnits i = fmap (second $ FeatureSpace.regionUnits i) featureSpace
+regionUnits i = fmap (FeatureSpace.regionUnits i) featureSpace
 
 unitToEvent :: Pattern FeatureSpace.Unit Event.Event
-unitToEvent = arrP Event.fromUnit
+unitToEvent = arr Event.fromUnit
 
 pmaybe :: b -> (a -> b) -> Pattern (Maybe a) b
-pmaybe b f = arr (second (maybe b f))
+pmaybe b f = arr (maybe b f)
 
 -- maybeEvent :: Event.Event -> P s (Maybe FeatureSpace.Unit) -> P s Event.Event
 -- maybeEvent e = pmaybe e unitToEvent
 
-pchooseFrom :: (R.RandomGen s) => SF (s, [a]) (s, Maybe a)
-pchooseFrom = arr (second choose) >>> runRand
+chooseFrom :: (R.RandomGen s) => SF s [a] (Maybe a)
+chooseFrom = arr choose >>> runRand
     where
         choose l = do
             if null l
@@ -56,35 +56,22 @@ pchooseFrom = arr (second choose) >>> runRand
                 else do
                     i <- R.getRandomR (0, length l - 1)
                     return $ Just $ l !! i
-    
+-- pchooseFrom = ((arr (\(s, _) -> (s, (0, 1))) >>> rrand) &&& arr id) >>> arr (\(s, (r, l)) -> (s, choose r l))
+--     where
+--         choose r l =
+--             case l of
+--                 [] -> Nothing
+--                 as -> Just $ as !! round (r * fromIntegral (length as - 1))
+
 cursorValue :: Int -> Pattern () (Maybe Double)
 -- cursorValue c = fmap (\s -> join $ fmap (flip Sequencer.lookupCursor s) (Sequencer.getCursor c s))  sequencer
-cursorValue c = sequencer >>> arrP (\s -> join $ fmap (flip Sequencer.lookupCursor s) (Sequencer.getCursor c s))
-
--- advanceCursor :: Int -> Pattern ()
--- advanceCursor i = Accessor.modify Environment.sequencer (advance i)
---     where
---         advance i s = Sequencer.modifyCursor f i s
---             where
---                 f (Sequencer.Cursor r c) =
---                     let c' = c + 1
---                     in Sequencer.Cursor r (if c' >= (Sequencer.cols s) then 0 else c')
+cursorValue c = sequencer >>> arr (\s -> join $ fmap (flip Sequencer.lookupCursor s) (Sequencer.getCursor c s))
 
 advanceCursor :: Pattern (Maybe Int) ()
--- advanceCursor tr = pcontinue tr $ \x tr' ->
---     case x of
---         Nothing -> pcons () (advanceCursor tr')
---         Just i  -> prp $ \e -> (pcons () (advanceCursor tr'), Environment.sequencer ^: advance i $ e)
---     where
---         advance i s = Sequencer.modifyCursor f i s
---             where
---                 f (Sequencer.Cursor r c) =
---                     let c' = c + 1
---                     in Sequencer.Cursor r (if c' >= (Sequencer.cols s) then 0 else c')
-advanceCursor = SF f
+advanceCursor = modify f
     where
-        f (e, Nothing) = ((e, ()), SF f)
-        f (e, Just i)  = ((e', ()), SF f)
+        f Nothing e = ((), e)
+        f (Just i) e = ((), e')
             where
                 e'  = Environment.sequencer ^: g $ e
                 g s = Sequencer.modifyCursor
@@ -92,17 +79,6 @@ advanceCursor = SF f
                             let c' = c + 1
                             in Sequencer.Cursor r (if c' >= (Sequencer.cols s) then 0 else c'))
                         i s
-
-pzip :: Pattern a b -> Pattern a c -> Pattern a (b, c)
-pzip sfb sfc = SF f
-    where
-        f (s, a) =
-            let ((s', b), sfa') = runSF sfb (s, a)
-                ((s'', c), sfb') = runSF sfc (s', a)
-            in ((s'', (b, c)), SF f)
-
-pzipWith :: (b -> c -> d) -> Pattern a b -> Pattern a c -> Pattern a d
-pzipWith f sfb sfc = pzip sfb sfc >>> arrP (uncurry f)
 
 defaultPatch1 :: Patch.Patch
 defaultPatch1 = Patch.fromPattern $ \i ->
@@ -112,13 +88,13 @@ defaultPatch1 = Patch.fromPattern $ \i ->
     --   , fmap unit2event $ join $ (flip pseq 1 . map return . L.take 1) `fmap` regionUnits 2
     -- ]
     -- regionUnits 3 `pzip` prrand
-        let p = pzipWith
+        let p = zipWith
                     (\b e -> Just $ if b then e else rest tick)
-                    (fmap (second isJust) (cursorValue i))
-                    (fmap (second (delta ^= tick)) (pmaybe (rest tick) Event.fromUnit <<< pchooseFrom <<< {- . fmap (\e -> traceShow e e) -} regionUnits i))
+                    (fmap isJust (cursorValue i))
+                    (fmap (delta ^= tick) (pmaybe (rest tick) Event.fromUnit <<< chooseFrom <<< {- . fmap (\e -> traceShow e e) -} regionUnits i))
                     -- (fmap (delta ^= tick) . maybeEvent (rest tick) . pchooseFrom . fmap (\e -> traceShow e e) $ prepeat [])
                     -- (fmap (maybe (rest tick) id) . fmap (\e -> traceShow e e) $ pchooseFrom $ prepeat [(rest tick)])
-        in arr (second (const (Just i))) >>> advanceCursor >>> p
+        in pure (Just i) >>> advanceCursor >>> p
     where
         tick = 0.125
 

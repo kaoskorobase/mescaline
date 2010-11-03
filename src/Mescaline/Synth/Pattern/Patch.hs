@@ -15,7 +15,6 @@ import           Data.Typeable
 import           Mescaline.Synth.FeatureSpace.Model (Region, defaultRegions)
 import           Mescaline.Synth.Pattern
 import           Mescaline.Synth.Pattern.Event
-import           Mescaline.Synth.Pattern.Ppar (ppar)
 import           Mescaline.Synth.Pattern.Sequencer (Sequencer)
 import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
 import qualified Mescaline.Time as Time
@@ -36,5 +35,5 @@ fromPattern pattern = cons pattern (Sequencer.empty n n) regions
         n       = length regions
 
 pattern :: Patch -> Pattern () (Maybe Event)
-pattern patch = ppar (map (tracks patch) [0..n-1])
+pattern patch = par (map (tracks patch) [0..n-1])
     where n = Sequencer.rows (sequencer patch)
