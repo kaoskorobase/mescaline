@@ -3,7 +3,7 @@
 module Mescaline.Synth.Pattern.Patch (
     Patch
   , cons
-  , fromPattern
+  , mkDefault
   , pattern
   , sequencer
   , regions
@@ -28,8 +28,8 @@ data Patch = Patch {
 cons :: (Int -> Pattern () (Maybe Event)) -> Sequencer -> [Region] -> Patch
 cons = Patch
 
-fromPattern :: (Int -> Pattern () (Maybe Event)) -> Patch
-fromPattern pattern = cons pattern (Sequencer.empty n n) regions
+mkDefault :: (Int -> Pattern () (Maybe Event)) -> Patch
+mkDefault f = cons f (Sequencer.empty n n) regions
     where
         regions = defaultRegions
         n       = length regions

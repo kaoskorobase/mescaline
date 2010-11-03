@@ -80,32 +80,13 @@ advanceCursor = modify f
                             in Sequencer.Cursor r (if c' >= (Sequencer.cols s) then 0 else c'))
                         i s
 
-defaultPatch1 :: Patch.Patch
-defaultPatch1 = Patch.fromPattern $ \i ->
-    -- fmap unit2event $ join $ (return . head) `fmap` units
-    -- ppar [
-        -- fmap unit2event $ join $ (flip pseq 1 . map return . L.take 1) `fmap` regionUnits 3
-    --   , fmap unit2event $ join $ (flip pseq 1 . map return . L.take 1) `fmap` regionUnits 2
-    -- ]
-    -- regionUnits 3 `pzip` prrand
-        let p = zipWith
-                    (\b e -> Just $ if b then e else rest tick)
-                    (fmap isJust (cursorValue i))
-                    (fmap (delta ^= tick) (pmaybe (rest tick) Event.fromUnit <<< chooseFrom <<< {- . fmap (\e -> traceShow e e) -} regionUnits i))
-                    -- (fmap (delta ^= tick) . maybeEvent (rest tick) . pchooseFrom . fmap (\e -> traceShow e e) $ prepeat [])
-                    -- (fmap (maybe (rest tick) id) . fmap (\e -> traceShow e e) $ pchooseFrom $ prepeat [(rest tick)])
-        in pure (Just i) >>> advanceCursor >>> p
-    where
-        tick = 0.125
-
-defaultPatch2 :: Patch.Patch
--- defaultPatch2 = Patch.fromPattern $ \i ->
---         let p = prepeat $ rest tick
---         in advanceCursor (prepeat (Just i)) *> p
---     where
---         tick = 0.125
---         n = length FeatureSpace.defaultRegions
-defaultPatch2 = undefined
-
 defaultPatch :: Patch.Patch
-defaultPatch = defaultPatch1
+defaultPatch = Patch.mkDefault $ \i ->
+    let tick = 0.125
+        p = zipWith
+                (\b e -> Just $ if b then e else rest tick)
+                (fmap isJust (cursorValue i))
+                (fmap (delta ^= tick) (pmaybe (rest tick) Event.fromUnit <<< chooseFrom <<< {- . fmap (\e -> traceShow e e) -} regionUnits i))
+                -- (fmap (delta ^= tick) . maybeEvent (rest tick) . pchooseFrom . fmap (\e -> traceShow e e) $ prepeat [])
+                -- (fmap (maybe (rest tick) id) . fmap (\e -> traceShow e e) $ pchooseFrom $ prepeat [(rest tick)])
+    in pure (Just i) >>> advanceCursor >>> p
