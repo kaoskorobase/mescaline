@@ -30,6 +30,7 @@ data-files:
     meap/2.0/tritonus_misc.jar
     meap/2.0/tritonus_mp3.jar
     meap/2.0/tritonus_share.jar
+    patches/default.hs
 
 library
     hs-source-dirs: src
@@ -96,6 +97,7 @@ library
         -- Data.Iteratee.Util
         Data.Signal.SF
         Data.Signal.SF.Par
+        Data.Signal.SF.State
         Euterpea.Signal.SF
         Mescaline
         Mescaline.Application
@@ -140,6 +142,7 @@ library
         Mescaline.Synth.Pattern.Environment
         Mescaline.Synth.Pattern.Event
         Mescaline.Synth.Pattern.Load
+        Mescaline.Synth.Pattern.Patch
         Mescaline.Synth.Pattern.Player
         Mescaline.Synth.Pattern.Process
         Mescaline.Synth.Pattern.Sequencer

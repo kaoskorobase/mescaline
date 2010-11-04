@@ -1,8 +1,7 @@
 {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
 module Mescaline.Synth.Pattern (
-    Pattern
     -- *Pattern type
-  , module Mescaline.Synth.Pattern.Type
+    module Mescaline.Synth.Pattern.Type
     -- *Signal functions
   , module Data.Signal.SF
   , module Data.Signal.SF.Par

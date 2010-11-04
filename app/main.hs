@@ -34,7 +34,7 @@ import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpace.Process as FeatureSpaceP
 import qualified Mescaline.Synth.FeatureSpace.View as FeatureSpaceView
-import           Mescaline.Synth.Pattern.DefaultPatch (defaultPatch)
+import           Mescaline.Synth.Pattern.DefaultPatch (getDefaultPatch)
 import qualified Mescaline.Synth.Pattern.Environment as Pattern
 import qualified Mescaline.Synth.Pattern.Event as Event
 import qualified Mescaline.Synth.Pattern as Pattern
@@ -349,7 +349,8 @@ main = do
     mute <- newMVar False
 #endif
 
-    patternP <- PatternP.new defaultPatch fspaceP
+    patch <- getDefaultPatch
+    patternP <- PatternP.new patch fspaceP
     (patternView, patternViewP) <- PatternView.new 30 2 patternP
     patternViewP `listenTo` patternP
     

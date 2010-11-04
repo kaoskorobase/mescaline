@@ -153,8 +153,8 @@ new patch fspaceP = do
                                         proc <- self
                                         time <- io Time.utcr
                                         fspace <- query fspaceP FeatureSpaceP.GetModel
-                                        let pattern = SF.runState $ Patch.pattern patch
-                                            -- sequencer = Patch.sequencer patch
+                                        pattern <- io $ SF.runState `fmap` Patch.getPattern patch
+                                        let -- sequencer = Patch.sequencer patch
                                             env = Environment.mkEnvironment 0 fspace (sequencer state)
                                         tid  <- io $ startPlayerThread proc pattern env time
                                         return $ Just $ state { time = time
@@ -172,8 +172,8 @@ new patch fspaceP = do
                                         proc <- self
                                         time <- io Time.utcr
                                         fspace <- query fspaceP FeatureSpaceP.GetModel
-                                        let pattern = SF.runState $ Patch.pattern patch
-                                            -- sequencer = Patch.sequencer patch
+                                        pattern <- io $ SF.runState `fmap` Patch.getPattern patch
+                                        let -- sequencer = Patch.sequencer patch
                                             env = Environment.mkEnvironment 0 fspace (sequencer state)
                                         tid <- io $ startPlayerThread proc pattern env time
                                         return $ Just $ state { time = time

@@ -1,7 +1,5 @@
 {-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
-module Mescaline.Synth.Pattern.DefaultPatch (
-    defaultPatch
-) where
+module Mescaline.Synth.Pattern.DefaultPatch where
 
 import           Control.Applicative
 import           Control.Arrow
@@ -12,6 +10,7 @@ import           Data.Maybe (isJust, listToMaybe, maybeToList)
 import           Data.Signal.SF
 import           Data.Zip (zip, zipWith)
 import           Mescaline (Duration, Time)
+import qualified Mescaline.Application as App
 import           Mescaline.Synth.Pattern (Pattern, askA)
 import qualified Mescaline.Synth.Pattern.Environment as Environment
 import           Mescaline.Synth.Pattern.Event (delta, duration, rest)
@@ -80,13 +79,7 @@ advanceCursor = modify f
                             in Sequencer.Cursor r (if c' >= (Sequencer.cols s) then 0 else c'))
                         i s
 
-defaultPatch :: Patch.Patch
-defaultPatch = Patch.mkDefault $ \i ->
-    let tick = 0.125
-        p = zipWith
-                (\b e -> Just $ if b then e else rest tick)
-                (fmap isJust (cursorValue i))
-                (fmap (delta ^= tick) (pmaybe (rest tick) Event.fromUnit <<< chooseFrom <<< {- . fmap (\e -> traceShow e e) -} regionUnits i))
-                -- (fmap (delta ^= tick) . maybeEvent (rest tick) . pchooseFrom . fmap (\e -> traceShow e e) $ prepeat [])
-                -- (fmap (maybe (rest tick) id) . fmap (\e -> traceShow e e) $ pchooseFrom $ prepeat [(rest tick)])
-    in pure (Just i) >>> advanceCursor >>> p
+getDefaultPatch :: IO Patch.Patch
+getDefaultPatch = do
+    expr <- App.getResourcePath "patches/default.hs" >>= readFile
+    expr `seq` return (Patch.mkDefault expr)
