@@ -176,7 +176,6 @@ library
       , fingertree
       , HDBC >= 1.1 && < 2
       , HDBC-sqlite3 >= 1.1 && < 2
-      , hint >= 0.3
       , hmatrix >= 0.9 && < 1.0
       , hmeap >= 0.8
       , hosc >= 0.8
@@ -257,7 +256,6 @@ library
         Mescaline.Synth.Pattern.Event
         Mescaline.Synth.Pattern.Interpreter
         Mescaline.Synth.Pattern.Library
-        Mescaline.Synth.Pattern.Load
         Mescaline.Synth.Pattern.Patch
         Mescaline.Synth.Pattern.Ppar
         Mescaline.Synth.Pattern.Player
