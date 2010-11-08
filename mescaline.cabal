@@ -20,8 +20,11 @@ data-dir:
     resources
 
 data-files:
-    mescaline.ui
     config
+    mescaline.ui
+
+    patches/default.hs
+
     meap/2.0/getopt-1.0.12.jar
     meap/2.0/jl1.0.jar
     meap/2.0/MEAPsoft.jar
@@ -30,6 +33,119 @@ data-files:
     meap/2.0/tritonus_misc.jar
     meap/2.0/tritonus_mp3.jar
     meap/2.0/tritonus_share.jar
+
+    hugs/packages/base/Control/Applicative.hs
+    hugs/packages/base/Control/Arrow.hs
+    hugs/packages/base/Control/Concurrent/Chan.hs
+    hugs/packages/base/Control/Concurrent/MVar.hs
+    hugs/packages/base/Control/Concurrent/QSem.hs
+    hugs/packages/base/Control/Concurrent/QSemN.hs
+    hugs/packages/base/Control/Concurrent/SampleVar.hs
+    hugs/packages/base/Control/Concurrent.hs
+    hugs/packages/base/Control/Exception.hs
+    hugs/packages/base/Control/Monad/Fix.hs
+    hugs/packages/base/Control/Monad/Instances.hs
+    hugs/packages/base/Control/Monad/ST/Lazy.hs
+    hugs/packages/base/Control/Monad/ST/Strict.hs
+    hugs/packages/base/Control/Monad/ST.hs
+    hugs/packages/base/Control/Monad.hs
+    hugs/packages/base/Control/Parallel.hs
+    hugs/packages/base/Data/Array/Base.hs
+    hugs/packages/base/Data/Array/Diff.hs
+    hugs/packages/base/Data/Array/IArray.hs
+    hugs/packages/base/Data/Array/IO/Internals.hs
+    hugs/packages/base/Data/Array/IO.hs
+    hugs/packages/base/Data/Array/MArray.hs
+    hugs/packages/base/Data/Array/ST.hs
+    hugs/packages/base/Data/Array/Storable.hs
+    hugs/packages/base/Data/Array/Unboxed.hs
+    hugs/packages/base/Data/Array.hs
+    hugs/packages/base/Data/Bits.hs
+    hugs/packages/base/Data/Bool.hs
+    hugs/packages/base/Data/Char.hs
+    hugs/packages/base/Data/Complex.hs
+    hugs/packages/base/Data/Dynamic.hs
+    hugs/packages/base/Data/Either.hs
+    hugs/packages/base/Data/Eq.hs
+    hugs/packages/base/Data/Fixed.hs
+    hugs/packages/base/Data/Foldable.hs
+    hugs/packages/base/Data/FunctorM.hs
+    hugs/packages/base/Data/Graph.hs
+    hugs/packages/base/Data/HashTable.hs
+    hugs/packages/base/Data/Int.hs
+    hugs/packages/base/Data/IntMap.hs
+    hugs/packages/base/Data/IntSet.hs
+    hugs/packages/base/Data/IORef.hs
+    hugs/packages/base/Data/Ix.hs
+    hugs/packages/base/Data/List.hs
+    hugs/packages/base/Data/Map.hs
+    hugs/packages/base/Data/Maybe.hs
+    hugs/packages/base/Data/Monoid.hs
+    hugs/packages/base/Data/Ord.hs
+    hugs/packages/base/Data/PackedString.hs
+    hugs/packages/base/Data/Queue.hs
+    hugs/packages/base/Data/Ratio.hs
+    hugs/packages/base/Data/Sequence.hs
+    hugs/packages/base/Data/Set.hs
+    hugs/packages/base/Data/STRef/Lazy.hs
+    hugs/packages/base/Data/STRef/Strict.hs
+    hugs/packages/base/Data/STRef.hs
+    hugs/packages/base/Data/Traversable.hs
+    hugs/packages/base/Data/Tree.hs
+    hugs/packages/base/Data/Tuple.hs
+    hugs/packages/base/Data/Typeable.hs
+    hugs/packages/base/Data/Unique.hs
+    hugs/packages/base/Data/Version.hs
+    hugs/packages/base/Data/Word.hs
+    hugs/packages/base/Prelude.hs
+    hugs/packages/base/System/IO/Error.hs
+    hugs/packages/base/System/IO/Unsafe.hs
+    hugs/packages/base/System/IO.hs
+    hugs/packages/base/System/Random.hs
+    hugs/packages/hugsbase/Hugs/Array.hs
+    hugs/packages/hugsbase/Hugs/Bits.hs
+    hugs/packages/hugsbase/Hugs/ByteArray.hs
+    hugs/packages/hugsbase/Hugs/Char.hs
+    hugs/packages/hugsbase/Hugs/ConcBase.hs
+    hugs/packages/hugsbase/Hugs/CVHAssert.hs
+    hugs/packages/hugsbase/Hugs/Directory.hs
+    hugs/packages/hugsbase/Hugs/Dynamic.hs
+    hugs/packages/hugsbase/Hugs/Exception.hs
+    hugs/packages/hugsbase/Hugs/ForeignPtr.hs
+    hugs/packages/hugsbase/Hugs/GenericPrint.hs
+    hugs/packages/hugsbase/Hugs/Int.hs
+    hugs/packages/hugsbase/Hugs/Internals.hs
+    hugs/packages/hugsbase/Hugs/IO.hs
+    hugs/packages/hugsbase/Hugs/IOArray.hs
+    hugs/packages/hugsbase/Hugs/IOExts.hs
+    hugs/packages/hugsbase/Hugs/IORef.hs
+    hugs/packages/hugsbase/Hugs/LazyST.hs
+    hugs/packages/hugsbase/Hugs/Memo.hs
+    hugs/packages/hugsbase/Hugs/Numeric.hs
+    hugs/packages/hugsbase/Hugs/Observe.hs
+    hugs/packages/hugsbase/Hugs/Prelude.hs
+    hugs/packages/hugsbase/Hugs/Ptr.hs
+    hugs/packages/hugsbase/Hugs/Quote.hs
+    hugs/packages/hugsbase/Hugs/ST.hs
+    hugs/packages/hugsbase/Hugs/Stable.hs
+    hugs/packages/hugsbase/Hugs/StablePtr.hs
+    hugs/packages/hugsbase/Hugs/Storable.hs
+    hugs/packages/hugsbase/Hugs/System.hs
+    hugs/packages/hugsbase/Hugs/Time.hs
+    hugs/packages/hugsbase/Hugs/Trex.hs
+    hugs/packages/hugsbase/Hugs/Weak.hs
+    hugs/packages/hugsbase/Hugs/Word.hs
+    hugs/packages/hugsbase/Hugs.hs
+    hugs/packages/mtl/Control/Monad/Cont.hs
+    hugs/packages/mtl/Control/Monad/Error.hs
+    hugs/packages/mtl/Control/Monad/Identity.hs
+    hugs/packages/mtl/Control/Monad/List.hs
+    hugs/packages/mtl/Control/Monad/Reader.hs
+    hugs/packages/mtl/Control/Monad/RWS.hs
+    hugs/packages/mtl/Control/Monad/State.hs
+    hugs/packages/mtl/Control/Monad/Trans.hs
+    hugs/packages/mtl/Control/Monad/Writer.hs
+    hugs/packages/mtl/LICENSE
 
 library
     hs-source-dirs: src
@@ -93,9 +209,9 @@ library
         -- Data.Iteratee.Chan
         -- Data.Iteratee.OSC
         -- Data.Iteratee.Util
-        Data.Signal.SF
-        Data.Signal.SF.Base
-        Data.Signal.SF.Event
+        -- Data.Signal.SF
+        -- Data.Signal.SF.Base
+        -- Data.Signal.SF.Event
         Mescaline
         Mescaline.Application
         Mescaline.Application.Config
@@ -134,11 +250,15 @@ library
         Mescaline.Synth.FeatureSpace.Unit
         Mescaline.Synth.FeatureSpace.View
         Mescaline.Synth.Pattern
+        Mescaline.Synth.Pattern.AST
         Mescaline.Synth.Pattern.Base
-        Mescaline.Synth.Pattern.DefaultPatch
+        Mescaline.Synth.Pattern.Compiler
         Mescaline.Synth.Pattern.Environment
         Mescaline.Synth.Pattern.Event
+        Mescaline.Synth.Pattern.Interpreter
+        Mescaline.Synth.Pattern.Library
         Mescaline.Synth.Pattern.Load
+        Mescaline.Synth.Pattern.Patch
         Mescaline.Synth.Pattern.Ppar
         Mescaline.Synth.Pattern.Player
         Mescaline.Synth.Pattern.Process
@@ -149,9 +269,9 @@ library
         Mescaline.Synth.Sequencer.Model
         Mescaline.Synth.Sequencer.Process
         Mescaline.Synth.Sequencer.View
-        Mescaline.Synth.SSF
-        Mescaline.Synth.SSF.BufferCache
-        Mescaline.Synth.SSF.DiskSampler
+        -- Mescaline.Synth.SSF
+        -- Mescaline.Synth.SSF.BufferCache
+        -- Mescaline.Synth.SSF.DiskSampler
         Mescaline.Time
         Mescaline.UI
         Mescaline.Util

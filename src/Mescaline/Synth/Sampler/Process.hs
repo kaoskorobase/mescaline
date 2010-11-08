@@ -13,12 +13,14 @@ import           Control.Concurrent.Process hiding (Handle)
 import qualified Control.Concurrent.Process as Process
 import           Control.Exception
 import           Control.Monad.Error
+import           Data.Accessor
 import           Mescaline (Time)
 import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
-import           Mescaline.Synth.Pattern.Event (SynthParams)
+import           Mescaline.Synth.Pattern.Event (Synth)
+import qualified Mescaline.Synth.Pattern.Event as Event
 import qualified Mescaline.Synth.Sampler.Model as Model
 import qualified Sound.OpenSoundControl as OSC
 import           Sound.SC3 (dumpOSC, PrintLevel(..))
@@ -30,7 +32,7 @@ import qualified Sound.SC3.Server.Process.CommandLine as Server
 data Input =
     Reset
   | Quit
-  | PlayUnit Time Unit.Unit SynthParams
+  | PlayUnit Time Synth
   | EngineException_ SomeException
   deriving (Show)
 
@@ -124,12 +126,13 @@ new = do
                 Reset -> do
                     Model.free sampler
                     loop h chan sampler
-                PlayUnit t u p -> do
+                PlayUnit t s -> do
                     _ <- fork $ do
+                        let u = s ^. Event.unit
                         io $ notifyListeners h $ UnitStarted t u
-                        io $ Log.debugM "Synth" $ "PlayUnit: " ++ show (t, u, p)
-                        Model.playUnit sampler t u p
-                        io $ Log.debugM "Synth" $ "StopUnit: " ++ show (t, u, p)
+                        io $ Log.debugM "Synth" $ "PlayUnit: " ++ show (t, s)
+                        Model.playUnit sampler t s
+                        io $ Log.debugM "Synth" $ "StopUnit: " ++ show (t, s)
                         io $ notifyListeners h $ UnitStopped t u
                     loop h chan sampler
                 _ -> loop h chan sampler

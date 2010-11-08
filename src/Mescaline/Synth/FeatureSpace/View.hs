@@ -250,7 +250,7 @@ addUnit parent state unit = do
     -- Qt.setHandler item "mousePressEvent(QGraphicsSceneMouseEvent*)" $ mouseHandler (unit u) action
 
     Qt.setHandler item "hoverEnterEvent(QGraphicsSceneHoverEvent*)" $ hoverHandler $
-        readMVar (playUnits state) >>= flip when (sendTo (synth state) $ Synth.PlayUnit (-1) unit Synth.defaultSynth)
+        readMVar (playUnits state) >>= flip when (sendTo (synth state) $ Synth.PlayUnit (-1) (Synth.defaultSynth unit))
     Qt.setAcceptsHoverEvents item True
 
     return (Unit.id unit, Qt.objectCast item)

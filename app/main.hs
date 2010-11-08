@@ -34,10 +34,10 @@ import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpace.Process as FeatureSpaceP
 import qualified Mescaline.Synth.FeatureSpace.View as FeatureSpaceView
-import           Mescaline.Synth.Pattern.DefaultPatch (defaultPatch)
+import qualified Mescaline.Synth.Pattern as Pattern
 import qualified Mescaline.Synth.Pattern.Environment as Pattern
 import qualified Mescaline.Synth.Pattern.Event as Event
-import qualified Mescaline.Synth.Pattern as Pattern
+import qualified Mescaline.Synth.Pattern.Patch as Patch
 import qualified Mescaline.Synth.Pattern.Process as PatternP
 import qualified Mescaline.Synth.Pattern.View as PatternView
 import qualified Sound.OpenSoundControl as OSC
@@ -349,7 +349,7 @@ main = do
     mute <- newMVar False
 #endif
 
-    patternP <- PatternP.new defaultPatch fspaceP
+    patternP <- flip PatternP.new fspaceP =<< Patch.defaultPatch
     (patternView, patternViewP) <- PatternView.new 30 2 patternP
     patternViewP `listenTo` patternP
     
@@ -386,7 +386,7 @@ main = do
         case x of
             PatternP.Event time event -> do
                 -- io $ putStrLn $ "PatternP.Event " ++ show time ++ " " ++ show event
-                unless (Event.isRest event) $ sendTo synthP $ SynthP.PlayUnit time (getVal Event.unit event) (setEnv Event.defaultSynth)
+                Event.withSynth (return ()) (sendTo synthP . SynthP.PlayUnit time . setEnv) event
             _ -> return ()
         loop
     patternToFSpaceP `listenTo` patternP

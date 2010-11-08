@@ -18,7 +18,7 @@ import qualified Mescaline.Database.SourceFile as SourceFile
 import           Mescaline.Synth.BufferCache.Server (Buffer, BufferCache)
 import qualified Mescaline.Synth.BufferCache.Server as BC
 import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
-import           Mescaline.Synth.Pattern.Event (SynthParams)
+import           Mescaline.Synth.Pattern.Event (Synth)
 import qualified Mescaline.Synth.Pattern.Event as P
 import           Sound.OpenSoundControl (OSC(..))
 import qualified Sound.OpenSoundControl as OSC
@@ -95,28 +95,28 @@ voiceDefName 1  = "es.globero.mescaline.voice_1"
 voiceDefName 2  = "es.globero.mescaline.voice_2"
 voiceDefName nc = "es.globero.mescaline.voice_" ++ (show nc)
 
-startVoice :: Voice -> Time -> Unit.Unit -> SynthParams -> OSC
-startVoice voice time unit params =
+startVoice :: Voice -> Time -> Synth -> OSC
+startVoice voice time synth =
     let timeTag = if time <= 0
                   then OSC.immediately
-                  else OSC.UTCr (time + params ^. P.latency)
+                  else OSC.UTCr (time + synth ^. P.latency)
     in Bundle timeTag
         [s_new (voiceDefName $ BC.numChannels $ buffer voice) (fromIntegral $ voiceId voice) AddToTail 0
             ([ ("bufnum", fromIntegral $ BC.uid $ buffer voice),
-              ("attackTime",   params ^. P.attackTime),
-              ("releaseTime",  params ^. P.attackTime),
-              ("sustainLevel", params ^. P.sustainLevel) ]
+              ("attackTime",   synth ^. P.attackTime),
+              ("releaseTime",  synth ^. P.attackTime),
+              ("sustainLevel", synth ^. P.sustainLevel) ]
               ++
               if voiceGateEnvelope
                 then []
-                else [("dur", Unit.duration unit)])
+                else [("dur", Unit.duration (synth ^. P.unit))])
             ]
 
-stopVoice :: Voice -> Time -> SynthParams -> OSC
-stopVoice voice time params =
+stopVoice :: Voice -> Time -> Synth -> OSC
+stopVoice voice time synth =
     if voiceGateEnvelope
-        then Bundle (OSC.UTCr (time + params ^. P.latency))
-                [n_set1 (fromIntegral $ voiceId voice) "gate" (params ^. P.gateLevel)]
+        then Bundle (OSC.UTCr (time + synth ^. P.latency))
+                [n_set1 (fromIntegral $ voiceId voice) "gate" (synth ^. P.gateLevel)]
         else Bundle OSC.immediately []
 
 allocVoice :: BufferCache -> Unit.Unit -> (Voice -> Maybe OSC) -> Server Voice
@@ -138,7 +138,7 @@ freeVoice cache voice = do
 
 data Sampler = Sampler {
     bufferCache  :: !BufferCache
-  , playUnitFunc :: !(Sampler -> Time -> Unit.Unit -> SynthParams -> Server ())
+  , playUnitFunc :: !(Sampler -> Time -> Synth -> Server ())
   }
 
 new :: Server Sampler
@@ -166,46 +166,47 @@ free sampler = do
     S.async $ S.send $ g_freeAll [0]
     BC.release (bufferCache sampler)
 
-playUnit :: Sampler -> Time -> Unit.Unit -> SynthParams -> Server ()
+playUnit :: Sampler -> Time -> Synth -> Server ()
 playUnit sampler = (playUnitFunc sampler) sampler
 
-playUnit_noSchedComplBundles :: Sampler -> Time -> Unit.Unit -> SynthParams -> Server ()
-playUnit_noSchedComplBundles sampler time unit params = do
+playUnit_noSchedComplBundles :: Sampler -> Time -> Synth -> Server ()
+playUnit_noSchedComplBundles sampler time synth = do
     voice <- allocVoice cache unit (const Nothing)
     S.sync $ S.send $ b_read
                         (fromIntegral $ BC.uid $ buffer voice)
                         (SourceFile.path sourceFile)
-                        (truncate $ SourceFile.sampleRate sourceFile * Unit.onset unit)
+                        (truncate $ SourceFile.sampleRate sourceFile * Unit.onset (synth ^. P.unit))
                         (-1) 0 1
-    _ <- S.send (startVoice voice time unit params) `S.syncWith` n_end (voiceId voice)
+    _ <- S.send (startVoice voice time synth) `S.syncWith` n_end (voiceId voice)
     freeVoice cache voice
     return ()
     where
         cache      = bufferCache sampler
-        -- dur        = Unit.duration unit
+        unit       = synth ^. P.unit
         sourceFile = Unit.sourceFile unit
 
-playUnit_schedComplBundles :: Sampler -> Time -> Unit.Unit -> SynthParams -> Server ()
-playUnit_schedComplBundles sampler time unit params = do
+playUnit_schedComplBundles :: Sampler -> Time -> Synth -> Server ()
+playUnit_schedComplBundles sampler time synth = do
     voice <- allocVoice cache unit (\voice ->
             Just $
                 b_read'
-                    (startVoice voice time unit params)
+                    (startVoice voice time synth)
                     (fromIntegral $ BC.uid $ buffer voice)
                     (SourceFile.path sourceFile)
-                    (truncate $ SourceFile.sampleRate sourceFile * Unit.onset unit)
+                    (truncate $ SourceFile.sampleRate sourceFile * Unit.onset (synth ^. P.unit))
                     (-1) 0 1)
     -- tu <- utcr
     -- FIXME: Why is this necessary?!
     S.unsafeSync
     -- print (t-tu, t+dur-tu)
     liftIO $ OSC.pauseThreadUntil (time + dur)
-    _ <- S.send (stopVoice voice (time + dur) params) `S.syncWith` n_end (voiceId voice)
+    _ <- S.send (stopVoice voice (time + dur) synth) `S.syncWith` n_end (voiceId voice)
     -- tu' <- utcr
     -- liftIO $ putStrLn ("node end: " ++ show voice)
     freeVoice cache voice
     return ()
     where
         cache      = bufferCache sampler
+        unit       = synth ^. P.unit
         dur        = Unit.duration unit
         sourceFile = Unit.sourceFile unit

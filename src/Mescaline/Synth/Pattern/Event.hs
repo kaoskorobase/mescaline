@@ -4,15 +4,18 @@
 
 module Mescaline.Synth.Pattern.Event (
     Event
-  , fromUnit
+  , Cursor(..)
   , rest
+  , synthEvent
   , delta
-  , duration
-  , unit
+  , cursor
   , synth
   , isRest
-  , SynthParams
+  , withSynth
+  , Synth
   , defaultSynth
+  , unit
+  , duration
   , attackTime
   , releaseTime
   , sustainLevel
@@ -26,63 +29,75 @@ import qualified Mescaline.Time as Time
 import           Mescaline.Synth.FeatureSpace.Model ()
 import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
 
--- Segment set combinators
--- * select segments from sound file based on time, features
--- * construct linear sequences (for time based manipulation) or sets (for feature based manipulation)
-
-data SynthParams = SynthParams {
-    _attackTime   :: Double
+data Synth = Synth {
+    _unit         :: Unit.Unit
+  , _duration     :: Duration
+  , _attackTime   :: Double
   , _releaseTime  :: Double
   , _sustainLevel :: Double
   , _gateLevel    :: Double
   , _latency      :: Double
-} deriving (Eq, Show)
+  } deriving (Eq, Show)
 
-defaultSynth :: SynthParams
-defaultSynth = SynthParams {
-    _attackTime   = 0
-  , _releaseTime  = 0
-  , _sustainLevel = 1
-  , _gateLevel    = 0
-  , _latency      = 0.2
-}
+defaultSynth :: Unit.Unit -> Synth
+defaultSynth u =
+    Synth {
+        _unit         = u
+      , _duration     = Unit.duration u
+      , _attackTime   = 0
+      , _releaseTime  = 0
+      , _sustainLevel = 1
+      , _gateLevel    = 0
+      , _latency      = 0.2
+      }
 
-ACCESSOR(attackTime,    _attackTime,    SynthParams, Double)
-ACCESSOR(releaseTime,   _releaseTime,   SynthParams, Double)
-ACCESSOR(sustainLevel,  _sustainLevel,  SynthParams, Double)
-ACCESSOR(gateLevel,     _gateLevel,     SynthParams, Double)
-ACCESSOR(latency,       _latency,       SynthParams, Double)
+ACCESSOR(unit,          _unit,          Synth, Unit.Unit)
+ACCESSOR(duration,      _duration,      Synth, Duration)
+ACCESSOR(attackTime,    _attackTime,    Synth, Double)
+ACCESSOR(releaseTime,   _releaseTime,   Synth, Double)
+ACCESSOR(sustainLevel,  _sustainLevel,  Synth, Double)
+ACCESSOR(gateLevel,     _gateLevel,     Synth, Double)
+ACCESSOR(latency,       _latency,       Synth, Double)
+
+data Cursor =
+    NoCursor
+  | Cursor {
+        cursorId       :: Int
+      , cursorPosition :: (Int,Int)
+      , cursorValue    :: Double
+      }
+    deriving (Eq, Read, Show)
 
 data Event =
-    Rest {
-        _delta    :: Duration
-    }
-  | Event {
-        _delta    :: Duration
-      , _duration :: Duration
-      , _unit     :: Unit.Unit
-      , _synth    :: SynthParams
-      } deriving (Eq, Show)
+    Event {
+        _delta      :: Duration
+      , _cursor     :: Cursor
+      , _synth      :: Maybe Synth
+      }
+    deriving (Eq, Show)
 
-fromUnit :: Unit.Unit -> Event
-fromUnit u = Event d d u defaultSynth
+ACCESSOR(delta,  _delta,  Event, Double)
+ACCESSOR(cursor, _cursor, Event, Cursor)
+ACCESSOR(synth,  _synth,  Event, Maybe Synth)
+
+rest :: Cursor -> Duration -> Event
+rest c d = Event d c Nothing
+
+synthEvent :: Cursor -> Unit.Unit -> Event
+synthEvent c u = Event d c (Just (defaultSynth u))
     where d = Unit.duration u
 
-rest :: Duration -> Event
-rest = Rest
-
-ACCESSOR(delta,    _delta,    Event, Double)
-ACCESSOR(duration, _duration, Event, Double)
-ACCESSOR(unit,     _unit,     Event, Unit.Unit)
-ACCESSOR(synth,    _synth,    Event, SynthParams)
-
 isRest :: Event -> Bool
-isRest e = case e of
-            Rest _ -> True
-            _      -> False
+isRest (Event _ _ Nothing) = True
+isRest _                   = False
+
+withSynth :: a -> (Synth -> a) -> Event -> a
+withSynth a0 f e = case _synth e of
+                    Nothing -> a0
+                    Just s  -> f s
 
 instance Time.HasDelta (Event) where
     delta = delta
 
-instance Time.HasDuration (Event) where
-    duration = duration
+-- instance Time.HasDuration (Event) where
+--     duration = duration

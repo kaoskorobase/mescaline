@@ -9,7 +9,6 @@ module Mescaline.Synth.Pattern.Sequencer (
   , modifyCursor
   , rows
   , cols
-  , cursors
   , lookup
   , lookupCursor
   , alter
@@ -66,7 +65,7 @@ modifyCursor f c s = s { _cursors = Map.alter (fmap f) c (_cursors s) }
 lookup :: Int -> Int -> Sequencer -> Maybe Double
 lookup row col = join . fmap (Map.lookup row) . Map.lookup col . matrix
 
--- | Lookup a value at a cursor.
+-- | Lookup a cursor.
 lookupCursor :: Cursor -> Sequencer -> Maybe Double
 lookupCursor c = lookup (row c) (column c)
 

@@ -10,12 +10,14 @@ module Mescaline.Synth.Pattern.Environment (
 ) where
 
 import           Data.Accessor
+import qualified Mescaline.Synth.Pattern.Event as Event
 import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified System.Random as Random
 
 data Environment = Environment {
     _randomGen    :: !Random.StdGen
+  , _event        :: Maybe Event.Event
   , _featureSpace :: !FeatureSpace.FeatureSpace
   , _sequencer    :: !Sequencer.Sequencer
   }
@@ -27,7 +29,8 @@ instance Random.RandomGen Environment where
               in (e { _randomGen = g }, e { _randomGen = g' })
 
 mkEnvironment :: Int -> FeatureSpace.FeatureSpace -> Sequencer.Sequencer -> Environment
-mkEnvironment seed = Environment (Random.mkStdGen seed)
+mkEnvironment seed = Environment (Random.mkStdGen seed) Nothing
 
+ACCESSOR(event,        _event,        Environment, Maybe Event.Event)
 ACCESSOR(featureSpace, _featureSpace, Environment, FeatureSpace.FeatureSpace)
 ACCESSOR(sequencer,    _sequencer,    Environment, Sequencer.Sequencer)

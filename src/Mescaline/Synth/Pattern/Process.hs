@@ -22,6 +22,7 @@ import           Data.Accessor
 import           Data.Maybe (fromJust)
 import           Data.Typeable
 import           Mescaline (Time)
+import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
@@ -30,6 +31,7 @@ import           Mescaline.Synth.Pattern.Environment (Environment)
 import qualified Mescaline.Synth.Pattern.Environment as Environment
 import           Mescaline.Synth.Pattern.Event (Event)
 import qualified Mescaline.Synth.Pattern.Event as Model
+import qualified Mescaline.Synth.Pattern.Interpreter as Interp
 import           Mescaline.Synth.Pattern.Sequencer (Sequencer)
 import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
 import           Mescaline.Synth.Pattern (Pattern)
@@ -94,14 +96,17 @@ playerProcess handle = loop
                 Model.Result !envir' !event !pattern' -> do
                     io $ Log.debugM "Sequencer" $ "Event: " ++ show event
                     sendTo handle $ Event_ time event
-                    let dt = event ^. Model.delta
+                    let (row, col) = Model.cursorPosition (event ^. Model.cursor)
+                        cursor = Sequencer.Cursor row col
+                        envir'' = Environment.sequencer ^: Sequencer.modifyCursor (const cursor) (Model.cursorId (event ^. Model.cursor)) $ envir'
+                        dt = event ^. Model.delta
                     if dt > 0
                         then do
-                            sendTo handle $ Environment_ envir'
+                            sendTo handle $ Environment_ envir''
                             let time' = time + dt
                             io $ Time.pauseThreadUntil time'
-                            loop envir' pattern' time'
-                        else loop envir' pattern' time
+                            loop envir'' pattern' time'
+                        else loop envir'' pattern' time
 
 startPlayerThread :: Handle -> Pattern Event -> Environment -> Time -> IO PlayerHandle
 startPlayerThread handle pattern envir time = spawn $ playerProcess handle envir pattern time
@@ -122,6 +127,9 @@ new patch fspaceP = do
             forM_ [0..Sequencer.cols (Patch.sequencer patch)] $ \c ->
                 sendTo h $ SetCell r c 1
 
+    
+    App.getResourcePath "patches/default.hs" >>= readFile >>= Interp.eval >>= print
+    
     return h
     where
         updateSequencer state update = do
@@ -151,12 +159,16 @@ new patch fspaceP = do
                                         proc <- self
                                         time <- io Time.utcr
                                         fspace <- query fspaceP FeatureSpaceP.GetModel
-                                        let pattern = Patch.pattern patch
-                                            -- sequencer = Patch.sequencer patch
-                                            env = Environment.mkEnvironment 0 fspace (sequencer state)
-                                        tid  <- io $ startPlayerThread proc pattern env time
-                                        return $ Just $ state { time = time
-                                                              , playerThread = Just tid }
+                                        case Patch.pattern patch of
+                                            Left e -> do
+                                                io $ print e
+                                                return Nothing
+                                            Right pattern -> do
+                                                let -- sequencer = Patch.sequencer patch
+                                                    env = Environment.mkEnvironment 0 fspace (sequencer state)
+                                                tid  <- io $ startPlayerThread proc pattern env time
+                                                return $ Just $ state { time = time
+                                                                      , playerThread = Just tid }
                                     Pause -> return Nothing
                                     Reset -> return Nothing
                             Running ->
@@ -170,12 +182,16 @@ new patch fspaceP = do
                                         proc <- self
                                         time <- io Time.utcr
                                         fspace <- query fspaceP FeatureSpaceP.GetModel
-                                        let pattern = Patch.pattern patch
-                                            -- sequencer = Patch.sequencer patch
-                                            env = Environment.mkEnvironment 0 fspace (sequencer state)
-                                        tid <- io $ startPlayerThread proc pattern env time
-                                        return $ Just $ state { time = time
-                                                              , playerThread = Just tid }
+                                        case Patch.pattern patch of
+                                            Left e -> do
+                                                io $ print e
+                                                return Nothing
+                                            Right pattern -> do
+                                                let -- sequencer = Patch.sequencer patch
+                                                    env = Environment.mkEnvironment 0 fspace (sequencer state)
+                                                tid <- io $ startPlayerThread proc pattern env time
+                                                return $ Just $ state { time = time
+                                                                      , playerThread = Just tid }
                     GetSequencer query -> do
                         answer query $ sequencer state
                         return Nothing

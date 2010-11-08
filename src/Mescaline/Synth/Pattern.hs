@@ -40,7 +40,7 @@ askA acc = asks (getVal acc)
 
 instance MonadState s (P s) where
     get   = ask
-    put s = prp $ const (prepeat (), s)
+    put s = prp $ const (return (), s)
 
 runRand :: R.RandomGen s => P s (R.Rand s a) -> P s a
 runRand = M.join . fmap (\r -> prp $ \s -> let (a, s') = R.runRand r s in (return a, s'))
