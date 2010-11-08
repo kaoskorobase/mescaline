@@ -35,7 +35,8 @@ mescalineApp resources =
         , "supercollider/plugins/KeyboardUGens.scx"
         , "supercollider/plugins/LFUGens.scx"
         , "supercollider/plugins/MachineListening.scx"
-        , "supercollider/plugins/MouseUGens.scx"
+        -- NOTE: These cause crashes with Qt
+        -- , "supercollider/plugins/MouseUGens.scx"
         , "supercollider/plugins/MulAddUGens.scx"
         , "supercollider/plugins/NoiseUGens.scx"
         , "supercollider/plugins/OSCUGens.scx"
