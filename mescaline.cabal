@@ -154,17 +154,17 @@ library
     build-depends:
         base >= 4 && < 5
       , array >= 0.3 && < 0.4
-      , arrows
+      -- , arrows
       , bktrees >= 0.3 && < 0.4
       , binary
       , bitset >= 1.0 && < 1.1
       , bytestring
       , Cabal >= 1.6
-      , CCA >= 0.1.3 && < 0.2
+      -- , CCA >= 0.1.3 && < 0.2
       , containers
       , ConfigFile >= 1.0 && < 1.1
-      , Control-Engine
-      , Crypto >= 4.2
+      , Control-Engine >= 1.0 && < 1.2
+      , Crypto >= 4.2 && < 4.3
       , data-accessor >= 0.2 && < 0.3
       , data-accessor-mtl >= 0.2 && < 0.3
       , data-ivar >= 0.30 && < 0.31
@@ -176,7 +176,7 @@ library
       , fingertree
       , HDBC >= 1.1 && < 2
       , HDBC-sqlite3 >= 1.1 && < 2
-      , hmatrix >= 0.9 && < 1.0
+      , hmatrix >= 0.9 && < 0.11
       , hmeap >= 0.8
       , hosc >= 0.8
       , hslogger >= 1.0 && < 1.1
@@ -185,24 +185,23 @@ library
       , hsc3-process >= 0.3 && < 0.4
       , hsndfile >= 0.4
       , MonadCatchIO-mtl >= 0.3 && < 0.4
-      , monadIO >= 0.9 && < 1.0
-      , MonadRandom >= 0.1.5 && < 0.1.6
-      , mtl
+      , monadIO >= 0.9
+      , MonadRandom >= 0.1
+      , mtl >= 1.0
       , parallel >= 3 && < 4
       , process >= 1.0
       , qt >= 1.1 && < 1.2
-      , random
-      , regex-compat >= 0.92 && < 0.93
-      , stm
+      , random >= 1.0
+      , regex-compat >= 0.92
       , strict-concurrency >= 0.2
-      , template-haskell
+      -- , template-haskell
       , uuid >= 1.0
       , vector >= 0.5
     if os(darwin)
         build-depends:
             cabal-macosx >= 0.1 && < 0.2
     exposed-modules:
-        Control.CCA.ArrowP
+        -- Control.CCA.ArrowP
         Control.Concurrent.Chan.Chunked
         Control.Concurrent.MVar.StrictModify
         -- Data.Iteratee.Chan
