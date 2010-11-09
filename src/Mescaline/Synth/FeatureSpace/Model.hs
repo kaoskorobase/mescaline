@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns, FlexibleContexts #-}
+{-# LANGUAGE BangPatterns, CPP, FlexibleContexts #-}
 module Mescaline.Synth.FeatureSpace.Model (
     Unit
   , RegionId
@@ -7,6 +7,7 @@ module Mescaline.Synth.FeatureSpace.Model (
   , defaultRegions
   , regionId
   , center
+  , center2D
   , radius
   , minRadius
   , maxRadius
@@ -19,6 +20,7 @@ module Mescaline.Synth.FeatureSpace.Model (
   , fromList
   , nextRegionId
   , addRegion
+  , lookupRegion
   , deleteRegion
   -- , updateRegionById
   , updateRegion
@@ -27,28 +29,49 @@ module Mescaline.Synth.FeatureSpace.Model (
   , regionUnits
   , activateRegion
   , activateRegions
+  , closest2D
 ) where
 
-import           Control.Arrow (first)
+#define USE_KDTREE 1
+
+import           Control.Arrow (first, second)
 import qualified Control.Monad.State as State
+import           Data.Bits (shiftR)
 import           Data.Complex
 import           Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+#if USE_KDTREE == 1
+import qualified Data.KDTree as KDTree
+#else
 import           Data.Set.BKTree (BKTree)
 import qualified Data.Set.BKTree as BKTree
+#endif -- USE_KDTREE
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Storable as SV
 import qualified GHC.Float as GHC
+import qualified Mescaline.Data.Unique as Unique
 import qualified Mescaline.Database.Feature as Feature
 import           Mescaline.Synth.FeatureSpace.Unit (Unit)
 import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
 import qualified System.Random as Random
 
+#if USE_KDTREE == 1
+type UnitSet = KDTree.Tree SV.Vector Unit
+#else
 type UnitSet = BKTree Unit
+#endif -- USE_KDTREE
 
 -- FIXME: These instances should be defined on a `UnitView' instead, i.e. some kind
 -- of lense that is defined on a specific feature (index)
 
+#if USE_KDTREE == 1
+unitDistance :: Unit -> Unit -> Double
+{-# INLINE unitDistance #-}
+unitDistance a b = KDTree.sqrEuclidianDistance (Unit.value 0 a) (Unit.value 0 b)
+
+instance Eq (Unit) where
+    (==) a b = Unique.uuid (Unit.unit a) == Unique.uuid (Unit.unit b)
+#else
 instance Eq (Unit) where
     (==) = unitEq
 
@@ -80,11 +103,20 @@ euclidianDistance a b =
 
 precision :: Double
 {-# INLINE precision #-}
-precision = GHC.int2Double (maxBound :: Int)
+precision = GHC.int2Double ((maxBound :: Int) `shiftR` 1)
+
+precision' :: Double
+{-# INLINE precision' #-}
+precision' = recip precision
 
 withPrecision :: Double -> Int
 {-# INLINE withPrecision #-}
 withPrecision = GHC.double2Int . (*) precision
+
+withoutPrecision :: Int -> Double
+{-# INLINE withoutPrecision #-}
+withoutPrecision = (*) precision' . GHC.int2Double
+#endif -- USE_KDTREE
 
 type RegionId = Int
 
@@ -93,6 +125,14 @@ data Region = Region {
   , center   :: Feature.Value -- Circle center in feature space
   , radius   :: Double        -- Circle radius in feature space  
   } deriving (Eq, Show)   
+
+pair :: (V.Vector v a, Num a) => v a -> (a, a)
+pair v | V.length v >= 2 = (v V.! 0, v V.! 1)
+       | V.length v >= 1 = (v V.! 0, 0)
+       | otherwise       = (0, 0)
+
+center2D :: Region -> (Double, Double)
+center2D = pair . center
 
 data FeatureSpace = FeatureSpace { 
     unitSet     :: !UnitSet
@@ -133,13 +173,25 @@ defaultRegions = zipWith (\i v -> mkRegion i v radius) [0..n-1] centers
         c2v c = V.fromList [offset + realPart c, offset + imagPart c]
 
 units :: FeatureSpace -> [Unit]
+#if USE_KDTREE == 1
+units = KDTree.elems . unitSet
+#else
 units = BKTree.elems . unitSet
+#endif -- USE_KDTREE
 
 setFeatureSpace :: FeatureSpace -> [Unit.Unit] -> FeatureSpace
+#if USE_KDTREE == 1
+setFeatureSpace f us = f { unitSet = KDTree.fromList (map (\u -> (Unit.value 0 u, u)) us) }
+#else
 setFeatureSpace f us = f { unitSet = BKTree.fromList us }
+#endif -- USE_KDTREE
 
 fromList :: Random.StdGen -> [Unit.Unit] -> FeatureSpace
+#if USE_KDTREE == 1
+fromList g us = FeatureSpace (KDTree.fromList (map (\u -> (Unit.value 0 u, u)) us)) g IntMap.empty
+#else
 fromList g us = FeatureSpace (BKTree.fromList us) g IntMap.empty
+#endif -- USE_KDTREE
 
 nextRegionId :: FeatureSpace -> Int
 nextRegionId f
@@ -153,6 +205,9 @@ nextRegionId f
 
 addRegion :: Region -> FeatureSpace -> FeatureSpace
 addRegion r f = f { regions = IntMap.insert (regionId r) r (regions f) }
+
+lookupRegion :: RegionId -> FeatureSpace -> Maybe Region
+lookupRegion i = IntMap.lookup i . regions
 
 deleteRegionById :: RegionId -> FeatureSpace -> FeatureSpace
 deleteRegionById i f = f { regions = IntMap.delete i (regions f) }
@@ -171,6 +226,12 @@ regionList = IntMap.elems . regions
 
 -- | Return a list of all units contained in a particular region.
 regionUnits :: RegionId -> FeatureSpace -> [Unit]
+#if USE_KDTREE == 1
+regionUnits i f =
+    case IntMap.lookup i (regions f) of
+        Nothing -> []
+        Just r  -> map (snd.fst) $ KDTree.withinRadius KDTree.sqrEuclidianDistance (center r) (radius r) (unitSet f)
+#else
 regionUnits i f =
     case IntMap.lookup i (regions f) of
         Nothing -> []
@@ -181,6 +242,7 @@ regionUnits i f =
                         n  = withPrecision (radius r)
                     in BKTree.elemsDistance n u' (unitSet f)
                 [] -> []
+#endif -- USE_KDTREE
 
 -- Return the next random unit from region i and an updated FeatureSpace.
 activateRegion :: RegionId -> FeatureSpace -> (Maybe Unit, FeatureSpace)
@@ -195,3 +257,18 @@ filterMaybe l = [ x | Just x <- l ]
 
 activateRegions :: [RegionId] -> FeatureSpace -> ([Unit], FeatureSpace)
 activateRegions is f = first filterMaybe $ State.runState (sequence (map (State.State . activateRegion) is)) f
+
+-- | Return the closest unit to a point in feature space.
+closest2D :: (Double, Double) -> FeatureSpace -> Maybe (Unit, Double)
+#if USE_KDTREE == 1
+closest2D (x,y) f = do
+    ((_, u), d) <- KDTree.closest KDTree.sqrEuclidianDistance (V.fromList [x, y]) (unitSet f)
+    return (u, d)
+#else
+closest2D (x,y) f =
+    case BKTree.elems (unitSet f) of
+        (u:_) ->
+            let u' = Unit.withValues u [V.fromList [x, y]]
+            in fmap (second withoutPrecision) (BKTree.closest u' (unitSet f))
+        [] -> Nothing
+#endif -- USE_KDTREE
