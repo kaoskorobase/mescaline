@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns, FlexibleContexts #-}
 module Data.KDTree (
     Tree
+  , empty
   , fromList
   , elems
   , Distance
@@ -10,7 +11,7 @@ module Data.KDTree (
   , samples
 ) where
 
-import           Control.Applicative
+import           Control.Applicative (Applicative(..), (<$>))
 import           Control.Arrow
 import           Data.Foldable
 import qualified Data.List as List
@@ -52,6 +53,9 @@ transposeV :: Vector v a => [v a] -> [v a]
 transposeV [] = []
 transposeV vs@(v0:_) = map f [0..V.length v0 - 1]
     where f i = V.fromList (map (\v -> v ! i) vs)
+
+empty :: Tree v a
+empty = Empty
 
 fromList :: (Vector v Double) => [(v Double, a)] -> Tree v a
 fromList [] = Empty

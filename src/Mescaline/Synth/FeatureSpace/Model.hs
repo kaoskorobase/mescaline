@@ -46,6 +46,7 @@ import qualified Data.KDTree as KDTree
 import           Data.Set.BKTree (BKTree)
 import qualified Data.Set.BKTree as BKTree
 #endif -- USE_KDTREE
+import qualified Data.List as List
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Storable as SV
 import qualified GHC.Float as GHC
@@ -138,6 +139,7 @@ data FeatureSpace = FeatureSpace {
     unitSet     :: !UnitSet
   , randomGen   :: Random.StdGen
   , regions     :: IntMap Region
+  , cachedUnits :: IntMap [Unit]
   }
 
 minPos :: Double
@@ -181,16 +183,17 @@ units = BKTree.elems . unitSet
 
 setFeatureSpace :: FeatureSpace -> [Unit.Unit] -> FeatureSpace
 #if USE_KDTREE == 1
-setFeatureSpace f us = f { unitSet = KDTree.fromList (map (\u -> (Unit.value 0 u, u)) us) }
+setFeatureSpace fs us = List.foldl' (flip addRegion) fs' (regionList fs')
+    where fs' = fs { unitSet = KDTree.fromList (map (\u -> (Unit.value 0 u, u)) us) }
 #else
-setFeatureSpace f us = f { unitSet = BKTree.fromList us }
+setFeatureSpace fs us = f { unitSet = BKTree.fromList us }
 #endif -- USE_KDTREE
 
 fromList :: Random.StdGen -> [Unit.Unit] -> FeatureSpace
 #if USE_KDTREE == 1
-fromList g us = FeatureSpace (KDTree.fromList (map (\u -> (Unit.value 0 u, u)) us)) g IntMap.empty
+fromList g = setFeatureSpace (FeatureSpace KDTree.empty g IntMap.empty IntMap.empty)
 #else
-fromList g us = FeatureSpace (BKTree.fromList us) g IntMap.empty
+fromList g = setFeatureSpace (FeatureSpace BKTree.empty g IntMap.empty IntMap.empty)
 #endif -- USE_KDTREE
 
 nextRegionId :: FeatureSpace -> Int
@@ -204,44 +207,47 @@ nextRegionId f
             | otherwise          = loop (i+1)
 
 addRegion :: Region -> FeatureSpace -> FeatureSpace
-addRegion r f = f { regions = IntMap.insert (regionId r) r (regions f) }
+addRegion r fs =
+    fs { regions = IntMap.insert (regionId r) r (regions fs)
+       , cachedUnits = IntMap.insert (regionId r) (getRegionUnits r fs) (cachedUnits fs)
+       }
 
 lookupRegion :: RegionId -> FeatureSpace -> Maybe Region
 lookupRegion i = IntMap.lookup i . regions
 
 deleteRegionById :: RegionId -> FeatureSpace -> FeatureSpace
-deleteRegionById i f = f { regions = IntMap.delete i (regions f) }
+deleteRegionById i f = f { regions = IntMap.delete i (regions f)
+                         , cachedUnits = IntMap.delete i (cachedUnits f) }
 
 deleteRegion :: Region -> FeatureSpace -> FeatureSpace
 deleteRegion r = deleteRegionById (regionId r)
 
 updateRegionById :: RegionId -> (Region -> Region) -> FeatureSpace -> FeatureSpace
-updateRegionById i f fs = fs { regions = IntMap.update (Just . f) i (regions fs) }
+updateRegionById i f fs = maybe id (updateRegion . f) (lookupRegion i fs) $ fs
 
 updateRegion :: Region -> FeatureSpace -> FeatureSpace
-updateRegion r = updateRegionById (regionId r) (const r)
+updateRegion = addRegion
 
 regionList :: FeatureSpace -> [Region]
 regionList = IntMap.elems . regions
 
 -- | Return a list of all units contained in a particular region.
 regionUnits :: RegionId -> FeatureSpace -> [Unit]
+regionUnits i = maybe [] id . IntMap.lookup i . cachedUnits
+
+getRegionUnits :: Region -> FeatureSpace -> [Unit]
 #if USE_KDTREE == 1
-regionUnits i f =
-    case IntMap.lookup i (regions f) of
-        Nothing -> []
-        Just r  -> map (snd.fst) $ KDTree.withinRadius KDTree.sqrEuclidianDistance (center r) (radius r) (unitSet f)
+getRegionUnits r f =
+    map (snd.fst) $
+        KDTree.withinRadius KDTree.sqrEuclidianDistance (center r) (radius r) (unitSet f)
 #else
-regionUnits i f =
-    case IntMap.lookup i (regions f) of
-        Nothing -> []
-        Just r  ->
-            case BKTree.elems (unitSet f) of
-                (u:_) ->
-                    let u' = Unit.withValues u [center r]
-                        n  = withPrecision (radius r)
-                    in BKTree.elemsDistance n u' (unitSet f)
-                [] -> []
+getRegionUnits r f =
+    case BKTree.elems (unitSet f) of
+        (u:_) ->
+            let u' = Unit.withValues u [center r]
+                n  = withPrecision (radius r)
+            in BKTree.elemsDistance n u' (unitSet f)
+        [] -> []
 #endif -- USE_KDTREE
 
 -- Return the next random unit from region i and an updated FeatureSpace.
