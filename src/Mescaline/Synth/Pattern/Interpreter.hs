@@ -16,8 +16,10 @@ eval src = do
                , Hugs.ShowLoadedFiles True ]
         mods = [ Module "Control.Applicative" Unqual
                , Module "Mescaline.Synth.Pattern.ASTLib" Unqual
-               , Module "Prelude" (Hiding ["cycle", "map", "seq", "zip"])
-               , Module "Prelude" (Qual "P") ]
+               , Module "Prelude" (Hiding [ "(==)", "(>)", "(>=)", "(<)", "(<=)"
+                                          , "cycle", "filter", "map", "seq", "zip" ])
+               , Module "Prelude" (Qual "P")
+               , Module "Data.List" (Qual "List") ]
     Hugs.eval opts mods src
 
 -- import Mescaline.Synth.Pattern.AST

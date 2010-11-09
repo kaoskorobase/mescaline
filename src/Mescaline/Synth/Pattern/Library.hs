@@ -1,18 +1,32 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 module Mescaline.Synth.Pattern.Library (
     -- *Generators
-    metro
-  , sequencer
-    -- *Filters
+    closest
   , region
-  , stepCursor
+    -- *Filters
+  , filterE
+  , step
+    -- *Coordinates
+  , coord
+  , polar
+  , constrain
+    -- *Regions
+  , center
+  , radius
+  -- *Randomness
+  , prrand_
+  , pexprand_
 ) where
 
 import           Control.Applicative
-import           Control.Monad (join)
+import           Control.Exception
+import qualified Control.Monad as M
 import qualified Control.Monad.Random as R
 import           Data.Accessor
 import qualified Data.Accessor.Monad.MTL.State as Accessor
+import qualified Data.Complex as C
 import           Data.Maybe (isJust, listToMaybe, maybeToList)
+import           Data.Typeable (Typeable)
 import           Mescaline (Duration, Time)
 import           Mescaline.Synth.Pattern (Pattern)
 import qualified Mescaline.Synth.Pattern.AST as AST
@@ -20,7 +34,8 @@ import qualified Mescaline.Synth.Pattern.Environment as Environment
 import           Mescaline.Synth.Pattern.Event (Event, delta, duration, rest)
 import qualified Mescaline.Synth.Pattern.Event as Event
 import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
-import           Mescaline.Synth.Pattern
+import           Mescaline.Synth.Pattern hiding (step)
+import qualified Mescaline.Synth.Pattern as Pattern
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpace.Unit as FeatureSpace
 import           Data.List as L
@@ -30,10 +45,13 @@ import Debug.Trace
 pmaybe :: b -> (a -> b) -> P s (Maybe a) -> P s b
 pmaybe b f = fmap (maybe b f)
 
+punzip :: P s (a, b) -> (P s a, P s b)
+punzip p = (fmap fst p, fmap snd p)
+
 ptranspose :: [P s a] -> P s [a]
 ptranspose = punfoldr $ \s ps ->
                 let (s', as, ps') = foldl (\(s, as, ps) p  ->
-                                        case step s p of
+                                        case Pattern.step s p of
                                             Done s'        -> (s', as, ps)
                                             Result s' a p' -> (s', a:as, p':ps))
                                           (s, [], [])
@@ -51,45 +69,87 @@ pchooseFrom = runRand . fmap choose
             i <- R.getRandomR (0, length as - 1)
             return $ Just $ as !! i
 
+prrand_ :: (R.RandomGen s, R.Random a) => 
+    P s a -> P s a -> P s a
+prrand_ l r = M.join (pzipWith prrand l r)
+
+pexprand_ :: (R.RandomGen s, Floating a, R.Random a) => 
+    P s a -> P s a -> P s a
+pexprand_ l r = M.join (pzipWith prrandexp l r)
+
+data Error = RuntimeError String deriving (Show, Typeable)
+
+instance Exception Error
+
+forceMaybe :: String -> Maybe a -> a
+forceMaybe e Nothing  = throw (RuntimeError e)
+forceMaybe _ (Just a) = a
+
 getCursor :: Int -> Pattern Event.Cursor
 getCursor i = fmap (\s -> case Sequencer.getCursor (max 0 (min (length (Sequencer.cursors s) - 1) i)) s of
                                 Nothing -> error "getCursor: This shouldn't happen"
                                 Just c  -> case Sequencer.lookupCursor c s of
                                             Nothing -> Event.Cursor i (Sequencer.row c, Sequencer.column c) 0
                                             Just v  -> Event.Cursor i (Sequencer.row c, Sequencer.column c) v)
-                       (askA (Environment.sequencer))
+                       (askA Environment.sequencer)
 
--- | Generate events on a time grid.
-metro :: Int -> Pattern Double -> Pattern Event
-metro i = pzipWith Event.rest (getCursor i)
+getRegion :: Pattern Double -> Pattern FeatureSpace.Region
+getRegion = pzipWith (\fs i -> let r = truncate i
+                               in forceMaybe ("Invalid region " ++ show r) (FeatureSpace.lookupRegion r fs))
+                     (askA Environment.featureSpace)
 
-metroThresh :: Int -> Pattern Double -> Pattern Double -> Pattern Event
-metroThresh i thresh = pzipWith f thresh . metro i
+center :: Pattern Double -> Pattern (Double, Double)
+center = fmap FeatureSpace.center2D . getRegion
+
+radius :: Pattern Double -> Pattern Double
+radius = fmap FeatureSpace.radius . getRegion
+
+coord :: Pattern Double -> Pattern Double -> Pattern (Double, Double)
+coord = pzip
+
+polar :: Pattern (Double, Double) -> Pattern Double -> Pattern Double -> Pattern (Double, Double)
+polar = pzipWith3 f
+    where f (x, y) mag phi = let c = C.mkPolar mag phi in (x + C.realPart c, y + C.imagPart c)
+
+-- | 
+constrain :: Pattern (Double, Double) -> Pattern Double -> Pattern (Double, Double) -> Pattern (Double, Double)
+constrain = pzipWith3 f
     where
-        f x e = 
-            if Event.cursorValue (e ^. Event.cursor) > x
-            then e
-            else Event.synth ^= Nothing $ e
+        f c r p | C.realPart (abs (uncurry (C.:+) c - uncurry (C.:+) p)) <= r = p
+                | otherwise = (-1, -1)
 
--- | Generate events on a time grid depending on the values in the matrix sequencer.
-sequencer :: Int -> Pattern Double -> Pattern Event
-sequencer i = stepCursor (pure 0) (pure 1) . metroThresh i (pure 0)
+closest :: Int -> Pattern Double -> Pattern (Double, Double) -> Pattern Double -> Pattern Event
+closest i = pzipWith4 f (pzip (askA Environment.featureSpace) (getCursor i))
+    where
+        f (fs, c) dt (x, y) r =
+            let rest = Event.rest c dt
+            in case FeatureSpace.closest2D (x, y) fs of
+                Nothing -> rest
+                Just (u, d) -> if d <= r
+                               then Event.synthEvent c u
+                               else rest
 
--- | Generate events on a time grid depending on the values in the matrix sequencer.
-gridSequencer :: (Double, Double) -> (Double, Double, Double, Double) -> (Double, Double, Double, Double) -> Int -> Pattern Event
-gridSequencer = undefined
+filterE :: Pattern Bool -> Pattern Event -> Pattern Event
+filterE = pzipWith f
+    where
+        f True e = e
+        f False e = Event.synth ^= Nothing $ e
 
 regionUnits :: Pattern Double -> Pattern [FeatureSpace.Unit]
 regionUnits i = pzipWith (FeatureSpace.regionUnits . truncate) i (askA (Environment.featureSpace))
 
-region :: AST.RegionIterator -> Pattern Double -> Pattern Event -> Pattern Event
-region AST.Uniform i = pzipWith f (pchooseFrom (regionUnits i))
-    where f u e = Event.synth ^: (fmap Event.defaultSynth u <*) $ e
+region :: AST.RegionIterator -> Int -> Pattern Double -> Pattern Double -> Pattern Event
+region AST.Uniform i dt r = pzipWith3 f (getCursor i) dt (pchooseFrom (regionUnits r))
+    where
+        f c dt = maybe (Event.rest c dt) (Event.synthEvent c)
+        -- mke c Nothing = Event.rest c
+        -- mke
+        -- Event.synth ^: (fmap Event.defaultSynth u <*) $ e
 
 data CursorBehavior = WrapCursor | MirrorCursor
 
-stepCursor :: Pattern Double -> Pattern Double -> Pattern Event -> Pattern Event
-stepCursor rowInc colInc = pzipWith3 f (pzip rowInc colInc) (askA Environment.sequencer)
+step :: Pattern Double -> Pattern Double -> Pattern Event -> Pattern Event
+step rowInc colInc = pzipWith3 f (pzip rowInc colInc) (askA Environment.sequencer)
     where
         f (ri,ci) s e =
             let cursor   = e ^. Event.cursor

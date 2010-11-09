@@ -4,7 +4,7 @@ logLevel        = INFO
 
 [FeatureSpace]
 
-highlightUnits  = false
+highlightUnits  = true
 highlightColor  = orangered
 
 regionColor1    = red*0.7

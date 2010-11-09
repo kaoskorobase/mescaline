@@ -15,6 +15,7 @@ module Mescaline.Synth.Pattern (
   , runRand
     -- *Patterns
   , module Mescaline.Synth.Pattern.Ppar
+  , ptrace
     -- *Base module
   , module Mescaline.Synth.Pattern.Base
 ) where
@@ -27,6 +28,7 @@ import           Data.Accessor
 import           Mescaline.Synth.Pattern.Environment (Environment)
 import           Mescaline.Synth.Pattern.Ppar
 import           Mescaline.Synth.Pattern.Base
+import           Debug.Trace
 
 type Pattern = P Environment
 
@@ -44,3 +46,6 @@ instance MonadState s (P s) where
 
 runRand :: R.RandomGen s => P s (R.Rand s a) -> P s a
 runRand = M.join . fmap (\r -> prp $ \s -> let (a, s') = R.runRand r s in (return a, s'))
+
+ptrace :: Show a => P s a -> P s a
+ptrace = fmap (\a -> traceShow a a)

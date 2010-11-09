@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE BangPatterns, FlexibleContexts #-}
 module Data.KDTree (
     Tree
   , fromList
@@ -101,7 +101,12 @@ sqrAxisDistance i x v = sqr (v ! i - x)
 
 sqrEuclidianDistance :: Vector v Double => v Double -> v Double -> Double
 {-# INLINE sqrEuclidianDistance #-}
-sqrEuclidianDistance a b = V.sum (V.map sqr (V.zipWith (-) a b))
+-- sqrEuclidianDistance a b = V.sum (V.map sqr (V.zipWith (-) a b))
+sqrEuclidianDistance a b = loop 0 0 (V.length a `min` V.length b)
+    where
+        loop !acc !i !n
+            | i >= n = acc
+            | otherwise = let x = (a V.! i) - (b V.! i) in loop (acc + x*x) (i+1) n
 
 closest' :: Vector v Double => Distance v -> v Double -> Tree v a -> (v Double, a) -> Double -> ((v Double, a), Double)
 {-# INLINE closest' #-}

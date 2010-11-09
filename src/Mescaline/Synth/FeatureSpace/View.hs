@@ -275,7 +275,7 @@ process view state = do
                     Nothing -> return ()
                     Just regionHandle ->
                         let item = regionItem regionHandle
-                            pos  = pair (Model.center r)
+                            pos  = Model.center2D r
                             rad  = Model.radius r
                             dia  = rad*2
                         in defer view state $ do
