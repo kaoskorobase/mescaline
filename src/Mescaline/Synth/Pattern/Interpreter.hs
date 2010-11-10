@@ -11,8 +11,12 @@ import           System.FilePath
 eval :: String -> IO (Either String (Tree Event))
 eval src = do
     hugsDir <- App.getResourcePath "hugs/packages"
+    srcDir  <- App.getResourcePath "src"
     let opts = [ Hugs.Haskell98 False
-               , Hugs.SearchPath [hugsDir </> "hugsbase", hugsDir </> "base", hugsDir </> "mtl", "src"]
+               , Hugs.SearchPath [ hugsDir </> "hugsbase"
+                                 , hugsDir </> "base"
+                                 , hugsDir </> "mtl"
+                                 , srcDir ]
                , Hugs.ShowLoadedFiles True ]
         mods = [ Module "Control.Applicative" Unqual
                , Module "Mescaline.Synth.Pattern.ASTLib" Unqual

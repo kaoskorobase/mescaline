@@ -36,6 +36,9 @@ data-files:
     meap/2.0/tritonus_mp3.jar
     meap/2.0/tritonus_share.jar
 
+    src/Mescaline/Synth/Pattern/AST.hs
+    src/Mescaline/Synth/Pattern/ASTLib.hs
+
     hugs/packages/base/Control/Applicative.hs
     hugs/packages/base/Control/Arrow.hs
     hugs/packages/base/Control/Concurrent/Chan.hs
