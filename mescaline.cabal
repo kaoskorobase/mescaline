@@ -184,7 +184,7 @@ library
       , hmatrix >= 0.9 && < 0.11
       , hmeap >= 0.8
       , hosc >= 0.8
-      , hslogger >= 1.0 && < 1.1
+      , hslogger >= 1.0
       , hsc3 >= 0.8
       , hsc3-lang >= 0.8
       , hsc3-process >= 0.3 && < 0.4
@@ -297,9 +297,10 @@ executable mescaline
     main-is:            main.hs
     hs-source-dirs:     app, src
     include-dirs:       include
-    build-depends:      qt >= 1.1 && < 1.2
     ghc-options:        -threaded
     ghc-prof-options:   -threaded -auto-all
+    build-depends:
+        qt >= 1.1 && < 1.2
 
 executable mescalinedb
     main-is:            mescalinedb.hs

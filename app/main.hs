@@ -64,21 +64,28 @@ import qualified Qtc.Enums.Classes.Core         as Qt
 import qualified Qtc.Enums.Core.QIODevice       as Qt
 import qualified Qtc.Enums.Core.Qt              as Qt
 import qualified Qtc.Enums.Gui.QFileDialog      as Qt
-import qualified Qtc.Enums.Gui.QGraphicsView    as Qt
 import qualified Qtc.Enums.Gui.QPainter         as Qt
 import qualified Qtc.Gui.Base                   as Qt
 import qualified Qtc.Gui.QAction                as Qt
 import qualified Qtc.Gui.QApplication           as Qt
 import qualified Qtc.Gui.QDialog                as Qt
 import qualified Qtc.Gui.QFileDialog            as Qt
+
+import qualified Qtc.Enums.Gui.QGraphicsView    as Qt
 import qualified Qtc.Gui.QGraphicsView          as Qt
 import qualified Qtc.Gui.QGraphicsView_h        as Qt
+
 import qualified Qtc.Gui.QKeySequence           as Qt
 import qualified Qtc.Gui.QMainWindow            as Qt
 import qualified Qtc.Gui.QMainWindow_h          as Qt
 import qualified Qtc.Gui.QMenu                  as Qt
 import qualified Qtc.Gui.QMenuBar               as Qt
 import qualified Qtc.Gui.QMessageBox            as Qt
+
+import qualified Qtc.Enums.Gui.QTextCursor      as Qt
+import qualified Qtc.Gui.QTextCursor            as Qt
+import qualified Qtc.Gui.QTextEdit              as Qt
+
 import qualified Qtc.Gui.QWheelEvent            as Qt
 import qualified Qtc.Gui.QWidget                as Qt
 import qualified Qtc.Gui.QWidget_h              as Qt
@@ -230,6 +237,72 @@ trigger :: String -> [(String, Qt.QAction ())] -> IO ()
 trigger k = maybe (return ()) (flip Qt.trigger ()) . lookup k
 
 -- ====================================================================
+-- Logging to text view
+
+textEditLogger :: Log.Priority -> String -> Qt.QTextEdit () -> Log.GenericHandler (Qt.QTextEdit ())
+textEditLogger prio fmt textEdit =
+    Log.GenericHandler
+        prio
+        (Log.simpleLogFormatter fmt)
+        textEdit
+        (\edit msg -> do
+            c <- Qt.textCursor edit ()
+            Qt.insertText c msg
+            _ <- Qt.movePosition c (Qt.eEnd :: Qt.MoveOperation)
+            Qt.setTextCursor edit c)
+            --  edit->textCursor().insertHtml(fragment);
+            -- Qt.insertHtml
+        (const (return ()))
+
+chanLogger :: Log.Priority -> String -> Chan String -> IO () -> Log.GenericHandler (Chan String)
+chanLogger prio fmt chan action =
+    Log.GenericHandler
+        prio
+        (Log.simpleLogFormatter fmt)
+        chan
+        (\chan msg -> writeChan chan msg >> action)
+        (const (return ()))
+
+logPriorities :: [Log.Priority]
+logPriorities =
+    [ Log.DEBUG
+    , Log.INFO
+    , Log.NOTICE
+    , Log.WARNING
+    , Log.ERROR
+    , Log.CRITICAL
+    , Log.ALERT
+    , Log.EMERGENCY ]
+
+createLoggers :: MainWindow -> IO ()
+createLoggers logWindow = do
+    textEdit <- Qt.findChild logWindow ("<QTextEdit*>", "textEdit") :: IO (Qt.QTextEdit ())
+    chan <- newChan
+    Qt.connectSlot logWindow "logMessage()" logWindow "logMessage()" $ logMessage chan textEdit
+    let fmt = "[$prio][$loggername] $msg\n"
+        action = Qt.emitSignal logWindow "logMessage()" ()
+    mapM_ (\logger -> Log.updateGlobalLogger
+                        logger
+                        (Log.setHandlers $ map (\prio -> chanLogger prio fmt chan action)
+                                               logPriorities))
+          Log.components
+    -- Disable stderr logger
+    Log.updateGlobalLogger Log.rootLoggerName (Log.setHandlers ([] :: [Log.GenericHandler ()]))
+    where
+        logMessage :: Chan String -> Qt.QTextEdit () -> MainWindow -> IO ()
+        logMessage chan edit _ = do
+            msg <- readChan chan
+            c <- Qt.textCursor edit ()
+            Qt.insertText c msg
+            _ <- Qt.movePosition c (Qt.eEnd :: Qt.MoveOperation)
+            Qt.setTextCursor edit c
+
+clearLog :: MainWindow -> IO ()
+clearLog logWindow = do
+    edit <- Qt.findChild logWindow ("<QTextEdit*>", "textEdit") :: IO (Qt.QTextEdit ())
+    Qt.setPlainText edit ""
+
+-- ====================================================================
 -- Actions
 
 action_about :: Qt.QWidget () -> Qt.QAction () -> IO ()
@@ -325,16 +398,6 @@ main = do
     let pattern = case args of
                     (_:p:_) -> p
                     _       -> "%"
-
-    -- FIXME: .ui file is not found in the resource for some reason
-    -- rcc <- Qt.registerResource "app/mescaline.rcc"
-    -- engine <- qScriptEngine ()
-    -- scriptFile <- qFile ":/calculator.js"
-    -- open scriptFile fReadOnly
-    -- ss <- qTextStream scriptFile
-    -- ra <- readAll ss ()
-    -- dv <- evaluate engine ra
-    -- close scriptFile ()
 
     mainWindow <- loadUI =<< App.getResourcePath "mescaline.ui"
     editorWindow <- loadUI =<< App.getResourcePath "editor.ui"
@@ -461,7 +524,9 @@ main = do
               , Separator
               , Action "mainWindow" "Main" "Show main window" Trigger (Just "Ctrl+Shift+w") (action_showWindow mainWindow)
               , Action "editorWindow" "Editor" "Show editor window" Trigger (Just "Ctrl+Shift+e") (action_showWindow editorWindow)
-              , Action "logWindow" "Messages" "Show message window" Trigger (Just "Ctrl+Shift+m") (action_showWindow logWindow) ]
+              , Separator
+              , Action "logWindow" "Messages" "Show message window" Trigger (Just "Ctrl+Shift+m") (action_showWindow logWindow)
+              , Action "clearLog" "Clear Messages" "Clear message window" Trigger (Just "Ctrl+Shift+c") (const (const (clearLog logWindow))) ]
             ]
             ++
             (if App.buildOS /= App.OSX then helpMenuDef else [])
@@ -470,12 +535,9 @@ main = do
     trigger "/featureSpace/zoom/reset" actions
     defineWindowMenu menuDef (Qt.objectCast editorWindow)
     defineWindowMenu menuDef (Qt.objectCast logWindow)
+    createLoggers logWindow -- =<< Qt.findChild logWindow ("<QTextEdit*>", "textEdit")
 
     -- Start the application
-
-    -- ctor <- evaluate engine "Calculator"
-    -- scriptUi <- newQObject engine ui
-    -- calc <- construct ctor [scriptUi]
     Qt.qshow mainWindow ()
     Qt.activateWindow mainWindow ()
 
