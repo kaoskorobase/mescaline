@@ -190,6 +190,7 @@ data ActionType = Trigger | Checkable deriving (Eq, Show)
 data MenuDefinition =
     Menu String String [MenuDefinition]
   | Action String String String ActionType (Maybe String) (Qt.QWidget () -> Qt.QAction () -> IO ())
+  | Separator
 
 actionCallback :: Qt.QAction () -> (Qt.QWidget () -> Qt.QAction () -> IO ()) -> Qt.QWidget () -> Bool -> IO ()
 actionCallback a cb w _ = cb w a
@@ -214,6 +215,11 @@ defineMenu defs menuBar widget = mapM (f (Left menuBar) []) defs >>= return . co
                     Qt.connectSlot action "triggered()" widget slot (actionCallback action callback)
                     Qt.addAction menu action
                     return [(key, action)]
+        f menu path Separator = do
+            case menu of
+                Left _ -> return ()
+                Right menu -> Qt.addSeparator menu () >> return ()
+            return []
 
 defineWindowMenu :: [MenuDefinition] -> Qt.QMainWindow () -> IO [(String, Qt.QAction ())]
 defineWindowMenu defs window = do
@@ -452,6 +458,7 @@ main = do
                 , Action "reset" "Reset" "Reset feature space zoom" Trigger (Just "Ctrl+0") (action_featureSpace_zoom_reset fspace_graphicsView) ] ]
             , Menu "window" "Window"
               [ Action "closeWindow" "Close" "Close window" Trigger (Just "Ctrl+w") action_closeActiveWindow
+              , Separator
               , Action "mainWindow" "Main" "Show main window" Trigger (Just "Ctrl+Shift+w") (action_showWindow mainWindow)
               , Action "editorWindow" "Editor" "Show editor window" Trigger (Just "Ctrl+Shift+e") (action_showWindow editorWindow)
               , Action "logWindow" "Messages" "Show message window" Trigger (Just "Ctrl+Shift+m") (action_showWindow logWindow) ]
