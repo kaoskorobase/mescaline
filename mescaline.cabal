@@ -21,7 +21,9 @@ data-dir:
 
 data-files:
     config
+    editor.ui
     mescaline.ui
+    messages.ui
 
     patches/default.hs
 

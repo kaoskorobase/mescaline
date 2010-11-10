@@ -215,6 +215,11 @@ defineMenu defs menuBar widget = mapM (f (Left menuBar) []) defs >>= return . co
                     Qt.addAction menu action
                     return [(key, action)]
 
+defineWindowMenu :: [MenuDefinition] -> Qt.QMainWindow () -> IO [(String, Qt.QAction ())]
+defineWindowMenu defs window = do
+    menuBar <- Qt.menuBar window ()
+    defineMenu defs menuBar (Qt.objectCast window)
+
 trigger :: String -> [(String, Qt.QAction ())] -> IO ()
 trigger k = maybe (return ()) (flip Qt.trigger ()) . lookup k
 
@@ -294,6 +299,12 @@ action_featureSpace_zoom_zoomOut v _ _ = scaleFeatureSpace 0.5 v
 action_featureSpace_zoom_reset :: Qt.QGraphicsView () -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_featureSpace_zoom_reset v _ _ = setScaleFeatureSpace 600 v
 
+action_closeActiveWindow :: Qt.QWidget () -> Qt.QAction () -> IO ()
+action_closeActiveWindow _ _ = Qt.qApplicationActiveWindow () >>= flip Qt.close () >> return ()
+
+action_showWindow :: MainWindow -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_showWindow w _ _ = Qt.qshow w () >> Qt.activateWindow w ()
+
 main :: IO ()
 main = do
     Log.initialize
@@ -320,6 +331,9 @@ main = do
     -- close scriptFile ()
 
     mainWindow <- loadUI =<< App.getResourcePath "mescaline.ui"
+    editorWindow <- loadUI =<< App.getResourcePath "editor.ui"
+    logWindow <- loadUI =<< App.getResourcePath "messages.ui"
+
     -- Qt.setHandler mainWindow "keyPressEvent(QKeyEvent*)" $ windowKeyPressEvent
 
     -- Synth process
@@ -435,13 +449,20 @@ main = do
               [ Menu "zoom" "Zoom"
                 [ Action "zoomIn" "Zoom In" "Zoom into feature space" Trigger (Just "Ctrl++") (action_featureSpace_zoom_zoomIn fspace_graphicsView)
                 , Action "zoomOut" "Zoom Out" "Zoom out of feature space" Trigger (Just "Ctrl+-") (action_featureSpace_zoom_zoomOut fspace_graphicsView)
-                , Action "reset" "Reset" "Reset feature space zoom" Trigger (Just "Ctrl+0") (action_featureSpace_zoom_reset fspace_graphicsView) ] ] ]
+                , Action "reset" "Reset" "Reset feature space zoom" Trigger (Just "Ctrl+0") (action_featureSpace_zoom_reset fspace_graphicsView) ] ]
+            , Menu "window" "Window"
+              [ Action "closeWindow" "Close" "Close window" Trigger (Just "Ctrl+w") action_closeActiveWindow
+              , Action "mainWindow" "Main" "Show main window" Trigger (Just "Ctrl+Shift+w") (action_showWindow mainWindow)
+              , Action "editorWindow" "Editor" "Show editor window" Trigger (Just "Ctrl+Shift+e") (action_showWindow editorWindow)
+              , Action "logWindow" "Messages" "Show message window" Trigger (Just "Ctrl+Shift+m") (action_showWindow logWindow) ]
+            ]
             ++
             (if App.buildOS /= App.OSX then helpMenuDef else [])
 
-    menuBar <- Qt.menuBar mainWindow ()
-    actions <- defineMenu menuDef menuBar (Qt.objectCast mainWindow)
+    actions <- defineWindowMenu menuDef (Qt.objectCast mainWindow)
     trigger "/featureSpace/zoom/reset" actions
+    defineWindowMenu menuDef (Qt.objectCast editorWindow)
+    defineWindowMenu menuDef (Qt.objectCast logWindow)
 
     -- Start the application
 
@@ -450,7 +471,7 @@ main = do
     -- calc <- construct ctor [scriptUi]
     Qt.qshow mainWindow ()
     Qt.activateWindow mainWindow ()
-    
+
     ok <- Qt.qApplicationExec ()
     
     -- Signal synth thread and wait for it to exit.
