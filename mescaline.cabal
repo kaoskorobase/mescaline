@@ -264,6 +264,7 @@ library
         Mescaline.Synth.Pattern.Interpreter
         Mescaline.Synth.Pattern.Library
         Mescaline.Synth.Pattern.Patch
+        Mescaline.Synth.Pattern.Patch.Version_0_0_1
         Mescaline.Synth.Pattern.Ppar
         Mescaline.Synth.Pattern.Player
         Mescaline.Synth.Pattern.Process

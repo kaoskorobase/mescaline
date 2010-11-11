@@ -5,9 +5,11 @@ module Mescaline.Synth.Pattern.Patch (
   , code
   , sequencer
   , regions
-  , newPatch
+  , new
   , defaultPatch
   , pattern
+  , modifySequencer
+  , setCode
 ) where
 
 import           Control.Applicative
@@ -38,8 +40,8 @@ data Patch = Patch {
 cons :: String -> SyntaxTree -> Sequencer -> [Region] -> Patch
 cons = Patch
 
-newPatch :: String -> Sequencer -> [Region] -> IO Patch
-newPatch src sequencer regions = do
+new :: String -> Sequencer -> [Region] -> IO Patch
+new src sequencer regions = do
     res <- Interp.eval src
     case res of
         Left e -> throw (Comp.CompileError e)
@@ -48,10 +50,20 @@ newPatch src sequencer regions = do
 defaultPatch :: IO Patch
 defaultPatch = do
     src <- App.getResourcePath "patches/default.hs" >>= readFile
-    newPatch src (Sequencer.empty n n) rs
+    new src (Sequencer.empty n n) rs
     where
         rs = defaultRegions
         n  = length rs
 
 pattern :: Patch -> Either CompileError (Pattern Event)
 pattern = Comp.compile . syntaxTree
+
+modifySequencer :: (Sequencer -> Sequencer) -> Patch -> Patch
+modifySequencer f p = p { sequencer = f (sequencer p) }
+
+setCode :: String -> Patch -> IO (Either String Patch)
+setCode src patch = do
+    res <- Interp.eval src
+    case res of
+        Left e -> return $ Left e
+        Right ast -> return $ Right $ patch { code = src, syntaxTree = ast }

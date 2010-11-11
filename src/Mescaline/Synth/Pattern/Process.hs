@@ -1,4 +1,5 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns
+           , ScopedTypeVariables #-}
 module Mescaline.Synth.Pattern.Process (
     Handle
   , TransportState(..)
@@ -31,12 +32,13 @@ import           Mescaline.Synth.Pattern.Environment (Environment)
 import qualified Mescaline.Synth.Pattern.Environment as Environment
 import           Mescaline.Synth.Pattern.Event (Event)
 import qualified Mescaline.Synth.Pattern.Event as Model
-import qualified Mescaline.Synth.Pattern.Interpreter as Interp
+import qualified Mescaline.Synth.Pattern.Compiler as Comp
 import           Mescaline.Synth.Pattern.Sequencer (Sequencer)
 import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
 import           Mescaline.Synth.Pattern (Pattern)
 import qualified Mescaline.Synth.Pattern as Model
 import qualified Mescaline.Synth.Pattern.Patch as Patch
+import qualified Mescaline.Synth.Pattern.Patch.Version_0_0_1 as Patch
 import           Prelude hiding (catch)
 import qualified Sound.OpenSoundControl.Time as Time
 
@@ -50,22 +52,26 @@ data Input =
   | Transport       TransportChange
   | GetSequencer    (Query Sequencer)
   | SetFeatureSpace FeatureSpace.FeatureSpace
+  | LoadPatch       FilePath
+  | StorePatch      FilePath
+  | SetSourceCode   String
+  | RunPatch
   | Event_          Time Model.Event
   | Environment_    Environment
 
 data Output =
-    Changed     Time TransportState Sequencer.Sequencer
-  | Event       Time Model.Event
+    Changed      Time TransportState Sequencer.Sequencer
+  | Event        Time Model.Event
+  | PatchChanged Patch.Patch
 
 type Handle = Process.Handle Input Output
 
 data TransportState = Stopped | Running deriving (Eq, Show)
 
 data State = State {
-    -- patch        :: Patch.Patch
-    sequencer    :: !Sequencer.Sequencer
-  , time         :: !Time
-  , playerThread :: !(Maybe PlayerHandle)
+    time         :: Time
+  , patch        :: Patch.Patch
+  , playerThread :: Maybe PlayerHandle
   }
 
 transport :: State -> TransportState
@@ -96,10 +102,11 @@ playerProcess handle = loop
                 Model.Result !envir' !event !pattern' -> do
                     io $ Log.debugM "Sequencer" $ "Event: " ++ show event
                     sendTo handle $ Event_ time event
-                    let (row, col) = Model.cursorPosition (event ^. Model.cursor)
-                        cursor = Sequencer.Cursor row col
-                        envir'' = Environment.sequencer ^: Sequencer.modifyCursor (const cursor) (Model.cursorId (event ^. Model.cursor)) $ envir'
-                        dt = event ^. Model.delta
+                    -- let (row, col) = Model.cursorPosition (event ^. Model.cursor)
+                    --     cursor = Sequencer.Cursor row col
+                    --     envir'' = Environment.sequencer ^: Sequencer.modifyCursor (const cursor) (Model.cursorId (event ^. Model.cursor)) $ envir'
+                    let dt = event ^. Model.delta
+                        envir'' = envir'
                     if dt > 0
                         then do
                             sendTo handle $ Environment_ envir''
@@ -114,11 +121,9 @@ startPlayerThread handle pattern envir time = spawn $ playerProcess handle envir
 stopPlayerThread :: PlayerHandle -> IO ()
 stopPlayerThread = kill
 
-new :: Patch.Patch -> FeatureSpaceP.Handle -> IO Handle
-new patch fspaceP = do
-    time <- io Time.utcr
+initPatch :: Handle -> FeatureSpaceP.Handle -> Patch.Patch -> IO ()
+initPatch h fspaceP patch = do
     mapM_ (sendTo fspaceP . FeatureSpaceP.UpdateRegion) (Patch.regions patch)
-    h <- spawn $ loop (State {- patch -} (Patch.sequencer patch) time Nothing)
 
     -- If specified in the config file, fill the whole sequencer in order to facilitate debugging.
     fill <- fmap (\conf -> either (const False) id $ Config.get conf "Sequencer" "debugFill") Config.getConfig
@@ -127,15 +132,19 @@ new patch fspaceP = do
             forM_ [0..Sequencer.cols (Patch.sequencer patch)] $ \c ->
                 sendTo h $ SetCell r c 1
 
-    
-    App.getResourcePath "patches/default.hs" >>= readFile >>= Interp.eval >>= print
-    
+    notifyListeners h (PatchChanged patch)
+
+new :: Patch.Patch -> FeatureSpaceP.Handle -> IO Handle
+new patch0 fspaceP = do
+    time <- io Time.utcr
+    h <- spawn $ loop (State time patch0 Nothing)
+    initPatch h fspaceP patch0
     return h
     where
         updateSequencer state update = do
             case transport state of
                 Stopped ->
-                    return $ Just $ state { sequencer = update (sequencer state) }
+                    return $ Just $ state { patch = Patch.modifySequencer update (patch state) }
                 Running -> do
                     sendTo (fromJust (playerThread state)) (Environment.sequencer ^: update)
                     return Nothing
@@ -159,13 +168,12 @@ new patch fspaceP = do
                                         proc <- self
                                         time <- io Time.utcr
                                         fspace <- query fspaceP FeatureSpaceP.GetModel
-                                        case Patch.pattern patch of
+                                        case Patch.pattern (patch state) of
                                             Left e -> do
                                                 io $ print e
                                                 return Nothing
                                             Right pattern -> do
-                                                let -- sequencer = Patch.sequencer patch
-                                                    env = Environment.mkEnvironment 0 fspace (sequencer state)
+                                                let env = Environment.mkEnvironment 0 fspace (Patch.sequencer (patch state))
                                                 tid  <- io $ startPlayerThread proc pattern env time
                                                 return $ Just $ state { time = time
                                                                       , playerThread = Just tid }
@@ -182,21 +190,43 @@ new patch fspaceP = do
                                         proc <- self
                                         time <- io Time.utcr
                                         fspace <- query fspaceP FeatureSpaceP.GetModel
-                                        case Patch.pattern patch of
+                                        case Patch.pattern (patch state) of
                                             Left e -> do
                                                 io $ print e
                                                 return Nothing
                                             Right pattern -> do
-                                                let -- sequencer = Patch.sequencer patch
-                                                    env = Environment.mkEnvironment 0 fspace (sequencer state)
+                                                let env = Environment.mkEnvironment 0 fspace (Patch.sequencer (patch state))
                                                 tid <- io $ startPlayerThread proc pattern env time
                                                 return $ Just $ state { time = time
                                                                       , playerThread = Just tid }
                     GetSequencer query -> do
-                        answer query $ sequencer state
+                        answer query $ Patch.sequencer (patch state)
                         return Nothing
                     SetFeatureSpace fspace -> do
                         maybe (return ()) (\h -> sendTo h (setVal Environment.featureSpace fspace)) (playerThread state)
+                        return Nothing
+                    LoadPatch path -> do
+                        h <- self
+                        io $ do { patch' <- Patch.load path
+                                ; initPatch h fspaceP patch' 
+                                ; return $ Just $ state { patch = patch' } }
+                                `catches`
+                                    [ Handler (\(e :: Patch.LoadError) -> print e >> return Nothing)
+                                    , Handler (\(e :: Comp.CompileError) -> print e >> return Nothing) ]
+                    StorePatch path -> do
+                        io $ (Patch.store path (patch state))
+                                `catch`
+                                (\(e :: IOException) -> print e)
+                        return Nothing
+                    SetSourceCode src -> do
+                        res <- io $ Patch.setCode src (patch state)
+                        case res of
+                            Left e -> io (putStrLn e) >> return Nothing
+                            Right patch' -> do { notify $ PatchChanged patch'
+                                               ; return $ Just state { patch = patch' } }
+                    RunPatch -> do
+                        flip sendTo (Transport Pause) =<< self
+                        flip sendTo (Transport Start) =<< self
                         return Nothing
                     Event_ time event ->
                         case transport state of
@@ -205,10 +235,10 @@ new patch fspaceP = do
                                 return Nothing
                             _ -> error "This shouldn't happen: Received an Event_ message but player thread not running"
                     Environment_ envir ->
-                        return $ Just $ state { sequencer = envir ^. Environment.sequencer }
+                        return $ Just $ state { patch = Patch.modifySequencer (const (envir ^. Environment.sequencer)) (patch state) }
             case state' of
                 Just state' -> do
-                    notify $ Changed (time state') (transport state') (sequencer state')
+                    notify $ Changed (time state') (transport state') (Patch.sequencer (patch state'))
                     loop state'
                 Nothing ->
                     loop state
