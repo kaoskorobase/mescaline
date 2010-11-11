@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, ExistentialQuantification, TypeFamilies, TypeSynonymInstances #-}
 
-module Mescaline.Database.Model where
+module Mescaline.Database.Model () where
 
 import qualified Data.Vector.Generic as V
 

@@ -5,7 +5,9 @@ module Mescaline.Synth.FeatureSpace.View (
     FeatureSpaceView
   , Input
   , Output
+  , Highlight(..)
   , new
+  , getRegionColors
 ) where
 
 import           Control.Concurrent.Chan
@@ -18,12 +20,15 @@ import           Data.IntMap (IntMap)
 import qualified Data.IntMap as IMap
 import qualified Data.Map as Map
 import qualified Data.Vector.Generic as V
+import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Data.Unique as Unique
 import qualified Mescaline.Database.Feature as Feature
-import qualified Mescaline.Database.Unit as Unit
 import           Mescaline.Synth.FeatureSpace.Model (FeatureSpace)
 import qualified Mescaline.Synth.FeatureSpace.Model as Model
+import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
 import qualified Mescaline.Synth.FeatureSpace.Process as Process
+import qualified Mescaline.Synth.Pattern.Event as Synth
+import qualified Mescaline.Synth.Sampler.Process as Synth
 import qualified Mescaline.UI as UI
 
 import qualified Qtc.Classes.Gui                    as Qt
@@ -41,6 +46,7 @@ import qualified Qtc.Enums.Gui.QGraphicsItem        as Qt
 import qualified Qtc.Enums.Gui.QGraphicsScene       as Qt
 import qualified Qtc.Gui.QAbstractGraphicsShapeItem as Qt
 import qualified Qtc.Gui.QBrush                     as Qt
+import qualified Qtc.Gui.QColor                     as Qt
 import qualified Qtc.Gui.QCursor                    as Qt
 import qualified Qtc.Gui.QGraphicsEllipseItem       as Qt
 import qualified Qtc.Gui.QGraphicsEllipseItem_h     as Qt
@@ -50,6 +56,7 @@ import qualified Qtc.Gui.QGraphicsScene             as Qt
 import qualified Qtc.Gui.QGraphicsSceneMouseEvent   as Qt
 import qualified Qtc.Gui.QGraphicsScene_h           as Qt
 import qualified Qtc.Gui.QKeyEvent                  as Qt
+import qualified Qtc.Gui.QPen                       as Qt
 import qualified Qtc.Gui.QWidget                    as Qt
 import qualified Qth.ClassTypes.Core                as Qt
 import qualified Qth.Core.Point                     as Qt
@@ -61,8 +68,9 @@ data CFeatureSpaceView = CFeatureSpaceView
 featureSpaceView_ :: IO (FeatureSpaceView)
 featureSpaceView_ = Qt.qSubClass (Qt.qGraphicsScene ())
 
-type Input = Process.Output
-type Output = ()
+data Highlight = HighlightOn Unit.Unit | HighlightOff Unit.Unit
+type Input     = Either Process.Output Highlight
+type Output    = ()
 
 pair :: (V.Vector v a, Num a) => v a -> (a, a)
 pair v | V.length v >= 2 = (v V.! 0, v V.! 1)
@@ -72,28 +80,8 @@ pair v | V.length v >= 2 = (v V.! 0, v V.! 1)
 unitRadius :: Double
 unitRadius = 0.004
 
-activationRadius :: Double
-activationRadius = 2 * unitRadius
-
--- mouseHandler :: Unit.Unit -> (Unit.Unit -> IO ()) -> Qt.QGraphicsRectItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
--- mouseHandler unit action this evt = action unit >> Qt.mousePressEvent_h this evt
-
--- sceneMousePressHandler :: MVar Bool -> Qt.QGraphicsScene () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
--- sceneMousePressHandler state view evt = do
---     putStrLn "sceneMousePressHandler"
---     b <- Qt.button evt ()
---     if ((Qt.qEnum_toInt b) == (Qt.qEnum_toInt Qt.eLeftButton))
---         then Qt.ignore evt () >> swapMVar state True >> return ()
---         else Qt.mousePressEvent_h view evt
--- 
--- sceneMouseReleaseHandler :: MVar Bool -> Qt.QGraphicsScene () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
--- sceneMouseReleaseHandler state view evt = do
---     putStrLn "sceneMouseReleaseHandler"
---     b <- Qt.button evt ()
---     if ((Qt.qEnum_toInt b) == (Qt.qEnum_toInt Qt.eLeftButton))
---         then swapMVar state False >> return ()
---         else return ()
---     Qt.mouseReleaseEvent_h view evt
+highlightRadius :: Double
+highlightRadius = 2 * unitRadius
 
 sceneKeyPressEvent :: State -> FeatureSpaceView -> Qt.QKeyEvent () -> IO ()
 sceneKeyPressEvent state view evt = do
@@ -136,19 +124,26 @@ data Region = Region {
   , regionState :: MVar RegionState
   }
 
-data UnitActivation = UnitActivation !(Qt.QGraphicsEllipseItem ()) !Int
+data UnitHighlight  = UnitHighlight !(Qt.QGraphicsItem ()) !Int
+
+data HighlightState = HighlightState {
+    highlightPen :: Qt.QPen ()
+  , highlights   :: MVar (Unique.Map UnitHighlight)
+  }
 
 data State = State {
-    featureSpace :: Process.FeatureSpace
+    featureSpace :: Process.Handle
+  , synth        :: Synth.Handle
   , unitGroup    :: MVar (Maybe (Qt.QGraphicsItem ()))
-  , activations  :: MVar (Unique.Map UnitActivation)
-  , colors       :: [Qt.QColor ()]
+  , units        :: MVar (Unique.Map (Qt.QGraphicsItem ()))
+  , highlight    :: Maybe HighlightState
+  , regionColors :: IntMap (Qt.QBrush ())
   , regions      :: IntMap Region
   , playUnits    :: MVar Bool
   , guiChan      :: Chan (IO ())
   }
 
-regionMousePressHandler :: Process.FeatureSpace -> Region -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
+regionMousePressHandler :: Process.Handle -> Region -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
 regionMousePressHandler _ region item evt = do
     mods <- Qt.modifiers evt ()
     if (Qt.qFlags_toInt mods) .&. (Qt.qFlags_toInt Qt.fControlModifier) /= 0
@@ -162,7 +157,7 @@ regionMousePressHandler _ region item evt = do
             _ <- swapMVar (regionState region) (RegionMove (ix-ex) (iy-ey))
             Qt.accept evt ()
 
-regionMouseMoveHandler :: Process.FeatureSpace -> Region -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
+regionMouseMoveHandler :: Process.Handle -> Region -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
 regionMouseMoveHandler fspace region item evt = do
     Qt.IPoint ex ey <- Qt.scenePos evt ()
     state <- readMVar (regionState region)
@@ -190,19 +185,19 @@ regionMouseMoveHandler fspace region item evt = do
             _ <- swapMVar (regionState region) (RegionResize ey)
             return ()
 
-regionMouseReleaseHandler :: Process.FeatureSpace -> Region -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
+regionMouseReleaseHandler :: Process.Handle -> Region -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneMouseEvent () -> IO ()
 regionMouseReleaseHandler _ region _ _ = do
     _ <- swapMVar (regionState region) RegionIdle
     return ()
 
 addRegion :: FeatureSpaceView -> Model.Region -> State -> IO State
 addRegion view region state = do
-    let c = colors state !! Model.regionId region
-        r = Model.radius region
-        x = Model.center region V.! 0
-        y = Model.center region V.! 1
+    let Just b = IMap.lookup (Model.regionId region) (regionColors state)
+        r      = Model.radius region
+        x      = Model.center region V.! 0
+        y      = Model.center region V.! 1
     item <- Qt.qGraphicsEllipseItem_nf (Qt.rectF (-r) (-r) (r*2) (r*2))
-    Qt.setBrush item =<< Qt.qBrush c
+    Qt.setBrush item b
     -- Qt.setFlags item $ Qt.fItemIsMovable + (Qt.qFlags_fromInt 2048) -- FIXME: Huh? Wtf? QGraphicsItem::ItemSendsGeometryChanges?
     Qt.addItem view item
     Qt.setPos item (Qt.pointF x y)
@@ -231,110 +226,152 @@ addRegion view region state = do
 showUnits :: FeatureSpaceView -> State -> [Model.Unit] -> IO ()
 showUnits view state us = do
     g <- takeMVar (unitGroup state)
+    _ <- takeMVar (units state)
     maybe (return ()) (Qt.removeItem view) g
+
     g <- Qt.qGraphicsItem_nf ()
     putMVar (unitGroup state) (Just g)
-    mapM_ (addUnit g state) us
+    putMVar (units state) . Map.fromList =<< mapM (addUnit g state) us
+
     Qt.setZValue g (-1 :: Double)
     Qt.addItem view g
 
-addUnit :: Qt.QGraphicsItem () -> State -> Model.Unit -> IO ()
+addUnit :: Qt.QGraphicsItem () -> State -> Model.Unit -> IO (Unique.Id, Qt.QGraphicsItem ())
 addUnit parent state unit = do
-    let (x, y) = pair (Feature.value (Model.feature unit))
+    let (x, y) = pair (Unit.value 0 unit)
         r      = unitRadius -- Model.minRadius
         box    = Qt.rectF (-r) (-r) (r*2) (r*2)
     item <- Qt.qGraphicsEllipseItem_nf box
     Qt.setParentItem item parent
     Qt.setPos item (Qt.pointF x y)
+
     -- Qt.setFlags item Qt.fItemIgnoresTransformations
     -- Qt.setHandler item "mousePressEvent(QGraphicsSceneMouseEvent*)" $ mouseHandler (unit u) action
+
     Qt.setHandler item "hoverEnterEvent(QGraphicsSceneHoverEvent*)" $ hoverHandler $
-        readMVar (playUnits state) >>= flip when (sendTo (featureSpace state) $ Process.ActivateUnit (-1) unit)
+        readMVar (playUnits state) >>= flip when (sendTo (synth state) $ Synth.PlayUnit (-1) (Synth.defaultSynth unit))
     Qt.setAcceptsHoverEvents item True
+
+    return (Unit.id unit, Qt.objectCast item)
 
 process :: forall o m b .
            (Control.Monad.Trans.MonadIO m) =>
-           FeatureSpaceView -> State -> ReceiverT Process.Output o m b
+           FeatureSpaceView -> State -> ReceiverT (Either Process.Output Highlight) o m b
 process view state = do
     x <- recv
     state' <-
         case x of
-            Process.DatabaseLoaded us -> do
+            Left (Process.DatabaseLoaded us) -> do
                 defer view state $ do
                     Qt.setItemIndexMethod view Qt.eNoIndex
                     showUnits view state us
                     Qt.setItemIndexMethod view Qt.eBspTreeIndex
                 return state
-            Process.UnitActivated _ unit -> do
-                defer view state $ do
-                    as <- takeMVar (activations state)
-                    let uid = Unit.id (Model.unit unit)
-                    case Map.lookup uid as of
-                        Nothing -> do
-                            -- Insert new highlight item
-                            let (x, y) = pair (Feature.value (Model.feature unit))
-                                r      = activationRadius
-                                box    = Qt.rectF (-r) (-r) (r*2) (r*2)
-                            -- item <- Qt.qGraphicsRectItem_nf box
-                            item <- Qt.qGraphicsEllipseItem box
-                            Qt.setPos item (Qt.pointF x y)
-                            Qt.addItem view item
-                            putMVar (activations state) (Map.insert uid (UnitActivation item 1) as)
-                        Just (UnitActivation item i) ->
-                            -- Increase activation count
-                            putMVar (activations state) (Map.insert uid (UnitActivation item (i+1)) as)
-                return state
-            Process.UnitDeactivated _ unit -> do
-                defer view state $ do
-                    as <- takeMVar (activations state)
-                    case Map.lookup (Unit.id unit) as of
-                        Nothing -> putMVar (activations state) as
-                        Just (UnitActivation item i) ->
-                            if i <= 1
-                                then do
-                                    -- Remove highlight item
-                                    Qt.removeItem view item
-                                    putMVar (activations state) (Map.delete (Unit.id unit) as)
-                                else do
-                                    -- Decrease activation count
-                                    putMVar (activations state) (Map.insert (Unit.id unit) (UnitActivation item (i-1)) as)
-                return state
-            Process.RegionAdded r ->
+            Left (Process.RegionAdded r) ->
                 io $ addRegion view r state
-            Process.RegionChanged r -> do
+            Left (Process.RegionChanged r) -> do
                 case IMap.lookup (Model.regionId r) (regions state) of
                     Nothing -> return ()
                     Just regionHandle ->
                         let item = regionItem regionHandle
-                            pos  = pair (Model.center r)
+                            pos  = Model.center2D r
                             rad  = Model.radius r
                             dia  = rad*2
                         in defer view state $ do
                             Qt.setPos item pos
                             Qt.qsetRect item (Qt.IRect (-rad) (-rad) dia dia)
                 return state
+            Right (HighlightOn unit) ->
+                case highlight state of
+                    Nothing ->
+                        return state
+                    Just hlState -> do
+                        defer view state $ do
+                            us <- readMVar (units state)
+                            as <- takeMVar (highlights hlState)
+                            let uid = Unit.id unit
+                            case Map.lookup uid as of
+                                Nothing -> do
+                                    -- Insert new highlight item
+                                    case Map.lookup uid us of
+                                        Nothing -> return ()
+                                        Just item -> do
+                                            Qt.IPoint x y <- Qt.scenePos item ()
+                                            let -- (x, y) = pair (Feature.value (Model.feature unit))
+                                                r      = highlightRadius
+                                                box    = Qt.rectF (-r) (-r) (r*2) (r*2)
+                                            -- item <- Qt.qGraphicsRectItem box
+                                            item <- Qt.qGraphicsEllipseItem box
+                                            Qt.setPos item (Qt.pointF x y)
+                                            Qt.setPen item (highlightPen hlState)
+                                            Qt.addItem view item
+                                            putMVar (highlights hlState) (Map.insert uid (UnitHighlight (Qt.objectCast item) 1) as)
+                                Just (UnitHighlight item i) ->
+                                    -- Increase highlight count
+                                    putMVar (highlights hlState) (Map.insert uid (UnitHighlight item (i+1)) as)
+                        return state
+            Right (HighlightOff unit) ->
+                case highlight state of
+                    Nothing ->
+                        return state
+                    Just hlState -> do
+                        defer view state $ do
+                            as <- takeMVar (highlights hlState)
+                            case Map.lookup (Unit.id unit) as of
+                                Nothing ->
+                                    putMVar (highlights hlState) as
+                                Just (UnitHighlight item i) ->
+                                    if i <= 1
+                                        then do
+                                            -- Remove highlight item
+                                            Qt.removeItem view item
+                                            putMVar (highlights hlState) (Map.delete (Unit.id unit) as)
+                                        else do
+                                            -- Decrease highlight count
+                                            putMVar (highlights hlState) (Map.insert (Unit.id unit) (UnitHighlight item (i-1)) as)
+                        return state
     process view state'
 
-update :: Chan (IO ()) -> FeatureSpaceView -> FeatureSpaceView -> IO ()
-update c _ _ = join (readChan c)
+update :: Chan (IO ()) -> FeatureSpaceView -> IO ()
+update c _ = join (readChan c)
 
 defer :: MonadIO m => FeatureSpaceView -> State -> IO () -> m ()
 defer view state action = io $ do
     writeChan (guiChan state) action
     Qt.emitSignal view "update()" ()
 
-newState :: Process.FeatureSpace -> IO State
-newState fspace = do
+getRegionColors :: Config.ConfigParser -> IO [Qt.QColor ()]
+getRegionColors config = mapM (\i -> Config.getColor config "FeatureSpace" ("regionColor" ++ show i)) [1..n]
+    where n = length Model.defaultRegions
+
+newState :: Process.Handle -> Synth.Handle -> IO State
+newState fspace synth = do
+    config <- Config.getConfig
+
     ug <- newMVar Nothing
-    hl <- newMVar Map.empty
-    cs <- UI.defaultColorsFromFile
+    us <- newMVar Map.empty
+
+    hl <- Config.getIO config "FeatureSpace" "highlightUnits" :: IO Bool
+    hlState <-
+        if hl
+            then do
+                hls     <- newMVar Map.empty
+                hlColor <- Config.getColor config "FeatureSpace" "highlightColor"
+                hlBrush <- Qt.qBrush hlColor
+                hlPen   <- Qt.qPen (hlBrush, 0::Double)
+                return $ Just $ HighlightState hlPen hls
+            else return Nothing
+
+    regionBrushes <- getRegionColors config >>= mapM Qt.qBrush
+
     pu <- newMVar False
     gc <- newChan
-    return $ State fspace ug hl (cycle cs) IMap.empty pu gc
+    
+    return $ State fspace synth ug us hlState (IMap.fromList (zip [0..] regionBrushes)) IMap.empty pu gc
 
-new :: Process.FeatureSpace -> IO (FeatureSpaceView, Handle Input Output)
-new fspace = do
-    state <- newState fspace
+new :: Process.Handle -> Synth.Handle -> IO (FeatureSpaceView, Handle Input Output)
+new fspace synth = do
+    state <- newState fspace synth
     
     view <- featureSpaceView_
     Qt.setItemIndexMethod view Qt.eNoIndex

@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE CPP, ScopedTypeVariables #-}
 import           Control.Applicative
 import           Control.Arrow
 import           Control.Concurrent (forkIO)
@@ -17,19 +17,29 @@ import           Data.Version (showVersion)
 import           Database.HDBC (quickQuery')
 import           Mescaline (Time)
 import qualified Mescaline.Application as App
+import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Database as DB
 import qualified Mescaline.Database.SqlQuery as Sql
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Synth.Database.Process as DatabaseP
-import qualified Mescaline.Synth.Pattern as P
-import qualified Mescaline.Synth.Sampler as Synth
+import qualified Mescaline.Synth.Sampler.Process as SynthP
+#if USE_OLD_SEQUENCER == 1
 import qualified Mescaline.Synth.Sequencer.Model as Sequencer
 import qualified Mescaline.Synth.Sequencer.Process as SequencerP
 import qualified Mescaline.Synth.Sequencer.View as SequencerView
+#else
+import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
+#endif -- USE_OLD_SEQUENCER
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpace.Process as FeatureSpaceP
 import qualified Mescaline.Synth.FeatureSpace.View as FeatureSpaceView
+import qualified Mescaline.Synth.Pattern as Pattern
+import qualified Mescaline.Synth.Pattern.Environment as Pattern
+import qualified Mescaline.Synth.Pattern.Event as Event
+import qualified Mescaline.Synth.Pattern.Patch as Patch
+import qualified Mescaline.Synth.Pattern.Process as PatternP
+import qualified Mescaline.Synth.Pattern.View as PatternView
 import qualified Sound.OpenSoundControl as OSC
 import qualified Sound.SC3.Server.State as State
 import qualified Sound.SC3.Server.Process as Server
@@ -54,21 +64,28 @@ import qualified Qtc.Enums.Classes.Core         as Qt
 import qualified Qtc.Enums.Core.QIODevice       as Qt
 import qualified Qtc.Enums.Core.Qt              as Qt
 import qualified Qtc.Enums.Gui.QFileDialog      as Qt
-import qualified Qtc.Enums.Gui.QGraphicsView    as Qt
 import qualified Qtc.Enums.Gui.QPainter         as Qt
 import qualified Qtc.Gui.Base                   as Qt
 import qualified Qtc.Gui.QAction                as Qt
 import qualified Qtc.Gui.QApplication           as Qt
 import qualified Qtc.Gui.QDialog                as Qt
 import qualified Qtc.Gui.QFileDialog            as Qt
+
+import qualified Qtc.Enums.Gui.QGraphicsView    as Qt
 import qualified Qtc.Gui.QGraphicsView          as Qt
 import qualified Qtc.Gui.QGraphicsView_h        as Qt
+
 import qualified Qtc.Gui.QKeySequence           as Qt
 import qualified Qtc.Gui.QMainWindow            as Qt
 import qualified Qtc.Gui.QMainWindow_h          as Qt
 import qualified Qtc.Gui.QMenu                  as Qt
 import qualified Qtc.Gui.QMenuBar               as Qt
 import qualified Qtc.Gui.QMessageBox            as Qt
+
+import qualified Qtc.Enums.Gui.QTextCursor      as Qt
+import qualified Qtc.Gui.QTextCursor            as Qt
+import qualified Qtc.Gui.QTextEdit              as Qt
+
 import qualified Qtc.Gui.QWheelEvent            as Qt
 import qualified Qtc.Gui.QWidget                as Qt
 import qualified Qtc.Gui.QWidget_h              as Qt
@@ -76,12 +93,14 @@ import qualified Qtc.Tools.QUiLoader            as Qt
 import qualified Qtc.Tools.QUiLoader_h          as Qt
 
 numRegions :: Int
-numRegions = 4
+numRegions = length FeatureSpace.defaultRegions
 
+#if USE_OLD_SEQUENCER
 sequencer0 :: Sequencer.Sequencer ()
 sequencer0 = Sequencer.cons 16 16 0.125 (Sequencer.Bar 0)
+#endif -- USE_OLD_SEQUENCER
 
-setEnv = setVal (P.attackTime) 0.01 . setVal (P.releaseTime) 0.02
+setEnv = setVal (Event.attackTime) 0.01 . setVal (Event.releaseTime) 0.02
 
 -- sceneKeyPressEvent :: MVar Bool -> Chan (Sequencer a -> Sequencer a) -> Qt.QWidget () -> Qt.QKeyEvent () -> IO ()
 -- sceneKeyPressEvent mute chan _ qkev = do
@@ -169,71 +188,6 @@ pipe f ichan ochan = do
     writeChan ochan b
     pipe f ichan ochan
 
-startSynth :: FeatureSpaceP.FeatureSpace -> IO (Chan (Either (Time, Unit.Unit) ()), Chan ())
-startSynth fspaceP = do
-    ichan <- newChan
-    ochan <- newChan
-
-    forkIO $ do
-        exe <- App.getResourceExecutable "supercollider/scsynth"
-        (scsynth, plugins) <-
-            case exe of
-                Nothing -> do
-                    exe <- App.findExecutable "scsynth"
-                    case exe of
-                        -- TODO: Display this in the UI
-                        Nothing -> do
-                            d <- App.getResourceDirectory
-                            fail $ unwords [
-                                    "I couldn't find the SuperCollider audio engine `scsynth'."
-                                  , "You need to put it either in `" ++ d </> "supercollider" ++ "' or into your PATH."
-                                  , "WARNING: Sound output will not work!" ]
-                        Just exe -> return (exe, Nothing)
-                Just exe -> do
-                    plg <- App.getResourcePath "supercollider/plugins"
-                    return (exe, Just [plg])
-        let
-            serverOptions = Server.defaultServerOptions {
-                Server.loadSynthDefs  = False
-              , Server.serverProgram  = scsynth
-              , Server.ugenPluginPath = plugins
-              }
-            rtOptions = Server.defaultRTOptions { Server.udpPortNumber = 2278 }
-        putStrLn $ unwords $ Server.rtCommandLine serverOptions rtOptions
-        (Server.withSynth
-            serverOptions
-            rtOptions
-            Server.defaultOutputHandler
-        -- (Server.withTransport
-        --     serverOptions
-        --     rtOptions
-            $ \(t :: OSC.UDP) -> do
-                synth <- Synth.new t serverOptions
-                fromSynthP <- spawn $ fix $ \loop -> do
-                    x <- recv
-                    case x of
-                        Synth.UnitStopped time unit -> sendTo fspaceP $ FeatureSpaceP.DeactivateUnit time unit
-                        _                           -> return ()
-                    loop
-                fromSynthP `listenTo` synth
-                fix $ \loop -> do
-                    e <- readChan ichan
-                    case e of
-                        Left (t, u) -> do
-                            -- b <- readMVar mute
-                            -- unless b $ do
-                            -- print u
-                            sendTo synth $ Synth.PlayUnit t u (setEnv P.defaultSynth)
-                            -- return ()
-                            loop
-                        Right _ -> return ()) `finally` writeChan ochan ()
-    return (ichan, ochan)
-
-stopSynth :: (Chan (Either (Time, Unit.Unit) ()), Chan ()) -> IO ()
-stopSynth (ichan, ochan) = do
-    writeChan ichan (Right ())
-    readChan ochan
-
 -- ====================================================================
 -- Menu definition utilities
 -- TODO: Factor this into a separate module.
@@ -243,6 +197,7 @@ data ActionType = Trigger | Checkable deriving (Eq, Show)
 data MenuDefinition =
     Menu String String [MenuDefinition]
   | Action String String String ActionType (Maybe String) (Qt.QWidget () -> Qt.QAction () -> IO ())
+  | Separator
 
 actionCallback :: Qt.QAction () -> (Qt.QWidget () -> Qt.QAction () -> IO ()) -> Qt.QWidget () -> Bool -> IO ()
 actionCallback a cb w _ = cb w a
@@ -267,9 +222,85 @@ defineMenu defs menuBar widget = mapM (f (Left menuBar) []) defs >>= return . co
                     Qt.connectSlot action "triggered()" widget slot (actionCallback action callback)
                     Qt.addAction menu action
                     return [(key, action)]
+        f menu path Separator = do
+            case menu of
+                Left _ -> return ()
+                Right menu -> Qt.addSeparator menu () >> return ()
+            return []
+
+defineWindowMenu :: [MenuDefinition] -> Qt.QMainWindow () -> IO [(String, Qt.QAction ())]
+defineWindowMenu defs window = do
+    menuBar <- Qt.menuBar window ()
+    defineMenu defs menuBar (Qt.objectCast window)
 
 trigger :: String -> [(String, Qt.QAction ())] -> IO ()
 trigger k = maybe (return ()) (flip Qt.trigger ()) . lookup k
+
+-- ====================================================================
+-- Logging to text view
+
+textEditLogger :: Log.Priority -> String -> Qt.QTextEdit () -> Log.GenericHandler (Qt.QTextEdit ())
+textEditLogger prio fmt textEdit =
+    Log.GenericHandler
+        prio
+        (Log.simpleLogFormatter fmt)
+        textEdit
+        (\edit msg -> do
+            c <- Qt.textCursor edit ()
+            Qt.insertText c msg
+            _ <- Qt.movePosition c (Qt.eEnd :: Qt.MoveOperation)
+            Qt.setTextCursor edit c)
+            --  edit->textCursor().insertHtml(fragment);
+            -- Qt.insertHtml
+        (const (return ()))
+
+chanLogger :: Log.Priority -> String -> Chan String -> IO () -> Log.GenericHandler (Chan String)
+chanLogger prio fmt chan action =
+    Log.GenericHandler
+        prio
+        (Log.simpleLogFormatter fmt)
+        chan
+        (\chan msg -> writeChan chan msg >> action)
+        (const (return ()))
+
+logPriorities :: [Log.Priority]
+logPriorities =
+    [ Log.DEBUG
+    , Log.INFO
+    , Log.NOTICE
+    , Log.WARNING
+    , Log.ERROR
+    , Log.CRITICAL
+    , Log.ALERT
+    , Log.EMERGENCY ]
+
+createLoggers :: MainWindow -> IO ()
+createLoggers logWindow = do
+    textEdit <- Qt.findChild logWindow ("<QTextEdit*>", "textEdit") :: IO (Qt.QTextEdit ())
+    chan <- newChan
+    Qt.connectSlot logWindow "logMessage()" logWindow "logMessage()" $ logMessage chan textEdit
+    let fmt = "[$prio][$loggername] $msg\n"
+        action = Qt.emitSignal logWindow "logMessage()" ()
+    mapM_ (\logger -> Log.updateGlobalLogger
+                        logger
+                        (Log.setHandlers $ map (\prio -> chanLogger prio fmt chan action)
+                                               logPriorities))
+          Log.components
+    -- Disable stderr logger
+    Log.updateGlobalLogger Log.rootLoggerName (Log.setHandlers ([] :: [Log.GenericHandler ()]))
+    where
+        logMessage :: Chan String -> Qt.QTextEdit () -> MainWindow -> IO ()
+        logMessage chan edit _ = do
+            msg <- readChan chan
+            c <- Qt.textCursor edit ()
+            Qt.insertText c msg
+            _ <- Qt.movePosition c (Qt.eEnd :: Qt.MoveOperation)
+            Qt.setTextCursor edit c
+
+clearLog :: MainWindow -> IO ()
+clearLog logWindow = do
+    edit <- Qt.findChild logWindow ("<QTextEdit*>", "textEdit") :: IO (Qt.QTextEdit ())
+    Qt.setPlainText edit ""
 
 -- ====================================================================
 -- Actions
@@ -294,6 +325,22 @@ importDialog fileMode w = do
         then Qt.selectedFiles d ()
         else return []
 
+action_file_openFile :: PatternP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_file_openFile h w _ = do
+    ps <- importDialog Qt.eExistingFile w
+    putStrLn $ "openFile: " ++ show ps
+    case ps of
+        [] -> return ()
+        (p:_) -> sendTo h $ PatternP.LoadPatch p
+
+action_file_saveFile :: PatternP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_file_saveFile h w _ = do
+    ps <- importDialog Qt.eAnyFile w
+    putStrLn $ "saveFile: " ++ show ps
+    case ps of
+        [] -> return ()
+        (p:_) -> sendTo h $ PatternP.StorePatch p
+
 action_file_importFile :: DatabaseP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_file_importFile db w _ = do
     ps <- importDialog Qt.eExistingFile w
@@ -306,12 +353,7 @@ action_file_importDirectory db w _ = do
     putStrLn $ "Import directory: " ++ show ps
     sendTo db $ DatabaseP.Import ps
 
-action_sequencer_clear :: SequencerP.Sequencer () -> Qt.QWidget () -> Qt.QAction () -> IO ()
-action_sequencer_clear h _ _ = sendTo h $ SequencerP.ClearAll
-
-action_sequencer_mute :: MVar Bool -> Qt.QWidget () -> Qt.QAction () -> IO ()
-action_sequencer_mute mute _ _ = modifyMVar_ mute (return . not)
-
+#if USE_OLD_SEQUENCER
 action_sequencer_playPause :: SequencerP.Sequencer () -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_sequencer_playPause h _ a = do
     b <- Qt.isChecked a ()
@@ -319,6 +361,21 @@ action_sequencer_playPause h _ a = do
 
 action_sequencer_reset :: SequencerP.Sequencer () -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_sequencer_reset h _ _ = sendTo h $ SequencerP.Transport SequencerP.Reset
+
+action_sequencer_clear :: SequencerP.Sequencer () -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_sequencer_clear h _ _ = sendTo h $ SequencerP.ClearAll
+
+action_sequencer_mute :: MVar Bool -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_sequencer_mute mute _ _ = modifyMVar_ mute (return . not)
+#else
+action_pattern_playPause :: PatternP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_pattern_playPause h _ a = do
+    b <- Qt.isChecked a ()
+    sendTo h $ PatternP.Transport $ if b then PatternP.Start else PatternP.Pause
+
+action_pattern_reset :: PatternP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_pattern_reset h _ _ = sendTo h $ PatternP.Transport PatternP.Reset
+#endif -- USE_OLD_SEQUENCER
 
 scaleFeatureSpace :: Double -> Qt.QGraphicsView () -> IO ()
 scaleFeatureSpace s v = Qt.qscale v (s, s)
@@ -337,8 +394,16 @@ action_featureSpace_zoom_zoomOut v _ _ = scaleFeatureSpace 0.5 v
 action_featureSpace_zoom_reset :: Qt.QGraphicsView () -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_featureSpace_zoom_reset v _ _ = setScaleFeatureSpace 600 v
 
+action_closeActiveWindow :: Qt.QWidget () -> Qt.QAction () -> IO ()
+action_closeActiveWindow _ _ = Qt.qApplicationActiveWindow () >>= flip Qt.close () >> return ()
+
+action_showWindow :: MainWindow -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_showWindow w _ _ = Qt.qshow w () >> Qt.activateWindow w ()
+
 main :: IO ()
 main = do
+    Log.initialize
+
     app <- Qt.qApplication  ()
 
     -- Parse arguments
@@ -349,41 +414,54 @@ main = do
     let pattern = case args of
                     (_:p:_) -> p
                     _       -> "%"
-        
-    -- FIXME: .ui file is not found in the resource for some reason
-    -- rcc <- Qt.registerResource "app/mescaline.rcc"
-    -- engine <- qScriptEngine ()
-    -- scriptFile <- qFile ":/calculator.js"
-    -- open scriptFile fReadOnly
-    -- ss <- qTextStream scriptFile
-    -- ra <- readAll ss ()
-    -- dv <- evaluate engine ra
-    -- close scriptFile ()
 
     mainWindow <- loadUI =<< App.getResourcePath "mescaline.ui"
+    editorWindow <- loadUI =<< App.getResourcePath "editor.ui"
+    logWindow <- loadUI =<< App.getResourcePath "messages.ui"
+
     -- Qt.setHandler mainWindow "keyPressEvent(QKeyEvent*)" $ windowKeyPressEvent
 
+    -- Synth process
+    (synthP, synthQuit) <- SynthP.new
+
+    -- Feature space process
+    fspaceP <- FeatureSpaceP.new
+
+    -- Feature space view
+    (fspaceView, fspaceViewP) <- FeatureSpaceView.new fspaceP synthP
+    connect Left fspaceP fspaceViewP
+    connect (\x -> case x of
+                SynthP.UnitStarted _ u -> Right $ FeatureSpaceView.HighlightOn u
+                SynthP.UnitStopped _ u -> Right $ FeatureSpaceView.HighlightOff u)
+            synthP fspaceViewP
+    
+    fspace_graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "featureSpaceView")
+    Qt.setScene fspace_graphicsView fspaceView
+
+    mapM_ (\i -> sendTo fspaceP $ FeatureSpaceP.AddRegion 0.5 0.5 0.025) [0..numRegions-1]
+    
     -- Sequencer process
+#if USE_OLD_SEQUENCER == 1
     seqP <- SequencerP.new sequencer0
     (seqView, seqViewP) <- SequencerView.new 30 2 seqP
     seqViewP `listenTo` seqP
     mute <- newMVar False
+#endif
+
+    patternP <- flip PatternP.new fspaceP =<< Patch.defaultPatch
+    (patternView, patternViewP) <- PatternView.new 30 2 patternP
+    patternViewP `listenTo` patternP
     
     -- Sequencer view
     seq_graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "sequencerView")
+#if USE_OLD_SEQUENCER == 1
     Qt.setScene seq_graphicsView seqView
+#else
+    Qt.setScene seq_graphicsView patternView
+#endif
 
-    -- matrixBox <- G.xmlGetWidget xml G.castToContainer "matrix"
-    -- G.containerAdd matrixBox canvas
-    -- tempo <- G.xmlGetWidget xml G.castToSpinButton "tempo"
-    -- G.onValueSpinned tempo $ do
-    --     t <- G.spinButtonGetValue tempo
-    --     let t' = 60/t/4
-    --     writeChan ichan (setVal tick t')
-    
-    -- Feature space process
-    fspaceP <- FeatureSpaceP.new
     -- Pipe sequencer output to feature space
+#if USE_OLD_SEQUENCER == 1
     fspaceSeqP <- spawn $ fix $ \loop -> do
         x <- recv
         case x of
@@ -394,32 +472,41 @@ main = do
                     _                 -> return ()
         loop
     fspaceSeqP `listenTo` seqP
-    
-    -- Feature space view
-    (fspaceView, fspaceViewP) <- FeatureSpaceView.new fspaceP
-    fspaceViewP `listenTo` fspaceP
-    
-    fspace_graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "featureSpaceView")
-    Qt.setScene fspace_graphicsView fspaceView
+#endif
 
-    mapM_ (\i -> sendTo fspaceP $ FeatureSpaceP.AddRegion 0.5 0.5 0.025) [0..numRegions-1]
-    
     -- Database process
     dbP <- DatabaseP.new
-    addListenerWith (\(DatabaseP.Changed path pattern) -> FeatureSpaceP.LoadDatabase path pattern) dbP fspaceP
+    connect (\(DatabaseP.Changed path pattern) -> FeatureSpaceP.LoadDatabase path pattern) dbP fspaceP
     sendTo dbP $ DatabaseP.Load dbFile pattern
     
-    -- Fork synth process
-    (synth_ichan, synth_ochan) <- startSynth fspaceP
-    
-    -- Pipe feature space view output to synth
-    toSynthP <- spawn $ fix $ \loop -> do
+    -- Pattern process
+    patternToFSpaceP <- spawn $ fix $ \loop -> do
         x <- recv
         case x of
-            FeatureSpaceP.UnitActivated t u -> io $ writeChan synth_ichan (Left (t, (FeatureSpace.unit u)))
-            _                               -> return ()
+            PatternP.Event time event -> do
+                -- io $ putStrLn $ "PatternP.Event " ++ show time ++ " " ++ show event
+                Event.withSynth (return ()) (sendTo synthP . SynthP.PlayUnit time . setEnv) event
+            _ -> return ()
         loop
-    toSynthP `listenTo` fspaceP
+    patternToFSpaceP `listenTo` patternP
+    fspaceToPatternP <- spawn $ fix $ \loop -> do
+        x <- recv
+        case x of
+            FeatureSpaceP.RegionChanged _ -> do
+                fspace <- query fspaceP FeatureSpaceP.GetModel
+                sendTo patternP $ PatternP.SetFeatureSpace fspace
+            _ -> return ()
+        loop
+    fspaceToPatternP `listenTo` fspaceP
+    
+    -- Pipe feature space view output to synth
+    -- toSynthP <- spawn $ fix $ \loop -> do
+    --     x <- recv
+    --     case x of
+    --         FeatureSpaceP.UnitActivated t u -> io $ writeChan synth_ichan (Left (t, (FeatureSpace.unit u)))
+    --         _                               -> return ()
+    --     loop
+    -- toSynthP `listenTo` fspaceP
 
     -- Set up actions and menus
     let aboutAction = Action "about" "About Mescaline" "Show about message box" Trigger Nothing action_about
@@ -429,39 +516,55 @@ main = do
             (if App.buildOS == App.OSX then darwinMenuDef else [])
             ++
             [ Menu "file" "File"
-              [ Action "importFile" "Import File..." "Import a file" Trigger (Just "Ctrl+i") (action_file_importFile dbP)
+              [ Action "openFile" "Open..." "Open file" Trigger (Just "Ctrl+o") (action_file_openFile patternP)
+              , Action "saveFile" "Save" "Save file" Trigger (Just "Ctrl+s") (action_file_saveFile patternP)
+              , Separator
+              , Action "importFile" "Import File..." "Import a file" Trigger (Just "Ctrl+i") (action_file_importFile dbP)
               , Action "importDirectory" "Import Directory..." "Import a directory" Trigger (Just "Ctrl+Shift+I") (action_file_importDirectory dbP) ]
+#if USE_OLD_SEQUENCER == 1
             , Menu "sequencer" "Sequencer"
               [ Action "play" "Play" "Start or pause the sequencer" Checkable (Just "SPACE") (action_sequencer_playPause seqP)
               , Action "reset" "Reset" "Reset the sequencer" Trigger (Just "RETURN") (action_sequencer_reset seqP)
               , Action "clear" "Clear" "Clear sequencer" Trigger (Just "Ctrl+k") (action_sequencer_clear seqP)
               -- , Action "mute" "Mute" "Mute sequencer" Trigger (Just "m") (action_sequencer_mute mute)
               ]
+#else
+            , Menu "sequencer" "Sequencer"
+              [ Action "play" "Play" "Start or pause the sequencer" Checkable (Just "SPACE") (action_pattern_playPause patternP)
+              ,  Action "reset" "Reset" "Reset the sequencer" Trigger (Just "RETURN") (action_pattern_reset patternP) ]
+#endif
             , Menu "featureSpace" "FeatureSpace"
               [ Menu "zoom" "Zoom"
                 [ Action "zoomIn" "Zoom In" "Zoom into feature space" Trigger (Just "Ctrl++") (action_featureSpace_zoom_zoomIn fspace_graphicsView)
                 , Action "zoomOut" "Zoom Out" "Zoom out of feature space" Trigger (Just "Ctrl+-") (action_featureSpace_zoom_zoomOut fspace_graphicsView)
-                , Action "reset" "Reset" "Reset feature space zoom" Trigger (Just "Ctrl+0") (action_featureSpace_zoom_reset fspace_graphicsView) ] ] ]
+                , Action "reset" "Reset" "Reset feature space zoom" Trigger (Just "Ctrl+0") (action_featureSpace_zoom_reset fspace_graphicsView) ] ]
+            , Menu "window" "Window"
+              [ Action "closeWindow" "Close" "Close window" Trigger (Just "Ctrl+w") action_closeActiveWindow
+              , Separator
+              , Action "mainWindow" "Main" "Show main window" Trigger (Just "Ctrl+Shift+w") (action_showWindow mainWindow)
+              , Action "editorWindow" "Editor" "Show editor window" Trigger (Just "Ctrl+Shift+e") (action_showWindow editorWindow)
+              , Separator
+              , Action "logWindow" "Messages" "Show message window" Trigger (Just "Ctrl+Shift+m") (action_showWindow logWindow)
+              , Action "clearLog" "Clear Messages" "Clear message window" Trigger (Just "Ctrl+Shift+c") (const (const (clearLog logWindow))) ]
+            ]
             ++
             (if App.buildOS /= App.OSX then helpMenuDef else [])
 
-    menuBar <- Qt.menuBar mainWindow ()
-    actions <- defineMenu menuDef menuBar (Qt.objectCast mainWindow)
+    actions <- defineWindowMenu menuDef (Qt.objectCast mainWindow)
     trigger "/featureSpace/zoom/reset" actions
+    defineWindowMenu menuDef (Qt.objectCast editorWindow)
+    defineWindowMenu menuDef (Qt.objectCast logWindow)
+    createLoggers logWindow -- =<< Qt.findChild logWindow ("<QTextEdit*>", "textEdit")
 
     -- Start the application
-
-    -- ctor <- evaluate engine "Calculator"
-    -- scriptUi <- newQObject engine ui
-    -- calc <- construct ctor [scriptUi]
     Qt.qshow mainWindow ()
     Qt.activateWindow mainWindow ()
-    
+
     ok <- Qt.qApplicationExec ()
     
     -- Signal synth thread and wait for it to exit.
     -- Otherwise stale scsynth processes will be lingering around.
-    stopSynth (synth_ichan, synth_ochan)
+    synthQuit
 
     putStrLn "Bye sucker."
     Qt.returnGC

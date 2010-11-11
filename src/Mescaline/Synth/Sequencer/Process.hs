@@ -24,7 +24,7 @@ data Input a =
     ToggleField !Int !Int !a
   | ClearAll
   | Transport   !TransportChange
-  | QueryModel  (MVar (Model.Sequencer a))
+  | QueryModel  (Query (Model.Sequencer a))
   | Tick_       !Time
 
 data Output a =
@@ -99,8 +99,8 @@ new s0 = do
                                         return $ Just $ state { model = Model.reset algorithm (model state)
                                                               , time = time
                                                               , tickThread = Just tid }
-                    QueryModel mvar -> do
-                        io $ putMVar mvar $ model state
+                    QueryModel query -> do
+                        answer query (model state)
                         return Nothing
                     Tick_ time' ->
                         case transport state of

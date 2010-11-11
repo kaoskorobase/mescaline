@@ -3,7 +3,8 @@
              ExistentialQuantification,
              FlexibleInstances,
              FunctionalDependencies,
-             UndecidableInstances #-} 
+             UndecidableInstances
+           , ScopedTypeVariables #-} 
 
 -- | This module provides a *very* basic support for processes with message queues.  It was built using channels and MVars.
 module Control.Concurrent.Process (
@@ -16,19 +17,23 @@ module Control.Concurrent.Process (
     self, sendTo, recv, poll, recvIn, sendRecv
 -- ** Notifications
   , Listener
-  , addListener, listenTo
-  , addListenerWith
-  , notifyListeners, notify
+  , connect_, listenTo
+  , connect
+  , notify, notifyListeners
+  , Query, query, answer
   , io
 ) where
 
+import Control.Exception (PatternMatchFail)
 import Control.Monad.Reader
 import Control.Monad.State.Class
 import Control.Monad.Writer.Class
 import Control.Monad.Error.Class
 import Control.Monad.CatchIO
+import qualified Data.IVar as IVar
 import Data.Monoid
 import Control.Concurrent
+import Prelude hiding (catch)
 
 -- | A Process handle.  It's returned on process creation and should be used
 -- | afterwards to send messages to it
@@ -121,26 +126,48 @@ sendRecv h a = sendTo h a >> recv
 
 -- Basic listener support
 
-addListener :: Handle i o -> Handle o o' -> IO ()
-addListener (PH _ _ mv) b = modifyMVar_ mv $ \ls -> return $ (Listener b) : ls
+connect_ :: Handle i o -> Handle o o' -> IO ()
+connect_ (PH _ _ mv) b = modifyMVar_ mv $ \ls -> return $ (Listener b) : ls
 
-listenTo :: Handle o o' -> Handle i o -> IO ()
-listenTo = flip addListener
-
-addListenerWith :: (o -> i') -> Handle i o -> Handle i' o' -> IO ()
-addListenerWith f p l = do
+connect :: (o -> i') -> Handle i o -> Handle i' o' -> IO ()
+connect f p l = do
     h <- spawn $ fix $ \loop -> do
         o <- recv
         let i' = f o
-        i' `seq` sendTo l i'
+        catch (i' `seq` sendTo l i') (\(_ :: PatternMatchFail) -> return ())
         loop
-    p `addListener` h
+    p `connect_` h
+
+listenTo :: Handle o o' -> Handle i o -> IO ()
+listenTo = flip connect_
 
 notifyListeners :: MonadIO m => Handle i o -> o -> m ()
 notifyListeners (PH _ _ ls) o = liftIO (readMVar ls >>= mapM_ (\(Listener h) -> sendTo h o))
 
 notify :: MonadIO m => o -> ReceiverT i o m ()
 notify o = RT $ ask >>= flip notifyListeners o
+
+-- | Query type.
+newtype Query a = Query (IVar.IVar a)
+
+-- | Answer a query.
+--
+-- Queries can only be answered once, otherwise an error will be thrown.
+answer :: MonadIO m =>
+    Query a
+ -> a
+ -> ReceiverT i o m ()
+answer (Query v) = io . IVar.write v
+
+-- | Synchronously query a process, using the conversion function f.
+query :: MonadIO m =>
+    Handle i o
+ -> (Query a -> i)
+ -> m a
+query h f = do
+    v <- io $ IVar.new
+    sendTo h (f (Query v))
+    io $ IVar.blocking (IVar.read v)
 
 -- | /spawn/ starts a process and returns its handle. Usage:
 -- @
@@ -161,12 +188,14 @@ spawn p = liftIO $ do
 -- @
 --      result <- runHere process
 -- @
-runHere :: MonadIO m => Process i o t   -- ^ The process to be run
-         -> m t                         -- ^ It's returned as an action
-runHere p = liftIO $ do
-    c <- newChan
-    t <- myThreadId
-    m <- newMVar []
+runHere :: MonadIO m => ReceiverT i o m t -- ^ The process to be run
+         -> m t                           -- ^ It's returned as an action
+runHere p = do
+    (c, t, m) <- liftIO $ do
+        c <- newChan
+        t <- myThreadId
+        m <- newMVar []
+        return (c, t, m)
     runReaderT (internalReader p) $ PH c t m
 
 -- | /self/ returns the handle of the current process. Usage:
@@ -205,3 +234,4 @@ onInner f (RT m) = RT $ mapReaderT f m
 
 io :: (MonadIO m) => IO a -> m a
 io = liftIO
+

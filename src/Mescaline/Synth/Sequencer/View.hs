@@ -100,10 +100,8 @@ new boxSize padding sequencer = do
     
     -- FIXME: How to abstract this away?
     -- Asynchronous messages vs. synchronous queries
-    modelVar <- newEmptyMVar
-    sendTo sequencer $ Process.QueryModel modelVar
-    model <- readMVar modelVar
-    
+    model <- query sequencer Process.QueryModel
+
     fields <- initScene view
                         (Params boxSize padding)
                         (Model.rows model)
@@ -111,6 +109,7 @@ new boxSize padding sequencer = do
                         (\(r, c) -> sendTo sequencer $ Process.ToggleField r c ())
     colors <- UI.defaultColorsFromFile
 
+    modelVar <- newMVar model
     let state = State modelVar fields colors
 
     Qt.connectSlot view "updateScene()" view "updateScene()" $ updateScene state

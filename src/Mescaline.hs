@@ -1,6 +1,5 @@
 module Mescaline (
-    Time, Duration
+    module Mescaline.Time
 ) where
 
-type Time     = Double -- ^ Absolute or relative time stamp
-type Duration = Double -- ^ Difference of times
+import Mescaline.Time

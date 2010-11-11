@@ -9,6 +9,6 @@ instance Monoid (OSC) where
     mappend m@(Message _ _)     (Bundle t xs)  = Bundle t           (m:xs)
     mappend   (Bundle t xs)   m@(Message _ _)  = Bundle t           (xs++[m])
     mappend   (Bundle _ [])     (Bundle _ [])  = mempty
-    mappend   (Bundle t xs)     (Bundle _ [])  = Bundle t           xs
-    mappend   (Bundle _ [])     (Bundle t xs)  = Bundle t           xs
+    mappend b@(Bundle _ _)      (Bundle _ [])  = b
+    mappend   (Bundle _ [])   b@(Bundle _ _)   = b
     mappend   (Bundle t xs1)    (Bundle _ xs2) = Bundle t           (xs1++xs2)

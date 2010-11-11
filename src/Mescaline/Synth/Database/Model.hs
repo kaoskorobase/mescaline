@@ -40,14 +40,14 @@ transformFeature' :: ([[Feature.Feature]] -> [Feature.Feature]) -> FilePath -> [
 transformFeature' func dbFile features = do
     DB.withDatabase dbFile $ \c -> do
         DB.withTransaction c $ \_ -> do
-            (units, sfMap) <- Sql.unitQuery
+            res <- Sql.unitQuery
                 (DB.quickQuery' c)
                     -- (segmentation unit `eq` seg)
                     Sql.all
                     features
-            case units of
-                Left e   -> fail e
-                Right us -> do
+            case res of
+                Left e -> fail e
+                Right (us, _) -> do
                     case func (map snd us) of
                         [] -> return ()
                         features -> do
@@ -75,10 +75,10 @@ importPaths dbFile paths = DB.handleSqlError
                            $ DB.withDatabase dbFile
                            $ Meap.importPaths Nothing paths
 
-query :: FilePath -> Segmentation -> String -> [Feature.Descriptor] -> IO (Either String [(Unit.Unit, [Feature.Feature])], Sql.SourceFileMap)
+query :: FilePath -> Segmentation -> String -> [Feature.Descriptor] -> IO (Either String ([(Unit.Unit, [Feature.Feature])], Sql.SourceFileMap))
 query dbFile seg pattern features = do
     DB.withDatabase dbFile $ \c -> do
-        Sql.unitQuery (DB.quickQuery' c)
+        Sql.unitQuery (DB.quickQuery c)
               ((url sourceFile `like` pattern) `and` (segmentation unit `eq` seg))
               features
 
