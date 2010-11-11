@@ -71,7 +71,7 @@ initScene view p rows cols action = do
                     x = padding p + fromIntegral c * (boxSize p + padding p)
                     box = Qt.rectF x y (boxSize p) (boxSize p)
                     coord = (r, c)
-                item <- Qt.qGraphicsRectItem_nf box
+                item <- Qt.qGraphicsRectItem box
                 Qt.setHandler item "mousePressEvent(QGraphicsSceneMouseEvent*)" $ mouseHandler coord action
                 Qt.addItem view item
                 return (coord, item)
