@@ -172,8 +172,12 @@ new patch0 fspaceP = do
                                             Left e -> do
                                                 io $ print e
                                                 return Nothing
-                                            Right pattern -> do
-                                                let env = Environment.mkEnvironment 0 fspace (Patch.sequencer (patch state))
+                                            Right (pattern, bindings) -> do
+                                                let env = Environment.mkEnvironment
+                                                            0
+                                                            bindings
+                                                            fspace
+                                                            (Patch.sequencer (patch state))
                                                 tid  <- io $ startPlayerThread proc pattern env time
                                                 return $ Just $ state { time = time
                                                                       , playerThread = Just tid }
@@ -194,8 +198,12 @@ new patch0 fspaceP = do
                                             Left e -> do
                                                 io $ print e
                                                 return Nothing
-                                            Right pattern -> do
-                                                let env = Environment.mkEnvironment 0 fspace (Patch.sequencer (patch state))
+                                            Right (pattern, bindings) -> do
+                                                let env = Environment.mkEnvironment
+                                                            0
+                                                            bindings
+                                                            fspace
+                                                            (Patch.sequencer (patch state))
                                                 tid <- io $ startPlayerThread proc pattern env time
                                                 return $ Just $ state { time = time
                                                                       , playerThread = Just tid }

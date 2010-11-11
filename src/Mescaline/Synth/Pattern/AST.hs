@@ -2,13 +2,11 @@
 module Mescaline.Synth.Pattern.AST where
 
 import           Control.Monad
-import           Control.Monad.State (State)
+import           Control.Monad.State (MonadState, State)
 import qualified Control.Monad.State as State
 import qualified Data.IntMap as Map
 import           Prelude hiding (cycle, filter, map, seq, zip)
 
--- type UnFunc = String
--- type BinFunc = String
 data UnaryFunc =
     UF_abs
   | UF_signum
@@ -53,86 +51,80 @@ data Field =
   | CursorValue
   deriving (Eq, Read, Show)
 
-type Name = String
-data Predicate = Predicate deriving (Eq, Read, Show)
-
 data RegionIterator =
     Uniform
     deriving (Eq, Read, Show)
 
 -- | This class represents the abstract pattern language syntax.
 --
--- The repr argument is a placeholder for the concrete representation; in our case
+-- The pattern argument is a placeholder for the concrete representation; in our case
 -- the representation constructs an abstract syntax tree (see 'Pattern'), that is
 -- read and compiled to a 'Mescaline.Synth.Pattern.Pattern'.
-class Language repr where
-    value :: Double -> repr Scalar
+class Language pattern where
+    value :: Double -> pattern Scalar
     
-    -- bindS :: repr Scalar -> (repr Scalar -> repr b) -> repr b -- like flip ($)
-    bind :: Bind repr a => repr a -> (repr a -> repr b) -> repr b -- like flip ($)
+    bind :: Bind pattern a b => pattern a -> (pattern a -> pattern b) -> pattern b
     
-    cycle :: Cycle repr a => repr a -> repr a
-    -- cycleE :: repr Event -> repr Event
+    cycle :: Cycle pattern a => pattern a -> pattern a
     
-    map   :: UnaryFunc -> repr Scalar -> repr Scalar
-    zip   :: BinaryFunc -> repr Scalar -> repr Scalar -> repr Scalar
+    map   :: UnaryFunc -> pattern Scalar -> pattern Scalar
+    zip   :: BinaryFunc -> pattern Scalar -> pattern Scalar -> pattern Scalar
     
-    seq   :: Seq repr a => [repr a] -> repr Scalar -> repr a
-    -- seqE  :: [repr Event] -> repr Scalar -> repr Event
-    ser   :: Ser repr a => [repr a] -> repr Scalar -> repr a
-    -- serE  :: [repr Event] -> repr Scalar -> repr Event
-    par   :: [repr Event] -> repr Event
+    seq   :: Seq pattern a => [pattern a] -> pattern Scalar -> pattern a
+    ser   :: Ser pattern a => [pattern a] -> pattern Scalar -> pattern a
+    par   :: [pattern Event] -> pattern Event
 
     -- Comparisons
-    (==) :: repr Scalar -> repr Scalar -> repr Boolean
-    (>)  :: repr Scalar -> repr Scalar -> repr Boolean
-    (>=) :: repr Scalar -> repr Scalar -> repr Boolean
-    (<)  :: repr Scalar -> repr Scalar -> repr Boolean
-    (<=) :: repr Scalar -> repr Scalar -> repr Boolean
+    (==) :: pattern Scalar -> pattern Scalar -> pattern Boolean
+    (>)  :: pattern Scalar -> pattern Scalar -> pattern Boolean
+    (>=) :: pattern Scalar -> pattern Scalar -> pattern Boolean
+    (<)  :: pattern Scalar -> pattern Scalar -> pattern Boolean
+    (<=) :: pattern Scalar -> pattern Scalar -> pattern Boolean
 
     -- Events
-    get :: Field -> repr Event -> repr Scalar
-    set :: Field -> repr Scalar -> repr Event -> repr Event
-    filter :: repr Boolean -> repr Event -> repr Event
+    get :: Field -> pattern Event -> pattern Scalar
+    set :: Field -> pattern Scalar -> pattern Event -> pattern Event
+    filter :: pattern Boolean -> pattern Event -> pattern Event
 
     -- Coordinates
-    coord :: repr Scalar -> repr Scalar -> repr Coord
-    polar :: repr Coord -> repr Scalar -> repr Scalar -> repr Coord
-    x :: repr Coord -> repr Scalar
-    y :: repr Coord -> repr Scalar
-    constrain :: repr Coord -> repr Scalar -> repr Coord -> repr Coord
+    coord :: pattern Scalar -> pattern Scalar -> pattern Coord
+    polar :: pattern Coord -> pattern Scalar -> pattern Scalar -> pattern Coord
+    x :: pattern Coord -> pattern Scalar
+    y :: pattern Coord -> pattern Scalar
+    constrain :: pattern Coord -> pattern Scalar -> pattern Coord -> pattern Coord
 
     -- Regions
-    center :: repr Scalar -> repr Coord
-    radius :: repr Scalar -> repr Scalar
-    closest :: Int -> repr Scalar -> repr Coord -> repr Scalar -> repr Event
-    -- | @region iterator track defaultDelta region@
-    region :: RegionIterator -> Int -> repr Scalar -> repr Scalar -> repr Event
+    center :: pattern Scalar -> pattern Coord
+    radius :: pattern Scalar -> pattern Scalar
+    -- | @closest cursor defaultDelta coord radius@
+    closest :: Int -> pattern Scalar -> pattern Coord -> pattern Scalar -> pattern Event
+    -- | @region iterator cursor defaultDelta region@
+    region :: RegionIterator -> Int -> pattern Scalar -> pattern Scalar -> pattern Event
     
     -- Cursor
-    step :: repr Scalar -> repr Scalar -> repr Event -> repr Event
+    step :: pattern Scalar -> pattern Scalar -> pattern Event -> pattern Event
 
     -- Randomness
-    rand    :: repr Scalar -> repr Scalar -> repr Scalar
-    exprand :: repr Scalar -> repr Scalar -> repr Scalar
+    rand    :: pattern Scalar -> pattern Scalar -> pattern Scalar
+    exprand :: pattern Scalar -> pattern Scalar -> pattern Scalar
 
     -- Debugging
-    trace :: Trace repr a => repr a -> repr a
+    trace :: Trace pattern a => pattern a -> pattern a
 
-class Bind repr a where
-    bindI :: repr a -> (repr a -> repr b) -> repr b
+class Bind pattern a b where
+    bindI :: pattern a -> (pattern a -> pattern b) -> pattern b
 
-class Cycle repr a where
-    cycleI :: repr a -> repr a
+class Cycle pattern a where
+    cycleI :: pattern a -> pattern a
 
-class Seq repr a where
-    seqI :: [repr a] -> repr Scalar -> repr a
+class Seq pattern a where
+    seqI :: [pattern a] -> pattern Scalar -> pattern a
 
-class Ser repr a where
-    serI :: [repr a] -> repr Scalar -> repr a
+class Ser pattern a where
+    serI :: [pattern a] -> pattern Scalar -> pattern a
 
-class Trace repr a where
-    traceI :: repr a -> repr a
+class Trace pattern a where
+    traceI :: pattern a -> pattern a
 
 -- | An integer identifier for referring to a binding.
 type Binding = Int
@@ -146,12 +138,22 @@ type ExpMap t = Map.IntMap t
 -- bindings to expressions, one for each type in the object language.
 data ASTState = ASTState {
     hashCount :: Binding    -- ^Running counter for binding identifiers
-  , sMap :: ExpMap Scalar   -- ^Binding map for scalar expressions.
+  -- , bMap :: ExpMap Boolean  -- ^Binding map for boolean expressions.
+  -- , cMap :: ExpMap Coord    -- ^Binding map for coordinate expressions.
   , eMap :: ExpMap Event    -- ^Binding map for event expressions.
+  , sMap :: ExpMap Scalar   -- ^Binding map for scalar expressions.
   } deriving (Eq, Read, Show)
 
 -- | Abstract pattern tree wrapped in a state monad.
 newtype Pattern t = AST { unAST :: State ASTState t }
+
+-- | Return a new unique binding hash.
+newHash :: State ASTState Binding
+newHash = do
+    s <- State.get
+    let h = hashCount s
+    State.put s { hashCount = succ h }
+    return h
 
 -- | A Patch is an event pattern.
 type Patch = Pattern Event
@@ -188,7 +190,8 @@ instance Language Pattern where
     set    = liftAST2 . E_set
     filter = liftAST2 E_filter
 
-    -- Coordinates
+    -- *Coordinates
+    
     coord     = liftAST2 C_coord
     polar     = liftAST3 C_polar
     x         = liftAST S_x
@@ -259,25 +262,54 @@ instance Floating (Pattern Scalar) where
     atanh   = map UF_atanh
     acosh   = map UF_acosh
 
-instance Bind Pattern Scalar where
-    bindI e f = AST $ do
-        a <- unAST e
-        s <- State.get
-        let h  = hashCount s
-            s' = s { hashCount = succ h
-                   , sMap = Map.insert h a (sMap s) }
-        State.put s'
-        unAST $ f (AST (return (S_binding h)))
+-- instance Bind Pattern Scalar where
+--     bindI e f = AST $ do
+--         a <- unAST e
+--         s <- State.get
+--         let h  = hashCount s
+--             s' = s { hashCount = succ h
+--                    , sMap = Map.insert h a (sMap s) }
+--         State.put s'
+--         unAST $ f (AST (return (S_binding h)))
+-- 
+-- instance Bind Pattern Event where
+--     bindI e f = AST $ do
+--         a <- unAST e
+--         s <- State.get
+--         let h  = hashCount s
+--             s' = s { hashCount = succ h
+--                    , eMap = Map.insert h a (eMap s) }
+--         State.put s'
+--         unAST $ f (AST (return (E_binding h)))
 
-instance Bind Pattern Event where
-    bindI e f = AST $ do
-        a <- unAST e
-        s <- State.get
-        let h  = hashCount s
-            s' = s { hashCount = succ h
-                   , eMap = Map.insert h a (eMap s) }
-        State.put s'
-        unAST $ f (AST (return (E_binding h)))
+bindP :: (Binding -> a)
+      -> (Binding -> a -> b -> b)
+      -> Pattern a -> (Pattern a -> Pattern b) -> Pattern b
+bindP fBinding fBind e f = AST $ do
+    h <- newHash
+    a <- unAST e
+    b <- unAST (f (AST (return (fBinding h))))
+    return $ fBind h a b
+
+instance Bind Pattern Boolean Boolean where bindI = bindP B_binding B_bind_B
+instance Bind Pattern Boolean Coord   where bindI = bindP B_binding C_bind_B
+instance Bind Pattern Boolean Event   where bindI = bindP B_binding E_bind_B
+instance Bind Pattern Boolean Scalar  where bindI = bindP B_binding S_bind_B
+
+instance Bind Pattern Coord Boolean where bindI = bindP C_binding B_bind_C
+instance Bind Pattern Coord Coord   where bindI = bindP C_binding C_bind_C
+instance Bind Pattern Coord Event   where bindI = bindP C_binding E_bind_C
+instance Bind Pattern Coord Scalar  where bindI = bindP C_binding S_bind_C
+
+instance Bind Pattern Event Boolean where bindI = bindP E_binding B_bind_E
+instance Bind Pattern Event Coord   where bindI = bindP E_binding C_bind_E
+instance Bind Pattern Event Event   where bindI = bindP E_binding E_bind_E
+instance Bind Pattern Event Scalar  where bindI = bindP E_binding S_bind_E
+
+instance Bind Pattern Scalar Boolean where bindI = bindP S_binding B_bind_S
+instance Bind Pattern Scalar Coord   where bindI = bindP S_binding C_bind_S
+instance Bind Pattern Scalar Event   where bindI = bindP S_binding E_bind_S
+instance Bind Pattern Scalar Scalar  where bindI = bindP S_binding S_bind_S
 
 instance Cycle Pattern Scalar where
     cycleI = AST . liftM S_cycle . unAST
@@ -320,15 +352,29 @@ patch :: Pattern Event -> Tree Event
 patch = runAST
 
 data Boolean =
-    B_compare Comparison Scalar Scalar
+  -- Binding
+    B_binding Binding
+  | B_bind_B Binding Boolean Boolean
+  | B_bind_C Binding Coord   Boolean
+  | B_bind_E Binding Event   Boolean
+  | B_bind_S Binding Scalar  Boolean
+  -- Scalar comparison
+  | B_compare Comparison Scalar Scalar
+  -- Regions
   | B_contains Coord Scalar Coord
   -- Debugging
   | B_trace Boolean
   deriving (Eq, Read, Show)
 
 data Scalar =
+  -- Constant
     S_value Double
+  -- Binding
   | S_binding Binding
+  | S_bind_B Binding Boolean Scalar
+  | S_bind_C Binding Coord   Scalar
+  | S_bind_E Binding Event   Scalar
+  | S_bind_S Binding Scalar  Scalar
   | S_get Field Event
   -- Structure
   | S_cycle Scalar
@@ -350,8 +396,16 @@ data Scalar =
   deriving (Eq, Read, Show)
 
 data Coord =
+  -- Constructor
     C_coord Scalar Scalar
   | C_polar Coord Scalar Scalar
+  -- Binding
+  | C_binding Binding
+  | C_bind_B Binding Boolean Coord
+  | C_bind_C Binding Coord   Coord
+  | C_bind_E Binding Event   Coord
+  | C_bind_S Binding Scalar  Coord
+  -- Regions
   | C_center Scalar
   | C_constrain Coord Scalar Coord
   -- Debugging
@@ -361,6 +415,11 @@ data Coord =
 data Event =
   -- Binding
     E_binding Binding
+  | E_bind_B Binding Boolean Event
+  | E_bind_C Binding Coord   Event
+  | E_bind_E Binding Event   Event
+  | E_bind_S Binding Scalar  Event
+  -- Field access
   | E_set Field Scalar Event
   -- Structure
   | E_cycle Event

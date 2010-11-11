@@ -55,7 +55,7 @@ defaultPatch = do
         rs = defaultRegions
         n  = length rs
 
-pattern :: Patch -> Either CompileError (Pattern Event)
+pattern :: Patch -> Either CompileError (Pattern Event, Comp.Bindings)
 pattern = Comp.compile . syntaxTree
 
 modifySequencer :: (Sequencer -> Sequencer) -> Patch -> Patch

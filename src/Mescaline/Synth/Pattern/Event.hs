@@ -4,7 +4,7 @@
 
 module Mescaline.Synth.Pattern.Event (
     Event
-  , Cursor(..)
+  , Cursor
   , rest
   , synthEvent
   , delta
@@ -59,14 +59,16 @@ ACCESSOR(sustainLevel,  _sustainLevel,  Synth, Double)
 ACCESSOR(gateLevel,     _gateLevel,     Synth, Double)
 ACCESSOR(latency,       _latency,       Synth, Double)
 
-data Cursor =
-    NoCursor
-  | Cursor {
-        cursorId       :: Int
-      , cursorPosition :: (Int,Int)
-      , cursorValue    :: Double
-      }
-    deriving (Eq, Read, Show)
+-- data Cursor =
+--     NoCursor
+--   | Cursor {
+--         cursorId       :: Int
+--       , cursorPosition :: (Int,Int)
+--       , cursorValue    :: Double
+--       }
+--     deriving (Eq, Read, Show)
+
+type Cursor = Int
 
 data Event =
     Event {

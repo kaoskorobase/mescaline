@@ -85,13 +85,13 @@ forceMaybe :: String -> Maybe a -> a
 forceMaybe e Nothing  = throw (RuntimeError e)
 forceMaybe _ (Just a) = a
 
-getCursor :: Int -> Pattern Event.Cursor
-getCursor i = fmap (\s -> case Sequencer.getCursor (max 0 (min (length (Sequencer.cursors s) - 1) i)) s of
-                                Nothing -> error "getCursor: This shouldn't happen"
-                                Just c  -> case Sequencer.lookupCursor c s of
-                                            Nothing -> Event.Cursor i (Sequencer.row c, Sequencer.column c) 0
-                                            Just v  -> Event.Cursor i (Sequencer.row c, Sequencer.column c) v)
-                       (askA Environment.sequencer)
+-- getCursor :: Int -> Pattern Event.Cursor
+-- getCursor i = fmap (\s -> case Sequencer.getCursor (max 0 (min (length (Sequencer.cursors s) - 1) i)) s of
+--                                 Nothing -> error "getCursor: This shouldn't happen"
+--                                 Just c  -> case Sequencer.lookupCursor c s of
+--                                             Nothing -> Event.Cursor i (Sequencer.row c, Sequencer.column c) 0
+--                                             Just v  -> Event.Cursor i (Sequencer.row c, Sequencer.column c) v)
+--                        (askA Environment.sequencer)
 
 getRegion :: Pattern Double -> Pattern FeatureSpace.Region
 getRegion = pzipWith (\fs i -> let r = truncate i
@@ -118,10 +118,10 @@ constrain = pzipWith3 f
         f c r p | C.realPart (abs (uncurry (C.:+) c - uncurry (C.:+) p)) <= r = p
                 | otherwise = (-1, -1)
 
-closest :: Int -> Pattern Double -> Pattern (Double, Double) -> Pattern Double -> Pattern Event
-closest i = pzipWith4 f (pzip (askA Environment.featureSpace) (getCursor i))
+closest :: Event.Cursor -> Pattern Double -> Pattern (Double, Double) -> Pattern Double -> Pattern Event
+closest c = pzipWith4 f (askA Environment.featureSpace)
     where
-        f (fs, c) dt (x, y) r =
+        f fs dt (x, y) r =
             let rest = Event.rest c dt
             in case FeatureSpace.closest2D (x, y) fs of
                 Nothing -> rest
@@ -138,34 +138,38 @@ filterE = pzipWith f
 regionUnits :: Pattern Double -> Pattern [FeatureSpace.Unit]
 regionUnits i = pzipWith (FeatureSpace.regionUnits . truncate) i (askA (Environment.featureSpace))
 
-region :: AST.RegionIterator -> Int -> Pattern Double -> Pattern Double -> Pattern Event
-region AST.Uniform i dt r = pzipWith3 f (getCursor i) dt (pchooseFrom (regionUnits r))
+region :: AST.RegionIterator -> Event.Cursor -> Pattern Double -> Pattern Double -> Pattern Event
+region AST.Uniform c dt r = pzipWith f dt (pchooseFrom (regionUnits r))
     where
-        f c dt = maybe (Event.rest c dt) (Event.synthEvent c)
-        -- mke c Nothing = Event.rest c
-        -- mke
+        f dt = maybe (Event.rest c dt) (Event.synthEvent c)
         -- Event.synth ^: (fmap Event.defaultSynth u <*) $ e
 
 data CursorBehavior = WrapCursor | MirrorCursor
 
 step :: Pattern Double -> Pattern Double -> Pattern Event -> Pattern Event
-step rowInc colInc = pzipWith3 f (pzip rowInc colInc) (askA Environment.sequencer)
+step rowInc colInc e = M.join (pzipWith3 f (fmap (getVal Event.cursor) e) rowInc colInc) *> e
     where
-        f (ri,ci) s e =
-            let cursor   = e ^. Event.cursor
-                (r, c)   = Event.cursorPosition cursor
-                (r', c') = (r + signum (round ri), c + signum (round ci))
-                r''      = if r' < 0
-                            then Sequencer.rows s + r'
-                            else if r' >= Sequencer.rows s
-                                 then r' - Sequencer.rows s
-                                 else r'
-                c''      = if c' < 0
-                            then Sequencer.cols s + c'
-                            else if c' >= Sequencer.cols s
-                                 then c' - Sequencer.cols s
-                                 else c'
-            in Event.cursor ^= cursor { Event.cursorPosition = (r'',c'') } $ e
+        f i ri ci =
+            Accessor.modify
+                Environment.sequencer $
+                    \s -> Sequencer.modifyCursor (
+                        \cursor ->
+                            let (r, c)   = Sequencer.position cursor
+                                (r', c') = (r + signum (round ri), c + signum (round ci))
+                                r''      = if r' < 0
+                                            then Sequencer.rows s + r'
+                                            else if r' >= Sequencer.rows s
+                                                 then r' - Sequencer.rows s
+                                                 else r'
+                                c''      = if c' < 0
+                                            then Sequencer.cols s + c'
+                                            else if c' >= Sequencer.cols s
+                                                 then c' - Sequencer.cols s
+                                                 else c'
+                            in Sequencer.Cursor r'' c'') i s
+                           -- Event.cursor ^= cursor { Event.cursorPosition = (r'',c'') } $ e
+                           -- (Sequencer.setCursor (e ^. Event.cursor) (Sequencer.Cursor r'' c''))
+                           --  *> return e
 
 -- advanceCursor :: Pattern (Maybe Int) -> Pattern ()
 -- advanceCursor = join . fmap f

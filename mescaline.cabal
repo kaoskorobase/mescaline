@@ -258,6 +258,7 @@ library
         Mescaline.Synth.Pattern.AST
         Mescaline.Synth.Pattern.ASTLib
         Mescaline.Synth.Pattern.Base
+        Mescaline.Synth.Pattern.Binding
         Mescaline.Synth.Pattern.Compiler
         Mescaline.Synth.Pattern.Environment
         Mescaline.Synth.Pattern.Event

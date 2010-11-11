@@ -13,5 +13,15 @@ import qualified Prelude as P
 -- constant = cycle . realToFrac
 
 sequencer :: Pattern Scalar -> Pattern Event -> Pattern Event
-sequencer tick e = bind (step 0 1 (set Delta tick e)) $
-                    \e' -> filter (get CursorValue e' > 0) e'
+sequencer tick e =
+    bind (step 0 1 (set Delta tick e)) $
+        \e' -> filter (get CursorValue e' > 0) e'
+
+-- sequencer tick pattern =
+--     bind pattern $
+--     \e -> bind (step 0 1 (set Delta tick e)) $
+--     \e' -> filter (get CursorValue e' > 0) e'
+
+-- sequencer tick pattern = bind pattern $
+--                             \e -> bind (get CursorValue e) $
+--                             \x -> filter (x > 0) (step 0 1 (set Delta tick e))
