@@ -72,8 +72,8 @@ initScene view p rows cols action = do
                 return (coord, (coord, item))
     return $ Map.fromList (concat xs)
 
-updateScene :: State -> SequencerView -> SequencerView -> IO ()
-updateScene state view _ = do
+updateScene :: State  -> SequencerView -> IO ()
+updateScene state view = do
     s <- readMVar (sequencer state)
     Fold.mapM_ (update s) (fields state)
     where
