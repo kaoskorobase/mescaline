@@ -325,6 +325,22 @@ importDialog fileMode w = do
         then Qt.selectedFiles d ()
         else return []
 
+action_file_openFile :: PatternP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_file_openFile h w _ = do
+    ps <- importDialog Qt.eExistingFile w
+    putStrLn $ "openFile: " ++ show ps
+    case ps of
+        [] -> return ()
+        (p:_) -> sendTo h $ PatternP.LoadPatch p
+
+action_file_saveFile :: PatternP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_file_saveFile h w _ = do
+    ps <- importDialog Qt.eAnyFile w
+    putStrLn $ "saveFile: " ++ show ps
+    case ps of
+        [] -> return ()
+        (p:_) -> sendTo h $ PatternP.StorePatch p
+
 action_file_importFile :: DatabaseP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_file_importFile db w _ = do
     ps <- importDialog Qt.eExistingFile w
@@ -500,7 +516,10 @@ main = do
             (if App.buildOS == App.OSX then darwinMenuDef else [])
             ++
             [ Menu "file" "File"
-              [ Action "importFile" "Import File..." "Import a file" Trigger (Just "Ctrl+i") (action_file_importFile dbP)
+              [ Action "openFile" "Open..." "Open file" Trigger (Just "Ctrl+o") (action_file_openFile patternP)
+              , Action "saveFile" "Save" "Save file" Trigger (Just "Ctrl+s") (action_file_saveFile patternP)
+              , Separator
+              , Action "importFile" "Import File..." "Import a file" Trigger (Just "Ctrl+i") (action_file_importFile dbP)
               , Action "importDirectory" "Import Directory..." "Import a directory" Trigger (Just "Ctrl+Shift+I") (action_file_importDirectory dbP) ]
 #if USE_OLD_SEQUENCER == 1
             , Menu "sequencer" "Sequencer"
