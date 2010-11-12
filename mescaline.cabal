@@ -153,8 +153,8 @@ data-files:
     hugs/packages/mtl/LICENSE
 
 flag bktrees
-  description: Use the bktrees package instead of a kd-tree
-  default: False
+    description: Use the bktrees package instead of a kd-tree
+    default: False
 
 library
     hs-source-dirs: src
@@ -292,6 +292,7 @@ library
         Sound.OpenSoundControl.BufferedTransport
         Sound.SC3.Server.Allocator
         Sound.SC3.Server.Allocator.Range
+        Sound.SC3.Server.Allocator.SetAllocator
         Sound.SC3.Server.Allocator.SimpleAllocator
         Sound.SC3.Server.Connection
         Sound.SC3.Server.Monad

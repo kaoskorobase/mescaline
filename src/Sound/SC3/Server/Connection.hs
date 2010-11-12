@@ -112,8 +112,9 @@ syncAddress s a = s `syncWith` hasAddress
 
 sync :: Send () -> Connection -> IO ()
 sync s c = do
-    i <- (IOState.alloc State.syncId . state) c
+    i <- IOState.alloc State.syncId (state c)
     _ <- (s >> send (Message "/sync" [Int i])) `syncWith` synced i $ c
+    IOState.free State.syncId (state c) i
     return ()
 
 -- NOTE: This is only guaranteed to work with a transport that preserves

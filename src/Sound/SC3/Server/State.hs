@@ -36,9 +36,11 @@ import           Control.Monad (liftM)
 import           Data.Accessor
 import           Sound.SC3.Server.Allocator (IdAllocator, RangeAllocator)
 import qualified Sound.SC3.Server.Allocator as Alloc
+import           Sound.SC3.Server.Allocator.SetAllocator (SetAllocator)
+import qualified Sound.SC3.Server.Allocator.SetAllocator as SetAlloc
 import           Sound.SC3.Server.Allocator.SimpleAllocator (SimpleAllocator)
 import qualified Sound.SC3.Server.Allocator.SimpleAllocator as SAlloc
-import           Sound.SC3.Server.Process.Options (ServerOptions, numberOfInputBusChannels, numberOfOutputBusChannels)
+import           Sound.SC3.Server.Process.Options (ServerOptions(..))
 
 -- Hide the actual allocator
 data IntAllocator = forall a . (IdAllocator Int a, NFData a) => IntAllocator !a
@@ -119,10 +121,17 @@ new os =
       , _audioBusId   = aid
     }
     where
-        sid = IntAllocator      (SAlloc.cons $ Alloc.range 0                           maxBound :: SimpleAllocator Int     )
-        nid = NodeIdAllocator   (SAlloc.cons $ Alloc.range 1000                        maxBound :: SimpleAllocator NodeId  )
-        bid = BufferIdAllocator (SAlloc.cons $ Alloc.range 0                           maxBound :: SimpleAllocator BufferId)
-        cid = BusIdAllocator    (SAlloc.cons $ Alloc.range 0                           maxBound :: SimpleAllocator BusId   )
-        aid = BusIdAllocator    (SAlloc.cons $ Alloc.range (BusId numHardwareChannels) maxBound :: SimpleAllocator BusId   )
+        sid = IntAllocator
+                (SAlloc.cons :: SimpleAllocator Int)
+        nid = NodeIdAllocator
+                (SetAlloc.cons $ Alloc.range 1 (fromIntegral (maxNumberOfNodes os)) :: SetAllocator NodeId)
+        bid = BufferIdAllocator
+                (SetAlloc.cons $ Alloc.range 0 (fromIntegral (numberOfSampleBuffers os - 1)) :: SetAllocator BufferId)
+        cid = BusIdAllocator
+                (SetAlloc.cons $ Alloc.range 0 (fromIntegral (numberOfControlBusChannels os - 1)) :: SetAllocator BusId)
+        aid = BusIdAllocator
+                (SetAlloc.cons $ Alloc.range
+                    (fromIntegral numHardwareChannels)
+                    (fromIntegral (numHardwareChannels + numberOfAudioBusChannels os)) :: SetAllocator BusId)
         numHardwareChannels = numberOfInputBusChannels os
                             + numberOfOutputBusChannels os
