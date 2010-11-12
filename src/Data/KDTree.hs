@@ -21,7 +21,7 @@ import           Data.Traversable
 import           Data.Vector.Generic (Vector, (!))
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Unboxed as UV
-import           Statistics.Sample
+-- import           Statistics.Sample
 
 import Debug.Trace
 

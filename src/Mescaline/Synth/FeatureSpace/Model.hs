@@ -32,8 +32,6 @@ module Mescaline.Synth.FeatureSpace.Model (
   , closest2D
 ) where
 
-#define USE_KDTREE 1
-
 import           Control.Arrow (first, second)
 import qualified Control.Monad.State as State
 import           Data.Bits (shiftR)

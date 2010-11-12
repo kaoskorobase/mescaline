@@ -23,9 +23,8 @@ import qualified Mescaline.Database.Table as Table
 import qualified Mescaline.Meap.Extractor as Extractor
 import qualified Mescaline.Meap.Segmenter as Segmenter
 import           Mescaline.Meap.Chain as Chain
+import           Mescaline.Util (findFiles)
 import qualified Sound.Analysis.Meapsoft as Meap
-import           System.Directory
-import qualified System.FilePath.Find as Find
 
 meapFeatures :: [(String, Int)]
 meapFeatures = [
@@ -109,34 +108,12 @@ insertFile conn path seg meap = do
 
 -- | List of audio file extensions Meap can handle at the moment.
 audioFileExtensions :: [String]
-audioFileExtensions = map ("."++) (xs ++ (map (map toUpper) xs))
-    where xs = ["aif", "aiff", "wav"]
-
-flatten :: [FilePath] -> IO [FilePath]
-flatten [] = return []
-flatten (p:ps) = do
-    d <- doesDirectoryExist p
-    if d
-        then do
-            ps' <- Find.find
-                    Find.always
-                    (fmap (flip elem audioFileExtensions) Find.extension)
-                    p
-            ps'' <- flatten ps
-            return $ ps' ++ ps''
-        else do
-            f <- doesFileExist p
-            if f
-                then do
-                    ps' <- flatten ps
-                    return $ p : ps'
-                else
-                    flatten ps
+audioFileExtensions = ["aif", "aiff", "wav"]
 
 -- | Import a file or directory into the database.
 importPaths :: IConnection c => Maybe Int -> [FilePath] -> c -> IO ()
 importPaths np ps c = do
-    files <- flatten ps
+    files <- findFiles audioFileExtensions ps
     -- FIXME: Avoid computing the source file hash twice.
     files' <- filterM (\p -> do { sf <- SourceFile.newLocal p ; fmap not $ Table.isStored c sf }) files
     Chain.mapFiles (maybe GHC.numCapabilities id np) (options seg) files'

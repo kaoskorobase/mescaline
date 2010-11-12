@@ -20,7 +20,6 @@ import           Sound.Analysis.Meapsoft (MEAP)
 import qualified Sound.Analysis.Meapsoft as Meap
 
 import           System.Exit (ExitCode(..))
-import qualified System.FilePath.Find as Find
 import           System.IO (hClose)
 
 -- Processing chain:

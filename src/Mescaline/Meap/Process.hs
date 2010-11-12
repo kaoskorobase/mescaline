@@ -10,10 +10,9 @@ import           Control.Monad
 import           Data.List (intercalate)
 import qualified Distribution.Simple.Utils  as Cabal
 import qualified Mescaline.Application as App
+import           Mescaline.Util (findFiles)
 import           System.Directory (getTemporaryDirectory)
 import           System.Exit
-import           System.FilePath ((</>))
-import           System.FilePath.Glob (namesMatching)
 import           System.IO
 import           System.Process
 
@@ -23,7 +22,7 @@ getJava = return "java" -- get from config file
 getClassPath :: IO [FilePath]
 getClassPath = do
     libDir <- App.getResourcePath "meap/2.0"
-    namesMatching (libDir </> "*.jar")
+    findFiles ["jar"] [libDir]
 
 -- | Handle output of @Meap@ processes.
 data OutputHandler = OutputHandler {

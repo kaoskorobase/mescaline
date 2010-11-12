@@ -13,48 +13,49 @@ module Mescaline.Synth.BufferCache.Server (
   , freeBuffer
 ) where
 
-import           Control.Concurrent.MonadIO (MVar, newMVar, putMVar, takeMVar)
+import           Control.Concurrent.MVar
 import           Control.Monad (forM, forM_)
 import qualified Data.Set as Set
 import qualified Mescaline.Application.Logger as Log
 import           Mescaline.Synth.BufferCache (Alloc, Buffer, uid, numChannels, numFrames, allocBytes, allocFrames)
 import qualified Mescaline.Synth.BufferCache as BC
 import           Sound.OpenSoundControl (OSC)
-import           Sound.SC3 hiding (free)
-import           Sound.SC3.Server.Command.Completion
-import           Sound.SC3.Server.Monad as S
+import           Sound.SC3 (b_alloc, b_free)
+import           Sound.SC3.Server.Command.Completion (b_alloc')
+import           Sound.SC3.Server.Monad (Server)
+import qualified Sound.SC3.Server.Monad as S
 
 type BufferCache = MVar BC.BufferCache
 
 new :: [Alloc] -> Server BufferCache
 new allocs = do
     buffers <- forM allocs $ \a -> do
-        bid <- S.alloc bufferId
+        bid <- S.alloc S.bufferId
         let buf = BC.fromAlloc bid a
         S.sync $ S.send $ b_alloc (fromIntegral bid)
                                   (BC.numFrames buf)
                                   (BC.numChannels buf)
         return buf
-    newMVar $ BC.fromList buffers
+    S.liftIO $ newMVar $ BC.fromList buffers
 
 release :: BufferCache -> Server ()
 release bc = do
-    cache <- takeMVar bc
+    cache <- S.liftIO $ takeMVar bc
     forM_ (Set.elems (BC.usedBuffers cache)
         ++ Set.elems (BC.freeBuffers cache)) $ \b -> do
             S.free S.bufferId (BC.uid b)
             S.sync $ S.send $ b_free (fromIntegral (BC.uid b))
-    putMVar bc BC.empty
+    S.liftIO $ putMVar bc BC.empty
 
 allocBuffer :: (Buffer -> Maybe OSC) -> BufferCache -> Alloc -> Server Buffer
 allocBuffer completion bc alloc = do
-    cache <- takeMVar bc
+    cache <- S.liftIO $ takeMVar bc
     (cache', buf) <-
         case BC.allocBuffer cache alloc of
             Nothing -> do
                 -- Allocate buffer id
-                bid <- S.alloc bufferId
-                liftIO $ Log.infoM "BufferCache" $ "cache miss, allocating new buffer " ++ show bid
+                bid <- S.alloc S.bufferId
+                S.liftIO $ Log.infoM "BufferCache" $ "cache miss, allocating new buffer " ++ show bid
                 let buf = BC.fromAlloc bid alloc
                     msg = maybe b_alloc (($) b_alloc') (completion buf)
                 -- Allocate buffer
@@ -66,11 +67,11 @@ allocBuffer completion bc alloc = do
             Just (cache', buf) -> do
                 maybe (return ()) (S.async . S.send) (completion buf)
                 return (cache', buf)
-    cache' `seq` putMVar bc cache'
+    cache' `seq` S.liftIO $ putMVar bc cache'
     return buf
 
 freeBuffer :: BufferCache -> Buffer -> Server ()
 freeBuffer bc buf = do
-    cache <- takeMVar bc
+    cache <- S.liftIO $ takeMVar bc
     let cache' = BC.freeBuffer cache buf
-    cache' `seq` putMVar bc cache'
+    cache' `seq` S.liftIO $ putMVar bc cache'

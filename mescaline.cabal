@@ -10,7 +10,7 @@ copyright:          (c) 2009-2010 globero.es
 maintainer:         mescaline@globero.es
 homepage:           http://mescaline.globero.es
 bug-reports:        http://sourceforge.net/tracker/?group_id=266308&atid=1133628
-cabal-version:      >= 1.6
+cabal-version:      >= 1.2
 build-type:         Custom
 
 extra-source-files:
@@ -152,15 +152,18 @@ data-files:
     hugs/packages/mtl/Control/Monad/Writer.hs
     hugs/packages/mtl/LICENSE
 
+flag bktrees
+  description: Use the bktrees package instead of a kd-tree
+  default: False
+
 library
     hs-source-dirs: src
     ghc-options:    -Wall
     include-dirs:   include
     build-depends:
         base >= 4 && < 5
-      , array >= 0.3 && < 0.4
+      , array >= 0.2 && < 0.4
       -- , arrows
-      , bktrees >= 0.3 && < 0.4
       , binary
       , bitset >= 1.0 && < 1.1
       , bytestring
@@ -175,7 +178,6 @@ library
       , data-ivar >= 0.30 && < 0.31
       , deepseq >= 1.1 && < 1.2
       , directory
-      , filemanip >= 0.3 && < 0.4
       , filepath
       , FindBin >= 0.0 && < 0.1
       , fingertree
@@ -184,13 +186,12 @@ library
       , hmatrix >= 0.9 && < 0.11
       , hmeap >= 0.8
       , hosc >= 0.8
-      , hslogger >= 1.0
+      , hslogger >= 1.1
       , hsc3 >= 0.8
       , hsc3-lang >= 0.8
       , hsc3-process >= 0.3 && < 0.4
       , hsndfile >= 0.4
       , MonadCatchIO-mtl >= 0.3 && < 0.4
-      , monadIO >= 0.9
       , MonadRandom >= 0.1
       , mtl >= 1.0
       , parallel >= 3 && < 4
@@ -198,11 +199,17 @@ library
       , qt >= 1.1 && < 1.2
       , random >= 1.0
       , regex-compat >= 0.92
-      , statistics >= 0.8 && < 0.9
+      -- , statistics >= 0.8 && < 0.9
       , strict-concurrency >= 0.2
       -- , template-haskell
       , uuid >= 1.0
       , vector >= 0.5
+    if flag(bktrees)
+        build-depends:
+            bktrees >= 0.3 && < 0.4
+        cpp-options: -DUSE_KDTREE=0
+    else
+        cpp-options: -DUSE_KDTREE=1
     if os(darwin)
         build-depends:
             cabal-macosx >= 0.1 && < 0.2
@@ -303,6 +310,10 @@ executable mescaline
     ghc-prof-options:   -threaded -auto-all
     build-depends:
         qt >= 1.1 && < 1.2
+    if flag(bktrees)
+        cpp-options: -DUSE_KDTREE=0
+    else
+        cpp-options: -DUSE_KDTREE=1
 
 executable mescalinedb
     main-is:            mescalinedb.hs
