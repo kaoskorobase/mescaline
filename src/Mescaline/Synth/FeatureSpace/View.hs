@@ -16,6 +16,8 @@ import           Control.Concurrent.Process
 import           Control.Monad
 import           Control.Monad.Trans
 import           Data.Bits
+import           Data.HashTable (HashTable)
+import qualified Data.HashTable as Hash
 import           Data.IntMap (IntMap)
 import qualified Data.IntMap as IMap
 import qualified Data.Map as Map
@@ -104,14 +106,6 @@ sceneKeyReleaseEvent state view evt = do
 hoverHandler :: IO () -> Qt.QGraphicsEllipseItem () -> Qt.QGraphicsSceneHoverEvent () -> IO ()
 hoverHandler action item evt = action >> Qt.hoverEnterEvent_h item evt
 
--- clusterChange :: Int -> ((FeatureSpace -> FeatureSpace) -> IO ()) -> Qt.QGraphicsEllipseItem () -> Qt.GraphicsItemChange -> Qt.QVariant () -> IO (Qt.QVariant ())
--- clusterChange regionId onChanged item itemChange value = do
---     when (itemChange == Qt.eItemPositionChange) $ do
---         Qt.IPoint x y <- Qt.scenePos item ()
---         putStrLn $ "clusterChange " ++ show regionId ++ " " ++ show (x, y)
---         onChanged (Model.updateRegionById regionId (\r -> r { Model.center = V.fromList [x, y] }))
---     return value
-
 data RegionState =
     RegionIdle
   | RegionMove !Double !Double
@@ -128,18 +122,17 @@ data UnitHighlight  = UnitHighlight !(Qt.QGraphicsItem ()) !Int
 
 data HighlightState = HighlightState {
     highlightPen :: Qt.QPen ()
-  , highlights   :: MVar (Unique.Map UnitHighlight)
+  , highlights   :: MVar (HashTable Unique.Id UnitHighlight)
   }
-
 
 data State = State {
     featureSpace :: Process.Handle
   , synth        :: Synth.Handle
   , unitGroup    :: MVar (Maybe (Qt.QGraphicsItem ()))
-  , units        :: MVar (Unique.Map (Qt.QGraphicsItem ()))
+  , units        :: MVar (HashTable Unique.Id (Qt.QGraphicsItem ()))
   , highlight    :: Maybe HighlightState
   , regionColors :: IntMap (Qt.QBrush ())
-  , regions      :: IntMap Region
+  , regions      :: MVar (HashTable Int Region)
   , playUnits    :: MVar Bool
   , guiChan      :: Chan (IO ())
   }
@@ -191,7 +184,7 @@ regionMouseReleaseHandler _ region _ _ = do
     _ <- swapMVar (regionState region) RegionIdle
     return ()
 
-addRegion :: FeatureSpaceView -> Model.Region -> State -> IO State
+addRegion :: FeatureSpaceView -> Model.Region -> State -> IO ()
 addRegion view region state = do
     let Just b = IMap.lookup (Model.regionId region) (regionColors state)
         r      = Model.radius region
@@ -207,38 +200,26 @@ addRegion view region state = do
     Qt.setHandler item "mousePressEvent(QGraphicsSceneMouseEvent*)"   $ regionMousePressHandler   (featureSpace state) regionHandle
     Qt.setHandler item "mouseMoveEvent(QGraphicsSceneMouseEvent*)"    $ regionMouseMoveHandler    (featureSpace state) regionHandle
     Qt.setHandler item "mouseReleaseEvent(QGraphicsSceneMouseEvent*)" $ regionMouseReleaseHandler (featureSpace state) regionHandle
-    return $ state { regions = IMap.insert (regionId regionHandle) regionHandle (regions state) }
-
--- initScene :: FeatureSpaceView -> FeatureSpace -> MVar State -> (Input -> IO ()) -> (Unit.Unit -> IO ()) -> IO ()
--- initScene view model state onChanged playUnit = do
---     -- Qt.setHandler view "mousePressEvent(QGraphicsSceneMouseEvent*)" $ sceneMousePressHandler state
---     -- Qt.setHandler view "mouseReleaseEvent(QGraphicsSceneMouseEvent*)" $ sceneMouseReleaseHandler state
---     -- Qt.setSceneRect view (Qt.rectF 0 0 1 1)
---     Qt.setItemIndexMethod view Qt.eNoIndex
---     Qt.setHandler view "keyPressEvent(QKeyEvent*)" $ sceneKeyPressEvent state
---     Qt.setHandler view "keyReleaseEvent(QKeyEvent*)" $ sceneKeyReleaseEvent state
---     mapM_ mkUnit (Model.units model)
---     colors <- UI.defaultColorsFromFile
---     mapM_ (uncurry $ mkRegion state) $ zip (Map.toList (Model.regions model)) colors
---     Qt.setItemIndexMethod view Qt.eBspTreeIndex
---     -- Qt.setBspTreeDepth view 0
---     where
+    withMVar (regions state) $ \rs ->
+        Hash.insert rs (regionId regionHandle) regionHandle
 
 showUnits :: FeatureSpaceView -> State -> [Model.Unit] -> IO ()
 showUnits view state us = do
-    g <- takeMVar (unitGroup state)
-    _ <- takeMVar (units state)
-    maybe (return ()) (Qt.removeItem view) g
+    modifyMVar_ (unitGroup state) $ \g -> do
+        maybe (return ()) (Qt.removeItem view) g
+        g' <- Qt.qGraphicsItem_nf ()
+        Qt.setZValue g' (-1 :: Double)
+        Qt.addItem view g'
 
-    g <- Qt.qGraphicsItem_nf ()
-    putMVar (unitGroup state) (Just g)
-    putMVar (units state) . Map.fromList =<< mapM (addUnit g state) us
+        modifyMVar_ (units state) $ \_ -> do
+            table <- Hash.new (==) hashUnique
+            mapM_ (addUnit g state table) us
+            return table
 
-    Qt.setZValue g (-1 :: Double)
-    Qt.addItem view g
+        return (Just g')
 
-addUnit :: Qt.QGraphicsItem () -> State -> Model.Unit -> IO (Unique.Id, Qt.QGraphicsItem ())
-addUnit parent state unit = do
+addUnit :: Qt.QGraphicsItem () -> State -> Model.Unit -> HashTable Unique.Id (Qt.QGraphicsItem ()) -> IO ()
+addUnit parent state unit table = do
     let (x, y) = pair (Unit.value 0 unit)
         r      = unitRadius -- Model.minRadius
         box    = Qt.rectF (-r) (-r) (r*2) (r*2)
@@ -253,7 +234,7 @@ addUnit parent state unit = do
         readMVar (playUnits state) >>= flip when (sendTo (synth state) $ Synth.PlayUnit (-1) (Synth.defaultSynth unit))
     Qt.setAcceptsHoverEvents item True
 
-    return (Unit.id unit, Qt.objectCast item)
+    Hash.insert table (Unit.id unit) (Qt.objectCast item)
 
 process :: forall o m b .
            (Control.Monad.Trans.MonadIO m) =>
@@ -269,18 +250,20 @@ process view state = do
                     Qt.setItemIndexMethod view Qt.eBspTreeIndex
                 return state
             Left (Process.RegionAdded r) ->
-                io $ addRegion view r state
+                defer view state $ addRegion view r state
             Left (Process.RegionChanged r) -> do
-                case IMap.lookup (Model.regionId r) (regions state) of
-                    Nothing -> return ()
-                    Just regionHandle ->
-                        let item = regionItem regionHandle
-                            pos  = Model.center2D r
-                            rad  = Model.radius r
-                            dia  = rad*2
-                        in defer view state $ do
-                            Qt.setPos item pos
-                            Qt.qsetRect item (Qt.IRect (-rad) (-rad) dia dia)
+                withMVar (regions state) $ \rs -> do
+                    rh <- Hash.lookup rs (Model.regionId r)
+                    case rh of
+                        Nothing -> return ()
+                        Just regionHandle ->
+                            let item = regionItem regionHandle
+                                pos  = Model.center2D r
+                                rad  = Model.radius r
+                                dia  = rad*2
+                            in defer view state $ do
+                                Qt.setPos item pos
+                                Qt.qsetRect item (Qt.IRect (-rad) (-rad) dia dia)
                 return state
             Right (HighlightOn unit) ->
                 case highlight state of
@@ -288,28 +271,26 @@ process view state = do
                         return state
                     Just hlState -> do
                         defer view state $ do
-                            us <- readMVar (units state)
-                            as <- takeMVar (highlights hlState)
-                            let uid = Unit.id unit
-                            case Map.lookup uid as of
-                                Nothing -> do
-                                    -- Insert new highlight item
-                                    case Map.lookup uid us of
-                                        Nothing -> return ()
-                                        Just item -> do
+                            withMVar (units state) $ \ud ->
+                                withMVar (highlights hlState) $ \hls -> do
+                                    let uid = Unit.id unit
+                                    hl <- Hash.lookup hls uid
+                                    case hl of
+                                        Nothing -> do
+                                            -- Insert new highlight item
+                                            Just item <- Hash.lookup uid us
                                             Qt.IPoint x y <- Qt.scenePos item ()
                                             let -- (x, y) = pair (Feature.value (Model.feature unit))
                                                 r      = highlightRadius
                                                 box    = Qt.rectF (-r) (-r) (r*2) (r*2)
-                                            -- item <- Qt.qGraphicsRectItem box
                                             item <- Qt.qGraphicsEllipseItem box
                                             Qt.setPos item (Qt.pointF x y)
                                             Qt.setPen item (highlightPen hlState)
                                             Qt.addItem view item
-                                            putMVar (highlights hlState) (Map.insert uid (UnitHighlight (Qt.objectCast item) 1) as)
-                                Just (UnitHighlight item i) ->
-                                    -- Increase highlight count
-                                    putMVar (highlights hlState) (Map.insert uid (UnitHighlight item (i+1)) as)
+                                            Hash.insert hls uid (UnitHighlight (Qt.objectCast item) 1)
+                                        Just (UnitHighlight item i) ->
+                                            -- Increase highlight count
+                                            Hash.update hls uid (UnitHighlight item (i+1))
                         return state
             Right (HighlightOff unit) ->
                 case highlight state of
@@ -317,19 +298,21 @@ process view state = do
                         return state
                     Just hlState -> do
                         defer view state $ do
-                            as <- takeMVar (highlights hlState)
-                            case Map.lookup (Unit.id unit) as of
-                                Nothing ->
-                                    putMVar (highlights hlState) as
-                                Just (UnitHighlight item i) ->
-                                    if i <= 1
-                                        then do
-                                            -- Remove highlight item
-                                            Qt.removeItem view item
-                                            putMVar (highlights hlState) (Map.delete (Unit.id unit) as)
-                                        else do
-                                            -- Decrease highlight count
-                                            putMVar (highlights hlState) (Map.insert (Unit.id unit) (UnitHighlight item (i-1)) as)
+                            withMVar (highlights hlState) $ \hls -> do
+                                let uid = Unit.id unit
+                                hl <- Hash.lookup hls uid
+                                case hl of
+                                    Nothing ->
+                                        return ()
+                                    Just (UnitHighlight item i) ->
+                                        if i <= 1
+                                            then do
+                                                -- Remove highlight item
+                                                Qt.removeItem view item
+                                                Hash.delete hls uid
+                                            else do
+                                                -- Decrease highlight count
+                                                Hash.update uid (UnitHighlight item (i-1))
                         return state
     process view state'
 
@@ -345,18 +328,21 @@ getRegionColors :: Config.ConfigParser -> IO [Qt.QColor ()]
 getRegionColors config = mapM (\i -> Config.getColor config "FeatureSpace" ("regionColor" ++ show i)) [1..n]
     where n = length Model.defaultRegions
 
+hashUnique :: Unique.Id -> Int32
+hashUnique = Hash.hashString . Unique.toString
+
 newState :: Process.Handle -> Synth.Handle -> IO State
 newState fspace synth = do
     config <- Config.getConfig
 
     ug <- newMVar Nothing
-    us <- newMVar Map.empty
+    us <- newMVar =<< Hash.new (==) hashUnique
 
     hl <- Config.getIO config "FeatureSpace" "highlightUnits" :: IO Bool
     hlState <-
         if hl
             then do
-                hls     <- newMVar Map.empty
+                hls     <- newMVar =<< Hash.new (==) hashUnique
                 hlColor <- Config.getColor config "FeatureSpace" "highlightColor"
                 hlBrush <- Qt.qBrush hlColor
                 hlPen   <- Qt.qPen (hlBrush, 0::Double)
@@ -365,10 +351,11 @@ newState fspace synth = do
 
     regionBrushes <- getRegionColors config >>= mapM Qt.qBrush
 
+    rs <- newMVar =<< Hash.new (==) Hash.hashInt
     pu <- newMVar False
     gc <- newChan
     
-    return $ State fspace synth ug us hlState (IMap.fromList (zip [0..] regionBrushes)) IMap.empty pu gc
+    return $ State fspace synth ug us hlState (IMap.fromList (zip [0..] regionBrushes)) rs pu gc
 
 new :: Process.Handle -> Synth.Handle -> IO (FeatureSpaceView, Handle Input Output)
 new fspace synth = do
