@@ -213,13 +213,13 @@ showUnits view state us = do
 
         modifyMVar_ (units state) $ \_ -> do
             table <- Hash.new (==) hashUnique
-            mapM_ (addUnit g state table) us
+            mapM_ (addUnit g' state table) us
             return table
 
         return (Just g')
 
-addUnit :: Qt.QGraphicsItem () -> State -> Model.Unit -> HashTable Unique.Id (Qt.QGraphicsItem ()) -> IO ()
-addUnit parent state unit table = do
+addUnit :: Qt.QGraphicsItem () -> State -> HashTable Unique.Id (Qt.QGraphicsItem ()) -> Model.Unit -> IO ()
+addUnit parent state table unit = do
     let (x, y) = pair (Unit.value 0 unit)
         r      = unitRadius -- Model.minRadius
         box    = Qt.rectF (-r) (-r) (r*2) (r*2)
@@ -240,81 +240,80 @@ process :: forall o m b .
            (Control.Monad.Trans.MonadIO m) =>
            FeatureSpaceView -> State -> ReceiverT (Either Process.Output Highlight) o m b
 process view state = do
-    x <- recv
-    state' <-
-        case x of
-            Left (Process.DatabaseLoaded us) -> do
-                defer view state $ do
-                    Qt.setItemIndexMethod view Qt.eNoIndex
-                    showUnits view state us
-                    Qt.setItemIndexMethod view Qt.eBspTreeIndex
-                return state
-            Left (Process.RegionAdded r) ->
-                defer view state $ addRegion view r state
-            Left (Process.RegionChanged r) -> do
-                withMVar (regions state) $ \rs -> do
-                    rh <- Hash.lookup rs (Model.regionId r)
-                    case rh of
-                        Nothing -> return ()
-                        Just regionHandle ->
-                            let item = regionItem regionHandle
-                                pos  = Model.center2D r
-                                rad  = Model.radius r
-                                dia  = rad*2
-                            in defer view state $ do
-                                Qt.setPos item pos
-                                Qt.qsetRect item (Qt.IRect (-rad) (-rad) dia dia)
-                return state
-            Right (HighlightOn unit) ->
-                case highlight state of
-                    Nothing ->
-                        return state
-                    Just hlState -> do
-                        defer view state $ do
-                            withMVar (units state) $ \ud ->
-                                withMVar (highlights hlState) $ \hls -> do
-                                    let uid = Unit.id unit
-                                    hl <- Hash.lookup hls uid
-                                    case hl of
-                                        Nothing -> do
-                                            -- Insert new highlight item
-                                            Just item <- Hash.lookup uid us
-                                            Qt.IPoint x y <- Qt.scenePos item ()
-                                            let -- (x, y) = pair (Feature.value (Model.feature unit))
-                                                r      = highlightRadius
-                                                box    = Qt.rectF (-r) (-r) (r*2) (r*2)
-                                            item <- Qt.qGraphicsEllipseItem box
-                                            Qt.setPos item (Qt.pointF x y)
-                                            Qt.setPen item (highlightPen hlState)
-                                            Qt.addItem view item
-                                            Hash.insert hls uid (UnitHighlight (Qt.objectCast item) 1)
-                                        Just (UnitHighlight item i) ->
-                                            -- Increase highlight count
-                                            Hash.update hls uid (UnitHighlight item (i+1))
-                        return state
-            Right (HighlightOff unit) ->
-                case highlight state of
-                    Nothing ->
-                        return state
-                    Just hlState -> do
-                        defer view state $ do
+    msg <- recv
+    io $ case msg of
+        Left (Process.DatabaseLoaded us) -> do
+            defer view state $ do
+                Qt.setItemIndexMethod view Qt.eNoIndex
+                showUnits view state us
+                Qt.setItemIndexMethod view Qt.eBspTreeIndex
+        Left (Process.RegionAdded r) -> do
+            io $ putStrLn ("RegionAdded " ++ show r)
+            defer view state $ addRegion view r state
+        Left (Process.RegionChanged r) -> do
+            io $ putStrLn ("RegionChanged " ++ show r)
+            withMVar (regions state) $ \rs -> do
+                rh <- Hash.lookup rs (Model.regionId r)
+                case rh of
+                    Nothing -> return ()
+                    Just regionHandle ->
+                        let item = regionItem regionHandle
+                            pos  = Model.center2D r
+                            rad  = Model.radius r
+                            dia  = rad*2
+                        in defer view state $ do
+                            Qt.setPos item pos
+                            Qt.qsetRect item (Qt.IRect (-rad) (-rad) dia dia)
+        Right (HighlightOn unit) ->
+            case highlight state of
+                Nothing ->
+                    return ()
+                Just hlState -> do
+                    defer view state $ do
+                        withMVar (units state) $ \us ->
                             withMVar (highlights hlState) $ \hls -> do
                                 let uid = Unit.id unit
                                 hl <- Hash.lookup hls uid
                                 case hl of
-                                    Nothing ->
+                                    Nothing -> do
+                                        -- Insert new highlight item
+                                        Just item <- Hash.lookup us uid
+                                        Qt.IPoint x y <- Qt.scenePos item ()
+                                        let -- (x, y) = pair (Feature.value (Model.feature unit))
+                                            r      = highlightRadius
+                                            box    = Qt.rectF (-r) (-r) (r*2) (r*2)
+                                        item <- Qt.qGraphicsEllipseItem box
+                                        Qt.setPos item (Qt.pointF x y)
+                                        Qt.setPen item (highlightPen hlState)
+                                        Qt.addItem view item
+                                        Hash.insert hls uid (UnitHighlight (Qt.objectCast item) 1)
+                                    Just (UnitHighlight item i) -> do
+                                        -- Increase highlight count
+                                        Hash.update hls uid (UnitHighlight item (i+1))
                                         return ()
-                                    Just (UnitHighlight item i) ->
-                                        if i <= 1
-                                            then do
-                                                -- Remove highlight item
-                                                Qt.removeItem view item
-                                                Hash.delete hls uid
-                                            else do
-                                                -- Decrease highlight count
-                                                Hash.update uid (UnitHighlight item (i-1))
-                        return state
-    process view state'
+        Right (HighlightOff unit) ->
+            case highlight state of
+                Nothing ->
+                    return ()
+                Just hlState -> do
+                    defer view state $ do
+                        withMVar (highlights hlState) $ \hls -> do
+                            let uid = Unit.id unit
+                            hl <- Hash.lookup hls uid
+                            case hl of
+                                Nothing ->
+                                    return ()
+                                Just (UnitHighlight item i) ->
+                                    if i <= 1
+                                        then do
+                                            -- Remove highlight item
+                                            Qt.removeItem view item
+                                            Hash.delete hls uid
+                                        else do
+                                            -- Decrease highlight count
+                                            Hash.update hls uid (UnitHighlight item (i-1))
+                                            return ()
+    process view state
 
 update :: Chan (IO ()) -> FeatureSpaceView -> IO ()
 update c _ = join (readChan c)
@@ -328,7 +327,7 @@ getRegionColors :: Config.ConfigParser -> IO [Qt.QColor ()]
 getRegionColors config = mapM (\i -> Config.getColor config "FeatureSpace" ("regionColor" ++ show i)) [1..n]
     where n = length Model.defaultRegions
 
-hashUnique :: Unique.Id -> Int32
+-- hashUnique :: Unique.Id -> Int32
 hashUnique = Hash.hashString . Unique.toString
 
 newState :: Process.Handle -> Synth.Handle -> IO State
