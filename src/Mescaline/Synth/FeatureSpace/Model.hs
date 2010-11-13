@@ -4,28 +4,23 @@ module Mescaline.Synth.FeatureSpace.Model (
   , RegionId
   , Region
   , mkRegion
-  , defaultRegions
   , regionId
   , center
   , center2D
   , radius
   , minRadius
   , maxRadius
+  , defaultRegions
   , FeatureSpace
   , UnitSet
-  , unitSet
-  , randomGen
   , units
-  , setFeatureSpace
+  , setUnits
   , fromList
-  , nextRegionId
-  , addRegion
-  , lookupRegion
-  , deleteRegion
-  -- , updateRegionById
-  , updateRegion
+  , numRegions
   , regions
-  , regionList
+  , updateRegion
+  , lookupRegion
+  , regions
   , regionUnits
   , activateRegion
   , activateRegions
@@ -136,7 +131,7 @@ center2D = pair . center
 data FeatureSpace = FeatureSpace { 
     unitSet     :: !UnitSet
   , randomGen   :: Random.StdGen
-  , regions     :: IntMap Region
+  , regionMap   :: IntMap Region
   , cachedUnits :: IntMap [Unit]
   }
 
@@ -162,15 +157,20 @@ mkRegion :: RegionId -> Feature.Value -> Double -> Region
 mkRegion i c r = Region i (V.fromList [clip minPos maxPos (c V.! 0), clip minPos maxPos (c V.! 1)])
                           (clip minRadius maxRadius r)
 
-defaultRegions :: [Region]
-defaultRegions = zipWith (\i v -> mkRegion i v radius) [0..n-1] centers
+defaultRegionMap :: Int -> IntMap Region
+defaultRegionMap n = IntMap.fromList $ zipWith (\i v -> (i, mkRegion i v radius)) [0..n-1] centers
     where
-        n = 8
         radius = 0.025
         phis = take n $ iterate (+2*pi/fromIntegral n) 0
         centers = map (c2v . mkPolar (radius*3)) phis
         offset = 0.5
         c2v c = V.fromList [offset + realPart c, offset + imagPart c]
+
+defaultNumRegions :: Int
+defaultNumRegions = 8
+
+defaultRegions :: [Region]
+defaultRegions = IntMap.elems (defaultRegionMap defaultNumRegions)
 
 units :: FeatureSpace -> [Unit]
 #if USE_KDTREE == 1
@@ -179,55 +179,35 @@ units = KDTree.elems . unitSet
 units = BKTree.elems . unitSet
 #endif -- USE_KDTREE
 
-setFeatureSpace :: FeatureSpace -> [Unit.Unit] -> FeatureSpace
+setUnits :: FeatureSpace -> [Unit.Unit] -> FeatureSpace
 #if USE_KDTREE == 1
-setFeatureSpace fs us = List.foldl' (flip addRegion) fs' (regionList fs')
+setUnits fs us = List.foldl' (flip updateRegion) fs' (regions fs')
     where fs' = fs { unitSet = KDTree.fromList (map (\u -> (Unit.value 0 u, u)) us) }
 #else
-setFeatureSpace fs us = f { unitSet = BKTree.fromList us }
+setUnits fs us = f { unitSet = BKTree.fromList us }
 #endif -- USE_KDTREE
 
 fromList :: Random.StdGen -> [Unit.Unit] -> FeatureSpace
 #if USE_KDTREE == 1
-fromList g = setFeatureSpace (FeatureSpace KDTree.empty g IntMap.empty IntMap.empty)
+fromList g = setUnits (FeatureSpace KDTree.empty g (defaultRegionMap defaultNumRegions) IntMap.empty)
 #else
-fromList g = setFeatureSpace (FeatureSpace BKTree.empty g IntMap.empty IntMap.empty)
+fromList g = setUnits (FeatureSpace BKTree.empty g (defaultRegionMap defaultNumRegions) IntMap.empty)
 #endif -- USE_KDTREE
 
-nextRegionId :: FeatureSpace -> Int
-nextRegionId f
-    | null ids  = 0
-    | otherwise = loop (last ids + 1)
-    where
-        ids = IntMap.keys (regions f)
-        loop i
-            | not (i `elem` ids) = i
-            | otherwise          = loop (i+1)
+numRegions :: FeatureSpace -> Int
+numRegions = IntMap.size . regionMap
 
-addRegion :: Region -> FeatureSpace -> FeatureSpace
-addRegion r fs =
-    fs { regions = IntMap.insert (regionId r) r (regions fs)
+regions :: FeatureSpace -> [Region]
+regions = IntMap.elems . regionMap
+
+updateRegion :: Region -> FeatureSpace -> FeatureSpace
+updateRegion r fs =
+    fs { regionMap = IntMap.insert (regionId r) r (regionMap fs)
        , cachedUnits = IntMap.insert (regionId r) (getRegionUnits r fs) (cachedUnits fs)
        }
 
 lookupRegion :: RegionId -> FeatureSpace -> Maybe Region
-lookupRegion i = IntMap.lookup i . regions
-
-deleteRegionById :: RegionId -> FeatureSpace -> FeatureSpace
-deleteRegionById i f = f { regions = IntMap.delete i (regions f)
-                         , cachedUnits = IntMap.delete i (cachedUnits f) }
-
-deleteRegion :: Region -> FeatureSpace -> FeatureSpace
-deleteRegion r = deleteRegionById (regionId r)
-
-updateRegionById :: RegionId -> (Region -> Region) -> FeatureSpace -> FeatureSpace
-updateRegionById i f fs = maybe id (updateRegion . f) (lookupRegion i fs) $ fs
-
-updateRegion :: Region -> FeatureSpace -> FeatureSpace
-updateRegion = addRegion
-
-regionList :: FeatureSpace -> [Region]
-regionList = IntMap.elems . regions
+lookupRegion i = IntMap.lookup i . regionMap
 
 -- | Return a list of all units contained in a particular region.
 regionUnits :: RegionId -> FeatureSpace -> [Unit]

@@ -92,10 +92,10 @@ import qualified Qtc.Gui.QWidget_h              as Qt
 import qualified Qtc.Tools.QUiLoader            as Qt
 import qualified Qtc.Tools.QUiLoader_h          as Qt
 
+#if USE_OLD_SEQUENCER
 numRegions :: Int
 numRegions = length FeatureSpace.defaultRegions
 
-#if USE_OLD_SEQUENCER
 sequencer0 :: Sequencer.Sequencer ()
 sequencer0 = Sequencer.cons 16 16 0.125 (Sequencer.Bar 0)
 #endif -- USE_OLD_SEQUENCER
@@ -437,8 +437,6 @@ main = do
     
     fspace_graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "featureSpaceView")
     Qt.setScene fspace_graphicsView fspaceView
-
-    mapM_ (\i -> sendTo fspaceP $ FeatureSpaceP.AddRegion 0.5 0.5 0.025) [0..numRegions-1]
     
     -- Sequencer process
 #if USE_OLD_SEQUENCER == 1
@@ -531,7 +529,7 @@ main = do
 #else
             , Menu "sequencer" "Sequencer"
               [ Action "play" "Play" "Start or pause the sequencer" Checkable (Just "SPACE") (action_pattern_playPause patternP)
-              ,  Action "reset" "Reset" "Reset the sequencer" Trigger (Just "RETURN") (action_pattern_reset patternP) ]
+              , Action "reset" "Reset" "Reset the sequencer" Trigger (Just "RETURN") (action_pattern_reset patternP) ]
 #endif
             , Menu "featureSpace" "FeatureSpace"
               [ Menu "zoom" "Zoom"

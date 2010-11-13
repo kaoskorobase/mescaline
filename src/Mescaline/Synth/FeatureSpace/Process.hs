@@ -20,14 +20,12 @@ import qualified System.Random as Random
 
 data Input =
     LoadDatabase    FilePath String
-  | AddRegion       Double Double Double
   | UpdateRegion    Model.Region
   -- | ActivateRegion  Time Model.RegionId
   | GetModel        (Query Model.FeatureSpace)
 
 data Output =
     DatabaseLoaded  [Unit.Unit]
-  | RegionAdded     Model.Region
   | RegionChanged   Model.Region
 
 type Handle = Process.Handle Input Output
@@ -54,14 +52,9 @@ new = do
             f' <- case msg of
                     LoadDatabase path pattern -> do
                         units <- io $ getUnits path pattern [Feature.consDescriptor "es.globero.mescaline.spectral" 2]
-                        let f' = Model.setFeatureSpace f units
+                        let f' = Model.setUnits f units
                         notify $ DatabaseLoaded (Model.units f')
                         return $ f'
-                    AddRegion x y ra -> do
-                        let i = Model.nextRegionId f
-                            r = Model.mkRegion i (V.fromList [x, y]) ra
-                        notify $ RegionAdded r
-                        return $ Model.addRegion r f
                     UpdateRegion r -> do
                         notify $ RegionChanged r
                         io $ Log.debugM "FeatureSpace" $ "UpdateRegion: " ++ show r

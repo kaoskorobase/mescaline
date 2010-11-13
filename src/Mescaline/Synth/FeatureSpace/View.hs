@@ -18,6 +18,7 @@ import           Control.Monad.Trans
 import           Data.Bits
 import           Data.HashTable (HashTable)
 import qualified Data.HashTable as Hash
+import           Data.Int (Int32)
 import           Data.IntMap (IntMap)
 import qualified Data.IntMap as IMap
 import qualified Data.Map as Map
@@ -184,8 +185,8 @@ regionMouseReleaseHandler _ region _ _ = do
     _ <- swapMVar (regionState region) RegionIdle
     return ()
 
-addRegion :: FeatureSpaceView -> Model.Region -> State -> IO ()
-addRegion view region state = do
+addRegion :: FeatureSpaceView -> State -> Model.Region -> IO ()
+addRegion view state region = do
     let Just b = IMap.lookup (Model.regionId region) (regionColors state)
         r      = Model.radius region
         x      = Model.center region V.! 0
@@ -247,11 +248,7 @@ process view state = do
                 Qt.setItemIndexMethod view Qt.eNoIndex
                 showUnits view state us
                 Qt.setItemIndexMethod view Qt.eBspTreeIndex
-        Left (Process.RegionAdded r) -> do
-            io $ putStrLn ("RegionAdded " ++ show r)
-            defer view state $ addRegion view r state
         Left (Process.RegionChanged r) -> do
-            io $ putStrLn ("RegionChanged " ++ show r)
             withMVar (regions state) $ \rs -> do
                 rh <- Hash.lookup rs (Model.regionId r)
                 case rh of
@@ -327,7 +324,7 @@ getRegionColors :: Config.ConfigParser -> IO [Qt.QColor ()]
 getRegionColors config = mapM (\i -> Config.getColor config "FeatureSpace" ("regionColor" ++ show i)) [1..n]
     where n = length Model.defaultRegions
 
--- hashUnique :: Unique.Id -> Int32
+hashUnique :: Unique.Id -> Int32
 hashUnique = Hash.hashString . Unique.toString
 
 newState :: Process.Handle -> Synth.Handle -> IO State
@@ -365,6 +362,9 @@ new fspace synth = do
     Qt.setHandler view "keyPressEvent(QKeyEvent*)"   $ sceneKeyPressEvent state
     Qt.setHandler view "keyReleaseEvent(QKeyEvent*)" $ sceneKeyReleaseEvent state
     Qt.connectSlot view "update()" view "update()"   $ update (guiChan state)
+
+    model <- query fspace Process.GetModel
+    mapM_ (addRegion view state) (Model.regions model)
 
     handle <- spawn $ process view state
 
