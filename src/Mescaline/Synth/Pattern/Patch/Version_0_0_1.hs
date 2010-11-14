@@ -23,7 +23,7 @@ data Region = Region Int [Double] Double
     deriving (Read, Show)
 
 data File = File {
-    code :: String
+    sourceCode :: String
   , sequencer :: Sequencer
   , regions :: [Region]
   } deriving (Read, Show)
@@ -43,7 +43,7 @@ sequencerToPatch (Sequencer r c vs cs) = List.foldl' (\s ((r, c), v) -> S.insert
 
 fileFromPatch :: P.Patch -> File
 fileFromPatch p = File {
-    code = P.code p
+    sourceCode = P.sourceCode p
   , sequencer = sequencerFromPatch (P.sequencer p)
   , regions = map regionFromPatch (P.regions p) }
 

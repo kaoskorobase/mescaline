@@ -66,25 +66,30 @@ import qualified Qtc.Enums.Core.Qt              as Qt
 import qualified Qtc.Enums.Gui.QFileDialog      as Qt
 import qualified Qtc.Enums.Gui.QPainter         as Qt
 import qualified Qtc.Gui.Base                   as Qt
-import qualified Qtc.Gui.QAction                as Qt
+
 import qualified Qtc.Gui.QApplication           as Qt
+
 import qualified Qtc.Gui.QDialog                as Qt
 import qualified Qtc.Gui.QFileDialog            as Qt
+import qualified Qtc.Gui.QMessageBox            as Qt
 
 import qualified Qtc.Enums.Gui.QGraphicsView    as Qt
+import qualified Qtc.Gui.QGraphicsView          as Qt
 import qualified Qtc.Gui.QGraphicsView          as Qt
 import qualified Qtc.Gui.QGraphicsView_h        as Qt
 
 import qualified Qtc.Gui.QKeySequence           as Qt
 import qualified Qtc.Gui.QMainWindow            as Qt
 import qualified Qtc.Gui.QMainWindow_h          as Qt
+
+import qualified Qtc.Gui.QAction                as Qt
 import qualified Qtc.Gui.QMenu                  as Qt
 import qualified Qtc.Gui.QMenuBar               as Qt
-import qualified Qtc.Gui.QMessageBox            as Qt
 
 import qualified Qtc.Enums.Gui.QTextCursor      as Qt
 import qualified Qtc.Gui.QTextCursor            as Qt
 import qualified Qtc.Gui.QTextEdit              as Qt
+import qualified Qtc.Gui.QFontMetrics           as Qt
 
 import qualified Qtc.Gui.QWheelEvent            as Qt
 import qualified Qtc.Gui.QWidget                as Qt
@@ -375,6 +380,9 @@ action_pattern_playPause h _ a = do
 
 action_pattern_reset :: PatternP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_pattern_reset h _ _ = sendTo h $ PatternP.Transport PatternP.Reset
+
+action_pattern_run :: PatternP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_pattern_run h _ _ = sendTo h PatternP.RunPatch
 #endif -- USE_OLD_SEQUENCER
 
 scaleFeatureSpace :: Double -> Qt.QGraphicsView () -> IO ()
@@ -437,7 +445,7 @@ main = do
     
     fspace_graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "featureSpaceView")
     Qt.setScene fspace_graphicsView fspaceView
-    
+
     -- Sequencer process
 #if USE_OLD_SEQUENCER == 1
     seqP <- SequencerP.new sequencer0
@@ -446,10 +454,11 @@ main = do
     mute <- newMVar False
 #endif
 
-    patternP <- flip PatternP.new fspaceP =<< Patch.defaultPatch
-    (patternView, patternViewP) <- PatternView.new 30 2 patternP
+    defaultPatch <- Patch.defaultPatch
+    patternP <- PatternP.new defaultPatch fspaceP
+    (patternView, patternViewP) <- PatternView.new 30 2 patternP (Qt.objectCast editorWindow)
     patternViewP `listenTo` patternP
-    
+
     -- Sequencer view
     seq_graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "sequencerView")
 #if USE_OLD_SEQUENCER == 1
@@ -529,7 +538,8 @@ main = do
 #else
             , Menu "sequencer" "Sequencer"
               [ Action "play" "Play" "Start or pause the sequencer" Checkable (Just "SPACE") (action_pattern_playPause patternP)
-              , Action "reset" "Reset" "Reset the sequencer" Trigger (Just "RETURN") (action_pattern_reset patternP) ]
+              , Action "reset" "Reset" "Reset the sequencer" Trigger (Just "Ctrl+RETURN") (action_pattern_reset patternP)
+              , Action "run" "Run Patch" "Run the current patch" Trigger (Just "Ctrl+r") (action_pattern_run patternP) ]
 #endif
             , Menu "featureSpace" "FeatureSpace"
               [ Menu "zoom" "Zoom"
