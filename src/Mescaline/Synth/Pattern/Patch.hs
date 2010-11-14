@@ -7,6 +7,7 @@ module Mescaline.Synth.Pattern.Patch (
   , evalSourceCode
   , sequencer
   , regions
+  , setRegions
   , new
   , defaultPatch
   , pattern
@@ -68,3 +69,6 @@ evalSourceCode patch = do
     case res of
         Left e -> return $ Left e
         Right ast -> return $ Right $ patch { syntaxTree = ast }
+
+setRegions :: [Region] -> Patch -> Patch
+setRegions rs patch = patch { regions = rs }

@@ -87,6 +87,9 @@ type EnvironmentUpdate = Environment -> Environment
 -- type Player = Model.Player Environment Model.Event
 type PlayerHandle = Process.Handle EnvironmentUpdate ()
 
+logger :: String
+logger = "Sequencer"
+
 applyUpdates :: MonadIO m => Environment -> ReceiverT EnvironmentUpdate () m (Environment, Bool)
 applyUpdates a = loop (a, False)
     where
@@ -234,12 +237,14 @@ new patch0 fspaceP = do
                                     [ Handler (\(e :: Patch.LoadError) -> print e >> return Nothing)
                                     , Handler (\(e :: Comp.CompileError) -> print e >> return Nothing) ]
                     StorePatch path -> do
+                        regions <- liftM FeatureSpace.regions $ query fspaceP FeatureSpaceP.GetModel
+                        let patch' = Patch.setRegions regions (patch state)
                         h <- self
-                        io $ do { Patch.store path (patch state)
-                                 ; notifyListeners h (PatchStored (patch state) path) }
+                        io $ do { Patch.store path patch'
+                                 ; notifyListeners h (PatchStored patch' path) }
                                 `catch`
-                                (\(e :: IOException) -> print e)
-                        return $ Just state { patchFilePath = Just path }
+                                (\(e :: IOException) -> Log.errorM logger (show e))
+                        return $ Just state { patch = patch', patchFilePath = Just path }
                     SetSourceCode src -> do
                         return $ Just state { patch = Patch.setSourceCode src (patch state) }
                     RunPatch -> do
