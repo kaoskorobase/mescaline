@@ -6,12 +6,13 @@ module Mescaline.Hugs (
   , eval
 ) where
 
-import Data.List (intercalate)
-import Mescaline.Meap.Process (withTempFile)
-import Mescaline.Util (readMaybe)
-import System.Exit (ExitCode(..))
-import System.IO
-import System.Process (readProcessWithExitCode)
+import           Data.List (intercalate)
+import qualified Mescaline.Application as App
+import           Mescaline.Meap.Process (withTempFile)
+import           Mescaline.Util (readMaybe)
+import           System.Exit (ExitCode(..))
+import           System.IO
+import           System.Process (readProcessWithExitCode)
 
 -- | Hugs commandline options.
 data Option =
@@ -48,10 +49,14 @@ run opts mods src = withTempFile "Mescaline.Hugs.run.XXXX.hs" $ \f h -> do
     putStrLn src'
     hPutStr h src'
     hClose h
-    (e, sout, serr) <- readProcessWithExitCode "runhugs" (map optionToString opts ++ [f]) ""
-    case e of
-        ExitSuccess   -> return $ Right sout
-        ExitFailure _ -> putStrLn sout >> return (Left serr)
+    exe <- App.findExecutable "hugs/bin/runhugs"
+    case exe of
+        Nothing -> return $ Left "Couldn't find the `runhugs' executable; maybe you haven't installed Hugs?"
+        Just runhugs -> do
+            (e, sout, serr) <- readProcessWithExitCode runhugs (map optionToString opts ++ [f]) ""
+            case e of
+                ExitSuccess   -> return $ Right sout
+                ExitFailure _ -> return $ Left serr
     where
         src' = unlines $
                 map modToString mods ++ [
