@@ -171,7 +171,7 @@ regionMouseMoveHandler fspace region item evt = do
             Qt.IRect _ _ d _ <- Qt.qboundingRect item ()
             let dy = y0 - ey
                 d' = d + dy
-                r' = d'/2
+                r' = max (d'/2) unitRadius
             -- putStrLn $ "Region " ++ show (regionId region) ++ " radius=" ++ show r'
             -- onChanged $ Update $ Model.updateRegionById (regionId region) (\r -> r { Model.radius = r' })
             Qt.IPoint ix iy <- Qt.scenePos item ()
