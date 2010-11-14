@@ -8,6 +8,7 @@ module Mescaline.Hugs (
 
 import           Data.List (intercalate)
 import qualified Mescaline.Application as App
+import qualified Mescaline.Application.Logger as Log
 import           Mescaline.Meap.Process (withTempFile)
 import           Mescaline.Util (readMaybe)
 import           System.Exit (ExitCode(..))
@@ -46,13 +47,12 @@ modToString (Module m (Hiding xs)) = "import " ++ m ++ " hiding (" ++ intercalat
 
 run :: [Option] -> [Module] -> String -> IO (Either String String)
 run opts mods src = withTempFile "Mescaline.Hugs.run.XXXX.hs" $ \f h -> do
-    putStrLn src'
-    hPutStr h src'
-    hClose h
+    Log.debugM "Hugs" src'
     exe <- App.findExecutable "hugs/bin/runhugs"
     case exe of
         Nothing -> return $ Left "Couldn't find the `runhugs' executable; maybe you haven't installed Hugs?"
         Just runhugs -> do
+            hPutStr h src' >> hClose h
             (e, sout, serr) <- readProcessWithExitCode runhugs (map optionToString opts ++ [f]) ""
             case e of
                 ExitSuccess   -> return $ Right sout
@@ -70,7 +70,6 @@ eval opts mods src = do
     case res of
         Left e -> return $ Left e
         Right s -> do
-            putStrLn s
             case readMaybe s of
                 Nothing -> return $ Left "Read error"
                 Just a  -> return $ Right a

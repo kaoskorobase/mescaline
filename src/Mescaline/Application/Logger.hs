@@ -29,6 +29,7 @@ componentMap :: [(String, String)]
 componentMap =
     [ ("BufferCache"  , "logLevel")
     , ("FeatureSpace" , "logLevel")
+    , ("Hugs"         , "logLevel")
     , ("Sequencer"    , "logLevel")
     , ("Synth"        , "logLevel") ]
 

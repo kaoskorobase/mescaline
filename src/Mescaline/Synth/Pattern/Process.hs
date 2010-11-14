@@ -106,10 +106,10 @@ playerProcess handle = loop
             (envir, _) <- applyUpdates _envir
             case Model.step envir pattern of
                 Model.Done _ -> do
-                    io $ Log.debugM "Sequencer" "playerProcess: Model.Done"
+                    io $ Log.debugM logger "playerProcess: Model.Done"
                     return ()
                 Model.Result !envir' !event !pattern' -> do
-                    io $ Log.debugM "Sequencer" $ "Event: " ++ show event
+                    io $ Log.debugM logger $ "Event: " ++ show event
                     sendTo handle $ Event_ time event
                     -- let (row, col) = Model.cursorPosition (event ^. Model.cursor)
                     --     cursor = Sequencer.Cursor row col
@@ -180,7 +180,7 @@ new patch0 fspaceP = do
                                         fspace <- query fspaceP FeatureSpaceP.GetModel
                                         case Patch.pattern (patch state) of
                                             Left e -> do
-                                                io $ print e
+                                                io $ Log.errorM logger (show e)
                                                 return Nothing
                                             Right (pattern, bindings) -> do
                                                 let env = Environment.mkEnvironment
@@ -206,7 +206,7 @@ new patch0 fspaceP = do
                                         fspace <- query fspaceP FeatureSpaceP.GetModel
                                         case Patch.pattern (patch state) of
                                             Left e -> do
-                                                io $ print e
+                                                io $ Log.errorM logger (show e)
                                                 return Nothing
                                             Right (pattern, bindings) -> do
                                                 let env = Environment.mkEnvironment
@@ -234,8 +234,8 @@ new patch0 fspaceP = do
                                 ; initPatch h fspaceP state'
                                 ; return $ Just state' }
                                 `catches`
-                                    [ Handler (\(e :: Patch.LoadError) -> print e >> return Nothing)
-                                    , Handler (\(e :: Comp.CompileError) -> print e >> return Nothing) ]
+                                    [ Handler (\(e :: Patch.LoadError)   -> Log.errorM logger (show e) >> return Nothing)
+                                    , Handler (\(e :: Comp.CompileError) -> Log.errorM logger (show e) >> return Nothing) ]
                     StorePatch path -> do
                         regions <- liftM FeatureSpace.regions $ query fspaceP FeatureSpaceP.GetModel
                         let patch' = Patch.setRegions regions (patch state)
@@ -251,7 +251,7 @@ new patch0 fspaceP = do
                         res <- io $ Patch.evalSourceCode (patch state)
                         case res of
                             Left e -> do
-                                io $ putStrLn e
+                                io $ Log.errorM logger e
                                 return Nothing
                             Right patch' -> do
                                 notify $ PatchChanged patch' (patchFilePath state)

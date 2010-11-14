@@ -27,7 +27,11 @@ import qualified Mescaline.Synth.Pattern.Sequencer as Seq
 -- | A type for compilation errors.
 data CompileError = CompileError String
                   | BindingNotFound AST.Binding
-                  deriving (Eq, Read, Show, Typeable)
+                  deriving (Eq, Read, Typeable)
+
+instance Show CompileError where
+    show (CompileError s) = "Compile error: " ++ s
+    show (BindingNotFound i) = "Binding not found: " ++ show i
 
 instance Error CompileError where
     strMsg = CompileError

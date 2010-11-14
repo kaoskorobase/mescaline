@@ -51,7 +51,10 @@ fileToPatch :: File -> IO P.Patch
 fileToPatch (File c s rs) = P.new c (sequencerToPatch s) (map regionToPatch rs)
 
 data LoadError = LoadError String
-                 deriving (Eq, Read, Show, Typeable)
+                 deriving (Eq, Read, Typeable)
+
+instance Show LoadError where
+    show (LoadError s) = "Load error: " ++ s
 
 instance Exception LoadError
 

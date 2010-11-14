@@ -18,6 +18,10 @@ regionColor8    = darkviolet*0.7
 
 logLevel        = NOTICE
 
+[Hugs]
+
+logLevel        = DEBUG
+
 [Sequencer]
 
 logLevel        = NOTICE
