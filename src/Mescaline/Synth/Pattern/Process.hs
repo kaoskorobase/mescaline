@@ -20,6 +20,7 @@ import           Control.Monad.Trans (MonadIO)
 import           Control.Monad.Fix (fix)
 -- import           Control.Monad.Reader
 import           Data.Accessor
+import qualified Data.BitSet as BitSet
 import           Data.Maybe (fromJust)
 import           Data.Typeable
 import           Mescaline (Time)
@@ -31,7 +32,7 @@ import qualified Mescaline.Synth.FeatureSpace.Process as FeatureSpaceP
 import           Mescaline.Synth.Pattern.Environment (Environment)
 import qualified Mescaline.Synth.Pattern.Environment as Environment
 import           Mescaline.Synth.Pattern.Event (Event)
-import qualified Mescaline.Synth.Pattern.Event as Model
+import qualified Mescaline.Synth.Pattern.Event as Event
 import qualified Mescaline.Synth.Pattern.Compiler as Comp
 import           Mescaline.Synth.Pattern.Sequencer (Sequencer)
 import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
@@ -59,13 +60,15 @@ data Input =
   | StorePatch      FilePath
   | SetSourceCode   String
   | RunPatch
+  -- Muting
+  | Mute            Int Bool
   -- Internal messages
-  | Event_          Time Model.Event
+  | Event_          Time Event.Event
   | Environment_    Environment
 
 data Output =
     Changed      Time TransportState Sequencer.Sequencer
-  | Event        Time Model.Event
+  | Event        Time Event.Event
   | PatchChanged Patch.Patch (Maybe FilePath)
   | PatchStored  Patch.Patch FilePath
 
@@ -78,6 +81,7 @@ data State = State {
   , patch         :: Patch.Patch
   , patchFilePath :: Maybe FilePath
   , playerThread  :: Maybe PlayerHandle
+  , mutedTracks   :: BitSet.BitSet Int
   }
 
 transport :: State -> TransportState
@@ -114,7 +118,7 @@ playerProcess handle = loop
                     -- let (row, col) = Model.cursorPosition (event ^. Model.cursor)
                     --     cursor = Sequencer.Cursor row col
                     --     envir'' = Environment.sequencer ^: Sequencer.modifyCursor (const cursor) (Model.cursorId (event ^. Model.cursor)) $ envir'
-                    let dt = event ^. Model.delta
+                    let dt = event ^. Event.delta
                         envir'' = envir'
                     if dt > 0
                         then do
@@ -146,7 +150,7 @@ initPatch h fspaceP state = do
 new :: Patch.Patch -> FeatureSpaceP.Handle -> IO Handle
 new patch0 fspaceP = do
     time <- io Time.utcr
-    let state = State time patch0 Nothing Nothing
+    let state = State time patch0 Nothing Nothing BitSet.empty
     h <- spawn (loop state)
     initPatch h fspaceP state
     return h
@@ -259,14 +263,18 @@ new patch0 fspaceP = do
                                 flip sendTo (Transport Pause) =<< self
                                 when restart $ flip sendTo (Transport Start) =<< self
                                 return $ Just state { patch = patch' }
+                    Mute track b ->
+                        return $ Just state { mutedTracks = (if b then BitSet.insert else BitSet.delete)
+                                                                track (mutedTracks state) }
                     Event_ time event ->
                         case transport state of
                             Running -> do
-                                notify $ Event time event
+                                unless (BitSet.member (event ^. Event.cursor) (mutedTracks state))
+                                       (notify $ Event time event)
                                 return Nothing
                             _ -> error "This shouldn't happen: Received an Event_ message but player thread not running"
                     Environment_ envir ->
-                        return $ Just $ state { patch = Patch.modifySequencer (const (envir ^. Environment.sequencer)) (patch state) }
+                        return $ Just state { patch = Patch.modifySequencer (const (envir ^. Environment.sequencer)) (patch state) }
             case state' of
                 Just state' -> do
                     notify $ Changed (time state') (transport state') (Patch.sequencer (patch state'))

@@ -383,6 +383,11 @@ action_pattern_reset h _ _ = sendTo h $ PatternP.Transport PatternP.Reset
 
 action_pattern_run :: PatternP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_pattern_run h _ _ = sendTo h PatternP.RunPatch
+
+action_pattern_mute :: Int -> PatternP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_pattern_mute i h _ a = do
+    b <- Qt.isChecked a ()
+    sendTo h $ PatternP.Mute i b
 #endif -- USE_OLD_SEQUENCER
 
 scaleFeatureSpace :: Double -> Qt.QGraphicsView () -> IO ()
@@ -539,7 +544,12 @@ main = do
             , Menu "sequencer" "Sequencer"
               [ Action "play" "Play" "Start or pause the sequencer" Checkable (Just "SPACE") (action_pattern_playPause patternP)
               , Action "reset" "Reset" "Reset the sequencer" Trigger (Just "Ctrl+RETURN") (action_pattern_reset patternP)
-              , Action "run" "Run Patch" "Run the current patch" Trigger (Just "Ctrl+r") (action_pattern_run patternP) ]
+              , Action "run" "Run Patch" "Run the current patch" Trigger (Just "Ctrl+r") (action_pattern_run patternP)
+              , Menu "mute" "Mute"
+                (flip map [0..7] $ \i -> Action ("mute" ++ show i)
+                                                ("Mute track " ++ show (i + 1))
+                                                "" Checkable (Just ("Ctrl+" ++ show (i + 1)))
+                                                (action_pattern_mute i patternP)) ]
 #endif
             , Menu "featureSpace" "FeatureSpace"
               [ Menu "zoom" "Zoom"
