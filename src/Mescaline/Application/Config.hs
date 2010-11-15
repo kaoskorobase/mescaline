@@ -1,7 +1,9 @@
-{-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables #-}
+{-# LANGUAGE DeriveDataTypeable
+           , ScopedTypeVariables #-}
 module Mescaline.Application.Config (
     module Data.ConfigFile
   , getIO
+  , getIODefault
   , getColor
   , getConfig
 ) where
@@ -20,6 +22,7 @@ import qualified Qtc.Gui.QColor as Qt
 import           System.Directory
 import           System.FilePath
 import           Text.Regex
+import           Prelude hiding (catch)
 
 newtype Color = Color (Qt.QColor ())
 
@@ -38,6 +41,10 @@ getIO config section option = do
     case get config section option of
         Left e  -> throw (ConfigParserError e)
         Right a -> return a
+
+getIODefault :: Get_C a => a -> ConfigParser -> SectionSpec -> OptionSpec -> IO a
+getIODefault a0 config section option = catch (getIO config section option)
+                                              (\(_ :: ConfigParserError) -> return a0)
 
 getColor :: ConfigParser -> SectionSpec -> OptionSpec -> IO (Qt.QColor ())
 getColor config section option = do

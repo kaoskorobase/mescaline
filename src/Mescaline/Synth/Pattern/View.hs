@@ -20,6 +20,8 @@ import           Data.Vector (Vector)
 import qualified Data.Vector.Generic as V
 import           Mescaline (Time)
 import qualified Mescaline.Application as App
+import qualified Mescaline.Application.Config as Config
+import           Mescaline.Synth.FeatureSpace.View (getRegionColors)
 import qualified Mescaline.Synth.Pattern.Sequencer as Model
 import qualified Mescaline.Synth.Pattern.Process as Process
 import qualified Mescaline.Synth.Pattern.Patch as Patch
@@ -52,17 +54,17 @@ newView :: IO (View)
 newView = Qt.qSubClass (Qt.qGraphicsScene ())
 
 data Params = Params {
-    boxSize   :: Double
-  , padding   :: Double
+    boxSize       :: Double
+  , boxPadding    :: Double
+  , cursorPadding :: Double
   } deriving (Show)
 
 type FieldMap  = Map.Map (Int,Int) (Qt.QAbstractGraphicsShapeItem ())
 type CursorMap = IntMap.IntMap (Qt.QAbstractGraphicsShapeItem ())
 
 data CursorStyle = CursorStyle {
-    cs_inactive :: Qt.QPen ()
-  , cs_active   :: Qt.QPen ()
-  , cs_region   :: IntMap.IntMap (Qt.QPen ())
+    cs_inactive :: IntMap.IntMap (Qt.QPen ())
+  , cs_active   :: IntMap.IntMap (Qt.QPen ())
   }
 
 data FieldStyle = FieldStyle {
@@ -90,9 +92,14 @@ mouseHandler coord action this evt = action coord 1 >> Qt.mousePressEvent_h this
 
 fieldPos :: Params -> Int -> Int -> (Double, Double)
 fieldPos p r c =
-    let y = padding p + fromIntegral r * (boxSize p + padding p)
-        x = padding p + fromIntegral c * (boxSize p + padding p)
+    let y = boxPadding p + fromIntegral r * (boxSize p + boxPadding p)
+        x = boxPadding p + fromIntegral c * (boxSize p + boxPadding p)
     in (x, y)
+
+cursorPos :: Params -> Int -> Int -> (Double, Double)
+cursorPos p r c =
+    let (x, y) = fieldPos p r c
+    in (x - cursorPadding p, y - cursorPadding p)
 
 initScene :: Params -> View -> Model.Sequencer -> ((Int, Int) -> Double -> IO ()) -> IO (FieldMap, CursorMap)
 initScene params view model action = do
@@ -107,8 +114,10 @@ initScene params view model action = do
                 Qt.addItem view item
                 return (coord, Qt.objectCast item)
     cs <- forM (Model.cursors model) $ \(i, c) -> do
-        let (x, y) = fieldPos params (Model.row c) (Model.column c)
-            box    = Qt.rectF 0 0 (boxSize params) (boxSize params)
+        let (x, y) = cursorPos params (Model.row c) (Model.column c)
+            box    = Qt.rectF 0 0
+                        (boxSize params + 2 * cursorPadding params)
+                        (boxSize params + 2 * cursorPadding params)
         item <- Qt.qGraphicsRectItem_nf box
         Qt.setPos item (Qt.pointF x y)
         Qt.addItem view item
@@ -131,7 +140,7 @@ updateHandler state view = do
                     forM_ (Model.cursors curSeq) $ \(i, c) -> do
                         case IntMap.lookup i (cursors state) of
                             Nothing -> return ()
-                            Just item -> updateCursor state item c (Model.lookupAtCursor c curSeq)
+                            Just item -> updateCursor state item i c (Model.lookupAtCursor c curSeq)
                     return (Just curSeq)
                 where
                     updateField state row col value = do
@@ -144,16 +153,17 @@ updateHandler state view = do
                                                 (fieldStyle state)
                                 Qt.setPen item p
                                 Qt.setBrush item b
-                    updateCursor state item cursor value = do
-                        let (x, y) = fieldPos (params state)
-                                              (Model.row cursor)
-                                              (Model.column cursor)
+                    updateCursor state item cursorId cursor value = do
+                        let (x, y) = cursorPos (params state)
+                                               (Model.row cursor)
+                                               (Model.column cursor)
                             f = if (maybe 0 id value) > 0
                                     then cs_active
                                     else cs_inactive
-                            p = f (cursorStyle state)
                         Qt.setPos item (Qt.pointF x y)
-                        Qt.setPen item p       
+                        maybe (return ())
+                              (Qt.setPen item)
+                              (IntMap.lookup cursorId (f (cursorStyle state)))
             Process.PatchChanged patch patchPath -> do
                 setPatch True state patch patchPath
             Process.PatchLoaded _ _ -> do
@@ -188,8 +198,16 @@ textChanged process state _ = do
     src <- Qt.toPlainText (editor state) ()
     sendTo process (Process.SetSourceCode src)
 
-new :: Double -> Double -> Process.Handle -> Qt.QWidget () -> IO (View, Handle Input Output)
-new boxSize padding process editorWindow = do
+new :: Process.Handle -> Qt.QWidget () -> IO (View, Handle Input Output)
+new process editorWindow = do
+    config <- Config.getConfig
+
+    boxSize <- Config.getIO config "Sequencer" "boxSize" :: IO Double
+    boxPadding <- Config.getIO config "Sequencer" "boxPadding" :: IO Double
+    cursorPadding <- Config.getIO config "Sequencer" "cursorPadding" :: IO Double
+    cursorLineWidth <- Config.getIO config "Sequencer" "cursorLineWidth" :: IO Double
+    activeCursorLineWidth <- Config.getIO config "Sequencer" "activeCursorLineWidth" :: IO Double
+    
     view <- newView
     
     -- Set up text editor
@@ -200,18 +218,24 @@ new boxSize padding process editorWindow = do
     
     model <- query process Process.GetSequencer
 
-    let params = Params boxSize padding
+    let params = Params boxSize boxPadding cursorPadding
     (fMap, cMap) <- initScene params view model
                         (\(r, c) _ -> sendTo process $ Process.ModifyCell r c (maybe (Just 1) (const Nothing)))
 
     mq <- newChan
     modelVar <- newMVar Nothing
     tb             <- Qt.qBrush Qt.eblack
-    fs_pen         <- Qt.qPen (tb, 1::Double)
+    fs_pen         <- Qt.qPen (tb, 1::Double, Qt.eSolidLine, Qt.eSquareCap, Qt.eMiterJoin)
     fs_emptyBrush  <- Qt.qBrush Qt.etransparent
     fs_filledBrush <- Qt.qBrush Qt.edarkGray
-    cs_inactivePen <- Qt.qPen (tb, 2::Double)
-    cs_activePen   <- Qt.qPen (tb, 3::Double)
+    
+    regionBrushes  <- getRegionColors config >>= mapM Qt.qBrush
+    cs_inactive    <- liftM (IntMap.fromList . zip [0..]) $
+        mapM (\b -> Qt.qPen (b, cursorLineWidth, Qt.eSolidLine, Qt.eSquareCap, Qt.eMiterJoin))
+             regionBrushes
+    cs_active      <- liftM (IntMap.fromList . zip [0..]) $
+        mapM (\b -> Qt.qPen (b, activeCursorLineWidth, Qt.eSolidLine, Qt.eSquareCap, Qt.eMiterJoin))
+             regionBrushes
 
     let state = State
                     params
@@ -219,7 +243,7 @@ new boxSize padding process editorWindow = do
                     modelVar
                     fMap cMap
                     (FieldStyle (fs_pen, fs_emptyBrush) (fs_pen, fs_filledBrush))
-                    (CursorStyle cs_inactivePen cs_activePen IntMap.empty)
+                    (CursorStyle cs_inactive cs_active)
                     editorWindow
                     editor
 

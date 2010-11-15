@@ -479,7 +479,7 @@ main = do
 
     defaultPatch <- Patch.defaultPatch
     patternP <- PatternP.new defaultPatch fspaceP
-    (patternView, patternViewP) <- PatternView.new 30 2 patternP (Qt.objectCast editorWindow)
+    (patternView, patternViewP) <- PatternView.new patternP (Qt.objectCast editorWindow)
     patternViewP `listenTo` patternP
 
     -- Sequencer view

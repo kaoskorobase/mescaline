@@ -58,6 +58,7 @@ import qualified Qtc.Gui.QGraphicsRectItem          as Qt
 import qualified Qtc.Gui.QGraphicsScene             as Qt
 import qualified Qtc.Gui.QGraphicsSceneMouseEvent   as Qt
 import qualified Qtc.Gui.QGraphicsScene_h           as Qt
+import qualified Qtc.Gui.QGraphicsTextItem          as Qt
 import qualified Qtc.Gui.QKeyEvent                  as Qt
 import qualified Qtc.Gui.QPen                       as Qt
 import qualified Qtc.Gui.QWidget                    as Qt
@@ -193,6 +194,7 @@ addRegion view state region = do
         y      = Model.center region V.! 1
     item <- Qt.qGraphicsEllipseItem_nf (Qt.rectF (-r) (-r) (r*2) (r*2))
     Qt.setBrush item b
+    -- text <- Qt.qGraphicsTextItem (show (Model.regionId region + 1))
     -- Qt.setFlags item $ Qt.fItemIsMovable + (Qt.qFlags_fromInt 2048) -- FIXME: Huh? Wtf? QGraphicsItem::ItemSendsGeometryChanges?
     Qt.addItem view item
     Qt.setPos item (Qt.pointF x y)
@@ -201,6 +203,14 @@ addRegion view state region = do
     Qt.setHandler item "mousePressEvent(QGraphicsSceneMouseEvent*)"   $ regionMousePressHandler   (featureSpace state) regionHandle
     Qt.setHandler item "mouseMoveEvent(QGraphicsSceneMouseEvent*)"    $ regionMouseMoveHandler    (featureSpace state) regionHandle
     Qt.setHandler item "mouseReleaseEvent(QGraphicsSceneMouseEvent*)" $ regionMouseReleaseHandler (featureSpace state) regionHandle
+
+    -- text <- Qt.qGraphicsTextItem item
+    -- Qt.setPlainText text (show (Model.regionId region + 1))
+    -- Qt.qscale text (0.0025::Double, 0.0025::Double)
+    -- Qt.setPos text (Qt.pointF (0::Double) (0::Double))
+    -- Qt.setParentItem text item
+    -- Qt.adjustSize text ()
+
     withMVar (regions state) $ \rs ->
         Hash.insert rs (regionId regionHandle) regionHandle
 

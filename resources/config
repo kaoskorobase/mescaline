@@ -27,6 +27,14 @@ logLevel        = DEBUG
 logLevel        = NOTICE
 debugFill       = false
 
+# Appearance
+
+boxSize               = 40
+boxPadding            = 8
+cursorPadding         = 2
+cursorLineWidth       = 4
+activeCursorLineWidth = 4
+
 [Synth]
 
 logLevel        = NOTICE
