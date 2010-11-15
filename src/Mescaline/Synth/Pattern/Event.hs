@@ -15,6 +15,7 @@ module Mescaline.Synth.Pattern.Event (
   , Synth
   , defaultSynth
   , unit
+  , offset
   , duration
   , rate
   , attackTime
@@ -32,6 +33,7 @@ import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
 
 data Synth = Synth {
     _unit         :: Unit.Unit
+  , _offset       :: Duration
   , _duration     :: Duration
   , _rate         :: Double
   , _attackTime   :: Double
@@ -45,6 +47,7 @@ defaultSynth :: Unit.Unit -> Synth
 defaultSynth u =
     Synth {
         _unit         = u
+      , _offset       = 0
       , _duration     = Unit.duration u
       , _rate         = 1
       , _attackTime   = 0
@@ -55,6 +58,7 @@ defaultSynth u =
       }
 
 ACCESSOR(unit,          _unit,          Synth, Unit.Unit)
+ACCESSOR(offset,        _offset,        Synth, Duration)
 ACCESSOR(duration,      _duration,      Synth, Duration)
 ACCESSOR(rate,          _rate,          Synth, Double)
 ACCESSOR(attackTime,    _attackTime,    Synth, Double)
