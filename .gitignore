@@ -1,5 +1,6 @@
-dist
-upstream
+/dist
+/resources/hugs/bin/runhugs
+/supercollider
 *.hi
 *.o
 *.prof
