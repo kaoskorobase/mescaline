@@ -343,7 +343,6 @@ importDialog fileMode w = do
 action_file_openFile :: PatternP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_file_openFile h w _ = do
     ps <- importDialog Qt.eExistingFile w
-    putStrLn $ "openFile: " ++ show ps
     case ps of
         [] -> return ()
         (p:_) -> sendTo h $ PatternP.LoadPatch p
@@ -351,7 +350,6 @@ action_file_openFile h w _ = do
 action_file_saveFile :: PatternP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_file_saveFile h w _ = do
     ps <- importDialog Qt.eAnyFile w
-    putStrLn $ "saveFile: " ++ show ps
     case ps of
         [] -> return ()
         (p:_) -> sendTo h $ PatternP.StorePatch p
