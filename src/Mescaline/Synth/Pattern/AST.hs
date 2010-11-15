@@ -113,8 +113,35 @@ class Language pattern where
     step :: pattern Scalar -> pattern Scalar -> pattern Event -> pattern Event
 
     -- Randomness
-    rand    :: pattern Scalar -> pattern Scalar -> pattern Scalar
+    
+    -- | Generate white noise in a given range.
+    --
+    -- @rand min max@
+    --
+    -- * @min@ Minimum value.
+    --
+    -- * @max@ Maximum value.
+    rand :: pattern Scalar -> pattern Scalar -> pattern Scalar
+    -- | Generate exponential noise in a given range.
+    --
+    -- @exprand min max@
+    --
+    -- * @min@ Minimum value.
+    --
+    -- * @max@ Maximum value.
     exprand :: pattern Scalar -> pattern Scalar -> pattern Scalar
+    -- | Generate brown noise in a given range with a given step size.
+    --
+    -- @brown stepMin stepMax min max@
+    --
+    --  * @stepMin@ Minimum step size.
+    --
+    --  * @stepMax@ Maximum step size.
+    --
+    --  * @min@ Minimum value.
+    --
+    --  * @max@ Maximum value.
+    brown :: pattern Scalar -> pattern Scalar -> pattern Scalar -> pattern Scalar -> pattern Scalar
 
     -- Debugging
     trace :: Trace pattern a => pattern a -> pattern a
@@ -175,6 +202,9 @@ liftAST2 f a b = AST $ liftM2 f (unAST a) (unAST b)
 liftAST3 :: (a1 -> a2 -> a3 -> r) -> Pattern a1 -> Pattern a2 -> Pattern a3 -> Pattern r
 liftAST3 f a b c = AST $ liftM3 f (unAST a) (unAST b) (unAST c)
 
+liftAST4 :: (a1 -> a2 -> a3 -> a4 -> r) -> Pattern a1 -> Pattern a2 -> Pattern a3 -> Pattern a4 -> Pattern r
+liftAST4 f a b c d = AST $ liftM4 f (unAST a) (unAST b) (unAST c) (unAST d)
+
 instance Language Pattern where
     value = AST . return . S_value
     bind = bindI
@@ -220,6 +250,7 @@ instance Language Pattern where
     -- Randomness
     rand    = liftAST2 S_rand
     exprand = liftAST2 S_exprand
+    brown   = liftAST4 S_brown
 
     -- Debugging
     trace a = traceI a
@@ -269,26 +300,6 @@ instance Floating (Pattern Scalar) where
     asinh   = map UF_asinh
     atanh   = map UF_atanh
     acosh   = map UF_acosh
-
--- instance Bind Pattern Scalar where
---     bindI e f = AST $ do
---         a <- unAST e
---         s <- State.get
---         let h  = hashCount s
---             s' = s { hashCount = succ h
---                    , sMap = Map.insert h a (sMap s) }
---         State.put s'
---         unAST $ f (AST (return (S_binding h)))
--- 
--- instance Bind Pattern Event where
---     bindI e f = AST $ do
---         a <- unAST e
---         s <- State.get
---         let h  = hashCount s
---             s' = s { hashCount = succ h
---                    , eMap = Map.insert h a (eMap s) }
---         State.put s'
---         unAST $ f (AST (return (E_binding h)))
 
 bindP :: (Binding -> a)
       -> (Binding -> a -> b -> b)
@@ -399,6 +410,7 @@ data Scalar =
   -- Randomness
   | S_rand Scalar Scalar
   | S_exprand Scalar Scalar
+  | S_brown Scalar Scalar Scalar Scalar
   -- Debugging
   | S_trace Scalar
   deriving (Eq, Read, Show)
