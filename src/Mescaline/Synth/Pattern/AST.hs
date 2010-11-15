@@ -99,7 +99,6 @@ class Language pattern where
     polar :: pattern Coord -> pattern Scalar -> pattern Scalar -> pattern Coord
     x :: pattern Coord -> pattern Scalar
     y :: pattern Coord -> pattern Scalar
-    constrain :: pattern Coord -> pattern Scalar -> pattern Coord -> pattern Coord
 
     -- Regions
     center :: pattern Scalar -> pattern Coord
@@ -234,7 +233,6 @@ instance Language Pattern where
     polar     = liftAST3 C_polar
     x         = liftAST S_x
     y         = liftAST S_y
-    constrain = liftAST3 C_constrain
 
     -- Regions
     center  = liftAST C_center
@@ -427,7 +425,6 @@ data Coord =
   | C_bind_S Binding Scalar  Coord
   -- Regions
   | C_center Scalar
-  | C_constrain Coord Scalar Coord
   -- Debugging
   | C_trace Coord
   deriving (Eq, Read, Show)

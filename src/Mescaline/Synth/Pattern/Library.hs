@@ -9,7 +9,6 @@ module Mescaline.Synth.Pattern.Library (
     -- *Coordinates
   , coord
   , polar
-  , constrain
     -- *Regions
   , center
   , radius
@@ -110,13 +109,6 @@ coord = pzip
 polar :: Pattern (Double, Double) -> Pattern Double -> Pattern Double -> Pattern (Double, Double)
 polar = pzipWith3 f
     where f (x, y) mag phi = let c = C.mkPolar mag phi in (x + C.realPart c, y + C.imagPart c)
-
--- | 
-constrain :: Pattern (Double, Double) -> Pattern Double -> Pattern (Double, Double) -> Pattern (Double, Double)
-constrain = pzipWith3 f
-    where
-        f c r p | C.realPart (abs (uncurry (C.:+) c - uncurry (C.:+) p)) <= r = p
-                | otherwise = (-1, -1)
 
 closest :: Event.Cursor -> Pattern Double -> Pattern (Double, Double) -> Pattern Double -> Pattern Event
 closest c = pzipWith4 f (askA Environment.featureSpace)

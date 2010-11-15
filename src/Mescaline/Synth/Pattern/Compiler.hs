@@ -185,7 +185,6 @@ compileC (AST.C_bind_S h a b) = compileBind compileS compileC B.scalar  h a b
 compileC (AST.C_coord a b) = liftM2 coord (compileS a) (compileS b)
 compileC (AST.C_polar a b c) = liftM3 polar (compileC a) (compileS b) (compileS c)
 compileC (AST.C_center a) = liftM center (compileS a)
-compileC (AST.C_constrain a b c) = liftM3 constrain (compileC a) (compileS b) (compileC c)
 compileC (AST.C_trace a) = liftM ptrace (compileC a)
 
 -- | Compile an event expression to an event pattern.
