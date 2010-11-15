@@ -11,7 +11,7 @@ module Mescaline.Synth.Sampler.Model (
 
 import           Control.Monad.Reader
 import           Data.Accessor ((^.))
-import           Mescaline (Time)
+import           Mescaline (Duration, Time)
 import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Database.SourceFile as SourceFile
@@ -95,6 +95,12 @@ voiceDefName 1  = "es.globero.mescaline.voice_1"
 voiceDefName 2  = "es.globero.mescaline.voice_2"
 voiceDefName nc = "es.globero.mescaline.voice_" ++ (show nc)
 
+synthBounds :: Synth -> (Time, Duration)
+synthBounds synth = (Unit.onset (synth ^. P.unit) + off, max 0 (dur - off))
+    where
+        off = synth ^. P.offset
+        dur = synth ^. P.duration
+
 startVoice :: Voice -> Time -> Synth -> OSC
 startVoice voice time synth =
     let timeTag = if time <= 0
@@ -110,7 +116,7 @@ startVoice voice time synth =
              ] ++
                if voiceGateEnvelope
                   then []
-                  else [ ("dur", synth ^. P.duration) ])
+                  else [ ("dur", snd (synthBounds synth)) ])
              ]
 
 stopVoice :: Voice -> Time -> Synth -> OSC
@@ -174,9 +180,9 @@ playUnit_noSchedComplBundles :: Sampler -> Time -> Synth -> Server ()
 playUnit_noSchedComplBundles sampler time synth = do
     voice <- allocVoice cache unit (const Nothing)
     S.sync $ S.send $ b_read
-                        (fromIntegral $ BC.uid $ buffer voice)
+                        (fromIntegral (BC.uid (buffer voice)))
                         (SourceFile.path sourceFile)
-                        (truncate $ SourceFile.sampleRate sourceFile * Unit.onset (synth ^. P.unit))
+                        (truncate (SourceFile.sampleRate sourceFile * fst (synthBounds synth)))
                         (-1) 0 1
     _ <- S.send (startVoice voice time synth) `S.syncWith` n_end (voiceId voice)
     freeVoice cache voice
