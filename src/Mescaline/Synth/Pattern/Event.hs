@@ -16,6 +16,7 @@ module Mescaline.Synth.Pattern.Event (
   , defaultSynth
   , unit
   , duration
+  , rate
   , attackTime
   , releaseTime
   , sustainLevel
@@ -32,6 +33,7 @@ import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
 data Synth = Synth {
     _unit         :: Unit.Unit
   , _duration     :: Duration
+  , _rate         :: Double
   , _attackTime   :: Double
   , _releaseTime  :: Double
   , _sustainLevel :: Double
@@ -44,6 +46,7 @@ defaultSynth u =
     Synth {
         _unit         = u
       , _duration     = Unit.duration u
+      , _rate         = 1
       , _attackTime   = 0
       , _releaseTime  = 0
       , _sustainLevel = 1
@@ -53,6 +56,7 @@ defaultSynth u =
 
 ACCESSOR(unit,          _unit,          Synth, Unit.Unit)
 ACCESSOR(duration,      _duration,      Synth, Duration)
+ACCESSOR(rate,          _rate,          Synth, Double)
 ACCESSOR(attackTime,    _attackTime,    Synth, Double)
 ACCESSOR(releaseTime,   _releaseTime,   Synth, Double)
 ACCESSOR(sustainLevel,  _sustainLevel,  Synth, Double)

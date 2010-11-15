@@ -82,13 +82,13 @@ voiceDef :: Int -> UGen
 voiceDef n = output $ toStereo $ vDiskIn n bufnum rate NoLoop * voiceEnv
     where
         bufnum = control KR "bufnum" (-1)
-        rate   = bufRateScale KR bufnum
+        rate   = bufRateScale KR bufnum * control KR "rate" 1
 
 voiceDefMem :: Int -> UGen
 voiceDefMem n = output $ toStereo $ playBuf n bufnum rate 1 (control KR "start" (0)) NoLoop DoNothing * voiceEnv
     where
         bufnum = control KR "bufnum" (-1)
-        rate   = bufRateScale KR bufnum
+        rate   = bufRateScale KR bufnum * control KR "rate" 1
 
 voiceDefName :: Int -> String
 voiceDefName 1  = "es.globero.mescaline.voice_1"
@@ -102,15 +102,16 @@ startVoice voice time synth =
                   else OSC.UTCr (time + synth ^. P.latency)
     in Bundle timeTag
         [s_new (voiceDefName $ BC.numChannels $ buffer voice) (fromIntegral $ voiceId voice) AddToTail 0
-            ([ ("bufnum", fromIntegral $ BC.uid $ buffer voice),
-              ("attackTime",   synth ^. P.attackTime),
-              ("releaseTime",  synth ^. P.attackTime),
-              ("sustainLevel", synth ^. P.sustainLevel) ]
-              ++
-              if voiceGateEnvelope
-                then []
-                else [("dur", Unit.duration (synth ^. P.unit))])
-            ]
+            ([ ("bufnum", fromIntegral $ BC.uid $ buffer voice)
+             , ("rate", synth ^. P.rate)
+             , ("attackTime",   synth ^. P.attackTime)
+             , ("releaseTime",  synth ^. P.attackTime)
+             , ("sustainLevel", synth ^. P.sustainLevel)
+             ] ++
+               if voiceGateEnvelope
+                  then []
+                  else [ ("dur", synth ^. P.duration) ])
+             ]
 
 stopVoice :: Voice -> Time -> Synth -> OSC
 stopVoice voice time synth =
