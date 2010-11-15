@@ -107,8 +107,6 @@ sequencer0 :: Sequencer.Sequencer ()
 sequencer0 = Sequencer.cons 16 16 0.125 (Sequencer.Bar 0)
 #endif -- USE_OLD_SEQUENCER
 
-setEnv = setVal (Event.attackTime) 0.01 . setVal (Event.releaseTime) 0.02
-
 -- sceneKeyPressEvent :: MVar Bool -> Chan (Sequencer a -> Sequencer a) -> Qt.QWidget () -> Qt.QKeyEvent () -> IO ()
 -- sceneKeyPressEvent mute chan _ qkev = do
 --     key <- Qt.key qkev ()
@@ -515,7 +513,7 @@ main = do
         case x of
             PatternP.Event time event -> do
                 -- io $ putStrLn $ "PatternP.Event " ++ show time ++ " " ++ show event
-                Event.withSynth (return ()) (sendTo synthP . SynthP.PlayUnit time . setEnv) event
+                Event.withSynth (return ()) (sendTo synthP . SynthP.PlayUnit time) event
             _ -> return ()
         loop
     patternToFSpaceP `listenTo` patternP
