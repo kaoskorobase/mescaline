@@ -95,14 +95,37 @@ voiceDefName 1  = "es.globero.mescaline.voice_1"
 voiceDefName 2  = "es.globero.mescaline.voice_2"
 voiceDefName nc = "es.globero.mescaline.voice_" ++ (show nc)
 
-synthBounds :: Synth -> (Time, Duration)
-synthBounds synth = (Unit.onset (synth ^. P.unit) + off, max 0 (dur - off))
-    where
-        off = synth ^. P.offset
-        dur = synth ^. P.duration
+data SynthBounds = SynthBounds {
+    onset       :: {-# UNPACK #-} !Time
+  , duration    :: {-# UNPACK #-} !Duration
+  , attackTime  :: {-# UNPACK #-} !Duration
+  , sustainTime :: {-# UNPACK #-} !Duration
+  , releaseTime :: {-# UNPACK #-} !Duration
+  }
 
-startVoice :: Voice -> Time -> Synth -> OSC
-startVoice voice time synth =
+synthBounds :: Synth -> SynthBounds
+synthBounds synth =
+    SynthBounds
+        (Unit.onset (synth ^. P.unit) + synth ^. P.offset)
+        dur atime' stime' rtime'
+    where
+        dur    = synth ^. P.duration
+        -- dur'   = dur - synth ^. P.offset
+        atime  = max 0 (synth ^. P.attackTime)
+        rtime  = max 0 (synth ^. P.releaseTime)
+        stime  = dur - (atime + rtime)
+        (atime', stime', rtime') =
+            if stime < 0
+                then if atime == 0
+                     then (0, 0, min dur rtime)
+                     else if rtime == 0
+                          then (min dur atime, 0, 0)
+                          else let r = atime / (atime + rtime)
+                               in (dur * r, 0, dur * (1 - r))
+                else (atime, stime, rtime)
+                    
+startVoice :: Voice -> Time -> Synth -> SynthBounds -> OSC
+startVoice voice time synth bounds =
     let timeTag = if time <= 0
                   then OSC.immediately
                   else OSC.UTCr (time + synth ^. P.latency)
@@ -110,13 +133,13 @@ startVoice voice time synth =
         [s_new (voiceDefName $ BC.numChannels $ buffer voice) (fromIntegral $ voiceId voice) AddToTail 0
             ([ ("bufnum", fromIntegral $ BC.uid $ buffer voice)
              , ("rate", synth ^. P.rate)
-             , ("attackTime",   synth ^. P.attackTime)
-             , ("releaseTime",  synth ^. P.attackTime)
+             , ("attackTime",   attackTime bounds)
+             , ("releaseTime",  releaseTime bounds)
              , ("sustainLevel", synth ^. P.sustainLevel)
              ] ++
                if voiceGateEnvelope
                   then []
-                  else [ ("dur", snd (synthBounds synth)) ])
+                  else [ ("dur", sustainTime bounds) ])
              ]
 
 stopVoice :: Voice -> Time -> Synth -> OSC
@@ -179,12 +202,13 @@ playUnit sampler = (playUnitFunc sampler) sampler
 playUnit_noSchedComplBundles :: Sampler -> Time -> Synth -> Server ()
 playUnit_noSchedComplBundles sampler time synth = do
     voice <- allocVoice cache unit (const Nothing)
+    let bounds = synthBounds synth
     S.sync $ S.send $ b_read
                         (fromIntegral (BC.uid (buffer voice)))
                         (SourceFile.path sourceFile)
-                        (truncate (SourceFile.sampleRate sourceFile * fst (synthBounds synth)))
+                        (truncate (SourceFile.sampleRate sourceFile * onset bounds))
                         (-1) 0 1
-    _ <- S.send (startVoice voice time synth) `S.syncWith` n_end (voiceId voice)
+    _ <- S.send (startVoice voice time synth bounds) `S.syncWith` n_end (voiceId voice)
     freeVoice cache voice
     return ()
     where
@@ -194,18 +218,20 @@ playUnit_noSchedComplBundles sampler time synth = do
 
 playUnit_schedComplBundles :: Sampler -> Time -> Synth -> Server ()
 playUnit_schedComplBundles sampler time synth = do
+    let bounds = synthBounds synth
     voice <- allocVoice cache unit (\voice ->
             Just $
                 b_read'
-                    (startVoice voice time synth)
+                    (startVoice voice time synth bounds)
                     (fromIntegral $ BC.uid $ buffer voice)
                     (SourceFile.path sourceFile)
-                    (truncate $ SourceFile.sampleRate sourceFile * Unit.onset (synth ^. P.unit))
+                    (truncate $ SourceFile.sampleRate sourceFile * onset bounds)
                     (-1) 0 1)
     -- tu <- utcr
     -- FIXME: Why is this necessary?!
     S.unsafeSync
     -- print (t-tu, t+dur-tu)
+    let dur = duration bounds
     liftIO $ OSC.pauseThreadUntil (time + dur)
     _ <- S.send (stopVoice voice (time + dur) synth) `S.syncWith` n_end (voiceId voice)
     -- tu' <- utcr
@@ -215,5 +241,4 @@ playUnit_schedComplBundles sampler time synth = do
     where
         cache      = bufferCache sampler
         unit       = synth ^. P.unit
-        dur        = Unit.duration unit
         sourceFile = Unit.sourceFile unit
