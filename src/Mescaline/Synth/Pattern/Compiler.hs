@@ -7,6 +7,7 @@ module Mescaline.Synth.Pattern.Compiler (
 ) where
 
 import           Control.Applicative
+import           Control.Category
 import           Control.Exception
 import           Control.Monad
 import           Control.Monad.Error
@@ -14,8 +15,11 @@ import qualified Control.Monad.State as State
 import           Data.Accessor hiding ((%:))
 import           Data.Accessor.Tuple
 import           Data.Accessor.Monad.MTL.State ((%:))
+import qualified Data.Vector.Generic as V
 import qualified Data.IntMap as Map
 import           Data.Typeable (Typeable)
+import qualified Mescaline.Database.Feature as Feature
+import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
 import qualified Mescaline.Synth.Pattern.AST as AST
 import           Mescaline.Synth.Pattern hiding (step)
 import qualified Mescaline.Synth.Pattern.Binding as B
@@ -23,6 +27,7 @@ import           Mescaline.Synth.Pattern.Environment as Env
 import           Mescaline.Synth.Pattern.Event
 import           Mescaline.Synth.Pattern.Library
 import qualified Mescaline.Synth.Pattern.Sequencer as Seq
+import           Prelude hiding (id, (.))
 
 -- | A type for compilation errors.
 data CompileError = CompileError String
@@ -104,14 +109,34 @@ comparison AST.Comp_geq = (>=)
 comparison AST.Comp_lt  = (<)
 comparison AST.Comp_leq = (<=)
 
+synthAccessor :: a -> Accessor Synth a -> Accessor Event a
+synthAccessor a0 acc = accessor (maybe a0 (getVal acc) . getVal synth)
+                                (\a e -> case e ^. synth of
+                                            Nothing -> e
+                                            Just s -> setVal synth (Just (setVal acc a s)) e)
+
 field :: AST.Field -> Accessor (Environment, Event) Double
-field AST.Delta = second .> delta
+field AST.Delta = delta . second
+field AST.Cursor = accessor (fromIntegral . getVal (cursor . second))
+                            (const id)
 field AST.CursorValue = accessor (maybe 0 id . f) (const id)
     where
         f (env, evt) = do
             let s = env ^. sequencer
             c <- Seq.getCursor (evt ^. cursor) s
             Seq.lookupAtCursor c s
+field AST.Offset = synthAccessor 0 offset . second
+field AST.Duration = synthAccessor 0 duration . second
+field AST.Rate = synthAccessor 1 rate . second
+field AST.Level = synthAccessor 1 sustainLevel . second
+field AST.AttackTime = synthAccessor 0 attackTime . second
+field AST.ReleaseTime = synthAccessor 0 releaseTime . second
+field (AST.Feature i j) = synthAccessor 0 (acc . unit) . second
+    where
+        at i v | i < 0 || i >= V.length v = Nothing
+               | otherwise                = Just (v V.! i)
+        acc = accessor (maybe 0 id . join . fmap (at j) . fmap Feature.value . at i . Unit.features)
+                       (const id)
 
 -- | Compile a binding.
 compileBinding ::

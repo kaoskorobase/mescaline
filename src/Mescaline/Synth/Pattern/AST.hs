@@ -47,8 +47,16 @@ data Comparison =
   deriving (Eq, Read, Show)
 
 data Field =
-    Delta
-  | CursorValue
+    Delta           -- ^Delta time to next event in seconds.
+  | Cursor          -- ^Cursor id.
+  | CursorValue     -- ^Value at this cursor.
+  | Offset          -- ^Playback offset in seconds.
+  | Duration        -- ^Duration of the event being played.
+  | Level           -- ^Level between 0 and 1.
+  | Rate            -- ^Playback rate (> 0).
+  | AttackTime      -- ^Envelope attack time in seconds.
+  | ReleaseTime     -- ^Envelope release time in seconds.
+  | Feature Int Int -- ^Feature value at index i.
   deriving (Eq, Read, Show)
 
 data RegionIterator =

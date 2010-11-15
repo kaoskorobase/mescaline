@@ -28,7 +28,7 @@ import qualified Data.IntMap as Map
 import           Mescaline.Synth.Pattern.Base
 import           Mescaline.Synth.Pattern.Event
 
-import           Debug.Trace
+-- import           Debug.Trace
 
 data Binding s t = Binding { value :: t, pattern :: P s t }
 
