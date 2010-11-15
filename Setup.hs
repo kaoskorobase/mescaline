@@ -19,7 +19,8 @@ mescalineApp resources =
         -- Resources to include
         resources
         -- Binaries to include
-        [ "supercollider/scsynth"
+        [ "resources/hugs/bin/runhugs"
+        , "supercollider/scsynth"
         , "supercollider/plugins/BinaryOpUGens.scx"
         , "supercollider/plugins/ChaosUGens.scx"
         , "supercollider/plugins/DelayUGens.scx"
