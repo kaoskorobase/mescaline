@@ -187,7 +187,6 @@ windowTitle path = "Mescaline - " ++ maybe "Untitled" id path ++ "[*]"
 
 setPatch :: Bool -> State -> Patch.Patch -> Maybe FilePath -> IO ()
 setPatch resetUndo state patch path = do
-    putStrLn $ "setPatch " ++ show resetUndo
     Qt.setPlainText (editor state) (Patch.sourceCode patch)
     Qt.setWindowTitle (editorWindow state) (windowTitle path)
     -- This is actually redundant, since setPlainText resets the undo history
