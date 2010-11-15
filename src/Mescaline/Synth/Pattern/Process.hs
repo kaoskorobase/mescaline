@@ -260,7 +260,6 @@ new patch0 fspaceP = do
                                 io $ Log.errorM logger e
                                 return Nothing
                             Right patch' -> do
-                                notify $ PatchChanged patch' (patchFilePath state)
                                 let restart = transport state == Running
                                 flip sendTo (Transport Pause) =<< self
                                 when restart $ flip sendTo (Transport Start) =<< self
