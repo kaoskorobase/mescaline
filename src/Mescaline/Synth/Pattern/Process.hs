@@ -70,6 +70,7 @@ data Output =
     Changed      Time TransportState Sequencer.Sequencer
   | Event        Time Event.Event
   | PatchChanged Patch.Patch (Maybe FilePath)
+  | PatchLoaded  Patch.Patch FilePath
   | PatchStored  Patch.Patch FilePath
 
 type Handle = Process.Handle Input Output
@@ -236,6 +237,7 @@ new patch0 fspaceP = do
                                 ; let state' = state { patch = patch'
                                                      , patchFilePath = Just path }
                                 ; initPatch h fspaceP state'
+                                ; notifyListeners h (PatchLoaded patch' path)
                                 ; return $ Just state' }
                                 `catches`
                                     [ Handler (\(e :: Patch.LoadError)   -> Log.errorM logger (show e) >> return Nothing)

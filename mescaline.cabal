@@ -227,6 +227,7 @@ library
         Mescaline
         Mescaline.Application
         Mescaline.Application.Config
+        Mescaline.Application.Desktop
         Mescaline.Application.Logger
         Mescaline.Control.Concurrent
         Mescaline.Control.Concurrent.Pool

@@ -156,6 +156,9 @@ updateHandler state view = do
                         Qt.setPen item p       
             Process.PatchChanged patch patchPath -> do
                 setPatch True state patch patchPath
+            Process.PatchLoaded _ _ -> do
+                Qt.qshow (editorWindow state) ()
+                Qt.activateWindow (editorWindow state) ()
             Process.PatchStored patch patchPath -> do
                 setPatch False state patch (Just patchPath)
             _ -> return ()

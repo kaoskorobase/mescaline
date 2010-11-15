@@ -17,6 +17,7 @@ import           Data.Version (showVersion)
 import           Database.HDBC (quickQuery')
 import           Mescaline (Time)
 import qualified Mescaline.Application as App
+import qualified Mescaline.Application.Desktop as App
 import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Database as DB
 import qualified Mescaline.Database.SqlQuery as Sql
@@ -40,6 +41,7 @@ import qualified Mescaline.Synth.Pattern.Event as Event
 import qualified Mescaline.Synth.Pattern.Patch as Patch
 import qualified Mescaline.Synth.Pattern.Process as PatternP
 import qualified Mescaline.Synth.Pattern.View as PatternView
+import           Mescaline.Util (findFiles)
 import qualified Sound.OpenSoundControl as OSC
 import qualified Sound.SC3.Server.State as State
 import qualified Sound.SC3.Server.Process as Server
@@ -241,6 +243,16 @@ defineWindowMenu defs window = do
 trigger :: String -> [(String, Qt.QAction ())] -> IO ()
 trigger k = maybe (return ()) (flip Qt.trigger ()) . lookup k
 
+directoryMenu :: (FilePath -> Qt.QWidget () -> Qt.QAction () -> IO ()) -> [String] -> FilePath -> IO [MenuDefinition]
+directoryMenu callback exts dir = liftM (map mkAction) (findFiles exts [dir])
+    where
+        mkAction path =
+            Action
+                (tr "/" '.' path)
+                (makeRelative dir path)
+                "" Trigger Nothing (callback path)
+        tr s c = map (\x -> if elem x s then c else x)
+
 -- ====================================================================
 -- Logging to text view
 
@@ -413,6 +425,12 @@ action_closeActiveWindow _ _ = Qt.qApplicationActiveWindow () >>= flip Qt.close 
 action_showWindow :: MainWindow -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_showWindow w _ _ = Qt.qshow w () >> Qt.activateWindow w ()
 
+action_help_manual :: Qt.QWidget () -> Qt.QAction () -> IO ()
+action_help_manual _ _ = App.openUrl "http://mescaline.globero.es/documentation/manual" >> return ()
+
+action_help_openExample :: PatternP.Handle -> FilePath -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_help_openExample process path _ _ = sendTo process (PatternP.LoadPatch path)
+
 main :: IO ()
 main = do
     Log.initialize
@@ -521,6 +539,8 @@ main = do
     -- toSynthP `listenTo` fspaceP
 
     -- Set up actions and menus
+    examplesMenu <- directoryMenu (action_help_openExample patternP) ["msc"] =<< App.getResourcePath "patches/examples"
+    
     let aboutAction = Action "about" "About Mescaline" "Show about message box" Trigger Nothing action_about
         darwinMenuDef = [ Menu "about" "about.Mescaline" [ aboutAction ] ]
         helpMenuDef   = [ Menu "help" "Help" [ aboutAction ] ]
@@ -564,6 +584,10 @@ main = do
               , Separator
               , Action "logWindow" "Messages" "Show message window" Trigger (Just "Ctrl+Shift+m") (action_showWindow logWindow)
               , Action "clearLog" "Clear Messages" "Clear message window" Trigger (Just "Ctrl+Shift+c") (const (const (clearLog logWindow))) ]
+            , Menu "help" "Help"
+              [ Action "help" "Mescaline Help" "Open Mescaline manual in browser" Trigger Nothing action_help_manual
+              , Menu "examples" "Examples" examplesMenu
+              ]
             ]
             ++
             (if App.buildOS /= App.OSX then helpMenuDef else [])
