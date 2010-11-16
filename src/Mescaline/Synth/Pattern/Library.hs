@@ -15,6 +15,7 @@ module Mescaline.Synth.Pattern.Library (
   -- *Randomness
   , prrand_
   , pexprand_
+  , pgaussian_
   , pbrown_
 ) where
 
@@ -26,6 +27,7 @@ import           Data.Accessor
 import qualified Data.Accessor.Monad.MTL.State as Accessor
 import qualified Data.Complex as C
 import           Data.Maybe (isJust, listToMaybe, maybeToList)
+-- import qualified Data.Packed.Random as R
 import           Data.Typeable (Typeable)
 import           Mescaline (Duration, Time)
 import           Mescaline.Math as Math
@@ -86,6 +88,13 @@ pbrown_ :: (R.RandomGen s, R.Random a, RealFrac a) =>
     (a -> a -> a -> a) -> P s a -> P s a -> P s a -> P s a -> P s a
 pbrown_ f sl sr l r = pcontinue (prrand_ l r) $ \x _ -> pscanl next x (pzip3 (prrand_ sl sr) l r)
     where next x (dx, xl, xr) = f xl xr (x + dx)
+
+pgaussian_ :: (R.RandomGen s, R.Random a, Floating a) => 
+    P s a -> P s a -> P s a
+pgaussian_ mean var = mean + fmap sqrt var * pzipWith f r r
+    where
+        r = prrand_ (pure (-1)) (pure 1)
+        f u v = let s = u*u + v*v in u * sqrt ((-2 * log s) / s)
 
 data Error = RuntimeError String deriving (Show, Typeable)
 

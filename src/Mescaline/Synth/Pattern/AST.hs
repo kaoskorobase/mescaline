@@ -173,6 +173,14 @@ class Language pattern where
     --
     -- * @max@ Maximum value.
     exprand :: pattern Scalar -> pattern Scalar -> pattern Scalar
+    -- | Generate gaussian noise with the given mean and variance.
+    --
+    -- @gaussian mean var@
+    --
+    -- * @mean@ Mean value.
+    --
+    -- * @var@ Variance, or standard deviation squared.
+    gaussian :: pattern Scalar -> pattern Scalar -> pattern Scalar
     -- | Generate brown noise in a given range with a given step size.
     --
     -- @brown limmit stepMin stepMax min max@
@@ -468,6 +476,7 @@ data Scalar =
   -- Randomness
   | S_rand Scalar Scalar
   | S_exprand Scalar Scalar
+  | S_gaussian Scalar Scalar
   | S_brown Limit Scalar Scalar Scalar Scalar
   -- Debugging
   | S_trace Scalar

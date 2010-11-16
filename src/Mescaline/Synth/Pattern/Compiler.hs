@@ -259,6 +259,7 @@ compileS (AST.S_radius a)        = liftM radius (compileS a)
 -- Randomness
 compileS (AST.S_rand a b)        = liftM2 prrand_ (compileS a) (compileS b)
 compileS (AST.S_exprand a b)     = liftM2 pexprand_ (compileS a) (compileS b)
+compileS (AST.S_gaussian a b)    = liftM2 pgaussian_ (compileS a) (compileS b)
 compileS (AST.S_brown f a b c d) = liftM4 (pbrown_ (limit f)) (compileS a) (compileS b) (compileS c) (compileS d)
 -- Debugging
 compileS (AST.S_trace a)         = liftM ptrace (compileS a)

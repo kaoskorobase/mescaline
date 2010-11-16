@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Mescaline.Synth.Pattern.ASTLib (
     module Mescaline.Synth.Pattern.AST
+  , Language(..)
   -- *Stream patterns
   , cycle
   , constant, c
