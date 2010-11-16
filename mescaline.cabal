@@ -215,6 +215,8 @@ library
     else
         cpp-options: -DUSE_KDTREE=1
     if os(darwin)
+        ld-options:
+            -headerpad_max_install_names
         build-depends:
             cabal-macosx >= 0.1 && < 0.2
     exposed-modules:
