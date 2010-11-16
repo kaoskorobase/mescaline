@@ -29,6 +29,12 @@ module Mescaline.Synth.Pattern.ASTLib (
   , dbamp
   -- *Random functions
   , randi
+  -- *Event modifiers
+  , mapf
+  , zipf
+  , fzip
+  , add
+  , multiply
   -- *Event filters
   , sequencer
 ) where
@@ -178,6 +184,26 @@ dbamp a = 10 ** (a * 0.05)
 -- * @max@ Maximum value (exclusive).
 randi :: Pattern Scalar -> Pattern Scalar -> Pattern Scalar
 randi l h = truncateP (rand l h)
+
+-- | Map a unary function to a field.
+mapf :: UnaryFunc -> Field -> Pattern Event -> Pattern Event
+mapf uf f p = bind p $ \e -> set f (map uf (get f e)) e
+
+-- | Combine a scalar with a field value.
+zipf :: BinaryFunc -> Pattern Scalar -> Field -> Pattern Event -> Pattern Event
+zipf bf s f p = bind p $ \e -> set f (zip bf s (get f e)) e
+
+-- | Combine a field value with a scalar.
+fzip :: BinaryFunc -> Field -> Pattern Scalar -> Pattern Event -> Pattern Event
+fzip bf f s p = bind p $ \e -> set f (zip bf (get f e) s) e
+
+-- | Add a scalar to a field value.
+add :: Field -> Pattern Scalar -> Pattern Event -> Pattern Event
+add = fzip BF_add
+
+-- | Multiply a field value by a scalar.
+multiply :: Field -> Pattern Scalar -> Pattern Event -> Pattern Event
+multiply = fzip BF_multiply
 
 sequencer :: Pattern Scalar -> Pattern Event -> Pattern Event
 sequencer tick e =
