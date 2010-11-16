@@ -36,6 +36,10 @@ module Mescaline.Synth.Pattern.ASTLib (
   , fzip
   , add
   , multiply
+  -- *Feature accessors
+  , fSpec
+  , fPower
+  , fFreq
   -- *Event filters
   , sequencer
 ) where
@@ -205,6 +209,18 @@ add = fzip BF_add
 -- | Multiply a field value by a scalar.
 multiply :: Field -> Pattern Scalar -> Pattern Event -> Pattern Event
 multiply = fzip BF_multiply
+
+-- | Spectral feature at index 0 or 1.
+fSpec :: Int -> Field
+fSpec i = Feature 0 (max 0 (min i 1))
+
+-- | Power feature in dB.
+fPower :: Field
+fPower = Feature 1 0
+
+-- | Fundamental frequency feature in Hz.
+fFreq :: Field
+fFreq = Feature 2 0
 
 sequencer :: Pattern Scalar -> Pattern Event -> Pattern Event
 sequencer tick e =

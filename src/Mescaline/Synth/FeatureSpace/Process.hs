@@ -51,7 +51,10 @@ new = do
             msg <- recv
             f' <- case msg of
                     LoadDatabase path pattern -> do
-                        units <- io $ getUnits path pattern [Feature.consDescriptor "es.globero.mescaline.spectral" 2]
+                        units <- io $ getUnits path pattern [
+                            Feature.consDescriptor "es.globero.mescaline.spectral" 2
+                          , Feature.consDescriptor "com.meapsoft.AvgChunkPower" 1
+                          , Feature.consDescriptor "com.meapsoft.AvgFreqSimple" 1 ]
                         let f' = Model.setUnits f units
                         notify $ DatabaseLoaded (Model.units f')
                         return $ f'

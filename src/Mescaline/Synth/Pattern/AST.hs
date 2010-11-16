@@ -74,7 +74,7 @@ data Field =
   | Rate            -- ^Playback rate (> 0).
   | AttackTime      -- ^Envelope attack time in seconds.
   | ReleaseTime     -- ^Envelope release time in seconds.
-  | Feature Int Int -- ^Feature value at index i.
+  | Feature Int Int -- ^Feature value.
   deriving (Eq, Read, Show)
 
 -- | Region identifier.
