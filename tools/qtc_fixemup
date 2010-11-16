@@ -1,0 +1,37 @@
+#!/usr/bin/env ruby
+
+def install_name_tool(lib)
+	system("install_name_tool -id #{lib} #{lib}")
+end
+
+QT_FRAMEWORKS = %w(
+  /Library/Frameworks/QtCore.framework/Versions/4/QtCore
+  /Library/Frameworks/QtGui.framework/Versions/4/QtGui
+  /Library/Frameworks/QtNetwork.framework/Versions/4/QtNetwork
+  /Library/Frameworks/QtOpenGL.framework/Versions/4/QtOpenGL
+  /Library/Frameworks/QtScript.framework/Versions/4/QtScript
+  /Library/Frameworks/QtXml.framework/Versions/4/QtXml )
+
+QTC_LIBRARIES = %w(
+  /usr/local/lib/libqtc_core.1.0.0.dylib
+  /usr/local/lib/libqtc_gui.1.0.0.dylib
+  /usr/local/lib/libqtc_network.1.0.0.dylib
+  /usr/local/lib/libqtc_opengl.1.0.0.dylib
+  /usr/local/lib/libqtc_script.1.0.0.dylib
+  /usr/local/lib/libqtc_tools.1.0.0.dylib )
+
+QT_FRAMEWORKS.each { |x|
+		install_name_tool(x)
+}
+
+QTC_LIBRARIES.each { |x|
+		install_name_tool(x)
+}
+
+(QT_FRAMEWORKS + QTC_LIBRARIES).each do |lib|
+	deps = `otool -L #{lib}`.split("\n").grep(/^\tQt/).collect { |x| x.strip.split(" ")[0] }
+	puts deps.inspect
+	deps.each { |dep|
+		system("install_name_tool -change #{dep} /Library/Frameworks/#{dep} #{lib}")
+	}
+end

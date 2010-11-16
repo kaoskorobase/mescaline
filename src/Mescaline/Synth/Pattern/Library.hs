@@ -9,13 +9,14 @@ module Mescaline.Synth.Pattern.Library (
     -- *Coordinates
   , coord
   , polar
-  , constrain
     -- *Regions
   , center
   , radius
   -- *Randomness
   , prrand_
   , pexprand_
+  , pgaussian_
+  , pbrown_
 ) where
 
 import           Control.Applicative
@@ -26,8 +27,10 @@ import           Data.Accessor
 import qualified Data.Accessor.Monad.MTL.State as Accessor
 import qualified Data.Complex as C
 import           Data.Maybe (isJust, listToMaybe, maybeToList)
+-- import qualified Data.Packed.Random as R
 import           Data.Typeable (Typeable)
 import           Mescaline (Duration, Time)
+import           Mescaline.Math as Math
 import           Mescaline.Synth.Pattern (Pattern)
 import qualified Mescaline.Synth.Pattern.AST as AST
 import qualified Mescaline.Synth.Pattern.Environment as Environment
@@ -77,6 +80,22 @@ pexprand_ :: (R.RandomGen s, Floating a, R.Random a) =>
     P s a -> P s a -> P s a
 pexprand_ l r = M.join (pzipWith prrandexp l r)
 
+-- pscan :: (x -> y -> (x, a)) -> Maybe (x -> a) -> x -> P s y -> P s a
+-- pscanl :: (a -> y -> a) -> a -> P s y -> P s a
+-- pcontinue :: P s x -> (x -> P s x -> P s a) -> P s a
+
+pbrown_ :: (R.RandomGen s, R.Random a, RealFrac a) => 
+    (a -> a -> a -> a) -> P s a -> P s a -> P s a -> P s a -> P s a
+pbrown_ f sl sr l r = pcontinue (prrand_ l r) $ \x _ -> pscanl next x (pzip3 (prrand_ sl sr) l r)
+    where next x (dx, xl, xr) = f xl xr (x + dx)
+
+pgaussian_ :: (R.RandomGen s, R.Random a, Floating a) => 
+    P s a -> P s a -> P s a
+pgaussian_ mean var = mean + fmap sqrt var * pzipWith f r r
+    where
+        r = prrand_ (pure (-1)) (pure 1)
+        f u v = let s = u*u + v*v in u * sqrt ((-2 * log s) / s)
+
 data Error = RuntimeError String deriving (Show, Typeable)
 
 instance Exception Error
@@ -111,17 +130,10 @@ polar :: Pattern (Double, Double) -> Pattern Double -> Pattern Double -> Pattern
 polar = pzipWith3 f
     where f (x, y) mag phi = let c = C.mkPolar mag phi in (x + C.realPart c, y + C.imagPart c)
 
--- | 
-constrain :: Pattern (Double, Double) -> Pattern Double -> Pattern (Double, Double) -> Pattern (Double, Double)
-constrain = pzipWith3 f
-    where
-        f c r p | C.realPart (abs (uncurry (C.:+) c - uncurry (C.:+) p)) <= r = p
-                | otherwise = (-1, -1)
-
-closest :: Event.Cursor -> Pattern Double -> Pattern (Double, Double) -> Pattern Double -> Pattern Event
+closest :: Event.Cursor -> Pattern Double -> Pattern Double -> Pattern (Double, Double) -> Pattern Event
 closest c = pzipWith4 f (askA Environment.featureSpace)
     where
-        f fs dt (x, y) r =
+        f fs dt r (x, y) =
             let rest = Event.rest c dt
             in case FeatureSpace.closest2D (x, y) fs of
                 Nothing -> rest
@@ -135,13 +147,16 @@ filterE = pzipWith f
         f True e = e
         f False e = Event.synth ^= Nothing $ e
 
-regionUnits :: Pattern Double -> Pattern [FeatureSpace.Unit]
-regionUnits i = pzipWith (FeatureSpace.regionUnits . truncate) i (askA (Environment.featureSpace))
+regionUnits :: Pattern Int -> Pattern [FeatureSpace.Unit]
+regionUnits i = pzipWith (FeatureSpace.regionUnits) i (askA (Environment.featureSpace))
 
-region :: AST.RegionIterator -> Event.Cursor -> Pattern Double -> Pattern Double -> Pattern Event
-region AST.Uniform c dt r = pzipWith f dt (pchooseFrom (regionUnits r))
+region :: Event.Cursor -> Pattern Double -> Pattern Double -> Pattern Event
+region c dt it = pzipWith3 f dt it (regionUnits (pure c))
     where
-        f dt = maybe (Event.rest c dt) (Event.synthEvent c)
+        f dt _ [] = Event.rest c dt
+        f _ i us  = let n = length us
+                        j = max 0 $ min (n-1) $ truncate (i * fromIntegral n)
+                    in Event.synthEvent c (us !! j)
         -- Event.synth ^: (fmap Event.defaultSynth u <*) $ e
 
 data CursorBehavior = WrapCursor | MirrorCursor

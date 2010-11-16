@@ -70,6 +70,7 @@ eval opts mods src = do
     case res of
         Left e -> return $ Left e
         Right s -> do
+            Log.debugM "Hugs" s
             case readMaybe s of
-                Nothing -> return $ Left "Read error"
+                Nothing -> return $ Left ("Read error: " ++ s)
                 Just a  -> return $ Right a

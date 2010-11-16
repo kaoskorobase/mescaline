@@ -2,7 +2,7 @@
 module Mescaline.Synth.Pattern.AST where
 
 import           Control.Monad
-import           Control.Monad.State (MonadState, State)
+import           Control.Monad.State (State)
 import qualified Control.Monad.State as State
 import qualified Data.IntMap as Map
 import           Prelude hiding (cycle, filter, map, seq, zip)
@@ -12,6 +12,10 @@ data UnaryFunc =
   | UF_signum
   | UF_negate
   | UF_recip
+  | UF_truncate
+  | UF_round
+  | UF_ceiling
+  | UF_floor
   | UF_exp
   | UF_sqrt
   | UF_log
@@ -46,6 +50,19 @@ data Comparison =
   | Comp_leq
   deriving (Eq, Read, Show)
 
+data StreamFunc =
+    SF_Cycle
+  | SF_Replicate Int
+  | SF_Take Int
+  deriving (Eq, Read, Show)
+  
+data Enumerator =
+    Enum_Seq     -- ^Sequential
+  | Enum_Ser     -- ^Serial
+  | Enum_Rand    -- ^Random
+  | Enum_RandX   -- ^Random without repetitions
+  deriving (Eq, Read, Show)
+
 data Field =
     Delta           -- ^Delta time to next event in seconds.
   | Cursor          -- ^Cursor id.
@@ -59,9 +76,19 @@ data Field =
   | Feature Int Int -- ^Feature value at index i.
   deriving (Eq, Read, Show)
 
+-- | Region identifier.
+type Region = Int
+
 data RegionIterator =
     Uniform
     deriving (Eq, Read, Show)
+
+-- | Interval boundary behavior.
+data Limit =
+    Clip -- ^Clip to interval.
+  | Wrap -- ^Wrap to other end of interval.
+  | Fold -- ^Fold back into interval.
+  deriving (Eq, Read, Show)
 
 -- | This class represents the abstract pattern language syntax.
 --
@@ -70,17 +97,16 @@ data RegionIterator =
 -- read and compiled to a 'Mescaline.Synth.Pattern.Pattern'.
 class Language pattern where
     value :: Double -> pattern Scalar
-    
+
     bind :: Bind pattern a b => pattern a -> (pattern a -> pattern b) -> pattern b
-    
-    cycle :: Cycle pattern a => pattern a -> pattern a
-    
-    map   :: UnaryFunc -> pattern Scalar -> pattern Scalar
-    zip   :: BinaryFunc -> pattern Scalar -> pattern Scalar -> pattern Scalar
-    
-    seq   :: Seq pattern a => [pattern a] -> pattern Scalar -> pattern a
-    ser   :: Ser pattern a => [pattern a] -> pattern Scalar -> pattern a
-    par   :: [pattern Event] -> pattern Event
+
+    stream :: Stream pattern a => StreamFunc -> pattern a -> pattern a    
+    list :: List pattern a => Enumerator -> pattern Scalar -> [pattern a] -> pattern a
+    par :: [pattern Event] -> pattern Event
+
+    map :: UnaryFunc -> pattern Scalar -> pattern Scalar
+    zip :: BinaryFunc -> pattern Scalar -> pattern Scalar -> pattern Scalar
+    limit :: Limit -> pattern Scalar -> pattern Scalar -> pattern Scalar -> pattern Scalar
 
     -- Comparisons
     (==) :: pattern Scalar -> pattern Scalar -> pattern Boolean
@@ -99,22 +125,76 @@ class Language pattern where
     polar :: pattern Coord -> pattern Scalar -> pattern Scalar -> pattern Coord
     x :: pattern Coord -> pattern Scalar
     y :: pattern Coord -> pattern Scalar
-    constrain :: pattern Coord -> pattern Scalar -> pattern Coord -> pattern Coord
 
     -- Regions
     center :: pattern Scalar -> pattern Coord
     radius :: pattern Scalar -> pattern Scalar
-    -- | @closest cursor defaultDelta coord radius@
-    closest :: Int -> pattern Scalar -> pattern Coord -> pattern Scalar -> pattern Event
-    -- | @region iterator cursor defaultDelta region@
-    region :: RegionIterator -> Int -> pattern Scalar -> pattern Scalar -> pattern Event
-    
+    -- | Select the unit closest to a given coordinate.
+    --
+    -- @closest cursor defaultDelta radius coord@
+    --
+    -- * @cursor@ Cursor id for the generated event.
+    --
+    -- * @defaultDelta@ Default delta time in case no unit is found.
+    --
+    -- * @radius@ Radius to restrict the search; if the found unit is outside the given radius around the coordinate, a rest is generated.
+    --
+    -- * @coord@ Coordinate for nearest neighbor search.
+    closest :: Int -> pattern Scalar -> pattern Scalar -> pattern Coord -> pattern Event
+    -- | Select a unit from a region according to the iterator.
+    --
+    -- @region cursor defaultDelta iterator@
+    --
+    -- * @cursor@ Cursor and region id for this event.
+    --
+    -- * @defaultDelta@ Default delta time in case the region is empty.
+    --
+    -- * @iterator@ Scalar pattern in the range [0;1[ that selects a unit from the region.
+    region :: Int -> pattern Scalar -> pattern Scalar -> pattern Event
+
     -- Cursor
     step :: pattern Scalar -> pattern Scalar -> pattern Event -> pattern Event
 
     -- Randomness
-    rand    :: pattern Scalar -> pattern Scalar -> pattern Scalar
+    
+    -- | Generate white noise in a given range.
+    --
+    -- @rand min max@
+    --
+    -- * @min@ Minimum value.
+    --
+    -- * @max@ Maximum value.
+    rand :: pattern Scalar -> pattern Scalar -> pattern Scalar
+    -- | Generate exponential noise in a given range.
+    --
+    -- @exprand min max@
+    --
+    -- * @min@ Minimum value.
+    --
+    -- * @max@ Maximum value.
     exprand :: pattern Scalar -> pattern Scalar -> pattern Scalar
+    -- | Generate gaussian noise with the given mean and variance.
+    --
+    -- @gaussian mean var@
+    --
+    -- * @mean@ Mean value.
+    --
+    -- * @var@ Variance, or standard deviation squared.
+    gaussian :: pattern Scalar -> pattern Scalar -> pattern Scalar
+    -- | Generate brown noise in a given range with a given step size.
+    --
+    -- @brown limmit stepMin stepMax min max@
+    --
+    --  * @limit@ Interval boundary behavior.
+    --
+    --  * @stepMin@ Minimum step size.
+    --
+    --  * @stepMax@ Maximum step size.
+    --
+    --  * @min@ Minimum value.
+    --
+    --  * @max@ Maximum value.
+    brown :: Limit -> pattern Scalar -> pattern Scalar -> pattern Scalar -> pattern Scalar -> pattern Scalar
 
     -- Debugging
     trace :: Trace pattern a => pattern a -> pattern a
@@ -122,14 +202,11 @@ class Language pattern where
 class Bind pattern a b where
     bindI :: pattern a -> (pattern a -> pattern b) -> pattern b
 
-class Cycle pattern a where
-    cycleI :: pattern a -> pattern a
+class Stream pattern a where
+    streamI :: StreamFunc -> pattern a -> pattern a
 
-class Seq pattern a where
-    seqI :: [pattern a] -> pattern Scalar -> pattern a
-
-class Ser pattern a where
-    serI :: [pattern a] -> pattern Scalar -> pattern a
+class List pattern a where
+    listI :: Enumerator -> pattern Scalar -> [pattern a] -> pattern a
 
 class Trace pattern a where
     traceI :: pattern a -> pattern a
@@ -175,17 +252,22 @@ liftAST2 f a b = AST $ liftM2 f (unAST a) (unAST b)
 liftAST3 :: (a1 -> a2 -> a3 -> r) -> Pattern a1 -> Pattern a2 -> Pattern a3 -> Pattern r
 liftAST3 f a b c = AST $ liftM3 f (unAST a) (unAST b) (unAST c)
 
+liftAST4 :: (a1 -> a2 -> a3 -> a4 -> r) -> Pattern a1 -> Pattern a2 -> Pattern a3 -> Pattern a4 -> Pattern r
+liftAST4 f a b c d = AST $ liftM4 f (unAST a) (unAST b) (unAST c) (unAST d)
+
 instance Language Pattern where
     value = AST . return . S_value
     bind = bindI
     
-    cycle = cycleI
+    stream = streamI
+    list = listI
+    par a = AST $ liftM E_par (mapM unAST a)
+
+    -- Scalars
     map = liftAST . S_map
     zip = liftAST2 . S_zip
-    seq = seqI
-    ser = serI
-    par a = AST $ liftM E_par (mapM unAST a)
-    
+    limit l = liftAST3 (S_limit l)
+
     -- Comparisons
     (==) = liftAST2 (B_compare Comp_eq)
     (>)  = liftAST2 (B_compare Comp_gt)
@@ -204,15 +286,14 @@ instance Language Pattern where
     polar     = liftAST3 C_polar
     x         = liftAST S_x
     y         = liftAST S_y
-    constrain = liftAST3 C_constrain
 
     -- Regions
     center  = liftAST C_center
     radius  = liftAST S_radius
     
     -- Generators
-    closest = liftAST3 . E_closest
-    region it i = liftAST2 (E_region it i)
+    closest i = liftAST3 (E_closest i)
+    region i = liftAST2 (E_region i)
 
     -- Cursor
     step = liftAST3 E_step
@@ -220,6 +301,7 @@ instance Language Pattern where
     -- Randomness
     rand    = liftAST2 S_rand
     exprand = liftAST2 S_exprand
+    brown b = liftAST4 (S_brown b)
 
     -- Debugging
     trace a = traceI a
@@ -235,6 +317,12 @@ instance Eq (Pattern Scalar) where
 
 instance Eq (Pattern Event) where
     (==) = error "Cannot compare (Pattern Event) for equality"
+
+dInf :: Double
+dInf = 1/0
+
+inf :: Pattern Scalar
+inf = value dInf
 
 instance Num (Pattern Scalar) where
     (+) = zip BF_add
@@ -270,26 +358,6 @@ instance Floating (Pattern Scalar) where
     atanh   = map UF_atanh
     acosh   = map UF_acosh
 
--- instance Bind Pattern Scalar where
---     bindI e f = AST $ do
---         a <- unAST e
---         s <- State.get
---         let h  = hashCount s
---             s' = s { hashCount = succ h
---                    , sMap = Map.insert h a (sMap s) }
---         State.put s'
---         unAST $ f (AST (return (S_binding h)))
--- 
--- instance Bind Pattern Event where
---     bindI e f = AST $ do
---         a <- unAST e
---         s <- State.get
---         let h  = hashCount s
---             s' = s { hashCount = succ h
---                    , eMap = Map.insert h a (eMap s) }
---         State.put s'
---         unAST $ f (AST (return (E_binding h)))
-
 bindP :: (Binding -> a)
       -> (Binding -> a -> b -> b)
       -> Pattern a -> (Pattern a -> Pattern b) -> Pattern b
@@ -319,23 +387,29 @@ instance Bind Pattern Scalar Coord   where bindI = bindP S_binding C_bind_S
 instance Bind Pattern Scalar Event   where bindI = bindP S_binding E_bind_S
 instance Bind Pattern Scalar Scalar  where bindI = bindP S_binding S_bind_S
 
-instance Cycle Pattern Scalar where
-    cycleI = AST . liftM S_cycle . unAST
+instance Stream Pattern Boolean where
+    streamI f a = AST $ liftM (B_stream f) (unAST a)
 
-instance Cycle Pattern Event where
-    cycleI = AST . liftM E_cycle . unAST
+instance Stream Pattern Coord where
+    streamI f a = AST $ liftM (C_stream f) (unAST a)
 
-instance Seq Pattern Scalar where
-    seqI a b = AST $ liftM2 S_seq (mapM unAST a) (unAST b)
+instance Stream Pattern Event where
+    streamI f a = AST $ liftM (E_stream f) (unAST a)
 
-instance Seq Pattern Event where
-    seqI a b = AST $ liftM2 E_seq (mapM unAST a) (unAST b)
+instance Stream Pattern Scalar where
+    streamI f a = AST $ liftM (S_stream f) (unAST a)
 
-instance Ser Pattern Scalar where
-    serI a b = AST $ liftM2 S_ser (mapM unAST a) (unAST b)
+instance List Pattern Boolean where
+    listI e a b = AST $ liftM2 (B_list e) (unAST a) (mapM unAST b)
 
-instance Ser Pattern Event where
-    serI a b = AST $ liftM2 E_ser (mapM unAST a) (unAST b)
+instance List Pattern Coord where
+    listI e a b = AST $ liftM2 (C_list e) (unAST a) (mapM unAST b)
+
+instance List Pattern Event where
+    listI e a b = AST $ liftM2 (E_list e) (unAST a) (mapM unAST b)
+
+instance List Pattern Scalar where
+    listI e a b = AST $ liftM2 (S_list e) (unAST a) (mapM unAST b)
 
 instance Trace Pattern Scalar where
     traceI = AST . liftM S_trace . unAST
@@ -366,6 +440,9 @@ data Boolean =
   | B_bind_C Binding Coord   Boolean
   | B_bind_E Binding Event   Boolean
   | B_bind_S Binding Scalar  Boolean
+  -- Structure
+  | B_stream StreamFunc Boolean
+  | B_list Enumerator Scalar [Boolean]
   -- Scalar comparison
   | B_compare Comparison Scalar Scalar
   -- Regions
@@ -385,12 +462,12 @@ data Scalar =
   | S_bind_S Binding Scalar  Scalar
   | S_get Field Event
   -- Structure
-  | S_cycle Scalar
-  | S_seq [Scalar] Scalar
-  | S_ser [Scalar] Scalar
+  | S_stream StreamFunc Scalar
+  | S_list Enumerator Scalar [Scalar]
   -- Filters
   | S_map UnaryFunc Scalar
   | S_zip BinaryFunc Scalar Scalar
+  | S_limit Limit Scalar Scalar Scalar
   -- Coordinates
   | S_x Coord
   | S_y Coord
@@ -399,6 +476,8 @@ data Scalar =
   -- Randomness
   | S_rand Scalar Scalar
   | S_exprand Scalar Scalar
+  | S_gaussian Scalar Scalar
+  | S_brown Limit Scalar Scalar Scalar Scalar
   -- Debugging
   | S_trace Scalar
   deriving (Eq, Read, Show)
@@ -413,9 +492,11 @@ data Coord =
   | C_bind_C Binding Coord   Coord
   | C_bind_E Binding Event   Coord
   | C_bind_S Binding Scalar  Coord
+  -- Structure
+  | C_stream StreamFunc Coord
+  | C_list Enumerator Scalar [Coord]
   -- Regions
   | C_center Scalar
-  | C_constrain Coord Scalar Coord
   -- Debugging
   | C_trace Coord
   deriving (Eq, Read, Show)
@@ -430,15 +511,14 @@ data Event =
   -- Field access
   | E_set Field Scalar Event
   -- Structure
-  | E_cycle Event
-  | E_seq [Event] Scalar
-  | E_ser [Event] Scalar
+  | E_stream StreamFunc Event
+  | E_list Enumerator Scalar [Event]
   | E_par [Event]
   -- Filters
   | E_filter Boolean Event
   -- Generators
-  | E_closest Int Scalar Coord Scalar
-  | E_region RegionIterator Int Scalar Scalar
+  | E_closest Int Scalar Scalar Coord
+  | E_region Int Scalar Scalar
   -- Cursor
   | E_step Scalar Scalar Event
   -- Debugging
