@@ -21,6 +21,9 @@ module Mescaline.Synth.Pattern.ASTLib (
   , roundP
   , ceilingP
   , floorP
+  , clip
+  , wrap
+  , fold
   -- *Numeric utilities
   , ampdb
   , dbamp
@@ -139,6 +142,24 @@ ceilingP = liftAST (S_map UF_ceiling)
 -- | Truncate scalar towards zero.
 floorP :: Pattern Scalar -> Pattern Scalar
 floorP = liftAST (S_map UF_floor)
+
+-- | Constrain a scalar to the interval [min,max].
+--
+-- @clip min max x@
+clip :: Pattern Scalar -> Pattern Scalar -> Pattern Scalar -> Pattern Scalar
+clip = limit Clip
+
+-- | Wrap a scalar into the interval [min,max].
+--
+-- @wrap min max x@
+wrap :: Pattern Scalar -> Pattern Scalar -> Pattern Scalar -> Pattern Scalar
+wrap = limit Wrap
+
+-- | Fold a scalar into the interval [min,max].
+--
+-- @fold min max x@
+fold :: Pattern Scalar -> Pattern Scalar -> Pattern Scalar -> Pattern Scalar
+fold = limit Fold
 
 -- Convert a linear amplitude in [0,1] to decibels in [-inf,0].
 ampdb :: Pattern Scalar -> Pattern Scalar

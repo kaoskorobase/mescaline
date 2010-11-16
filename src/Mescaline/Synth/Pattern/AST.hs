@@ -42,8 +42,6 @@ data BinaryFunc =
   | BF_logBase
   deriving (Eq, Read, Show)
 
-data IntervalFunc = IF Boundary
-
 data Comparison =
     Comp_eq
   | Comp_gt
@@ -86,7 +84,7 @@ data RegionIterator =
     deriving (Eq, Read, Show)
 
 -- | Interval boundary behavior.
-data Boundary =
+data Limit =
     Clip -- ^Clip to interval.
   | Wrap -- ^Wrap to other end of interval.
   | Fold -- ^Fold back into interval.
@@ -108,6 +106,7 @@ class Language pattern where
 
     map :: UnaryFunc -> pattern Scalar -> pattern Scalar
     zip :: BinaryFunc -> pattern Scalar -> pattern Scalar -> pattern Scalar
+    limit :: Limit -> pattern Scalar -> pattern Scalar -> pattern Scalar -> pattern Scalar
 
     -- Comparisons
     (==) :: pattern Scalar -> pattern Scalar -> pattern Boolean
@@ -176,9 +175,9 @@ class Language pattern where
     exprand :: pattern Scalar -> pattern Scalar -> pattern Scalar
     -- | Generate brown noise in a given range with a given step size.
     --
-    -- @brown boundary stepMin stepMax min max@
+    -- @brown limmit stepMin stepMax min max@
     --
-    --  * @boundary@ Boundary behavior.
+    --  * @limit@ Interval boundary behavior.
     --
     --  * @stepMin@ Minimum step size.
     --
@@ -187,7 +186,7 @@ class Language pattern where
     --  * @min@ Minimum value.
     --
     --  * @max@ Maximum value.
-    brown :: Boundary -> pattern Scalar -> pattern Scalar -> pattern Scalar -> pattern Scalar -> pattern Scalar
+    brown :: Limit -> pattern Scalar -> pattern Scalar -> pattern Scalar -> pattern Scalar -> pattern Scalar
 
     -- Debugging
     trace :: Trace pattern a => pattern a -> pattern a
@@ -253,10 +252,13 @@ instance Language Pattern where
     bind = bindI
     
     stream = streamI
-    map = liftAST . S_map
-    zip = liftAST2 . S_zip
     list = listI
     par a = AST $ liftM E_par (mapM unAST a)
+
+    -- Scalars
+    map = liftAST . S_map
+    zip = liftAST2 . S_zip
+    limit l = liftAST3 (S_limit l)
 
     -- Comparisons
     (==) = liftAST2 (B_compare Comp_eq)
@@ -457,6 +459,7 @@ data Scalar =
   -- Filters
   | S_map UnaryFunc Scalar
   | S_zip BinaryFunc Scalar Scalar
+  | S_limit Limit Scalar Scalar Scalar
   -- Coordinates
   | S_x Coord
   | S_y Coord
@@ -465,7 +468,7 @@ data Scalar =
   -- Randomness
   | S_rand Scalar Scalar
   | S_exprand Scalar Scalar
-  | S_brown Boundary Scalar Scalar Scalar Scalar
+  | S_brown Limit Scalar Scalar Scalar Scalar
   -- Debugging
   | S_trace Scalar
   deriving (Eq, Read, Show)

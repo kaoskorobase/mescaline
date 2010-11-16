@@ -6,7 +6,6 @@ module Mescaline.Synth.Pattern.Compiler (
   , compile
 ) where
 
-import           Control.Applicative
 import           Control.Category
 import           Control.Exception
 import           Control.Monad
@@ -148,10 +147,10 @@ field (AST.Feature i j) = synthAccessor 0 (acc . unit) . second
         acc = accessor (maybe 0 id . join . fmap (at j) . fmap Feature.value . at i . Unit.features)
                        (const id)
 
-boundary :: AST.Boundary -> (Double -> Double -> Double -> Double)
-boundary AST.Clip = Math.clip
-boundary AST.Wrap = Math.wrap
-boundary AST.Fold = Math.fold
+limit :: AST.Limit -> (Double -> Double -> Double -> Double)
+limit AST.Clip = Math.clip
+limit AST.Wrap = Math.wrap
+limit AST.Fold = Math.fold
 
 streamPattern :: AST.StreamFunc -> Pattern a -> Pattern a
 streamPattern AST.SF_Cycle         = pcycle
@@ -248,9 +247,11 @@ compileS (AST.S_bind_E h a b)    = compileBind compileE compileS B.event   h a b
 compileS (AST.S_bind_S h a b)    = compileBind compileS compileS B.scalar  h a b
 compileS (AST.S_get f a)         = liftM (fmap (getVal (field f))) (fmap (pzip ask) (compileE a))
 compileS (AST.S_stream f a)      = liftM (streamPattern f) (compileS a)
+compileS (AST.S_list e a b)      = liftM2 (listPattern e) (compileS a) (mapM compileS b)
+-- Filters
 compileS (AST.S_map f a)         = liftM (fmap (unFunc f)) (compileS a)
 compileS (AST.S_zip f a b)       = liftM2 (pzipWith (binFunc f)) (compileS a) (compileS b)
-compileS (AST.S_list e a b)      = liftM2 (listPattern e) (compileS a) (mapM compileS b)
+compileS (AST.S_limit f a b c)   = liftM3 (pzipWith3 (limit f)) (compileS a) (compileS b) (compileS c)
 -- Coordinates
 compileS (AST.S_x a)             = liftM (fmap fst) (compileC a)
 compileS (AST.S_y a)             = liftM (fmap snd) (compileC a)
@@ -258,7 +259,7 @@ compileS (AST.S_radius a)        = liftM radius (compileS a)
 -- Randomness
 compileS (AST.S_rand a b)        = liftM2 prrand_ (compileS a) (compileS b)
 compileS (AST.S_exprand a b)     = liftM2 pexprand_ (compileS a) (compileS b)
-compileS (AST.S_brown f a b c d) = liftM4 (pbrown_ (boundary f)) (compileS a) (compileS b) (compileS c) (compileS d)
+compileS (AST.S_brown f a b c d) = liftM4 (pbrown_ (limit f)) (compileS a) (compileS b) (compileS c) (compileS d)
 -- Debugging
 compileS (AST.S_trace a)         = liftM ptrace (compileS a)
 
