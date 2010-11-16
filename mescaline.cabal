@@ -26,6 +26,10 @@ data-files:
     messages.ui
 
     patches/default.hs
+    patches/examples/brown.msc
+    patches/examples/brown_polar.msc
+    patches/examples/choose.msc
+    patches/examples/seq.msc
 
     meap/2.0/getopt-1.0.12.jar
     meap/2.0/jl1.0.jar
