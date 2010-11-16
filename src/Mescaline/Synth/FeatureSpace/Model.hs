@@ -184,7 +184,7 @@ setUnits :: FeatureSpace -> [Unit.Unit] -> FeatureSpace
 setUnits fs us = List.foldl' (flip updateRegion) fs' (regions fs')
     where fs' = fs { unitSet = KDTree.fromList (map (\u -> (Unit.value 0 u, u)) us) }
 #else
-setUnits fs us = f { unitSet = BKTree.fromList us }
+setUnits fs us = fs { unitSet = BKTree.fromList us }
 #endif -- USE_KDTREE
 
 fromList :: Random.StdGen -> [Unit.Unit] -> FeatureSpace

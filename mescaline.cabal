@@ -245,6 +245,7 @@ library
         Mescaline.Database.SqlQuery
         Mescaline.Database.Table
         Mescaline.Database.Unit
+        Mescaline.Math
         Mescaline.Meap.Chain
         Mescaline.Meap.Extractor
         Mescaline.Meap.Feature

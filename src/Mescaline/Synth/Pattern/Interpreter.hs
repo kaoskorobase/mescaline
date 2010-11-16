@@ -21,7 +21,7 @@ eval src = do
         mods = [ Module "Control.Applicative" Unqual
                , Module "Mescaline.Synth.Pattern.ASTLib" Unqual
                , Module "Prelude" (Hiding [ "(==)", "(>)", "(>=)", "(<)", "(<=)"
-                                          , "cycle", "filter", "map", "seq", "zip" ])
+                                          , "cycle", "filter", "map", "replicate", "seq", "take", "zip" ])
                , Module "Prelude" (Qual "P")
                , Module "Data.List" (Qual "List") ]
     Hugs.eval opts mods src
