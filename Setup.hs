@@ -17,7 +17,11 @@ mescalineApp resources =
         (Just "app/mescaline.icns")
         Nothing -- Build a default Info.plist for the icon.
         -- Resources to include
-        resources
+        (resources
+         ++
+         [ "resources/qt_menu.nib/classes.nib"
+         , "resources/qt_menu.nib/info.nib"
+         , "resources/qt_menu.nib/keyedobjects.nib" ])
         -- Binaries to include
         [ "/usr/local/bin/runhugs"
         , "/usr/local/bin/scsynth"
