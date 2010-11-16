@@ -19,39 +19,39 @@ mescalineApp resources =
         -- Resources to include
         resources
         -- Binaries to include
-        [ "resources/hugs/bin/runhugs"
-        , "supercollider/scsynth"
-        , "supercollider/plugins/BinaryOpUGens.scx"
-        , "supercollider/plugins/ChaosUGens.scx"
-        , "supercollider/plugins/DelayUGens.scx"
-        , "supercollider/plugins/DemandUGens.scx"
-        , "supercollider/plugins/DiskIOUGens.scx"
-        , "supercollider/plugins/DynNoiseUGens.scx"
-        , "supercollider/plugins/FFT2_UGens.scx"
-        , "supercollider/plugins/FFT_UGens.scx"
-        , "supercollider/plugins/FilterUGens.scx"
-        , "supercollider/plugins/GendynUGens.scx"
-        , "supercollider/plugins/GrainUGens.scx"
-        , "supercollider/plugins/IOUGens.scx"
-        , "supercollider/plugins/KeyboardUGens.scx"
-        , "supercollider/plugins/LFUGens.scx"
-        , "supercollider/plugins/MachineListening.scx"
+        [ "/opt/local/bin/runhugs"
+        , "/usr/local/bin/scsynth"
+        , "/usr/local/lib/supercollider/plugins/BinaryOpUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/ChaosUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/DelayUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/DemandUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/DiskIOUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/DynNoiseUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/FFT2_UGens.scx"
+        , "/usr/local/lib/supercollider/plugins/FFT_UGens.scx"
+        , "/usr/local/lib/supercollider/plugins/FilterUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/GendynUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/GrainUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/IOUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/KeyboardUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/LFUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/MachineListening.scx"
         -- NOTE: These cause crashes with Qt
         -- , "supercollider/plugins/MouseUGens.scx"
-        , "supercollider/plugins/MulAddUGens.scx"
-        , "supercollider/plugins/NoiseUGens.scx"
-        , "supercollider/plugins/OSCUGens.scx"
-        , "supercollider/plugins/PanUGens.scx"
-        , "supercollider/plugins/PhysicalModellingUGens.scx"
-        , "supercollider/plugins/ReverbUGens.scx"
-        , "supercollider/plugins/TestUGens.scx"
-        , "supercollider/plugins/TriggerUGens.scx"
-        , "supercollider/plugins/UnaryOpUGens.scx"
-        , "supercollider/plugins/UnpackFFTUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/MulAddUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/NoiseUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/OSCUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/PanUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/PhysicalModellingUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/ReverbUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/TestUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/TriggerUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/UnaryOpUGens.scx"
+        , "/usr/local/lib/supercollider/plugins/UnpackFFTUGens.scx"
         ]
-        DoNotChase
+        -- DoNotChase
         -- ChaseWithDefaults
-        -- (ChaseWith (defaultExclusions ++ ["libstdc++"]))
+        (ChaseWith (defaultExclusions ++ ["libstdc++"]))
 
 postBuildHook args buildFlags pkgDesc buildInfo = do
     -- Use data files from package description as resources
