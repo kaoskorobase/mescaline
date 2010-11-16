@@ -187,7 +187,7 @@ library
       , fingertree
       , HDBC >= 1.1 && < 2
       , HDBC-sqlite3 >= 1.1 && < 2
-      , hmatrix >= 0.9 && < 0.11
+      , hmatrix >= 0.10 && < 0.11
       , hmeap >= 0.8
       , hosc >= 0.8
       , hslogger >= 1.1
@@ -324,6 +324,6 @@ executable mescaline
 
 executable mescalinedb
     main-is:            mescalinedb.hs
-    build-depends:      hmatrix >= 0.9 && < 1.0
+    build-depends:      hmatrix >= 0.10 && < 0.11
     ghc-options:        -threaded -funbox-strict-fields
     hs-source-dirs:     src, tools
