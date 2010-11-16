@@ -45,7 +45,7 @@ type Handle = Process.Handle Input Output
 
 getEnginePaths :: IO (FilePath, Maybe [FilePath])
 getEnginePaths = do
-    exe <- App.getResourceExecutable "supercollider/scsynth"
+    exe <- App.getResourceExecutable "usr/local/bin/scsynth"
     case exe of
         Nothing -> do
             exe' <- App.findExecutable "scsynth"
@@ -59,7 +59,7 @@ getEnginePaths = do
                           , "WARNING: Sound output will not work!" ]
                 Just exe'' -> return (exe'', Nothing)
         Just exe' -> do
-            plg <- App.getResourcePath "supercollider/plugins"
+            plg <- App.getResourcePath "usr/local/lib/supercollider/plugins"
             return (exe', Just [plg])
 
 getPrintLevel :: MonadError Config.CPError m => Config.ConfigParser -> Config.SectionSpec -> Config.OptionSpec -> m PrintLevel

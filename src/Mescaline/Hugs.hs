@@ -48,7 +48,7 @@ modToString (Module m (Hiding xs)) = "import " ++ m ++ " hiding (" ++ intercalat
 run :: [Option] -> [Module] -> String -> IO (Either String String)
 run opts mods src = withTempFile "Mescaline.Hugs.run.XXXX.hs" $ \f h -> do
     Log.debugM "Hugs" src'
-    exe <- App.findExecutable "hugs/bin/runhugs"
+    exe <- App.findExecutable "usr/local/bin/runhugs"
     case exe of
         Nothing -> return $ Left "Couldn't find the `runhugs' executable; maybe you haven't installed Hugs?"
         Just runhugs -> do

@@ -19,7 +19,7 @@ mescalineApp resources =
         -- Resources to include
         resources
         -- Binaries to include
-        [ "/opt/local/bin/runhugs"
+        [ "/usr/local/bin/runhugs"
         , "/usr/local/bin/scsynth"
         , "/usr/local/lib/supercollider/plugins/BinaryOpUGens.scx"
         , "/usr/local/lib/supercollider/plugins/ChaosUGens.scx"
