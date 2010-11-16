@@ -299,9 +299,10 @@ instance Language Pattern where
     step = liftAST3 E_step
 
     -- Randomness
-    rand    = liftAST2 S_rand
-    exprand = liftAST2 S_exprand
-    brown b = liftAST4 (S_brown b)
+    rand     = liftAST2 S_rand
+    exprand  = liftAST2 S_exprand
+    gaussian = liftAST2 S_gaussian
+    brown b  = liftAST4 (S_brown b)
 
     -- Debugging
     trace a = traceI a
