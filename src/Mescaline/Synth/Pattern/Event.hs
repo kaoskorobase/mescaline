@@ -18,6 +18,7 @@ module Mescaline.Synth.Pattern.Event (
   , offset
   , duration
   , rate
+  , pan
   , attackTime
   , releaseTime
   , sustainLevel
@@ -36,6 +37,7 @@ data Synth = Synth {
   , _offset       :: Duration
   , _duration     :: Duration
   , _rate         :: Double
+  , _pan          :: Double
   , _attackTime   :: Double
   , _releaseTime  :: Double
   , _sustainLevel :: Double
@@ -50,6 +52,7 @@ defaultSynth u =
       , _offset       = 0
       , _duration     = Unit.duration u
       , _rate         = 1
+      , _pan          = 0
       , _attackTime   = 0
       , _releaseTime  = 0
       , _sustainLevel = 1
@@ -61,6 +64,7 @@ ACCESSOR(unit,          _unit,          Synth, Unit.Unit)
 ACCESSOR(offset,        _offset,        Synth, Duration)
 ACCESSOR(duration,      _duration,      Synth, Duration)
 ACCESSOR(rate,          _rate,          Synth, Double)
+ACCESSOR(pan,           _pan,           Synth, Double)
 ACCESSOR(attackTime,    _attackTime,    Synth, Double)
 ACCESSOR(releaseTime,   _releaseTime,   Synth, Double)
 ACCESSOR(sustainLevel,  _sustainLevel,  Synth, Double)

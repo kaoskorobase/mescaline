@@ -136,8 +136,9 @@ field AST.CursorValue = accessor (maybe 0 id . f) (const id)
             Seq.lookupAtCursor c s
 field AST.Offset = synthAccessor 0 offset . second
 field AST.Duration = synthAccessor 0 duration . second
-field AST.Rate = synthAccessor 1 rate . second
 field AST.Level = synthAccessor 1 sustainLevel . second
+field AST.Pan = synthAccessor 0 pan . second
+field AST.Rate = synthAccessor 1 rate . second
 field AST.AttackTime = synthAccessor 0 attackTime . second
 field AST.ReleaseTime = synthAccessor 0 releaseTime . second
 field (AST.Feature i j) = synthAccessor 0 (acc . unit) . second

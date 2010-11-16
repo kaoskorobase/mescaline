@@ -133,9 +133,10 @@ startVoice voice time synth bounds =
         [s_new (voiceDefName $ BC.numChannels $ buffer voice) (fromIntegral $ voiceId voice) AddToTail 0
             ([ ("bufnum", fromIntegral $ BC.uid $ buffer voice)
              , ("rate", synth ^. P.rate)
-             , ("attackTime",   attackTime bounds)
-             , ("releaseTime",  releaseTime bounds)
-             , ("sustainLevel", synth ^. P.sustainLevel)
+             , ("amp", synth ^. P.sustainLevel)
+             , ("pan", synth ^. P.pan)
+             , ("attackTime", attackTime bounds)
+             , ("releaseTime",releaseTime bounds)
              ] ++
                if voiceGateEnvelope
                   then []

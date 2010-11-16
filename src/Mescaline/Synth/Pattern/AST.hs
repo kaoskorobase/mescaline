@@ -70,6 +70,7 @@ data Field =
   | Offset          -- ^Playback offset in seconds.
   | Duration        -- ^Duration of the event being played.
   | Level           -- ^Level between 0 and 1.
+  | Pan             -- ^Panning coefficient in [-1;1].
   | Rate            -- ^Playback rate (> 0).
   | AttackTime      -- ^Envelope attack time in seconds.
   | ReleaseTime     -- ^Envelope release time in seconds.
