@@ -97,7 +97,7 @@ value = AST . return . S_value
 -- This function is needed to express value sharing (as opposed to expression
 -- sharing) in the pattern language.
 --
--- @bind (<event pattern expression>) (\e -> set Delta (get Duration e) e)@
+-- @bind (\<event pattern expression\>) (\\e -> set Delta (get Duration e) e)@
 bind :: Bind Pattern a b => Pattern a -> (Pattern a -> Pattern b) -> Pattern b
 bind = bindI
 
@@ -162,12 +162,24 @@ limit l = liftAST3 (S_limit l)
 (|<=|) = liftAST2 (B_compare Comp_leq)
 
 -- *Events
+
+-- | Return the value of an event field.
+--
+-- @get Duration e@
 get :: Field -> Pattern Event -> Pattern Scalar
 get    = liftAST . S_get
 
+-- | Set the value of an event field
+--
+-- @set Duration 0.1 e@
 set :: Field -> Pattern Scalar -> Pattern Event -> Pattern Event
 set    = liftAST2 . E_set
 
+-- | Filter an event stream with the given boolean pattern.
+--
+-- Events for which the predicate returns True are replaced by rests.
+--
+-- @bind (\<event expression\>) (\\e -> filter (get Duration e |>| 0.5) e)@
 filter :: Pattern Boolean -> Pattern Event -> Pattern Event
 filter = liftAST2 E_filter
 
