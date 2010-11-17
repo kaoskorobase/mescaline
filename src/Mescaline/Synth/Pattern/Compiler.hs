@@ -173,7 +173,7 @@ compileBinding ::
  -> C (Pattern a)
 compileBinding bm = return . B.pbinding (Env.bindings .> bm)
 
--- | Compile a bind.
+-- | Compile a bind expression.
 compileBind ::
     (t1 -> C (Pattern a))
  -> (t2 -> C (Pattern b))
@@ -228,16 +228,13 @@ compileE (AST.E_bind_E h a b)    = compileBind compileE compileE B.event   h a b
 compileE (AST.E_bind_S h a b)    = compileBind compileS compileE B.scalar  h a b
 compileE (AST.E_stream f a)      = liftM (streamPattern f) (compileE a)
 compileE (AST.E_list e a b)      = liftM2 (listPattern e) (compileS a) (mapM compileE b)
-compileE (AST.E_par xs)          = liftM ppar (mapM compileE xs)
+compileE (AST.E_par a)           = liftM ppar (mapM compileE a)
+compileE (AST.E_takeDur d a)     = liftM (takeDur d) (compileE a)
 compileE (AST.E_set f a b)       = liftM (fmap snd) $ liftM2 (pzipWith (setVal (field f))) (compileS a) (fmap (pzip ask) (compileE b))
--- Filter
 compileE (AST.E_filter a b)      = liftM2 filterE (compileB a) (compileE b)
--- Generators
 compileE (AST.E_closest i a b c) = liftM3 (closest i) (compileS a) (compileS b) (compileC c)
 compileE (AST.E_region i a b)    = liftM2 (region i) (compileS a) (compileS b)
--- Cursor
 compileE (AST.E_step a b c)      = liftM3 step (compileS a) (compileS b) (compileE c)
--- Debugging
 compileE (AST.E_trace a)         = liftM ptrace (compileE a)
 
 -- | Compile a scalar expression to a scalar pattern.
@@ -251,20 +248,16 @@ compileS (AST.S_bind_S h a b)    = compileBind compileS compileS B.scalar  h a b
 compileS (AST.S_get f a)         = liftM (fmap (getVal (field f))) (fmap (pzip ask) (compileE a))
 compileS (AST.S_stream f a)      = liftM (streamPattern f) (compileS a)
 compileS (AST.S_list e a b)      = liftM2 (listPattern e) (compileS a) (mapM compileS b)
--- Filters
 compileS (AST.S_map f a)         = liftM (fmap (unFunc f)) (compileS a)
 compileS (AST.S_zip f a b)       = liftM2 (pzipWith (binFunc f)) (compileS a) (compileS b)
 compileS (AST.S_limit f a b c)   = liftM3 (pzipWith3 (limit f)) (compileS a) (compileS b) (compileS c)
--- Coordinates
 compileS (AST.S_x a)             = liftM (fmap fst) (compileC a)
 compileS (AST.S_y a)             = liftM (fmap snd) (compileC a)
 compileS (AST.S_radius a)        = liftM radius (compileS a)
--- Randomness
 compileS (AST.S_rand a b)        = liftM2 prrand_ (compileS a) (compileS b)
 compileS (AST.S_exprand a b)     = liftM2 pexprand_ (compileS a) (compileS b)
 compileS (AST.S_gaussian a b)    = liftM2 pgaussian_ (compileS a) (compileS b)
 compileS (AST.S_brown f a b c d) = liftM4 (pbrown_ (limit f)) (compileS a) (compileS b) (compileS c) (compileS d)
--- Debugging
 compileS (AST.S_trace a)         = liftM ptrace (compileS a)
 
 -- | Compile a syntax tree with the corresponding environment to an event pattern.

@@ -183,6 +183,9 @@ set    = liftAST2 . E_set
 filter :: Pattern Boolean -> Pattern Event -> Pattern Event
 filter = liftAST2 E_filter
 
+takeDur :: Double -> Pattern Event -> Pattern Event
+takeDur = liftAST . E_takeDur
+
 -- *Coordinates
 
 -- | Construct a coordinate pattern from a pair of scalar patterns, one for each axis.
@@ -571,6 +574,7 @@ data Event =
   | E_stream StreamFunc Event
   | E_list Enumerator Scalar [Event]
   | E_par [Event]
+  | E_takeDur Double Event
   -- Filters
   | E_filter Boolean Event
   -- Generators

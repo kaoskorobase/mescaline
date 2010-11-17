@@ -18,6 +18,7 @@ module Mescaline.Synth.Pattern.ASTLib (
   , once, o
   -- **Event streams
   , par
+  , takeDur
   -- **List patterns
   , seq, seq1
   , ser, ser1

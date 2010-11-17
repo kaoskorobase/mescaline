@@ -4,6 +4,7 @@ module Mescaline.Synth.Pattern.Library (
     closest
   , region
     -- *Filters
+  , takeDur
   , filterE
   , step
     -- *Coordinates
@@ -27,6 +28,7 @@ import           Data.Accessor
 import qualified Data.Accessor.Monad.MTL.State as Accessor
 import qualified Data.Complex as C
 import           Data.Maybe (isJust, listToMaybe, maybeToList)
+import qualified Data.Monoid as M
 -- import qualified Data.Packed.Random as R
 import           Data.Typeable (Typeable)
 import           Mescaline (Duration, Time)
@@ -146,6 +148,21 @@ filterE = pzipWith f
     where
         f True e = e
         f False e = Event.synth ^= Nothing $ e
+
+-- pscan :: (x -> y -> (x, a)) -> Maybe (x -> a) -> x -> P s y -> P s a
+-- punfoldr :: (s -> x -> (s, Maybe (a, x))) -> x -> P s a
+
+takeDur :: Double -> Pattern Event -> Pattern Event
+takeDur dur pattern = punfoldr f (0, pattern)
+    where
+        f s (t, p) =
+            case Pattern.step s p of
+                Done s' -> (s', Nothing)
+                Result s' e p' ->
+                    let t' = t + e ^. Event.delta
+                    in if t' >= dur
+                        then (s', Just (Event.delta ^= dur - t $ e, (t', M.mempty)))
+                        else (s', Just (e, (t', p')))
 
 regionUnits :: Pattern Int -> Pattern [FeatureSpace.Unit]
 regionUnits i = pzipWith (FeatureSpace.regionUnits) i (askA (Environment.featureSpace))
