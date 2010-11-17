@@ -82,7 +82,7 @@ new = do
           , Server.ugenPluginPath = plugins
           }
         rtOptions = Server.defaultRTOptions { Server.udpPortNumber = 2278 }
-    
+
     Log.infoM "Synth" (unwords (Server.rtCommandLine serverOptions rtOptions))
     
     conf <- Config.getConfig
@@ -101,7 +101,7 @@ new = do
                 Server.withSynthUDP
                     serverOptions
                     rtOptions
-                    Server.defaultOutputHandler
+                    (Server.OutputHandler (Log.noticeM "Synth") (Log.errorM "Synth"))
                     -- (Server.withTransport
                     --     serverOptions
                     --     rtOptions
