@@ -188,19 +188,19 @@ chooseNew1 = list1 chooseNew
 
 -- | Truncate scalar towards -Infinity.
 truncateP :: Pattern Scalar -> Pattern Scalar
-truncateP = liftAST (S_map UF_truncate)
+truncateP = liftAST (S_map F_truncate)
 
 -- | Round scalar to the closest integer.
 roundP :: Pattern Scalar -> Pattern Scalar
-roundP = liftAST (S_map UF_round)
+roundP = liftAST (S_map F_round)
 
 -- | Return the next integer bigger than a scalar.
 ceilingP :: Pattern Scalar -> Pattern Scalar
-ceilingP = liftAST (S_map UF_ceiling)
+ceilingP = liftAST (S_map F_ceiling)
 
 -- | Truncate scalar towards zero.
 floorP :: Pattern Scalar -> Pattern Scalar
-floorP = liftAST (S_map UF_floor)
+floorP = liftAST (S_map F_floor)
 
 -- | Constrain a scalar to the interval [min,max].
 --
@@ -252,11 +252,11 @@ fzip bf f s p = bind p $ \e -> set f (zip bf (get f e) s) e
 
 -- | Add a scalar to a field value.
 add :: Field -> Pattern Scalar -> Pattern Event -> Pattern Event
-add = fzip BF_add
+add = fzip F_add
 
 -- | Multiply a field value by a scalar.
 multiply :: Field -> Pattern Scalar -> Pattern Event -> Pattern Event
-multiply = fzip BF_multiply
+multiply = fzip F_multiply
 
 -- | Spectral feature at index 0 or 1.
 fSpec :: Int -> Field

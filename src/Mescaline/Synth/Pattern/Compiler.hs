@@ -78,38 +78,38 @@ withInt f a = f a
 
 -- | Convert a unary function tag to the corresponding function.
 unFunc :: AST.UnaryFunc -> (Double -> Double)
-unFunc AST.UF_abs        = abs
-unFunc AST.UF_signum     = signum
-unFunc AST.UF_negate     = negate
-unFunc AST.UF_recip      = recip
-unFunc AST.UF_truncate   = fromIntegral . withInt truncate
-unFunc AST.UF_round      = fromIntegral . withInt round
-unFunc AST.UF_ceiling    = fromIntegral . withInt ceiling
-unFunc AST.UF_floor      = fromIntegral . withInt floor
-unFunc AST.UF_exp        = exp
-unFunc AST.UF_sqrt       = sqrt
-unFunc AST.UF_log        = log
-unFunc AST.UF_sin        = sin
-unFunc AST.UF_tan        = tan
-unFunc AST.UF_cos        = cos
-unFunc AST.UF_asin       = asin
-unFunc AST.UF_atan       = atan
-unFunc AST.UF_acos       = acos
-unFunc AST.UF_sinh       = sinh
-unFunc AST.UF_tanh       = tanh
-unFunc AST.UF_cosh       = cosh
-unFunc AST.UF_asinh      = asinh
-unFunc AST.UF_atanh      = atanh
-unFunc AST.UF_acosh      = acosh
+unFunc AST.F_abs        = abs
+unFunc AST.F_signum     = signum
+unFunc AST.F_negate     = negate
+unFunc AST.F_recip      = recip
+unFunc AST.F_truncate   = fromIntegral . withInt truncate
+unFunc AST.F_round      = fromIntegral . withInt round
+unFunc AST.F_ceiling    = fromIntegral . withInt ceiling
+unFunc AST.F_floor      = fromIntegral . withInt floor
+unFunc AST.F_exp        = exp
+unFunc AST.F_sqrt       = sqrt
+unFunc AST.F_log        = log
+unFunc AST.F_sin        = sin
+unFunc AST.F_tan        = tan
+unFunc AST.F_cos        = cos
+unFunc AST.F_asin       = asin
+unFunc AST.F_atan       = atan
+unFunc AST.F_acos       = acos
+unFunc AST.F_sinh       = sinh
+unFunc AST.F_tanh       = tanh
+unFunc AST.F_cosh       = cosh
+unFunc AST.F_asinh      = asinh
+unFunc AST.F_atanh      = atanh
+unFunc AST.F_acosh      = acosh
 
 -- | Convert a binary function tag to the corresponding function.
 binFunc :: AST.BinaryFunc -> (Double -> Double -> Double)
-binFunc AST.BF_add      = (+)
-binFunc AST.BF_subtract = (-)
-binFunc AST.BF_multiply = (*)
-binFunc AST.BF_divide   = (/)
-binFunc AST.BF_power    = (**)
-binFunc AST.BF_logBase  = logBase
+binFunc AST.F_add      = (+)
+binFunc AST.F_subtract = (-)
+binFunc AST.F_multiply = (*)
+binFunc AST.F_divide   = (/)
+binFunc AST.F_power    = (**)
+binFunc AST.F_logBase  = logBase
 
 comparison :: AST.Comparison -> (Double -> Double -> Bool)
 comparison AST.Comp_eq  = (==)

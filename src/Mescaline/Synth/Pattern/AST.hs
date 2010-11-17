@@ -10,38 +10,38 @@ import qualified Data.IntMap as Map
 import           Prelude hiding (cycle, filter, map, seq, zip)
 
 data UnaryFunc =
-    UF_abs
-  | UF_signum
-  | UF_negate
-  | UF_recip
-  | UF_truncate
-  | UF_round
-  | UF_ceiling
-  | UF_floor
-  | UF_exp
-  | UF_sqrt
-  | UF_log
-  | UF_sin
-  | UF_tan
-  | UF_cos
-  | UF_asin
-  | UF_atan
-  | UF_acos
-  | UF_sinh
-  | UF_tanh
-  | UF_cosh
-  | UF_asinh
-  | UF_atanh
-  | UF_acosh
+    F_abs
+  | F_signum
+  | F_negate
+  | F_recip
+  | F_truncate
+  | F_round
+  | F_ceiling
+  | F_floor
+  | F_exp
+  | F_sqrt
+  | F_log
+  | F_sin
+  | F_tan
+  | F_cos
+  | F_asin
+  | F_atan
+  | F_acos
+  | F_sinh
+  | F_tanh
+  | F_cosh
+  | F_asinh
+  | F_atanh
+  | F_acosh
   deriving (Eq, Read, Show)
 
 data BinaryFunc =
-    BF_add
-  | BF_subtract
-  | BF_multiply
-  | BF_divide
-  | BF_power
-  | BF_logBase
+    F_add
+  | F_subtract
+  | F_multiply
+  | F_divide
+  | F_power
+  | F_logBase
   deriving (Eq, Read, Show)
 
 data Comparison =
@@ -364,38 +364,38 @@ inf :: Pattern Scalar
 inf = value dInf
 
 instance Num (Pattern Scalar) where
-    (+) = zip BF_add
-    (-) = zip BF_subtract
-    (*) = zip BF_multiply
-    abs = map UF_abs
-    signum = map UF_signum
+    (+) = zip F_add
+    (-) = zip F_subtract
+    (*) = zip F_multiply
+    abs = map F_abs
+    signum = map F_signum
     fromInteger = value . fromInteger
-    negate = map UF_negate
+    negate = map F_negate
 
 instance Fractional (Pattern Scalar) where
-    (/) = zip BF_divide
-    recip = map UF_recip
+    (/) = zip F_divide
+    recip = map F_recip
     fromRational = value . fromRational
 
 instance Floating (Pattern Scalar) where
     pi      = value pi
-    exp     = map UF_exp
-    sqrt    = map UF_sqrt
-    log     = map UF_log
-    (**)    = zip BF_power
-    logBase = zip BF_logBase
-    sin     = map UF_sin
-    tan     = map UF_tan
-    cos     = map UF_cos
-    asin    = map UF_asin
-    atan    = map UF_atan
-    acos    = map UF_acos
-    sinh    = map UF_sinh
-    tanh    = map UF_tanh
-    cosh    = map UF_cosh
-    asinh   = map UF_asinh
-    atanh   = map UF_atanh
-    acosh   = map UF_acosh
+    exp     = map F_exp
+    sqrt    = map F_sqrt
+    log     = map F_log
+    (**)    = zip F_power
+    logBase = zip F_logBase
+    sin     = map F_sin
+    tan     = map F_tan
+    cos     = map F_cos
+    asin    = map F_asin
+    atan    = map F_atan
+    acos    = map F_acos
+    sinh    = map F_sinh
+    tanh    = map F_tanh
+    cosh    = map F_cosh
+    asinh   = map F_asinh
+    atanh   = map F_atanh
+    acosh   = map F_acosh
 
 bindP :: (Binding -> a)
       -> (Binding -> a -> b -> b)
