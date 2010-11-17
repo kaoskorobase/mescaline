@@ -83,7 +83,7 @@ new = do
           }
         rtOptions = Server.defaultRTOptions { Server.udpPortNumber = 2278 }
     
-    putStrLn $ unwords $ Server.rtCommandLine serverOptions rtOptions
+    Log.infoM "Synth" (unwords (Server.rtCommandLine serverOptions rtOptions))
     
     conf <- Config.getConfig
     let printLevel = either (const NoPrinter) id (getPrintLevel conf "Synth" "dumpOSC")

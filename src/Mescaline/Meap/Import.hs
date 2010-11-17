@@ -6,10 +6,10 @@ module Mescaline.Meap.Import (
 ) where
 
 import           Control.Monad
-import           Data.Char
 import qualified Data.Vector.Generic as V
 import           Database.HDBC (IConnection)
 import qualified GHC.Conc as GHC
+import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Database as DB
 import           Mescaline.Database.Feature (Feature)
 import qualified Mescaline.Database.Feature as Feature
@@ -20,9 +20,10 @@ import           Mescaline.Database.SourceFile (SourceFile)
 import qualified Mescaline.Database.SourceFile as SourceFile
 import           Mescaline.Database.Sql (SqlRow)
 import qualified Mescaline.Database.Table as Table
-import qualified Mescaline.Meap.Extractor as Extractor
-import qualified Mescaline.Meap.Segmenter as Segmenter
 import           Mescaline.Meap.Chain as Chain
+import qualified Mescaline.Meap.Extractor as Extractor
+import           Mescaline.Meap.Process (OutputHandler(..))
+import qualified Mescaline.Meap.Segmenter as Segmenter
 import           Mescaline.Util (findFiles)
 import qualified Sound.Analysis.Meapsoft as Meap
 
@@ -55,17 +56,22 @@ lookupFeature :: String -> Maybe Feature.Descriptor
 lookupFeature = flip lookup features
 
 options :: Unit.Segmentation -> Chain.Options
-options seg = Chain.defaultOptions {
-            segmenter = Segmenter.defaultOptions {
-                Segmenter.segmentation = case seg of
-                                            Unit.Beat -> Segmenter.Beat
-                                            Unit.Onset -> Segmenter.Onset
-              , Segmenter.smoothingWindow = 0.01
-            }
-          , extractor = Extractor.defaultOptions {
-                Extractor.windowSize = 1024,
-                Extractor.hopSize = 512,
-                Extractor.features  = map fst meapFeatures } }
+options seg =
+    Chain.defaultOptions {
+        segmenter = Segmenter.defaultOptions {
+            Segmenter.outputHandler = outputHandler
+          , Segmenter.segmentation = case seg of
+                                        Unit.Beat -> Segmenter.Beat
+                                        Unit.Onset -> Segmenter.Onset
+          , Segmenter.smoothingWindow = 0.01
+        }
+      , extractor = Extractor.defaultOptions {
+            Extractor.outputHandler = outputHandler
+          , Extractor.windowSize = 1024
+          , Extractor.hopSize = 512
+          , Extractor.features  = map fst meapFeatures } }
+    where
+        outputHandler = OutputHandler (Log.noticeM "Database") (Log.errorM "Database")
 
 convUnit :: SourceFile -> Unit.Segmentation -> (Double, Double) -> Unit
 convUnit sf s (o, d) = Unit.cons sf s o d
@@ -97,7 +103,7 @@ insertFile :: IConnection c
            -> IO ()
 insertFile conn path seg meap = do
     sf <- SourceFile.newLocal path
-    putStrLn (path ++ " " ++ show sf)
+    Log.debugM "Database" ("insertFile: " ++ path ++ " " ++ show sf)
     Table.insert conn sf
     ds <- mapM (insertModel conn . convFeatureDesc) $ Meap.features meap
     us <- mapM (insertModel conn . convUnit sf seg) $ Meap.segments_l meap
@@ -118,7 +124,7 @@ importPaths np ps c = do
     files' <- filterM (\p -> do { sf <- SourceFile.newLocal p ; fmap not $ Table.isStored c sf }) files
     Chain.mapFiles (maybe GHC.numCapabilities id np) (options seg) files'
     >>= mapM_ (\(p, e) ->
-            either (\s -> putStrLn $ "ERROR: " ++ p ++ ": " ++ s)
+            either (\s -> Log.errorM "Database" (p ++ ": " ++ s))
                    (insertFile c p seg)
                    e)
     where seg = Unit.Onset

@@ -333,13 +333,11 @@ action_file_saveFile h w _ = do
 action_file_importFile :: DatabaseP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_file_importFile db w _ = do
     ps <- importDialog Qt.eExistingFile w
-    putStrLn $ "Import file: " ++ show ps
     sendTo db $ DatabaseP.Import ps
 
 action_file_importDirectory :: DatabaseP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_file_importDirectory db w _ = do
     ps <- importDialog Qt.eDirectory w
-    putStrLn $ "Import directory: " ++ show ps
     sendTo db $ DatabaseP.Import ps
 
 #if USE_OLD_SEQUENCER
@@ -492,7 +490,6 @@ main = do
         x <- recv
         case x of
             PatternP.Event time event -> do
-                -- io $ putStrLn $ "PatternP.Event " ++ show time ++ " " ++ show event
                 Event.withSynth (return ()) (sendTo synthP . SynthP.PlayUnit time) event
             _ -> return ()
         loop

@@ -1,6 +1,10 @@
 [BufferCache]
 
-logLevel        = INFO
+logLevel        = NOTICE
+
+[Database]
+
+logLevel        = NOTICE
 
 [FeatureSpace]
 

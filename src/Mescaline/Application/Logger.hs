@@ -32,6 +32,7 @@ getLogLevel conf component variable =
 componentMap :: [(String, String)]
 componentMap =
     [ ("BufferCache"  , "logLevel")
+    , ("Database"     , "logLevel")
     , ("FeatureSpace" , "logLevel")
     , ("Hugs"         , "logLevel")
     , ("Sequencer"    , "logLevel")

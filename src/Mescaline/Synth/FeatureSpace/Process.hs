@@ -37,7 +37,9 @@ getUnits :: FilePath
 getUnits dbFile pattern features = do
     units <- DB.query dbFile DBUnit.Onset pattern features
     case units of
-        Left e -> putStrLn ("ERROR[DB]: " ++ e) >> return []
+        Left e -> do
+            Log.errorM "Database" e
+            return []
         Right (us, _) -> do
             let us' = map (uncurry Unit.cons) us
             seqList rseq us' `seq` return us'
