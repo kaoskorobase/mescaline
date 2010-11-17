@@ -2,8 +2,7 @@ module Mescaline.Application.Logger (
     module System.Log.Logger
   , module System.Log.Formatter
   , module System.Log.Handler.Simple
-  , initialize
-  , components
+  , getComponents
 ) where
 
 import           Control.Monad.Error
@@ -21,9 +20,14 @@ instance Config.Get_C (Priority) where
             Nothing -> throwError (Config.ParseError $ "Invalid logging priority " ++ s, "")
             Just p  -> return p
 
-initLogLevel :: Config.ConfigParser -> String -> String -> IO ()
-initLogLevel conf component variable =
-    either (const $ return ()) (updateGlobalLogger component . setLevel) (Config.get conf component variable)
+defaultLogLevel :: Priority
+defaultLogLevel = NOTICE
+
+getLogLevel :: Config.ConfigParser -> String -> String -> Priority
+getLogLevel conf component variable =
+    either (const defaultLogLevel)
+           id
+           (Config.get conf component variable)
 
 componentMap :: [(String, String)]
 componentMap =
@@ -36,8 +40,9 @@ componentMap =
 components :: [String]
 components = map fst componentMap
 
--- | Initialize the application.
-initialize :: IO ()
-initialize = do
+-- | Initialize logger priorities.
+getComponents :: IO [(String, Priority)]
+getComponents = do
     conf <- Config.getConfig
-    mapM_ (uncurry (initLogLevel conf)) componentMap
+    return $ map (\(logger, var) -> (logger, getLogLevel conf logger var))
+                 componentMap

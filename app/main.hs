@@ -254,21 +254,6 @@ directoryMenu callback exts dir = liftM (map mkAction) (findFiles exts [dir])
 -- ====================================================================
 -- Logging to text view
 
-textEditLogger :: Log.Priority -> String -> Qt.QTextEdit () -> Log.GenericHandler (Qt.QTextEdit ())
-textEditLogger prio fmt textEdit =
-    Log.GenericHandler
-        prio
-        (Log.simpleLogFormatter fmt)
-        textEdit
-        (\edit msg -> do
-            c <- Qt.textCursor edit ()
-            Qt.insertText c msg
-            _ <- Qt.movePosition c (Qt.eEnd :: Qt.MoveOperation)
-            Qt.setTextCursor edit c)
-            --  edit->textCursor().insertHtml(fragment);
-            -- Qt.insertHtml
-        (const (return ()))
-
 chanLogger :: Log.Priority -> String -> Chan String -> IO () -> Log.GenericHandler (Chan String)
 chanLogger prio fmt chan action =
     Log.GenericHandler
@@ -278,17 +263,6 @@ chanLogger prio fmt chan action =
         (\chan msg -> writeChan chan msg >> action)
         (const (return ()))
 
-logPriorities :: [Log.Priority]
-logPriorities =
-    [ Log.DEBUG
-    , Log.INFO
-    , Log.NOTICE
-    , Log.WARNING
-    , Log.ERROR
-    , Log.CRITICAL
-    , Log.ALERT
-    , Log.EMERGENCY ]
-
 createLoggers :: MainWindow -> IO ()
 createLoggers logWindow = do
     textEdit <- Qt.findChild logWindow ("<QTextEdit*>", "textEdit") :: IO (Qt.QTextEdit ())
@@ -296,11 +270,13 @@ createLoggers logWindow = do
     Qt.connectSlot logWindow "logMessage()" logWindow "logMessage()" $ logMessage chan textEdit
     let fmt = "[$prio][$loggername] $msg\n"
         action = Qt.emitSignal logWindow "logMessage()" ()
-    mapM_ (\logger -> Log.updateGlobalLogger
-                        logger
-                        (Log.setHandlers $ map (\prio -> chanLogger prio fmt chan action)
-                                               logPriorities))
-          Log.components
+    components <- Log.getComponents
+    -- FIXME: The log levels have to be initialized first down in main, why?
+    mapM_ (\(logger, prio) -> do
+        Log.updateGlobalLogger
+            logger
+            (Log.setHandlers [chanLogger prio fmt chan action]))
+            components
     -- Disable stderr logger
     Log.updateGlobalLogger Log.rootLoggerName (Log.setHandlers ([] :: [Log.GenericHandler ()]))
     where
@@ -435,7 +411,7 @@ action_help_openExample process path _ _ = sendTo process (PatternP.LoadPatch pa
 
 main :: IO ()
 main = do
-    Log.initialize
+    mapM_ (\(l,p) -> Log.updateGlobalLogger l (Log.setLevel p)) =<< Log.getComponents
 
     app <- Qt.qApplication  ()
 
