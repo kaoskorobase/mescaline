@@ -114,7 +114,7 @@ replicate n = streamI (SF_Replicate n)
 --
 -- This is the same as 'replicate' with the arguments flipped in order to allow infix application:
 --
--- @p `times` 4@
+-- @p \`times\` 4@
 times :: Stream Pattern a => Pattern a -> Int -> Pattern a
 times = flip replicate
 
@@ -128,7 +128,7 @@ take n = streamI (SF_Take n)
 --
 -- This is the same as 'take' with the arguments flipped in order to allow infix application:
 --
--- @p `only` 4@
+-- @p \`only\` 4@
 only :: Stream Pattern a => Pattern a -> Int -> Pattern a
 only = flip take
 
@@ -142,7 +142,7 @@ restrict n = take n . cycle
 --
 -- This is the same as 'restrict' with the arguments flipped in order to allow infix application:
 --
--- @p `gimme` 4@
+-- @p \`gimme\` 4@
 gimme :: Stream Pattern a => Pattern a -> Int -> Pattern a
 gimme = flip restrict
 
