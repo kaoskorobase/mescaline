@@ -104,6 +104,8 @@ unFunc AST.F_acosh      = acosh
 
 -- | Convert a binary function tag to the corresponding function.
 binFunc :: AST.BinaryFunc -> (Double -> Double -> Double)
+binFunc AST.F_min      = min
+binFunc AST.F_max      = max
 binFunc AST.F_add      = (+)
 binFunc AST.F_subtract = (-)
 binFunc AST.F_multiply = (*)

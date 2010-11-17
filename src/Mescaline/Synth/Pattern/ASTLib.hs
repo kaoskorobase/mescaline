@@ -29,6 +29,8 @@ module Mescaline.Synth.Pattern.ASTLib (
   , BinaryFunc(..)
   , map
   , zip
+  , min
+  , max
   -- **Numeric functions
   , truncateP
   , roundP
@@ -89,7 +91,7 @@ module Mescaline.Synth.Pattern.ASTLib (
 ) where
 
 import Mescaline.Synth.Pattern.AST
-import Prelude hiding ( cycle, filter, map, replicate, seq, take, zip )
+import Prelude hiding ( cycle, filter, min, map, max, replicate, seq, take, zip )
 import qualified Prelude as P
 
 -- | Repeat a pattern indefinitely.
@@ -186,6 +188,18 @@ chooseNew1 :: (List Pattern a, Stream Pattern a) =>
     Pattern Scalar -> [Pattern a] -> Pattern a
 chooseNew1 = list1 chooseNew
 
+-- | Return the smaller of the arguments.
+--
+-- @min a b@
+min :: Pattern Scalar -> Pattern Scalar -> Pattern Scalar
+min = liftAST2 (S_zip F_min)
+
+-- | Return the bigger of the arguments.
+--
+-- @max a b@
+max :: Pattern Scalar -> Pattern Scalar -> Pattern Scalar
+max = liftAST2 (S_zip F_max)
+
 -- | Truncate scalar towards -Infinity.
 truncateP :: Pattern Scalar -> Pattern Scalar
 truncateP = liftAST (S_map F_truncate)
@@ -260,7 +274,7 @@ multiply = fzip F_multiply
 
 -- | Spectral feature at index 0 or 1.
 fSpec :: Int -> Field
-fSpec i = Feature 0 (max 0 (min i 1))
+fSpec i = Feature 0 (P.max 0 (P.min i 1))
 
 -- | Power feature in dB.
 fPower :: Field

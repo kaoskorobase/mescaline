@@ -36,7 +36,9 @@ data UnaryFunc =
   deriving (Eq, Read, Show)
 
 data BinaryFunc =
-    F_add
+    F_min
+  | F_max
+  | F_add
   | F_subtract
   | F_multiply
   | F_divide
