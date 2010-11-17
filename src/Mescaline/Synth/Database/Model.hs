@@ -17,6 +17,7 @@ import qualified Mescaline.Database.SqlQuery as Sql
 import           Mescaline.Database.Unit (Segmentation(..))
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.Unit as Unit
+import qualified Mescaline.Database.SourceFile as SourceFile
 import qualified Mescaline.Database.Table as Table
 import qualified Mescaline.Meap.Import as Meap
 import qualified Mescaline.Statistics.PCA as PCA
@@ -26,6 +27,17 @@ import           System.Environment (getArgs)
 import           System.IO
 import           Text.Printf (printf)
 import           Prelude hiding (and)
+
+-- | Initialize tables before trying to use them.
+--
+-- Automatic initialization is only performed for inserts, not for selects.
+initTables :: [Feature.Descriptor] -> DB.Connection -> IO ()
+initTables fs c = do
+    Table.create c (Table.toTable (undefined::SourceFile.SourceFile))
+    Table.create c (Table.toTable (undefined::Unit.Unit))
+    Table.create c (Table.toTable (undefined::Feature.Descriptor))
+    mapM_ (Table.create c . Table.toTable . Feature.FeatureOf) fs
+    DB.commit c
 
 featureTable :: Feature.Feature -> Table.Table
 featureTable = Table.toTable . Feature.FeatureOf . Feature.descriptor
@@ -39,6 +51,7 @@ deleteFeature c f = do
 transformFeature' :: ([[Feature.Feature]] -> [Feature.Feature]) -> FilePath -> [Feature.Descriptor] -> IO ()
 transformFeature' func dbFile features = do
     DB.withDatabase dbFile $ \c -> do
+        initTables features c
         DB.withTransaction c $ \_ -> do
             res <- Sql.unitQuery
                 (DB.quickQuery' c)
@@ -78,6 +91,7 @@ importPaths dbFile paths = DB.handleSqlError
 query :: FilePath -> Segmentation -> String -> [Feature.Descriptor] -> IO (Either String ([(Unit.Unit, [Feature.Feature])], Sql.SourceFileMap))
 query dbFile seg pattern features = do
     DB.withDatabase dbFile $ \c -> do
+        initTables features c
         Sql.unitQuery (DB.quickQuery c)
               ((url sourceFile `like` pattern) `and` (segmentation unit `eq` seg))
               features
