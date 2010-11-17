@@ -194,12 +194,12 @@ y = liftAST S_y
 -- *Regions
 
 -- | Return the center of the specified feature space region.
-center :: Pattern Scalar -> Pattern Coord
-center  = liftAST C_center
+center :: Int -> Pattern Coord
+center = liftAST C_center . fromIntegral
 
 -- | Return the radius of the specified feature space region.
-radius :: Pattern Scalar -> Pattern Scalar
-radius  = liftAST S_radius
+radius :: Int -> Pattern Scalar
+radius = liftAST S_radius . fromIntegral
 
 -- | Select the unit closest to a given coordinate.
 --
