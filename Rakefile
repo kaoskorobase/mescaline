@@ -46,6 +46,7 @@ task [:doc, :clean] do
   }
 end
 
-task [:rcc] do
-	system("rcc -binary app/mescaline.qrc -o app/mescaline.rcc")
+task [:haddock] do
+	system("cabal haddock --hyperlink-source")
+	system("rsync -av dist/doc null2:html/sk/sites/mescaline.globero.es/")
 end
