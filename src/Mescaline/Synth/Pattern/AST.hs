@@ -1,4 +1,6 @@
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts
+           , FlexibleInstances
+           , MultiParamTypeClasses #-}
 module Mescaline.Synth.Pattern.AST where
 
 import           Control.Monad
@@ -77,13 +79,6 @@ data Field =
   | Feature Int Int -- ^Feature value.
   deriving (Eq, Read, Show)
 
--- | Region identifier.
-type Region = Int
-
-data RegionIterator =
-    Uniform
-    deriving (Eq, Read, Show)
-
 -- | Interval boundary behavior.
 data Limit =
     Clip -- ^Clip to interval.
@@ -91,114 +86,192 @@ data Limit =
   | Fold -- ^Fold back into interval.
   deriving (Eq, Read, Show)
 
--- | This class represents the abstract pattern language syntax.
+-- | Construct an infinite constant value scalar pattern.
+value :: Double -> Pattern Scalar
+value = AST . return . S_value
+
+-- | Bind the current value of a pattern to a function argument.
 --
--- The pattern argument is a placeholder for the concrete representation; in our case
--- the representation constructs an abstract syntax tree (see 'Pattern'), that is
--- read and compiled to a 'Mescaline.Synth.Pattern.Pattern'.
-class Language pattern where
-    value :: Double -> pattern Scalar
+-- This function is needed to express value sharing (as opposed to expression
+-- sharing) in the pattern language.
+--
+-- @bind (<event pattern expression>) (\e -> set Delta (get Duration e) e)@
+bind :: Bind Pattern a b => Pattern a -> (Pattern a -> Pattern b) -> Pattern b
+bind = bindI
 
-    bind :: Bind pattern a b => pattern a -> (pattern a -> pattern b) -> pattern b
+-- *Structure
 
-    stream :: Stream pattern a => StreamFunc -> pattern a -> pattern a    
-    list :: List pattern a => Enumerator -> pattern Scalar -> [pattern a] -> pattern a
-    par :: [pattern Event] -> pattern Event
+-- | Apply a stream function to a pattern.
+stream :: Stream Pattern a => StreamFunc -> Pattern a -> Pattern a   
+stream = streamI
 
-    map :: UnaryFunc -> pattern Scalar -> pattern Scalar
-    zip :: BinaryFunc -> pattern Scalar -> pattern Scalar -> pattern Scalar
-    limit :: Limit -> pattern Scalar -> pattern Scalar -> pattern Scalar -> pattern Scalar
+-- | Apply an enumerator function to a list of patterns.
+list :: List Pattern a => Enumerator -> Pattern Scalar -> [Pattern a] -> Pattern a
+list = listI
 
-    -- Comparisons
-    (==) :: pattern Scalar -> pattern Scalar -> pattern Boolean
-    (>)  :: pattern Scalar -> pattern Scalar -> pattern Boolean
-    (>=) :: pattern Scalar -> pattern Scalar -> pattern Boolean
-    (<)  :: pattern Scalar -> pattern Scalar -> pattern Boolean
-    (<=) :: pattern Scalar -> pattern Scalar -> pattern Boolean
+-- | Combine a list of event patterns by merging their event streams.
+par :: [Pattern Event] -> Pattern Event
+par a = AST $ liftM E_par (mapM unAST a)
 
-    -- Events
-    get :: Field -> pattern Event -> pattern Scalar
-    set :: Field -> pattern Scalar -> pattern Event -> pattern Event
-    filter :: pattern Boolean -> pattern Event -> pattern Event
+-- *Scalars
 
-    -- Coordinates
-    coord :: pattern Scalar -> pattern Scalar -> pattern Coord
-    polar :: pattern Coord -> pattern Scalar -> pattern Scalar -> pattern Coord
-    x :: pattern Coord -> pattern Scalar
-    y :: pattern Coord -> pattern Scalar
+-- | Map a unary function to a scalar.
+map :: UnaryFunc -> Pattern Scalar -> Pattern Scalar
+map = liftAST . S_map
 
-    -- Regions
-    center :: pattern Scalar -> pattern Coord
-    radius :: pattern Scalar -> pattern Scalar
-    -- | Select the unit closest to a given coordinate.
-    --
-    -- @closest cursor defaultDelta radius coord@
-    --
-    -- * @cursor@ Cursor id for the generated event.
-    --
-    -- * @defaultDelta@ Default delta time in case no unit is found.
-    --
-    -- * @radius@ Radius to restrict the search; if the found unit is outside the given radius around the coordinate, a rest is generated.
-    --
-    -- * @coord@ Coordinate for nearest neighbor search.
-    closest :: Int -> pattern Scalar -> pattern Scalar -> pattern Coord -> pattern Event
-    -- | Select a unit from a region according to the iterator.
-    --
-    -- @region cursor defaultDelta iterator@
-    --
-    -- * @cursor@ Cursor and region id for this event.
-    --
-    -- * @defaultDelta@ Default delta time in case the region is empty.
-    --
-    -- * @iterator@ Scalar pattern in the range [0;1[ that selects a unit from the region.
-    region :: Int -> pattern Scalar -> pattern Scalar -> pattern Event
+-- | Combine two scalars with a binary function.
+zip :: BinaryFunc -> Pattern Scalar -> Pattern Scalar -> Pattern Scalar
+zip = liftAST2 . S_zip
 
-    -- Cursor
-    step :: pattern Scalar -> pattern Scalar -> pattern Event -> pattern Event
+-- | Apply an interval limit operation to a scalar.
+limit :: Limit -> Pattern Scalar -> Pattern Scalar -> Pattern Scalar -> Pattern Scalar
+limit l = liftAST3 (S_limit l)
 
-    -- Randomness
-    
-    -- | Generate white noise in a given range.
-    --
-    -- @rand min max@
-    --
-    -- * @min@ Minimum value.
-    --
-    -- * @max@ Maximum value.
-    rand :: pattern Scalar -> pattern Scalar -> pattern Scalar
-    -- | Generate exponential noise in a given range.
-    --
-    -- @exprand min max@
-    --
-    -- * @min@ Minimum value.
-    --
-    -- * @max@ Maximum value.
-    exprand :: pattern Scalar -> pattern Scalar -> pattern Scalar
-    -- | Generate gaussian noise with the given mean and variance.
-    --
-    -- @gaussian mean var@
-    --
-    -- * @mean@ Mean value.
-    --
-    -- * @var@ Variance, or standard deviation squared.
-    gaussian :: pattern Scalar -> pattern Scalar -> pattern Scalar
-    -- | Generate brown noise in a given range with a given step size.
-    --
-    -- @brown limmit stepMin stepMax min max@
-    --
-    --  * @limit@ Interval boundary behavior.
-    --
-    --  * @stepMin@ Minimum step size.
-    --
-    --  * @stepMax@ Maximum step size.
-    --
-    --  * @min@ Minimum value.
-    --
-    --  * @max@ Maximum value.
-    brown :: Limit -> pattern Scalar -> pattern Scalar -> pattern Scalar -> pattern Scalar -> pattern Scalar
+-- *Comparisons
+(==) :: Pattern Scalar -> Pattern Scalar -> Pattern Boolean
+(==) = liftAST2 (B_compare Comp_eq)
 
-    -- Debugging
-    trace :: Trace pattern a => pattern a -> pattern a
+(>) :: Pattern Scalar -> Pattern Scalar -> Pattern Boolean
+(>) = liftAST2 (B_compare Comp_gt)
+
+(>=) :: Pattern Scalar -> Pattern Scalar -> Pattern Boolean
+(>=) = liftAST2 (B_compare Comp_geq)
+
+(<) :: Pattern Scalar -> Pattern Scalar -> Pattern Boolean
+(<) = liftAST2 (B_compare Comp_lt)
+
+(<=) :: Pattern Scalar -> Pattern Scalar -> Pattern Boolean
+(<=) = liftAST2 (B_compare Comp_leq)
+
+-- *Events
+get :: Field -> Pattern Event -> Pattern Scalar
+get    = liftAST . S_get
+
+set :: Field -> Pattern Scalar -> Pattern Event -> Pattern Event
+set    = liftAST2 . E_set
+
+filter :: Pattern Boolean -> Pattern Event -> Pattern Event
+filter = liftAST2 E_filter
+
+-- *Coordinates
+
+-- | Construct a coordinate pattern from a pair of scalar patterns, one for each axis.
+--
+-- @coord 0.5 (rand 0.4 0.6)@
+coord :: Pattern Scalar -> Pattern Scalar -> Pattern Coord
+coord     = liftAST2 C_coord
+
+-- | Construct a coordinate pattern from a center coordinate, a radius and an angle in radians.
+--
+-- @polar (coord 0.5 0.5) 0.5 (pi/2)@
+polar :: Pattern Coord -> Pattern Scalar -> Pattern Scalar -> Pattern Coord
+polar = liftAST3 C_polar
+
+-- | Retrieve the x value from a coordinate.
+x :: Pattern Coord -> Pattern Scalar
+x = liftAST S_x
+
+-- | Retrieve the y value from a coordinate.
+y :: Pattern Coord -> Pattern Scalar
+y = liftAST S_y
+
+-- *Regions
+
+-- | Return the center of the specified feature space region.
+center :: Pattern Scalar -> Pattern Coord
+center  = liftAST C_center
+
+-- | Return the radius of the specified feature space region.
+radius :: Pattern Scalar -> Pattern Scalar
+radius  = liftAST S_radius
+
+-- | Select the unit closest to a given coordinate.
+--
+-- @closest cursor defaultDelta radius coord@
+--
+-- * @cursor@ Cursor id for the generated event.
+--
+-- * @defaultDelta@ Default delta time in case no unit is found.
+--
+-- * @radius@ Radius to restrict the search; if the found unit is outside the given radius around the coordinate, a rest is generated.
+--
+-- * @coord@ Coordinate for nearest neighbor search.
+closest :: Int -> Pattern Scalar -> Pattern Scalar -> Pattern Coord -> Pattern Event
+closest i = liftAST3 (E_closest i)
+
+-- | Select a unit from a region according to the iterator.
+--
+-- @region cursor defaultDelta iterator@
+--
+-- * @cursor@ Cursor and region id for this event.
+--
+-- * @defaultDelta@ Default delta time in case the region is empty.
+--
+-- * @iterator@ Scalar pattern in the range [0;1[ that selects a unit from the region.
+region :: Int -> Pattern Scalar -> Pattern Scalar -> Pattern Event
+region i = liftAST2 (E_region i)
+
+-- * Cursor
+
+-- | Advance the cursor by a row and column increment as a side effect.
+--
+-- The event pattern argument is not modified.
+step :: Pattern Scalar -> Pattern Scalar -> Pattern Event -> Pattern Event
+step = liftAST3 E_step
+
+-- *Randomness
+
+-- | Generate white noise in a given range.
+--
+-- @rand min max@
+--
+-- * @min@ Minimum value.
+--
+-- * @max@ Maximum value.
+rand :: Pattern Scalar -> Pattern Scalar -> Pattern Scalar
+rand = liftAST2 S_rand
+
+-- | Generate exponential noise in a given range.
+--
+-- @exprand min max@
+--
+-- * @min@ Minimum value.
+--
+-- * @max@ Maximum value.
+exprand :: Pattern Scalar -> Pattern Scalar -> Pattern Scalar
+exprand = liftAST2 S_exprand
+
+-- | Generate gaussian noise with the given mean and variance.
+--
+-- @gaussian mean var@
+--
+-- * @mean@ Mean value.
+--
+-- * @var@ Variance, or standard deviation squared.
+gaussian :: Pattern Scalar -> Pattern Scalar -> Pattern Scalar
+gaussian = liftAST2 S_gaussian
+
+-- | Generate brown noise in a given range with a given step size.
+--
+-- @brown limmit stepMin stepMax min max@
+--
+--  * @limit@ Interval boundary behavior.
+--
+--  * @stepMin@ Minimum step size.
+--
+--  * @stepMax@ Maximum step size.
+--
+--  * @min@ Minimum value.
+--
+--  * @max@ Maximum value.
+brown :: Limit -> Pattern Scalar -> Pattern Scalar -> Pattern Scalar -> Pattern Scalar -> Pattern Scalar
+brown b = liftAST4 (S_brown b)
+
+-- * Debugging
+
+-- | Print the current value of the argument pattern to the console.
+trace :: Trace Pattern a => Pattern a -> Pattern a
+trace a = traceI a
 
 class Bind pattern a b where
     bindI :: pattern a -> (pattern a -> pattern b) -> pattern b
@@ -255,58 +328,6 @@ liftAST3 f a b c = AST $ liftM3 f (unAST a) (unAST b) (unAST c)
 
 liftAST4 :: (a1 -> a2 -> a3 -> a4 -> r) -> Pattern a1 -> Pattern a2 -> Pattern a3 -> Pattern a4 -> Pattern r
 liftAST4 f a b c d = AST $ liftM4 f (unAST a) (unAST b) (unAST c) (unAST d)
-
-instance Language Pattern where
-    value = AST . return . S_value
-    bind = bindI
-    
-    stream = streamI
-    list = listI
-    par a = AST $ liftM E_par (mapM unAST a)
-
-    -- Scalars
-    map = liftAST . S_map
-    zip = liftAST2 . S_zip
-    limit l = liftAST3 (S_limit l)
-
-    -- Comparisons
-    (==) = liftAST2 (B_compare Comp_eq)
-    (>)  = liftAST2 (B_compare Comp_gt)
-    (>=) = liftAST2 (B_compare Comp_geq)
-    (<)  = liftAST2 (B_compare Comp_lt)
-    (<=) = liftAST2 (B_compare Comp_leq)
-
-    -- Events
-    get    = liftAST . S_get
-    set    = liftAST2 . E_set
-    filter = liftAST2 E_filter
-
-    -- *Coordinates
-    
-    coord     = liftAST2 C_coord
-    polar     = liftAST3 C_polar
-    x         = liftAST S_x
-    y         = liftAST S_y
-
-    -- Regions
-    center  = liftAST C_center
-    radius  = liftAST S_radius
-    
-    -- Generators
-    closest i = liftAST3 (E_closest i)
-    region i = liftAST2 (E_region i)
-
-    -- Cursor
-    step = liftAST3 E_step
-
-    -- Randomness
-    rand     = liftAST2 S_rand
-    exprand  = liftAST2 S_exprand
-    gaussian = liftAST2 S_gaussian
-    brown b  = liftAST4 (S_brown b)
-
-    -- Debugging
-    trace a = traceI a
 
 instance Show (Pattern Scalar) where
     show = const "Pattern Scalar"
@@ -435,6 +456,7 @@ runAST e = Tree (sMap s) (eMap s) a
 patch :: Pattern Event -> Tree Event
 patch = runAST
 
+-- | AST node representing boolean expressions.
 data Boolean =
   -- Binding
     B_binding Binding
@@ -453,6 +475,7 @@ data Boolean =
   | B_trace Boolean
   deriving (Eq, Read, Show)
 
+-- | AST node representing scalar expressions.
 data Scalar =
   -- Constant
     S_value Double
@@ -484,6 +507,7 @@ data Scalar =
   | S_trace Scalar
   deriving (Eq, Read, Show)
 
+-- | AST node representing coordinate expressions.
 data Coord =
   -- Constructor
     C_coord Scalar Scalar
@@ -503,6 +527,7 @@ data Coord =
   | C_trace Coord
   deriving (Eq, Read, Show)
 
+-- | AST node representing event expressions.
 data Event =
   -- Binding
     E_binding Binding

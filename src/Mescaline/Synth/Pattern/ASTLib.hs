@@ -1,10 +1,14 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Mescaline.Synth.Pattern.ASTLib (
-    module Mescaline.Synth.Pattern.AST
-  , Language(..)
-  -- *Stream patterns
+  -- *Code organization
+    patch
+  -- *Atomic values and bindings
+  , value
+  , bind
+  -- *Structure
+  -- **Streams
   , cycle
-  , constant, c
+  -- , constant, c
   , replicate
   , times
   , take
@@ -12,12 +16,20 @@ module Mescaline.Synth.Pattern.ASTLib (
   , restrict
   , gimme
   , once, o
-  -- *List patterns
+  -- **Event streams
+  , par
+  -- **List patterns
   , seq, seq1
   , ser, ser1
   , choose, choose1
   , chooseNew, chooseNew1
-  -- *Numeric functions
+  -- *Scalar patterns
+  -- **Unary and binary function application
+  , UnaryFunc(..)
+  , BinaryFunc(..)
+  , map
+  , zip
+  -- **Numeric functions
   , truncateP
   , roundP
   , ceilingP
@@ -25,23 +37,55 @@ module Mescaline.Synth.Pattern.ASTLib (
   , clip
   , wrap
   , fold
-  -- *Numeric utilities
+  -- **Scalar conversions
   , ampdb
   , dbamp
-  -- *Random functions
+  -- **Random functions
+  , rand
   , randi
-  -- *Event modifiers
+  , exprand
+  , gaussian
+  , brown
+  -- *Boolean patterns
+  -- **Comparisons of scalars
+  , (==)
+  , (>)
+  , (>=)
+  , (<)
+  , (<=)
+  -- *Coordinates
+  , coord
+  , polar
+  , x
+  , y
+  -- *Regions
+  , center
+  , radius
+  -- *Event patterns
+  -- **Event generators
+  , closest
+  , region
+  -- **Event accessors
+  , Field(..)
+  , get
+  , set
+  -- ***Feature accessors
+  , fSpec
+  , fPower
+  , fFreq
+  -- **Event modifiers
   , mapf
   , zipf
   , fzip
   , add
   , multiply
-  -- *Feature accessors
-  , fSpec
-  , fPower
-  , fFreq
-  -- *Event filters
+  -- **Event filters
+  , filter
   , sequencer
+  -- *Constants
+  , Limit(..)
+  -- *Debugging
+  , trace
 ) where
 
 import Mescaline.Synth.Pattern.AST
@@ -54,9 +98,9 @@ cycle :: Stream Pattern a => Pattern a -> Pattern a
 cycle = streamI SF_Cycle
 
 -- | Constant signal.
-constant, c :: Double -> Pattern Scalar
-constant = cycle . value
-c = constant
+-- constant, c :: Double -> Pattern Scalar
+-- constant = cycle . value
+-- c = constant
 
 -- | Repeat a pattern n times.
 --
@@ -101,8 +145,13 @@ gimme :: Stream Pattern a => Pattern a -> Int -> Pattern a
 gimme = flip restrict
 
 -- | Take the first value of a pattern.
-once, o :: Stream Pattern a => Pattern a -> Pattern a
+once :: Stream Pattern a => Pattern a -> Pattern a
 once = take 1
+
+-- | Take the first value of a pattern.
+--
+-- Short for 'once'.
+o :: Stream Pattern a => Pattern a -> Pattern a
 o = once
 
 list1 :: (List Pattern a, Stream Pattern a) =>
@@ -180,7 +229,7 @@ ampdb a = 20 * logBase 10 a
 dbamp :: Pattern Scalar -> Pattern Scalar
 dbamp a = 10 ** (a * 0.05)
 
--- Generate integer random value in [min,max[.
+-- | Generate integer random value in [min,max[.
 --
 -- @randi min max@
 --
@@ -222,6 +271,8 @@ fPower = Feature 1 0
 fFreq :: Field
 fFreq = Feature 2 0
 
+-- | Given a tick increment in seconds filter the event pattern argument so
+-- that only cursor values greater than zero produce events.
 sequencer :: Pattern Scalar -> Pattern Event -> Pattern Event
 sequencer tick e =
     bind (step 0 1 (set Delta tick e)) $
