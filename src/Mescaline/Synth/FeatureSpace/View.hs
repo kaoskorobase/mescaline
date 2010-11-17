@@ -26,6 +26,7 @@ import qualified Data.Vector.Generic as V
 import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Data.Unique as Unique
 import qualified Mescaline.Database.Feature as Feature
+import qualified Mescaline.Database.SourceFile as SourceFile
 import           Mescaline.Synth.FeatureSpace.Model (FeatureSpace)
 import qualified Mescaline.Synth.FeatureSpace.Model as Model
 import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
@@ -33,6 +34,8 @@ import qualified Mescaline.Synth.FeatureSpace.Process as Process
 import qualified Mescaline.Synth.Pattern.Event as Synth
 import qualified Mescaline.Synth.Sampler.Process as Synth
 import qualified Mescaline.UI as UI
+import           System.FilePath
+import           Text.Printf (printf)
 
 import qualified Qtc.Classes.Gui                    as Qt
 import qualified Qtc.Classes.Gui_h                  as Qt
@@ -229,6 +232,12 @@ showUnits view state us = do
 
         return (Just g')
 
+unitToolTip :: Model.Unit -> String
+unitToolTip unit = printf "%s - %s"
+                          -- (Unit.value 0 unit V.! 0) (Unit.value 0 unit V.! 1)
+                          (unwords (map (printf "%.4f") (concatMap (V.toList . Feature.value) (V.toList (Unit.features unit)))))
+                          (takeFileName (SourceFile.url (Unit.sourceFile unit)))
+
 addUnit :: Qt.QGraphicsItem () -> State -> HashTable Unique.Id (Qt.QGraphicsItem ()) -> Model.Unit -> IO ()
 addUnit parent state table unit = do
     let (x, y) = pair (Unit.value 0 unit)
@@ -237,6 +246,7 @@ addUnit parent state table unit = do
     item <- Qt.qGraphicsEllipseItem_nf box
     Qt.setParentItem item parent
     Qt.setPos item (Qt.pointF x y)
+    Qt.setToolTip item (unitToolTip unit)
 
     -- Qt.setFlags item Qt.fItemIgnoresTransformations
     -- Qt.setHandler item "mousePressEvent(QGraphicsSceneMouseEvent*)" $ mouseHandler (unit u) action
