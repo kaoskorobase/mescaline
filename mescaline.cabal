@@ -214,11 +214,6 @@ library
         cpp-options: -DUSE_KDTREE=0
     else
         cpp-options: -DUSE_KDTREE=1
-    if os(darwin)
-        ld-options:
-            -headerpad_max_install_names
-        build-depends:
-            cabal-macosx >= 0.1 && < 0.2
     exposed-modules:
         -- Control.CCA.ArrowP
         Control.Concurrent.Chan.Chunked
@@ -319,6 +314,11 @@ executable mescaline
     ghc-prof-options:   -threaded -auto-all
     build-depends:
         qt >= 1.1 && < 1.2
+    if os(darwin)
+        build-depends:
+            cabal-macosx >= 0.1 && < 0.2
+        ld-options:
+            -headerpad_max_install_names
     if flag(bktrees)
         cpp-options: -DUSE_KDTREE=0
     else
