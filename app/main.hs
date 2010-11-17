@@ -421,8 +421,14 @@ action_closeActiveWindow _ _ = Qt.qApplicationActiveWindow () >>= flip Qt.close 
 action_showWindow :: MainWindow -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_showWindow w _ _ = Qt.qshow w () >> Qt.activateWindow w ()
 
+action_help_openUrl :: String -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_help_openUrl url _ _ = App.openUrl url >> return ()
+
 action_help_manual :: Qt.QWidget () -> Qt.QAction () -> IO ()
-action_help_manual _ _ = App.openUrl "http://mescaline.globero.es/documentation/manual" >> return ()
+action_help_manual = action_help_openUrl "http://mescaline.globero.es/documentation/manual"
+
+action_help_patternRef :: Qt.QWidget () -> Qt.QAction () -> IO ()
+action_help_patternRef = action_help_openUrl "http://mescaline.globero.es/doc/html/mescaline/Mescaline-Synth-Pattern-ASTLib.html"
 
 action_help_openExample :: PatternP.Handle -> FilePath -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_help_openExample process path _ _ = sendTo process (PatternP.LoadPatch path)
@@ -582,7 +588,9 @@ main = do
               , Action "clearLog" "Clear Messages" "Clear message window" Trigger (Just "Ctrl+Shift+c") (const (const (clearLog logWindow))) ]
             , Menu "help" "Help"
               [ Action "help" "Mescaline Help" "Open Mescaline manual in browser" Trigger Nothing action_help_manual
-              , Menu "examples" "Examples" examplesMenu
+              , Action "help_patternRef" "Pattern Reference" "Open pattern reference in browser" Trigger Nothing action_help_patternRef
+              , Separator
+              , Menu "help_examples" "Examples" examplesMenu
               ]
             ]
             ++
