@@ -124,7 +124,7 @@ new os =
         sid = IntAllocator
                 (SAlloc.cons :: SimpleAllocator Int)
         nid = NodeIdAllocator
-                (SetAlloc.cons $ Alloc.range 1 (fromIntegral (maxNumberOfNodes os)) :: SetAllocator NodeId)
+                (SetAlloc.cons $ Alloc.range 1000 (1000 + fromIntegral (maxNumberOfNodes os)) :: SetAllocator NodeId)
         bid = BufferIdAllocator
                 (SetAlloc.cons $ Alloc.range 0 (fromIntegral (numberOfSampleBuffers os - 1)) :: SetAllocator BufferId)
         cid = BusIdAllocator
