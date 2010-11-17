@@ -128,20 +128,36 @@ limit :: Limit -> Pattern Scalar -> Pattern Scalar -> Pattern Scalar -> Pattern 
 limit l = liftAST3 (S_limit l)
 
 -- *Comparisons
-(==) :: Pattern Scalar -> Pattern Scalar -> Pattern Boolean
-(==) = liftAST2 (B_compare Comp_eq)
 
-(>) :: Pattern Scalar -> Pattern Scalar -> Pattern Boolean
-(>) = liftAST2 (B_compare Comp_gt)
+-- | Return True if a equals b.
+--
+-- @a |==| b@
+(|==|) :: Pattern Scalar -> Pattern Scalar -> Pattern Boolean
+(|==|) = liftAST2 (B_compare Comp_eq)
 
-(>=) :: Pattern Scalar -> Pattern Scalar -> Pattern Boolean
-(>=) = liftAST2 (B_compare Comp_geq)
+-- | Return True if a is greater than b.
+--
+-- @a |>| b@
+(|>|) :: Pattern Scalar -> Pattern Scalar -> Pattern Boolean
+(|>|) = liftAST2 (B_compare Comp_gt)
 
-(<) :: Pattern Scalar -> Pattern Scalar -> Pattern Boolean
-(<) = liftAST2 (B_compare Comp_lt)
+-- | Return True if a is greater than or equal to b.
+--
+-- @a |>=| b@
+(|>=|) :: Pattern Scalar -> Pattern Scalar -> Pattern Boolean
+(|>=|) = liftAST2 (B_compare Comp_geq)
 
-(<=) :: Pattern Scalar -> Pattern Scalar -> Pattern Boolean
-(<=) = liftAST2 (B_compare Comp_leq)
+-- | Return True if a is smaller than b.
+--
+-- @a |<| b@
+(|<|) :: Pattern Scalar -> Pattern Scalar -> Pattern Boolean
+(|<|) = liftAST2 (B_compare Comp_lt)
+
+-- | Return True if a is smaller than or equal to b.
+--
+-- @a |<=| b@
+(|<=|) :: Pattern Scalar -> Pattern Scalar -> Pattern Boolean
+(|<=|) = liftAST2 (B_compare Comp_leq)
 
 -- *Events
 get :: Field -> Pattern Event -> Pattern Scalar

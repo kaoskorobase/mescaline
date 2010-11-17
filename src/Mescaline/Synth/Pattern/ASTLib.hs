@@ -48,11 +48,11 @@ module Mescaline.Synth.Pattern.ASTLib (
   , brown
   -- *Boolean patterns
   -- **Comparisons of scalars
-  , (==)
-  , (>)
-  , (>=)
-  , (<)
-  , (<=)
+  , (|==|)
+  , (|>|)
+  , (|>=|)
+  , (|<|)
+  , (|<=|)
   -- *Coordinates
   , coord
   , polar
@@ -89,8 +89,7 @@ module Mescaline.Synth.Pattern.ASTLib (
 ) where
 
 import Mescaline.Synth.Pattern.AST
-import Prelude hiding ( (==), (>), (>=), (<), (<=)
-                      , cycle, filter, map, replicate, seq, take, zip )
+import Prelude hiding ( cycle, filter, map, replicate, seq, take, zip )
 import qualified Prelude as P
 
 -- | Repeat a pattern indefinitely.
@@ -276,4 +275,4 @@ fFreq = Feature 2 0
 sequencer :: Pattern Scalar -> Pattern Event -> Pattern Event
 sequencer tick e =
     bind (step 0 1 (set Delta tick e)) $
-        \e' -> filter (get CursorValue e' > 0) e'
+        \e' -> filter (get CursorValue e' |>| 0) e'
