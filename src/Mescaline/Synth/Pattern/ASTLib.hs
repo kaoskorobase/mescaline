@@ -66,6 +66,7 @@ module Mescaline.Synth.Pattern.ASTLib (
   , radius
   -- *Event patterns
   -- **Event generators
+  , rest
   , closest
   , region
   -- **Event accessors

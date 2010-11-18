@@ -167,17 +167,21 @@ limit l = liftAST3 (S_limit l)
 
 -- *Events
 
+-- | Return a rest of the specified duration.
+rest :: Double -> Pattern Event
+rest = AST . return . E_rest
+
 -- | Return the value of an event field.
 --
 -- @get Duration e@
 get :: Field -> Pattern Event -> Pattern Scalar
-get    = liftAST . S_get
+get = liftAST . S_get
 
 -- | Set the value of an event field
 --
 -- @set Duration 0.1 e@
 set :: Field -> Pattern Scalar -> Pattern Event -> Pattern Event
-set    = liftAST2 . E_set
+set = liftAST2 . E_set
 
 -- | Filter an event stream with the given boolean pattern.
 --
@@ -569,8 +573,10 @@ data Coord =
 
 -- | AST node representing event expressions.
 data Event =
+  -- Constructor
+    E_rest Double
   -- Binding
-    E_binding Binding
+  | E_binding Binding
   | E_bind_B Binding Boolean Event
   | E_bind_C Binding Coord   Event
   | E_bind_E Binding Event   Event

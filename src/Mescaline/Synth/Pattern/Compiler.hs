@@ -6,6 +6,7 @@ module Mescaline.Synth.Pattern.Compiler (
   , compile
 ) where
 
+import           Control.Applicative
 import           Control.Category
 import           Control.Exception
 import           Control.Monad
@@ -225,6 +226,7 @@ compileC (AST.C_trace a)      = liftM (ptraceEnv "") (compileC a)
 
 -- | Compile an event expression to an event pattern.
 compileE :: AST.Event -> C (Pattern Event)
+compileE (AST.E_rest d)          = return (pure (rest 0 d))
 compileE (AST.E_binding h)       = compileBinding B.event h
 compileE (AST.E_bind_B h a b)    = compileBind compileB compileE B.boolean h a b
 compileE (AST.E_bind_C h a b)    = compileBind compileC compileE B.coord   h a b
@@ -243,7 +245,7 @@ compileE (AST.E_trace a)         = liftM (ptraceEnv "") (compileE a)
 
 -- | Compile a scalar expression to a scalar pattern.
 compileS :: AST.Scalar -> C (Pattern Double)
-compileS (AST.S_value v)         = return $ pcycle (return v)
+compileS (AST.S_value v)         = return (pure v)
 compileS (AST.S_binding h)       = compileBinding B.scalar h
 compileS (AST.S_bind_B h a b)    = compileBind compileB compileS B.boolean h a b
 compileS (AST.S_bind_C h a b)    = compileBind compileC compileS B.coord   h a b
