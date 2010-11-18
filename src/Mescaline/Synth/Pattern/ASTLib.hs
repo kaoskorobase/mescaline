@@ -85,7 +85,9 @@ module Mescaline.Synth.Pattern.ASTLib (
   , multiply
   -- **Event filters
   , filter
+  , player
   , sequencer
+  , envelope
   -- *Constants
   , Limit(..)
   -- *Debugging
@@ -286,9 +288,33 @@ fPower = Feature 1 0
 fFreq :: Field
 fFreq = Feature 2 0
 
+-- | Filter out events that don't have the cursor set.
+--
+-- @stepPlayer rowInc colInc pattern@
+--
+-- * @rowInc@ Cursor row increment.
+--
+-- * @colInc@ Cursor column increment.
+--
+-- * @pattern@ The pattern to filter.
+player :: Pattern Scalar -> Pattern Scalar -> Pattern Event -> Pattern Event
+player ri ci e = bind (step ri ci e) $ \e' -> filter (get CursorValue e' |>| 0) e'
+
 -- | Given a tick increment in seconds filter the event pattern argument so
 -- that only cursor values greater than zero produce events.
+--
+-- @sequencer tick pattern@
+--
+-- * @tick@ Tick increment in seconds.
+--
+-- * @pattern@ The pattern to filter.
 sequencer :: Pattern Scalar -> Pattern Event -> Pattern Event
-sequencer tick e =
-    bind (step 0 1 (set Delta tick e)) $
-        \e' -> filter (get CursorValue e' |>| 0) e'
+sequencer tick = player 0 1 . set Delta tick
+    -- bind (step 0 1 (set Delta tick e)) $
+    --     \e' -> filter (get CursorValue e' |>| 0) e'
+
+-- | Set envelope attack and release time.
+--
+-- @envelope attackTime releaseTime e@
+envelope :: Pattern Scalar -> Pattern Scalar -> Pattern Event -> Pattern Event
+envelope a r = set AttackTime a . set ReleaseTime r
