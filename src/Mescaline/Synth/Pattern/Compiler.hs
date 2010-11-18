@@ -203,7 +203,7 @@ compileB (AST.B_stream f a)     = liftM (streamPattern f) (compileB a)
 compileB (AST.B_list e a b)     = liftM2 (listPattern e) (compileS a) (mapM compileB b)
 compileB (AST.B_compare c a b)  = liftM2 (pzipWith (comparison c)) (compileS a) (compileS b)
 -- compileB (AST.B_contains a b c) = liftM3 contains (compileC a) (compileS b) (compileC c)
-compileB (AST.B_trace a)        = liftM ptrace (compileB a)
+compileB (AST.B_trace a)        = liftM (ptraceEnv "") (compileB a)
 
 -- | Compile a coordinate expression to a pattern of pairs.
 compileC :: AST.Coord -> C (Pattern (Double, Double))
@@ -217,7 +217,7 @@ compileC (AST.C_list e a b)   = liftM2 (listPattern e) (compileS a) (mapM compil
 compileC (AST.C_coord a b)    = liftM2 coord (compileS a) (compileS b)
 compileC (AST.C_polar a b c)  = liftM3 polar (compileC a) (compileS b) (compileS c)
 compileC (AST.C_center a)     = liftM center (compileS a)
-compileC (AST.C_trace a)      = liftM ptrace (compileC a)
+compileC (AST.C_trace a)      = liftM (ptraceEnv "") (compileC a)
 
 -- | Compile an event expression to an event pattern.
 compileE :: AST.Event -> C (Pattern Event)
@@ -235,7 +235,7 @@ compileE (AST.E_filter a b)      = liftM2 filterE (compileB a) (compileE b)
 compileE (AST.E_closest i a b c) = liftM3 (closest i) (compileS a) (compileS b) (compileC c)
 compileE (AST.E_region i a b)    = liftM2 (region i) (compileS a) (compileS b)
 compileE (AST.E_step a b c)      = liftM3 step (compileS a) (compileS b) (compileE c)
-compileE (AST.E_trace a)         = liftM ptrace (compileE a)
+compileE (AST.E_trace a)         = liftM (ptraceEnv "") (compileE a)
 
 -- | Compile a scalar expression to a scalar pattern.
 compileS :: AST.Scalar -> C (Pattern Double)
@@ -258,7 +258,7 @@ compileS (AST.S_rand a b)        = liftM2 prrand_ (compileS a) (compileS b)
 compileS (AST.S_exprand a b)     = liftM2 pexprand_ (compileS a) (compileS b)
 compileS (AST.S_gaussian a b)    = liftM2 pgaussian_ (compileS a) (compileS b)
 compileS (AST.S_brown f a b c d) = liftM4 (pbrown_ (limit f)) (compileS a) (compileS b) (compileS c) (compileS d)
-compileS (AST.S_trace a)         = liftM ptrace (compileS a)
+compileS (AST.S_trace a)         = liftM (ptraceEnv "") (compileS a)
 
 -- | Compile a syntax tree with the corresponding environment to an event pattern.
 compile :: AST.Tree AST.Event -> Either CompileError (Pattern Event, Bindings)

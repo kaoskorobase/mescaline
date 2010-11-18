@@ -8,6 +8,8 @@ module Mescaline.Synth.Pattern.Environment (
   , bindings
   , featureSpace
   , sequencer
+  , logMessage
+  , getMessages
 ) where
 
 import           Data.Accessor
@@ -18,6 +20,7 @@ import qualified System.Random as Random
 
 data Environment = Environment {
     _randomGen    :: !Random.StdGen
+  , _messages     :: [String]
   , _bindings     :: Bindings Environment
   , _featureSpace :: !FeatureSpace.FeatureSpace
   , _sequencer    :: !Sequencer.Sequencer
@@ -30,8 +33,14 @@ instance Random.RandomGen Environment where
               in (e { _randomGen = g }, e { _randomGen = g' })
 
 mkEnvironment :: Int -> Bindings Environment -> FeatureSpace.FeatureSpace -> Sequencer.Sequencer -> Environment
-mkEnvironment seed = Environment (Random.mkStdGen seed)
+mkEnvironment seed = Environment (Random.mkStdGen seed) []
 
 ACCESSOR(bindings,     _bindings,     Environment, Bindings Environment)
 ACCESSOR(featureSpace, _featureSpace, Environment, FeatureSpace.FeatureSpace)
 ACCESSOR(sequencer,    _sequencer,    Environment, Sequencer.Sequencer)
+
+logMessage :: String -> Environment -> Environment
+logMessage msg e = e { _messages = msg : _messages e }
+
+getMessages :: Environment -> ([String], Environment)
+getMessages e = (reverse (_messages e), e { _messages = [] })

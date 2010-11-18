@@ -104,23 +104,31 @@ applyUpdates a = loop (a, False)
                 Nothing -> return (a, b)
                 Just f  -> let a' = f a in a' `seq` loop (a', True)
 
+-- | Log trace messages as a side effect and return the new environment.
+logEnv :: MonadIO m => Environment -> m (Environment)
+logEnv e = do
+    let (ms, e') = Environment.getMessages e
+    _ <- io $ forkIO $ mapM_ (Log.noticeM logger) ms
+    return e'
+
 playerProcess :: MonadIO m => Handle -> Environment -> Pattern Event -> Time -> ReceiverT EnvironmentUpdate () m ()
 playerProcess handle = loop
     where
         loop !_envir !pattern !time = do
             (envir, _) <- applyUpdates _envir
             case Model.step envir pattern of
-                Model.Done _ -> do
+                Model.Done envir' -> do
+                    _ <- logEnv envir'
                     io $ Log.debugM logger "playerProcess: Model.Done"
                     return ()
                 Model.Result !envir' !event !pattern' -> do
-                    io $ Log.debugM logger $ "Event: " ++ show event
                     sendTo handle $ Event_ time event
+                    envir'' <- logEnv envir'
+                    io $ Log.debugM logger $ "Event: " ++ show event
                     -- let (row, col) = Model.cursorPosition (event ^. Model.cursor)
                     --     cursor = Sequencer.Cursor row col
                     --     envir'' = Environment.sequencer ^: Sequencer.modifyCursor (const cursor) (Model.cursorId (event ^. Model.cursor)) $ envir'
                     let dt = event ^. Event.delta
-                        envir'' = envir'
                     if dt > 0
                         then do
                             sendTo handle $ Environment_ envir''

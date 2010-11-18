@@ -16,6 +16,7 @@ module Mescaline.Synth.Pattern (
     -- *Patterns
   , module Mescaline.Synth.Pattern.Ppar
   , ptrace
+  , ptraceEnv
     -- *Base module
   , module Mescaline.Synth.Pattern.Base
 ) where
@@ -26,6 +27,7 @@ import           Control.Monad.Reader (MonadReader(..), asks)
 import           Control.Monad.State (MonadState(..), modify, gets)
 import           Data.Accessor
 import           Mescaline.Synth.Pattern.Environment (Environment)
+import qualified Mescaline.Synth.Pattern.Environment as Env
 import           Mescaline.Synth.Pattern.Ppar
 import           Mescaline.Synth.Pattern.Base
 import           Debug.Trace
@@ -47,5 +49,11 @@ instance MonadState s (P s) where
 runRand :: R.RandomGen s => P s (R.Rand s a) -> P s a
 runRand = M.join . fmap (\r -> prp $ \s -> let (a, s') = R.runRand r s in (return a, s'))
 
-ptrace :: Show a => P s a -> P s a
-ptrace = fmap (\a -> traceShow a a)
+ptrace :: Show a => String -> P s a -> P s a
+ptrace tag = fmap (\a -> trace (tag ++ show a) a)
+
+ptraceEnv :: Show a => String -> Pattern a -> Pattern a
+ptraceEnv tag = punfoldr $ \s p ->
+    case step s p of
+        Done s' -> (s', Nothing)
+        Result s' a p' -> (Env.logMessage (tag ++ show a) s', Just (a, p'))
