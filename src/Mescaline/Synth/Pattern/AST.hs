@@ -497,6 +497,13 @@ runAST :: Pattern t -> Tree t
 runAST e = Tree (sMap s) (eMap s) a
     where (a, s) = State.runState (unAST e) (ASTState 0 Map.empty Map.empty)
 
+-- | Construct an abstract syntax tree from an event pattern.
+--
+-- This is the main entry point, a patch will always look like this:
+--
+-- @
+-- it = patch (\<expressions\>)
+-- @
 patch :: Pattern Event -> Tree Event
 patch = runAST
 
