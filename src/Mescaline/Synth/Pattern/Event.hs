@@ -23,6 +23,10 @@ module Mescaline.Synth.Pattern.Event (
   , releaseTime
   , sustainLevel
   , gateLevel
+  , sendLevel1
+  , sendLevel2
+  , fxParam1
+  , fxParam2
   , latency
 ) where
 
@@ -42,6 +46,10 @@ data Synth = Synth {
   , _releaseTime  :: Double
   , _sustainLevel :: Double
   , _gateLevel    :: Double
+  , _sendLevel1   :: Double
+  , _sendLevel2   :: Double
+  , _fxParam1     :: Double
+  , _fxParam2     :: Double
   , _latency      :: Double
   } deriving (Eq, Show)
 
@@ -57,6 +65,10 @@ defaultSynth u =
       , _releaseTime  = 0
       , _sustainLevel = 1
       , _gateLevel    = 0
+      , _sendLevel1   = 0
+      , _sendLevel2   = 0
+      , _fxParam1     = 0
+      , _fxParam2     = 0
       , _latency      = 0.2
       }
 
@@ -69,6 +81,10 @@ ACCESSOR(attackTime,    _attackTime,    Synth, Double)
 ACCESSOR(releaseTime,   _releaseTime,   Synth, Double)
 ACCESSOR(sustainLevel,  _sustainLevel,  Synth, Double)
 ACCESSOR(gateLevel,     _gateLevel,     Synth, Double)
+ACCESSOR(sendLevel1,    _sendLevel1,    Synth, Double)
+ACCESSOR(sendLevel2,    _sendLevel2,    Synth, Double)
+ACCESSOR(fxParam1,      _fxParam1,      Synth, Double)
+ACCESSOR(fxParam2,      _fxParam2,      Synth, Double)
 ACCESSOR(latency,       _latency,       Synth, Double)
 
 -- data Cursor =

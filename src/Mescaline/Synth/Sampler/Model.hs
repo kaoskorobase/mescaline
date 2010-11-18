@@ -10,8 +10,10 @@ module Mescaline.Synth.Sampler.Model (
 ) where
 
 import           Control.Monad.Reader
-import           Data.Accessor ((^.))
+import           Data.Accessor
+import           Data.Maybe (mapMaybe, maybeToList)
 import           Mescaline (Duration, Time)
+import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Database.SourceFile as SourceFile
@@ -25,9 +27,11 @@ import qualified Sound.OpenSoundControl as OSC
 import           Sound.SC3 hiding (Output, free, gate, sync)
 import           Sound.SC3.Lang.Collection
 import           Sound.SC3.Server.Command.Completion
-import           Sound.SC3.Server.Monad (NodeId, Server)
+import           Sound.SC3.Server.Monad (BusId, NodeId, Server)
 import qualified Sound.SC3.Server.Monad as S
 import           Sound.SC3.Server.Notification (n_end)
+import           System.Directory
+import           System.FilePath
 
 data Voice = Voice { voiceId :: NodeId
                    , buffer  :: Buffer
@@ -76,7 +80,9 @@ toStereo u =
         amp = control KR "amp" 1
 
 output :: UGen -> UGen
-output = offsetOut (control KR "out" 0)
+output x = mrg [ offsetOut (control KR "out" 0) x
+               , out (control KR "sendBus1" 102) (x * control KR "sendLevel1" 0)
+               , out (control KR "sendBus2" 104) (x * control KR "sendLevel2" 0) ]
 
 voiceDef :: Int -> UGen
 voiceDef n = output $ toStereo $ vDiskIn n bufnum rate NoLoop * voiceEnv
@@ -123,25 +129,70 @@ synthBounds synth =
                           else let r = atime / (atime + rtime)
                                in (dur * r, 0, dur * (1 - r))
                 else (atime, stime, rtime)
-                    
-startVoice :: Voice -> Time -> Synth -> SynthBounds -> OSC
-startVoice voice time synth bounds =
+
+data Effect = Effect {
+    fxId      :: Int
+  , fxName    :: String
+  , fxPath    :: FilePath
+  , sendBus   :: BusId
+  , fxNode    :: Maybe NodeId
+  , fxParam   :: Accessor Synth Double
+  }
+
+mkFxPath :: String -> FilePath -> FilePath
+mkFxPath name defDir = defDir </> (name ++ ".scsyndef")
+
+newEffect :: Int -> Accessor Synth Double -> String -> Server Effect
+newEffect i acc name = do
+    defDir <- liftIO $ App.getUserDataPath "synthdefs"
+    let path = mkFxPath name defDir
+    e <- liftIO $ doesFileExist path
+    nid <- if e then liftM Just (S.alloc S.nodeId) else return Nothing
+    -- FIXME: Bus hardcoded for now, because allocRange is not implemented yet
+    -- bus <- S.alloc (S.busId AR)
+    let bus = fromIntegral (100 + i*2)
+    return $ Effect i name path bus nid acc
+
+fxLoadMsg :: Effect -> Maybe OSC
+fxLoadMsg fx =
+    case fxNode fx of
+        Nothing -> Nothing
+        Just nid -> Just $ d_load'
+                            (s_new (fxName fx) (fromIntegral nid) AddToTail 0
+                             [ ("sendBus", fromIntegral (sendBus fx)) ])
+                            (fxPath fx)
+
+sendBusArg :: Effect -> (String, Double)
+sendBusArg fx = ("sendBus" ++ show (fxId fx), fromIntegral (sendBus fx))
+
+fxParamMsg :: Synth -> Effect -> Maybe OSC
+fxParamMsg synth fx =
+    case fxNode fx of
+        Nothing -> Nothing
+        Just nid -> Just $ n_set1 (fromIntegral nid) "param" (getVal (fxParam fx) synth)
+
+startVoice :: Voice -> Time -> Synth -> SynthBounds -> [Effect] -> OSC
+startVoice voice time synth bounds effects =
     let timeTag = if time <= 0
                   then OSC.immediately
                   else OSC.UTCr (time + synth ^. P.latency)
-    in Bundle timeTag
-        [s_new (voiceDefName $ BC.numChannels $ buffer voice) (fromIntegral $ voiceId voice) AddToTail 0
+    in Bundle timeTag $
+        [ s_new (voiceDefName $ BC.numChannels $ buffer voice) (fromIntegral $ voiceId voice) AddToHead 0
             ([ ("bufnum", fromIntegral $ BC.uid $ buffer voice)
              , ("rate", synth ^. P.rate)
              , ("amp", synth ^. P.sustainLevel)
              , ("pan", synth ^. P.pan)
              , ("attackTime", attackTime bounds)
-             , ("releaseTime",releaseTime bounds)
-             ] ++
+             , ("releaseTime", releaseTime bounds)
+             , ("sendLevel1", synth ^. P.sendLevel1)
+             , ("sendLevel2", synth ^. P.sendLevel2)
+             ]
+             ++
                if voiceGateEnvelope
                   then []
-                  else [ ("dur", sustainTime bounds) ])
-             ]
+                  else [ ("dur", sustainTime bounds) ]
+             ++ map sendBusArg effects) ]
+        ++ mapMaybe (fxParamMsg synth) effects
 
 stopVoice :: Voice -> Time -> Synth -> OSC
 stopVoice voice time synth =
@@ -169,20 +220,26 @@ freeVoice cache voice = do
 
 data Sampler = Sampler {
     bufferCache  :: !BufferCache
+  , effects :: [Effect]
   , playUnitFunc :: !(Sampler -> Time -> Synth -> Server ())
   }
 
 new :: Server Sampler
 new = do
-    b <- liftIO $ do
-        conf <- Config.getConfig
-        either (const $ return False) return (Config.get conf "Synth" "scheduleCompletionBundles")
+    conf <- liftIO Config.getConfig
 
+    let b = either (const False) id (Config.get conf "Synth" "scheduleCompletionBundles")
     liftIO $ Log.noticeM "Synth" $ (if b then "U" else "Not u") ++ "sing completion bundle scheduling."
 
+
+    fx1 <- newEffect 1 P.fxParam1 (either (const "") id (Config.get conf "Synth" "sendEffect1"))
+    fx2 <- newEffect 2 P.fxParam2 (either (const "") id (Config.get conf "Synth" "sendEffect2"))
+    let fx = [fx1, fx2]
+
     -- Load synthdefs
-    S.sync $ S.send $ Bundle OSC.immediately [ d_recv (synthdef (voiceDefName 1) (voiceDef 1)),
-                                               d_recv (synthdef (voiceDefName 2) (voiceDef 2)) ]
+    S.sync $ S.send $ Bundle OSC.immediately $ [ d_recv (synthdef (voiceDefName 1) (voiceDef 1))
+                                               , d_recv (synthdef (voiceDefName 2) (voiceDef 2)) ]
+                                               ++ mapMaybe fxLoadMsg fx
 
     -- Pre-allocate disk buffers, mono and stereo
     let nb = 64
@@ -190,7 +247,7 @@ new = do
         replicate nb (BC.allocBytes 1 diskBufferSize)
      ++ replicate nb (BC.allocBytes 2 diskBufferSize)
 
-    return $ Sampler cache (if b then playUnit_schedComplBundles else playUnit_noSchedComplBundles)
+    return $ Sampler cache fx (if b then playUnit_schedComplBundles else playUnit_noSchedComplBundles)
 
 free :: Sampler -> Server ()
 free sampler = do
@@ -209,7 +266,7 @@ playUnit_noSchedComplBundles sampler time synth = do
                         (SourceFile.path sourceFile)
                         (truncate (SourceFile.sampleRate sourceFile * onset bounds))
                         (-1) 0 1
-    _ <- S.send (startVoice voice time synth bounds) `S.syncWith` n_end (voiceId voice)
+    _ <- S.send (startVoice voice time synth bounds (effects sampler)) `S.syncWith` n_end (voiceId voice)
     freeVoice cache voice
     return ()
     where
@@ -223,7 +280,7 @@ playUnit_schedComplBundles sampler time synth = do
     voice <- allocVoice cache unit (\voice ->
             Just $
                 b_read'
-                    (startVoice voice time synth bounds)
+                    (startVoice voice time synth bounds (effects sampler))
                     (fromIntegral $ BC.uid $ buffer voice)
                     (SourceFile.path sourceFile)
                     (truncate $ SourceFile.sampleRate sourceFile * onset bounds)

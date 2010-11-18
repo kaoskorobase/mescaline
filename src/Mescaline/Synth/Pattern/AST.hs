@@ -78,6 +78,10 @@ data Field =
   | Rate            -- ^Playback rate (> 0).
   | AttackTime      -- ^Envelope attack time in seconds.
   | ReleaseTime     -- ^Envelope release time in seconds.
+  | SendLevel1      -- ^First send effect level.
+  | SendLevel2      -- ^Second send effect level.
+  | FXParam1        -- ^Parameter for first send effect.
+  | FXParam2        -- ^Parameter for second send effect.
   | Feature Int Int -- ^Feature value.
   deriving (Eq, Read, Show)
 

@@ -143,6 +143,10 @@ field AST.Pan = synthAccessor 0 pan . second
 field AST.Rate = synthAccessor 1 rate . second
 field AST.AttackTime = synthAccessor 0 attackTime . second
 field AST.ReleaseTime = synthAccessor 0 releaseTime . second
+field AST.SendLevel1 = synthAccessor 0 sendLevel1 . second
+field AST.SendLevel2 = synthAccessor 0 sendLevel2 . second
+field AST.FXParam1 = synthAccessor 0 fxParam1 . second
+field AST.FXParam2 = synthAccessor 0 fxParam2 . second
 field (AST.Feature i j) = synthAccessor 0 (acc . unit) . second
     where
         at k v | k < 0 || k >= V.length v = Nothing
