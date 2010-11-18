@@ -103,7 +103,7 @@ insertFile :: IConnection c
            -> IO ()
 insertFile conn path seg meap = do
     sf <- SourceFile.newLocal path
-    Log.debugM "Database" ("insertFile: " ++ path ++ " " ++ show sf)
+    Log.noticeM "Database" ("insertFile: " ++ path ++ " " ++ show sf)
     Table.insert conn sf
     ds <- mapM (insertModel conn . convFeatureDesc) $ Meap.features meap
     us <- mapM (insertModel conn . convUnit sf seg) $ Meap.segments_l meap
