@@ -105,12 +105,14 @@ findExecutable path = do
 -- | Get the directory where user application data is stored, such as config files.
 getUserDataDirectory :: IO FilePath
 getUserDataDirectory = do
-    if buildOS == OSX
-        then do
-            h <- Dir.getHomeDirectory
-            return $ h </> "Library/Application Support" </> name
-        else
-            Dir.getAppUserDataDirectory name
+    d <- if buildOS == OSX
+            then do
+                h <- Dir.getHomeDirectory
+                return $ h </> "Library/Application Support" </> name
+            else
+                Dir.getAppUserDataDirectory name
+    Dir.createDirectoryIfMissing True d
+    return d
 
 -- | Get a path in the user application data directory.
 getUserDataPath :: FilePath -> IO FilePath
