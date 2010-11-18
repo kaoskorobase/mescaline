@@ -50,3 +50,8 @@ task [:haddock] do
 	system("cabal haddock --hyperlink-source")
 	system("rsync -av dist/doc null2:html/sk/sites/mescaline.globero.es/")
 end
+
+task [:logo] do
+	system("inkscape doc/logo/mescaline_layers.svg --export-png=doc/logo/mescaline_layers.png")
+	system("makeicns -in doc/logo/mescaline_layers.png -out app/mescaline.icns")
+end
