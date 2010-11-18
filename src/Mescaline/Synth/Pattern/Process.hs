@@ -205,7 +205,7 @@ new patch0 fspaceP = do
                                                 return $ Just $ state { time = time
                                                                       , playerThread = Just tid }
                                     Pause -> return Nothing
-                                    Reset -> return Nothing
+                                    Reset -> return $ Just $ state { patch = Patch.modifySequencer Sequencer.resetCursors (patch state) }
                             Running ->
                                 case tc of
                                     Start -> return Nothing
@@ -222,13 +222,15 @@ new patch0 fspaceP = do
                                                 io $ Log.errorM logger (show e)
                                                 return Nothing
                                             Right (pattern, bindings) -> do
-                                                let env = Environment.mkEnvironment
+                                                let patch' = Patch.modifySequencer Sequencer.resetCursors (patch state)
+                                                    env = Environment.mkEnvironment
                                                             0
                                                             bindings
                                                             fspace
-                                                            (Patch.sequencer (patch state))
+                                                            (Patch.sequencer patch')
                                                 tid <- io $ startPlayerThread proc pattern env time
                                                 return $ Just $ state { time = time
+                                                                      , patch = patch'
                                                                       , playerThread = Just tid }
                     GetSequencer query -> do
                         answer query $ Patch.sequencer (patch state)

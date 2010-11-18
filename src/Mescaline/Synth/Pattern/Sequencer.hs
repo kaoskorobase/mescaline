@@ -8,6 +8,7 @@ module Mescaline.Synth.Pattern.Sequencer (
   , getCursor
   , setCursor
   , modifyCursor
+  , resetCursors
   , rows
   , cols
   , lookup
@@ -71,6 +72,10 @@ setCursor i (Cursor r c) s =
 -- | Map a function to the cursor with id c.
 modifyCursor :: (Cursor -> Cursor) -> Int -> Sequencer -> Sequencer
 modifyCursor f c s = s { _cursors = Map.alter (fmap f) c (_cursors s) }
+
+-- | Reset cursors to default position.
+resetCursors :: Sequencer -> Sequencer
+resetCursors s = s { _cursors = Map.mapWithKey (\i _ -> Cursor i 0) (_cursors s) }
 
 -- | Lookup the value in the matrix.
 lookup :: Int -> Int -> Sequencer -> Maybe Double
