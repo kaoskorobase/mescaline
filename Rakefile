@@ -64,7 +64,7 @@ task [:dmg] do
 	osx_version = `sw_vers`.split("\n").collect { |x| x.split(":\t") }.find { |x| x[0] == "ProductVersion" }[1].sub(/\.[0-9]+$/, "")
 
 	src = "./dist/build/Mescaline.app"
-	dst = "Mescaline-#{version}-#{osx_version}.dmg"
+	dst = "./dist/Mescaline-#{version}-#{osx_version}.dmg"
 	icon = "app/Mescaline.icns"
 
 	volname = "Mescaline-#{version}"
