@@ -56,3 +56,17 @@ task [:logo] do
 	system("inkscape doc/logo/mescaline_layers.svg --export-png=doc/logo/mescaline_layers.png")
 	system("makeicns -in doc/logo/mescaline_layers.png -out app/mescaline.icns")
 end
+
+task [:dmg] do
+	system("cabal build")
+
+	version = `grep '^version:' mescaline.cabal`.split[1]
+	osx_version = `sw_vers`.split("\n").collect { |x| x.split(":\t") }.find { |x| x[0] == "ProductVersion" }[1].sub(/\.[0-9]+$/, "")
+
+	src = "./dist/build/Mescaline.app"
+	dst = "Mescaline-#{version}-#{osx_version}.dmg"
+	icon = "app/Mescaline.icns"
+
+	volname = "Mescaline-#{version}"
+	system("./tools/pkg-dmg --verbosity 0 --source \"#{src}\" --target \"#{dst}\" --sourcefile --volname Mescaline --icon \"#{icon}\" --symlink /Applications:/Applications")
+end
