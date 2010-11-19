@@ -29,7 +29,13 @@ data-files:
     patches/examples/brown.msc
     patches/examples/brown_polar.msc
     patches/examples/choose.msc
+    patches/examples/feature_to_amp.msc
+    patches/examples/feature_to_effect.msc
+    patches/examples/feature_to_pan.msc
+    patches/examples/player.msc
+    patches/examples/rest.msc
     patches/examples/seq.msc
+    patches/examples/takeDur.msc
 
     meap/2.0/getopt-1.0.12.jar
     meap/2.0/jl1.0.jar
