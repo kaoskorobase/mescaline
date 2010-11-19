@@ -1,30 +1,11 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Mescaline.Synth.Pattern.ASTLib (
-  -- *Code organization
-    patch
-  -- *Atomic values and bindings
-  , value
-  , bind
   -- *Structure
-  -- **Streams
-  , cycle
-  -- , constant, c
-  , replicate
-  , times
-  , take
-  , only
-  , restrict
-  , gimme
-  , once, o
-  -- **Event streams
-  , par
-  , takeDur
-  -- **List patterns
-  , seq, seq1
-  , ser, ser1
-  , choose, choose1
-  , chooseNew, chooseNew1
+    Pattern
+  , patch
   -- *Scalar patterns
+  , Scalar
+  , value
   -- **Unary and binary function application
   , UnaryFunc(..)
   , BinaryFunc(..)
@@ -50,6 +31,7 @@ module Mescaline.Synth.Pattern.ASTLib (
   , gaussian
   , brown
   -- *Boolean patterns
+  , Boolean
   -- **Comparisons of scalars
   , (|==|)
   , (|>|)
@@ -57,6 +39,7 @@ module Mescaline.Synth.Pattern.ASTLib (
   , (|<|)
   , (|<=|)
   -- *Coordinates
+  , Coord
   , coord
   , polar
   , x
@@ -65,6 +48,7 @@ module Mescaline.Synth.Pattern.ASTLib (
   , center
   , radius
   -- *Event patterns
+  , Event
   -- **Event generators
   , rest
   , closest
@@ -73,7 +57,7 @@ module Mescaline.Synth.Pattern.ASTLib (
   , Field(..)
   , get
   , set
-  -- ***Feature accessors
+  -- ***Feature field accessors
   , fSpec
   , fPower
   , fFreq
@@ -88,6 +72,26 @@ module Mescaline.Synth.Pattern.ASTLib (
   , player
   , sequencer
   , envelope
+  -- *Stream functions
+  , cycle
+  -- , constant, c
+  , replicate
+  , times
+  , take
+  , only
+  , restrict
+  , gimme
+  , once, o
+  -- **Event streams
+  , takeDur
+  , par
+  -- **List patterns
+  , seq, seq1
+  , ser, ser1
+  , choose, choose1
+  , chooseNew, chooseNew1
+  -- *Bindings
+  , bind
   -- *Constants
   , Limit(..)
   -- *Debugging
@@ -164,30 +168,75 @@ list1 :: (List Pattern a, Stream Pattern a) =>
  -> Pattern Scalar -> [Pattern a] -> Pattern a
 list1 f n = f n . fmap once
 
+-- | Enumerate a list of patterns sequentially, n times.
+--
+-- @seq n ps@
+--
+-- * @n@ Number of repeats.
+--
+-- * @ps@ List of patterns.
 seq :: List Pattern a => Pattern Scalar -> [Pattern a] -> Pattern a
 seq = listI Enum_Seq
 
+-- | Enumerate a list of patterns sequentially, n times.
+--
+-- Similar to 'seq' but applies 'once' to each of the patterns, so that
+-- sequences of scalars can be written more conveniently:
+--
+-- @seq1 (once 4) [0.5, 0.6, 0.8, 1.3]@
 seq1 :: (List Pattern a, Stream Pattern a) =>
     Pattern Scalar -> [Pattern a] -> Pattern a
 seq1 = list1 seq
 
+-- | Enumerate a list of patterns sequentially, returning n items.
+--
+-- @ser n ps@
+--
+-- * @n@ Number of items to return.
+--
+-- * @ps@ List of patterns.
 ser :: List Pattern a => Pattern Scalar -> [Pattern a] -> Pattern a
 ser = listI Enum_Ser
 
+-- | Enumerate a list of patterns sequentially, returning n items.
+--
+-- Similar to 'ser' but applies 'once' to each of the patterns, so that
+-- sequences of scalars can be written more conveniently:
+--
+-- @ser1 (once 7) [0.5, 0.6, 0.8, 1.3]@
 ser1 :: (List Pattern a, Stream Pattern a) =>
     Pattern Scalar -> [Pattern a] -> Pattern a
 ser1 = list1 ser
 
+-- | Returns one item from the list at random for each repeat. 
+--
+-- @choose n ps@
+--
+-- * @n@ Number of repeats.
+--
+-- * @ps@ List of patterns.
 choose :: List Pattern a => Pattern Scalar -> [Pattern a] -> Pattern a
 choose = listI Enum_Rand
 
+-- | Returns one item from the list at random for each repeat. 
+--
+-- Similar to 'choose' but applies 'once' to each of the patterns, so that
+-- sequences of scalars can be written more conveniently:
+--
+-- @choose1 (once 7) [seq1 (once 1) [0 1], 0.6, 0.8, 1.3]@
 choose1 :: (List Pattern a, Stream Pattern a) =>
     Pattern Scalar -> [Pattern a] -> Pattern a
 choose1 = list1 choose
 
+-- | Returns one item from the list at random for each repeat. 
+--
+-- Similar to 'choose' but doesn't return the same item twice in a row.
 chooseNew :: List Pattern a => Pattern Scalar -> [Pattern a] -> Pattern a
 chooseNew  = listI Enum_RandX
 
+-- | Returns one item from the list at random for each repeat. 
+--
+-- Similar to 'chooseNew' but but applies 'once' to each of the patterns.
 chooseNew1 :: (List Pattern a, Stream Pattern a) =>
     Pattern Scalar -> [Pattern a] -> Pattern a
 chooseNew1 = list1 chooseNew

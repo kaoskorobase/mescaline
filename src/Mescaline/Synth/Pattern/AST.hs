@@ -1,6 +1,9 @@
 {-# LANGUAGE FlexibleContexts
            , FlexibleInstances
            , MultiParamTypeClasses #-}
+-- | Abstract syntax tree construction for pattern DSL.
+--
+-- This is heavily inspired by <http://okmij.org/ftp/Haskell/DSLSharing.hs>.
 module Mescaline.Synth.Pattern.AST where
 
 import           Control.Monad
@@ -9,41 +12,43 @@ import qualified Control.Monad.State as State
 import qualified Data.IntMap as Map
 import           Prelude hiding (cycle, filter, map, seq, zip)
 
+-- 'UnaryFunc' represents a unary function on 'Scalar' values.
 data UnaryFunc =
-    F_abs
-  | F_signum
-  | F_negate
-  | F_recip
-  | F_truncate
-  | F_round
-  | F_ceiling
-  | F_floor
-  | F_exp
-  | F_sqrt
-  | F_log
-  | F_sin
-  | F_tan
-  | F_cos
-  | F_asin
-  | F_atan
-  | F_acos
-  | F_sinh
-  | F_tanh
-  | F_cosh
-  | F_asinh
-  | F_atanh
-  | F_acosh
+    F_abs       -- ^Absolute value
+  | F_signum    -- ^Sign
+  | F_negate    -- ^Negation
+  | F_recip     -- ^Reciprocal
+  | F_truncate  -- ^Truncation towards zero.
+  | F_round     -- ^nearest integer to argument.
+  | F_ceiling   -- ^Least integer not less than argument.
+  | F_floor     -- ^Truncation towards minus infinity.
+  | F_exp       -- ^Exponential function.
+  | F_sqrt      -- ^Square root.
+  | F_log       -- ^Natural logarithm
+  | F_sin       -- ^Sine.
+  | F_tan       -- ^Tangent.
+  | F_cos       -- ^Cosine.
+  | F_asin      -- ^Arc sine.
+  | F_atan      -- ^Arc tangent.
+  | F_acos      -- ^Arc cosine.
+  | F_sinh      -- ^Hyperbolic sine.
+  | F_tanh      -- ^Hyperbolic tangent.
+  | F_cosh      -- ^Hyperbolic cosine.
+  | F_asinh     -- ^Arc hyperbolic sine.
+  | F_atanh     -- ^Arc hyperbolic tangent.
+  | F_acosh     -- ^Arc hyperbolic cosine.
   deriving (Eq, Read, Show)
 
+-- 'BinaryFunc' represents a binary function on two 'Scalar' values.
 data BinaryFunc =
-    F_min
-  | F_max
-  | F_add
-  | F_subtract
-  | F_multiply
-  | F_divide
-  | F_power
-  | F_logBase
+    F_min       -- ^Minimum of the arguments.
+  | F_max       -- ^Maximum of the arguments.
+  | F_add       -- ^Sum of the arguments.
+  | F_subtract  -- ^Difference of the arguments.
+  | F_multiply  -- ^Product of the arguments.
+  | F_divide    -- ^Division of the arguments.
+  | F_power     -- ^First argument raised to the power of second argument.
+  | F_logBase   -- ^Logarithm of the second argument to the base of the first argument.
   deriving (Eq, Read, Show)
 
 data Comparison =
@@ -67,6 +72,10 @@ data Enumerator =
   | Enum_RandX   -- ^Random without repetitions
   deriving (Eq, Read, Show)
 
+-- | Represents the various fields in a synthesis event.
+--
+-- Note that some fields can be queried but not modified ('Cursor', 'CursorValue'
+-- and 'Feature').
 data Field =
     Delta           -- ^Delta time to next event in seconds.
   | Cursor          -- ^Cursor id.
@@ -336,9 +345,6 @@ type Binding = Int
 type ExpMap t = Map.IntMap t
 
 -- | State used when constructing abstract pattern trees.
---
--- We basically need a running counter for allocating binding ids and mappings from
--- bindings to expressions, one for each type in the object language.
 data ASTState = ASTState {
     hashCount :: Binding    -- ^Running counter for binding identifiers
   -- , bMap :: ExpMap Boolean  -- ^Binding map for boolean expressions.
@@ -347,7 +353,19 @@ data ASTState = ASTState {
   , sMap :: ExpMap Scalar   -- ^Binding map for scalar expressions.
   } deriving (Eq, Read, Show)
 
--- | Abstract pattern tree wrapped in a state monad.
+-- | A 'Pattern' is a finite or infinite stream of values of a certain type.
+--
+-- There are four different types in the pattern language, real numbers
+-- ('Scalar'), boolean values ('Boolean'), two dimensional coordinates
+-- ('Coord') and synthesis events ('Event').
+--
+-- The pattern functions in this module can be used to combine patterns in
+-- various ways in order to build more complex expressions.
+--
+-- For the 'Scalar' pattern type, many unary functions ('UnaryFunc') and binary 
+-- functions ('BinaryFunc') are mapped to standard Haskell type classes. This allows to
+-- use more descriptive function names and binary operators, in particular the
+-- ones from the 'Num', 'Fractional' and 'Floating' type classes.
 newtype Pattern t = AST { unAST :: State ASTState t }
 
 -- | Return a new unique binding hash.
@@ -507,7 +525,7 @@ runAST e = Tree (sMap s) (eMap s) a
 patch :: Pattern Event -> Tree Event
 patch = runAST
 
--- | AST node representing boolean expressions.
+-- | Boolean expression.
 data Boolean =
   -- Binding
     B_binding Binding
@@ -526,7 +544,9 @@ data Boolean =
   | B_trace Boolean
   deriving (Eq, Read, Show)
 
--- | AST node representing scalar expressions.
+-- | Scalar expression.
+--
+-- Scalars represent streams of real numbers.
 data Scalar =
   -- Constant
     S_value Double
@@ -558,7 +578,7 @@ data Scalar =
   | S_trace Scalar
   deriving (Eq, Read, Show)
 
--- | AST node representing coordinate expressions.
+-- | Coordinate expression.
 data Coord =
   -- Constructor
     C_coord Scalar Scalar
@@ -578,7 +598,13 @@ data Coord =
   | C_trace Coord
   deriving (Eq, Read, Show)
 
--- | AST node representing event expressions.
+-- | Event expression.
+--
+-- Events can be thought of as notes controlling the synthesizer. They are
+-- either silent, or 'rest's, or carry parameter that affect the synthesis and
+-- the sequencer.
+--
+-- They carry the time to the next event in the stream in the 'Delta' field.
 data Event =
   -- Constructor
     E_rest Double
