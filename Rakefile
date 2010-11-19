@@ -47,7 +47,8 @@ task [:doc, :clean] do
 end
 
 task [:haddock] do
-	system("cabal haddock --hyperlink-source")
+	base_doc = "http://www.haskell.org/ghc/docs/6.12.2/html/libraries/base-4.2.0.1/"
+	system("cabal haddock --hyperlink-source --html-location=#{base_doc}")
 	system("rsync -av dist/doc null2:html/sk/sites/mescaline.globero.es/")
 end
 
