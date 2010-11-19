@@ -1,4 +1,8 @@
-d = "~/Library/Application Support/Mescaline/synthdefs/".standardizePath;
+d = Platform.case(
+	\linux,	"~/.Mescaline/",
+	\osx,	"~/Library/Application Support/Mescaline/synthdefs/",
+	\windows,	"APPDATA".getenv,
+	"").standardizePath;
 
 SynthDef(\echo, { arg out=0, sendBus=0, maxdtime=0.2, dtime=0.2, decay=2, gate=1;
 	var env, in;
@@ -7,6 +11,7 @@ SynthDef(\echo, { arg out=0, sendBus=0, maxdtime=0.2, dtime=0.2, decay=2, gate=1
 	Out.ar(out, CombL.ar(in * env, maxdtime, dtime, decay, 1));
 }, [\ir, \ir, 0.1, 0.1, 0]).writeDefFile(d);
 
+// Courtesy James McCartney
 SynthDef("tank", { | out=0, sendBus=0, gate=1, wet=1 |
 	var local, env, in;
 	
