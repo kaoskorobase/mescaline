@@ -35,6 +35,7 @@ import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpace.Process as FeatureSpaceP
 import qualified Mescaline.Synth.FeatureSpace.View as FeatureSpaceView
+import qualified Mescaline.Synth.OSCServer as OSCServer
 import qualified Mescaline.Synth.Pattern as Pattern
 import qualified Mescaline.Synth.Pattern.Environment as Pattern
 import qualified Mescaline.Synth.Pattern.Event as Event
@@ -574,6 +575,9 @@ main = do
     defineWindowMenu menuDef (Qt.objectCast editorWindow)
     defineWindowMenu menuDef (Qt.objectCast logWindow)
     createLoggers logWindow -- =<< Qt.findChild logWindow ("<QTextEdit*>", "textEdit")
+
+    -- OSC server process
+    oscServer <- OSCServer.new 2010 synthP fspaceP
 
     -- Start the application
     Qt.qshow mainWindow ()

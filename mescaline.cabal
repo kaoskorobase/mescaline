@@ -270,6 +270,7 @@ library
         Mescaline.Synth.FeatureSpace.Process
         Mescaline.Synth.FeatureSpace.Unit
         Mescaline.Synth.FeatureSpace.View
+        Mescaline.Synth.OSCServer
         Mescaline.Synth.Pattern
         Mescaline.Synth.Pattern.AST
         Mescaline.Synth.Pattern.ASTLib
