@@ -26,4 +26,4 @@ class ToRest a where
 data Timed a = Timed Time a
 
 instance HasTime (Timed a) where
-    time = accessor (\(Timed t _) -> t) (\t' (Timed t a) -> Timed t' a)
+    time = accessor (\(Timed t _) -> t) (\t' (Timed _ a) -> Timed t' a)
