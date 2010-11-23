@@ -13,10 +13,8 @@ module Mescaline.Data.Unique (
   , toMap
 ) where
 
-import           Data.Binary (Binary, Put)
-import qualified Data.Binary as Binary
+import           Data.Binary (Put)
 import qualified Data.Binary.Put as Binary
-import           Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as ByteString
 import qualified Data.Map as Map
 import           Data.UUID (UUID)
