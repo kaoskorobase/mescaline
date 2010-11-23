@@ -10,7 +10,6 @@ import qualified Mescaline.Synth.FeatureSpace.Model as FSpace
 import qualified Mescaline.Synth.Pattern.Event as Event
 import qualified Mescaline.Synth.Sampler.Process as Synth
 import qualified Sound.OpenSoundControl as OSC
-import qualified Sound.OpenSoundControl.Transport as OSC
 import qualified System.Random as Random
 
 data Input = Input

@@ -27,25 +27,16 @@ import qualified Control.Monad.Random as R
 import           Data.Accessor
 import qualified Data.Accessor.Monad.MTL.State as Accessor
 import qualified Data.Complex as C
-import           Data.Maybe (isJust, listToMaybe, maybeToList)
 import qualified Data.Monoid as M
 -- import qualified Data.Packed.Random as R
 import           Data.Typeable (Typeable)
-import           Mescaline (Duration, Time)
-import           Mescaline.Math as Math
-import           Mescaline.Synth.Pattern (Pattern)
-import qualified Mescaline.Synth.Pattern.AST as AST
 import qualified Mescaline.Synth.Pattern.Environment as Environment
-import           Mescaline.Synth.Pattern.Event (Event, delta, duration, rest)
+import           Mescaline.Synth.Pattern.Event (Event)
 import qualified Mescaline.Synth.Pattern.Event as Event
 import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
 import           Mescaline.Synth.Pattern hiding (step)
 import qualified Mescaline.Synth.Pattern as Pattern
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
-import qualified Mescaline.Synth.FeatureSpace.Unit as FeatureSpace
-import           Data.List as L
-
-import Debug.Trace
 
 pmaybe :: b -> (a -> b) -> P s (Maybe a) -> P s b
 pmaybe b f = fmap (maybe b f)

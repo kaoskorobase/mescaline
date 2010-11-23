@@ -11,7 +11,7 @@ module Mescaline.Synth.Sampler.Model (
 
 import           Control.Monad.Reader
 import           Data.Accessor
-import           Data.Maybe (mapMaybe, maybeToList)
+import           Data.Maybe (mapMaybe)
 import           Mescaline (Duration, Time)
 import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Config as Config

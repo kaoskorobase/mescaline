@@ -5,28 +5,18 @@ module Mescaline.Synth.Pattern.View (
   , new
 ) where
 
-import           Control.Concurrent (forkIO)
 import           Control.Concurrent.Chan
 import           Control.Concurrent.MVar
 import           Control.Concurrent.Process
 import           Control.Monad
-import           Control.Monad.Fix (fix)
 import           Control.Monad.Trans (MonadIO)
-import           Data.Accessor
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
-import qualified Data.Foldable as Fold
-import           Data.Vector (Vector)
-import qualified Data.Vector.Generic as V
-import           Mescaline (Time)
-import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Config as Config
 import           Mescaline.Synth.FeatureSpace.View (getRegionColors)
 import qualified Mescaline.Synth.Pattern.Sequencer as Model
 import qualified Mescaline.Synth.Pattern.Process as Process
 import qualified Mescaline.Synth.Pattern.Patch as Patch
-import qualified Mescaline.UI as UI
-import qualified Sound.OpenSoundControl.Time as Time
 
 import qualified Qtc.Classes.Gui                    as Qt
 import qualified Qtc.Classes.Object                 as Qt
@@ -35,11 +25,9 @@ import qualified Qtc.ClassTypes.Gui                 as Qt
 import qualified Qtc.Core.Base                      as Qt
 import qualified Qtc.Enums.Core.Qt                  as Qt
 import qualified Qtc.Gui.QBrush                     as Qt
-import qualified Qtc.Gui.QAbstractGraphicsShapeItem as Qt
 import qualified Qtc.Gui.QFontMetrics               as Qt
-import qualified Qtc.Gui.QGraphicsItem              as Qt
 import qualified Qtc.Gui.QGraphicsRectItem          as Qt
-import qualified Qtc.Gui.QGraphicsRectItem_h        as Qt
+import           Qtc.Gui.QGraphicsRectItem_h        ()
 import qualified Qtc.Gui.QGraphicsScene             as Qt
 import qualified Qtc.Gui.QPen                       as Qt
 import qualified Qtc.Gui.QTextEdit                  as Qt

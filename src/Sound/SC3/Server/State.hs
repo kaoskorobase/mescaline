@@ -34,7 +34,7 @@ import           Control.Arrow (second)
 import           Control.DeepSeq (NFData(..))
 import           Control.Monad (liftM)
 import           Data.Accessor
-import           Sound.SC3.Server.Allocator (IdAllocator, RangeAllocator)
+import           Sound.SC3.Server.Allocator (IdAllocator)
 import qualified Sound.SC3.Server.Allocator as Alloc
 import           Sound.SC3.Server.Allocator.SetAllocator (SetAllocator)
 import qualified Sound.SC3.Server.Allocator.SetAllocator as SetAlloc

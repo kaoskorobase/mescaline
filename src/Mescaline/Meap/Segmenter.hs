@@ -5,7 +5,7 @@ module Mescaline.Meap.Segmenter (
   , run
 ) where
 
-import Mescaline.Meap.Process   (OutputHandler, defaultOutputHandler, runMeap, withTempFile)
+import Mescaline.Meap.Process   (OutputHandler, defaultOutputHandler, runMeap)
 import System.Exit              (ExitCode)
 
 data Segmentation = Onset | Beat

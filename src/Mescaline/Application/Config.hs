@@ -8,10 +8,8 @@ module Mescaline.Application.Config (
   , getConfig
 ) where
 
-import           Control.Concurrent.MVar
 import           Control.Exception
 import           Control.Monad
-import           Control.Monad.Error (MonadError)
 import           Data.ConfigFile
 import           Data.Typeable
 import           Mescaline.Application

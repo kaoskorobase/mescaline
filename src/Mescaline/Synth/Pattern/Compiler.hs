@@ -30,8 +30,6 @@ import           Mescaline.Synth.Pattern.Library
 import qualified Mescaline.Synth.Pattern.Sequencer as Seq
 import           Prelude hiding (id, (.))
 
-import           Debug.Trace
-
 -- | A type for compilation errors.
 data CompileError = CompileError String
                   | BindingNotFound AST.Binding

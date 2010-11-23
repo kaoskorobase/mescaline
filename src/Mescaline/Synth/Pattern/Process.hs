@@ -10,21 +10,15 @@ module Mescaline.Synth.Pattern.Process (
 ) where
 
 import           Control.Concurrent
-import           Control.Concurrent.Chan
-import           Control.Concurrent.MVar
 import           Control.Concurrent.Process hiding (Handle)
 import qualified Control.Concurrent.Process as Process
 import           Control.Exception
 import           Control.Monad
 import           Control.Monad.Trans (MonadIO)
-import           Control.Monad.Fix (fix)
--- import           Control.Monad.Reader
 import           Data.Accessor
 import qualified Data.BitSet as BitSet
 import           Data.Maybe (fromJust)
-import           Data.Typeable
 import           Mescaline (Time)
-import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace

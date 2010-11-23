@@ -4,9 +4,8 @@ module Mescaline.Meap.Extractor (
   , run
 ) where
 
-import Data.List                (intersperse)
-import Mescaline.Meap.Process   (OutputHandler, defaultOutputHandler, runMeap, withTempFile)
-import System.Exit              (ExitCode)
+import Mescaline.Meap.Process (OutputHandler, defaultOutputHandler, runMeap)
+import System.Exit (ExitCode)
 
 data UnitBoundary = Onset | Beat
 

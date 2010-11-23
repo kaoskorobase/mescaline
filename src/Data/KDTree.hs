@@ -23,8 +23,6 @@ import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Unboxed as UV
 -- import           Statistics.Sample
 
-import Debug.Trace
-
 data Tree v a =
     Empty
   | Leaf !(v Double) a

@@ -23,8 +23,6 @@ module Mescaline.Synth.Pattern.Sequencer (
 
 import           Control.Arrow (first)
 import           Control.Monad (join)
-import           Data.Accessor
-import           Data.Maybe (maybeToList)
 import qualified Data.IntMap as Map
 import           Prelude hiding (lookup)
 

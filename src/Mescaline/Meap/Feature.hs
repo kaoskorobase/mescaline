@@ -2,8 +2,6 @@ module Mescaline.Meap.Feature (
     defaultFeatures
 ) where
 
-import qualified Sound.Analysis.Meapsoft as Meap
-
 defaultFeatures :: [String]
 defaultFeatures = [
       "AvgChroma"

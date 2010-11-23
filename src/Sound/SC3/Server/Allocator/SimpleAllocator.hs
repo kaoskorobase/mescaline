@@ -6,7 +6,6 @@ module Sound.SC3.Server.Allocator.SimpleAllocator (
   , cons
 ) where
 
-import Control.Monad.Error
 import Control.DeepSeq (NFData(..))
 import Sound.SC3.Server.Allocator
 

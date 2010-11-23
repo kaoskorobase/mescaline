@@ -5,14 +5,11 @@ module Mescaline.Meap.Chain (
   , mapFiles
 ) where
 
-import qualified Data.ByteString as ByteString
-import           Data.Char (toUpper)
 import           Control.ThreadPool (threadPoolIO)
 import qualified Control.Concurrent.Chan as Chan
 import           Control.Exception (evaluate)
 
 import qualified Mescaline.Meap.Extractor as Extractor
-import qualified Mescaline.Meap.Feature as Feature
 import           Mescaline.Meap.Process (withTempFile)
 import qualified Mescaline.Meap.Segmenter as Segmenter
 

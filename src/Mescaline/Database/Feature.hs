@@ -2,16 +2,11 @@
 
 module Mescaline.Database.Feature where
 
--- import           Data.Accessor.Template (nameDeriveAccessors)
-import           Data.Accessor (Accessor, (.>))
-import           Data.Accessor.Tuple
 import qualified Data.Binary as Binary
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Storable as SV
 import qualified Mescaline.Data.ListReader as ListReader
 import qualified Mescaline.Data.Unique as Unique
-import           Mescaline.Database.Unit (Unit)
-import qualified Mescaline.Database.Unit as Unit
 import           Mescaline.Database.Sql (GetSql)
 import qualified Mescaline.Database.Sql as Sql
 import           Prelude hiding (id)

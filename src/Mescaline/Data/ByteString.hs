@@ -10,7 +10,6 @@ module Mescaline.Data.ByteString (
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.ByteString.Lazy.Char8 as BLC
 import qualified Data.Digest.SHA1 as SHA1
 import           Data.Int (Int64)
 

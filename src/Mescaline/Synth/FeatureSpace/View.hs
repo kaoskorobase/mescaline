@@ -21,19 +21,16 @@ import qualified Data.HashTable as Hash
 import           Data.Int (Int32)
 import           Data.IntMap (IntMap)
 import qualified Data.IntMap as IMap
-import qualified Data.Map as Map
 import qualified Data.Vector.Generic as V
 import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Data.Unique as Unique
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.SourceFile as SourceFile
-import           Mescaline.Synth.FeatureSpace.Model (FeatureSpace)
 import qualified Mescaline.Synth.FeatureSpace.Model as Model
 import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
 import qualified Mescaline.Synth.FeatureSpace.Process as Process
 import qualified Mescaline.Synth.Pattern.Event as Synth
 import qualified Mescaline.Synth.Sampler.Process as Synth
-import qualified Mescaline.UI as UI
 import           System.FilePath
 import           Text.Printf (printf)
 
@@ -42,29 +39,23 @@ import qualified Qtc.Classes.Gui_h                  as Qt
 import qualified Qtc.Classes.Object                 as Qt
 import qualified Qtc.Classes.Qccs                   as Qt
 import qualified Qtc.Classes.Qccs_h                 as Qt
-import qualified Qtc.ClassTypes.Core                as Qt
 import qualified Qtc.ClassTypes.Gui                 as Qt
 import qualified Qtc.Core.Base                      as Qt
-import qualified Qtc.Core.QEvent                    as Qt
+import           Qtc.Core.QEvent                    ()
 import qualified Qtc.Enums.Base                     as Qt
 import qualified Qtc.Enums.Core.Qt                  as Qt
-import qualified Qtc.Enums.Gui.QGraphicsItem        as Qt
+import           Qtc.Enums.Gui.QGraphicsItem        ()
 import qualified Qtc.Enums.Gui.QGraphicsScene       as Qt
-import qualified Qtc.Gui.QAbstractGraphicsShapeItem as Qt
+import           Qtc.Gui.QAbstractGraphicsShapeItem ()
 import qualified Qtc.Gui.QBrush                     as Qt
-import qualified Qtc.Gui.QColor                     as Qt
-import qualified Qtc.Gui.QCursor                    as Qt
 import qualified Qtc.Gui.QGraphicsEllipseItem       as Qt
-import qualified Qtc.Gui.QGraphicsEllipseItem_h     as Qt
+import           Qtc.Gui.QGraphicsEllipseItem_h     ()
 import qualified Qtc.Gui.QGraphicsItem              as Qt
-import qualified Qtc.Gui.QGraphicsRectItem          as Qt
 import qualified Qtc.Gui.QGraphicsScene             as Qt
-import qualified Qtc.Gui.QGraphicsSceneMouseEvent   as Qt
-import qualified Qtc.Gui.QGraphicsScene_h           as Qt
-import qualified Qtc.Gui.QGraphicsTextItem          as Qt
-import qualified Qtc.Gui.QKeyEvent                  as Qt
+import           Qtc.Gui.QGraphicsSceneMouseEvent   ()
+import           Qtc.Gui.QGraphicsScene_h           ()
+import           Qtc.Gui.QKeyEvent                  ()
 import qualified Qtc.Gui.QPen                       as Qt
-import qualified Qtc.Gui.QWidget                    as Qt
 import qualified Qth.ClassTypes.Core                as Qt
 import qualified Qth.Core.Point                     as Qt
 import qualified Qth.Core.Rect                      as Qt

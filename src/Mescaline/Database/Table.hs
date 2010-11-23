@@ -30,7 +30,6 @@ module Mescaline.Database.Table (
 ) where
 
 import           Control.Monad
-import           Data.Accessor (Accessor)
 import qualified Data.List as List
 import           Database.HDBC (IConnection, SqlType, handleSqlError, quickQuery, run, toSql)
 import           Mescaline.Data.Unique (Unique, uuid)
