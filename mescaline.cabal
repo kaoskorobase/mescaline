@@ -219,9 +219,6 @@ library
         Control.Concurrent.Chan.Chunked
         Control.Concurrent.MVar.StrictModify
         Data.KDTree
-        -- Data.Iteratee.Chan
-        -- Data.Iteratee.OSC
-        -- Data.Iteratee.Util
         -- Data.Signal.SF
         -- Data.Signal.SF.Base
         -- Data.Signal.SF.Event
