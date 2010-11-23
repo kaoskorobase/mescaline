@@ -6,11 +6,8 @@ module Mescaline.Synth.Database.Model (
 ) where
 
 import           Control.Arrow (first)
-import           Data.Maybe (fromJust)
 import qualified Data.Vector.Generic as V
 import qualified Database.HDBC as DB
-import qualified GHC.Conc as GHC
-import qualified Mescaline.Data.Unique as Unique
 import qualified Mescaline.Database as DB
 import           Mescaline.Database.SqlQuery (and, eq, like, segmentation, sourceFile, unit, url)
 import qualified Mescaline.Database.SqlQuery as Sql
@@ -22,8 +19,6 @@ import qualified Mescaline.Database.Table as Table
 import qualified Mescaline.Meap.Import as Meap
 import qualified Mescaline.Statistics.PCA as PCA
 import           Numeric.LinearAlgebra as H
-import           Database.HDBC (quickQuery')
-import           System.Environment (getArgs)
 import           System.IO
 import           Text.Printf (printf)
 import           Prelude hiding (and)
@@ -44,8 +39,8 @@ featureTable = Table.toTable . Feature.FeatureOf . Feature.descriptor
 
 deleteFeature :: DB.IConnection c => c -> Feature.Feature -> IO ()
 deleteFeature c f = do
-    DB.run c (printf "delete from %s where unit=? and descriptor=?" (Table.name (featureTable f)))
-        [DB.toSql (Feature.unit f), DB.toSql (Feature.descriptor f)]
+    _ <- DB.run c (printf "delete from %s where unit=? and descriptor=?" (Table.name (featureTable f)))
+                  [DB.toSql (Feature.unit f), DB.toSql (Feature.descriptor f)]
     return ()
 
 transformFeature' :: ([[Feature.Feature]] -> [Feature.Feature]) -> FilePath -> [Feature.Descriptor] -> IO ()
@@ -63,8 +58,13 @@ transformFeature' func dbFile features = do
                 Right (us, _) -> do
                     case func (map snd us) of
                         [] -> return ()
-                        features -> do
-                            mapM_ (\f -> Table.insert c (Feature.descriptor f) >> Table.create c (featureTable f) >> deleteFeature c f >> Table.insert c f) features
+                        fs -> do
+                            mapM_ (\f -> do {
+                                Table.insert c (Feature.descriptor f)
+                              ; Table.create c (featureTable f)
+                              ; deleteFeature c f
+                              ; Table.insert c f })
+                              fs
                             DB.commit c
 
 -- | Map a list of vectors to a target range.
