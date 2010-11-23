@@ -69,11 +69,12 @@ transformFeature' func dbFile features = do
 
 -- | Map a list of vectors to a target range.
 linearMap :: Vector Double -> Vector Double -> [Vector Double] -> [Vector Double]
-linearMap dstMin dstMax xs = map (\v -> (v `sub` srcMin) `mul` srcScale) xs
+linearMap dstMin dstMax xs = map (\v -> dstMin `add` ((v `sub` srcMin) `mul` rescale)) xs
     where
-        (srcMin, srcMax) = first fromList $ unzip $ map (\c -> (vectorMin c, vectorMax c)) (toColumns $ fromRows xs)
+        (srcMin, srcMax) = first fromList $ unzip $ map (\c -> (minElement c, maxElement c)) (toColumns $ fromRows xs)
         srcScale         = recip (fromList srcMax `sub` srcMin)
         dstScale         = dstMax `sub` dstMin
+        rescale          = dstScale `mul` srcScale
 
 featurePCA :: Feature.Descriptor -> [[Feature.Feature]] -> [Feature.Feature]
 featurePCA d fs = zipWith (\(f:_) x -> Feature.cons (Feature.unit f) d x) fs encoded
