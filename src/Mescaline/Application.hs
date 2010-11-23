@@ -60,9 +60,11 @@ getDataDirectory :: IO FilePath
 getDataDirectory = do
     progDir <- getProgramDirectory >>= Dir.canonicalizePath
     binDir  <- Paths.getBinDir >>= Dir.canonicalizePath
-    if progDir == binDir
+    if progDir `equalFilePath` binDir
         then Paths.getDataDir
-        else return "resources"
+        else do
+            dir <- Dir.getCurrentDirectory
+            return $ dir </> "resources"
 
 -- | Returns the directory where application resources can be found.
 getResourceDirectory :: IO FilePath
