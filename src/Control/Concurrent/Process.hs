@@ -37,9 +37,9 @@ import Prelude hiding (catch)
 
 -- | A Process handle.  It's returned on process creation and should be used
 -- | afterwards to send messages to it
-data Handle i o = forall o' . PH { chan      :: Chan i
-                                 , thread    :: ThreadId
-                                 , listeners :: MVar [Listener o] }
+data Handle i o = forall o' . PH { chan       :: Chan i
+                                 , thread     :: ThreadId
+                                 , _listeners :: MVar [Listener o] }
 
 data Listener i = forall o . Listener (Handle i o)
 
