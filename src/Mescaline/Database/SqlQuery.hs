@@ -160,9 +160,9 @@ unitQuery action q ds = do
                 return (u, fs)
             case Sql.execGetSql get xs of
                 Left e -> Error.throwError e
-                Right (unit, fs) -> do
+                Right (u, fs) -> do
                     sfMap <- State.lift State.get
-                    let sf = Unit.sourceFile unit
+                    let sf = Unit.sourceFile u
                         sfid = SourceFile.id sf
                     sf' <- case Map.lookup sfid sfMap of
                             Nothing -> do
@@ -172,10 +172,10 @@ unitQuery action q ds = do
                             Just sf' ->
                                 return sf'
                     return (Unit.unsafeCons
-                                (Unit.id unit) sf'
-                                (Unit.segmentation unit)
-                                (Unit.onset unit)
-                                (Unit.duration unit), fs)
+                                (Unit.id u) sf'
+                                (Unit.segmentation u)
+                                (Unit.onset u)
+                                (Unit.duration u), fs)
 
 unitQuery_ :: (String -> [SqlValue] -> IO [[SqlValue]]) -> Query -> IO (Either String ([Unit.Unit], SourceFileMap))
 unitQuery_ f q = do
