@@ -38,9 +38,6 @@ componentMap =
     , ("Sequencer"    , "logLevel")
     , ("Synth"        , "logLevel") ]
 
-components :: [String]
-components = map fst componentMap
-
 -- | Initialize logger priorities.
 getComponents :: IO [(String, Priority)]
 getComponents = do
