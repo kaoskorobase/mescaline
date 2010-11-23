@@ -277,9 +277,6 @@ library
         Mescaline.Synth.Pattern.View
         Mescaline.Synth.Sampler.Model
         Mescaline.Synth.Sampler.Process
-        Mescaline.Synth.Sequencer.Model
-        Mescaline.Synth.Sequencer.Process
-        Mescaline.Synth.Sequencer.View
         -- Mescaline.Synth.SSF
         -- Mescaline.Synth.SSF.BufferCache
         -- Mescaline.Synth.SSF.DiskSampler

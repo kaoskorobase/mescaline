@@ -25,13 +25,7 @@ import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Synth.Database.Process as DatabaseP
 import qualified Mescaline.Synth.Sampler.Process as SynthP
-#if USE_OLD_SEQUENCER == 1
-import qualified Mescaline.Synth.Sequencer.Model as Sequencer
-import qualified Mescaline.Synth.Sequencer.Process as SequencerP
-import qualified Mescaline.Synth.Sequencer.View as SequencerView
-#else
 import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
-#endif -- USE_OLD_SEQUENCER
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpace.Process as FeatureSpaceP
 import qualified Mescaline.Synth.FeatureSpace.View as FeatureSpaceView
@@ -99,14 +93,6 @@ import qualified Qtc.Gui.QWidget                as Qt
 import qualified Qtc.Gui.QWidget_h              as Qt
 import qualified Qtc.Tools.QUiLoader            as Qt
 import qualified Qtc.Tools.QUiLoader_h          as Qt
-
-#if USE_OLD_SEQUENCER
-numRegions :: Int
-numRegions = length FeatureSpace.defaultRegions
-
-sequencer0 :: Sequencer.Sequencer ()
-sequencer0 = Sequencer.cons 16 16 0.125 (Sequencer.Bar 0)
-#endif -- USE_OLD_SEQUENCER
 
 -- sceneKeyPressEvent :: MVar Bool -> Chan (Sequencer a -> Sequencer a) -> Qt.QWidget () -> Qt.QKeyEvent () -> IO ()
 -- sceneKeyPressEvent mute chan _ qkev = do
@@ -341,21 +327,6 @@ action_file_importDirectory db w _ = do
     ps <- importDialog Qt.eDirectory w
     sendTo db $ DatabaseP.Import ps
 
-#if USE_OLD_SEQUENCER
-action_sequencer_playPause :: SequencerP.Sequencer () -> Qt.QWidget () -> Qt.QAction () -> IO ()
-action_sequencer_playPause h _ a = do
-    b <- Qt.isChecked a ()
-    sendTo h $ SequencerP.Transport $ if b then SequencerP.Start else SequencerP.Pause
-
-action_sequencer_reset :: SequencerP.Sequencer () -> Qt.QWidget () -> Qt.QAction () -> IO ()
-action_sequencer_reset h _ _ = sendTo h $ SequencerP.Transport SequencerP.Reset
-
-action_sequencer_clear :: SequencerP.Sequencer () -> Qt.QWidget () -> Qt.QAction () -> IO ()
-action_sequencer_clear h _ _ = sendTo h $ SequencerP.ClearAll
-
-action_sequencer_mute :: MVar Bool -> Qt.QWidget () -> Qt.QAction () -> IO ()
-action_sequencer_mute mute _ _ = modifyMVar_ mute (return . not)
-#else
 action_pattern_playPause :: PatternP.Handle -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_pattern_playPause h _ a = do
     b <- Qt.isChecked a ()
@@ -371,7 +342,6 @@ action_pattern_mute :: Int -> PatternP.Handle -> Qt.QWidget () -> Qt.QAction () 
 action_pattern_mute i h _ a = do
     b <- Qt.isChecked a ()
     sendTo h $ PatternP.Mute i b
-#endif -- USE_OLD_SEQUENCER
 
 scaleFeatureSpace :: Double -> Qt.QGraphicsView () -> IO ()
 scaleFeatureSpace s v = Qt.qscale v (s, s)
@@ -447,13 +417,6 @@ main = do
     Qt.setScene fspace_graphicsView fspaceView
 
     -- Sequencer process
-#if USE_OLD_SEQUENCER == 1
-    seqP <- SequencerP.new sequencer0
-    (seqView, seqViewP) <- SequencerView.new 30 2 seqP
-    seqViewP `listenTo` seqP
-    mute <- newMVar False
-#endif
-
     defaultPatch <- Patch.defaultPatch
     patternP <- PatternP.new defaultPatch fspaceP
     (patternView, patternViewP) <- PatternView.new patternP (Qt.objectCast editorWindow)
@@ -461,25 +424,7 @@ main = do
 
     -- Sequencer view
     seq_graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "sequencerView")
-#if USE_OLD_SEQUENCER == 1
-    Qt.setScene seq_graphicsView seqView
-#else
     Qt.setScene seq_graphicsView patternView
-#endif
-
-    -- Pipe sequencer output to feature space
-#if USE_OLD_SEQUENCER == 1
-    fspaceSeqP <- spawn $ fix $ \loop -> do
-        x <- recv
-        case x of
-            SequencerP.Changed t s transport ->
-                case transport of
-                    SequencerP.Running -> let is = map (flip div numRegions . fst) $ Sequencer.indicesAtCursor s
-                                          in mapM_ (sendTo fspaceP . FeatureSpaceP.ActivateRegion t) is
-                    _                 -> return ()
-        loop
-    fspaceSeqP `listenTo` seqP
-#endif
 
     -- Database process
     dbP <- DatabaseP.new
@@ -529,14 +474,6 @@ main = do
               , Separator
               , Action "importFile" "Import File..." "Import a file" Trigger (Just "Ctrl+i") (action_file_importFile dbP)
               , Action "importDirectory" "Import Directory..." "Import a directory" Trigger (Just "Ctrl+Shift+I") (action_file_importDirectory dbP) ]
-#if USE_OLD_SEQUENCER == 1
-            , Menu "sequencer" "Sequencer"
-              [ Action "play" "Play" "Start or pause the sequencer" Checkable (Just "SPACE") (action_sequencer_playPause seqP)
-              , Action "reset" "Reset" "Reset the sequencer" Trigger (Just "RETURN") (action_sequencer_reset seqP)
-              , Action "clear" "Clear" "Clear sequencer" Trigger (Just "Ctrl+k") (action_sequencer_clear seqP)
-              -- , Action "mute" "Mute" "Mute sequencer" Trigger (Just "m") (action_sequencer_mute mute)
-              ]
-#else
             , Menu "sequencer" "Sequencer"
               [ Action "play" "Play" "Start or pause the sequencer" Checkable (Just "SPACE") (action_pattern_playPause patternP)
               , Action "reset" "Reset" "Reset the sequencer" Trigger (Just "Ctrl+RETURN") (action_pattern_reset patternP)
@@ -546,7 +483,6 @@ main = do
                                                 ("Mute track " ++ show (i + 1))
                                                 "" Checkable (Just ("Ctrl+" ++ show (i + 1)))
                                                 (action_pattern_mute i patternP)) ]
-#endif
             , Menu "featureSpace" "FeatureSpace"
               [ Menu "zoom" "Zoom"
                 [ Action "zoomIn" "Zoom In" "Zoom into feature space" Trigger (Just "Ctrl++") (action_featureSpace_zoom_zoomIn fspace_graphicsView)
