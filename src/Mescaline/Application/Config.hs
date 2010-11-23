@@ -2,6 +2,7 @@
            , ScopedTypeVariables #-}
 module Mescaline.Application.Config (
     module Data.ConfigFile
+  , ConfigParserError(..)
   , getIO
   , getIODefault
   , getColor
@@ -21,8 +22,6 @@ import           System.Directory
 import           System.FilePath
 import           Text.Regex
 import           Prelude hiding (catch)
-
-newtype Color = Color (Qt.QColor ())
 
 data ConfigParserError = ConfigParserError { cpError :: CPError } deriving (Show, Typeable)
 
@@ -54,7 +53,7 @@ getColor config section option = do
                 Nothing         -> return ()
                 Just (a :: Int) -> Qt.setAlpha color a
             return color
-        Nothing ->
+        _ ->
             case matchRegex alphaRegex colorSpec of
                 Just (name:alpha:_) -> do
                     color <- Qt.qColor name
@@ -62,7 +61,7 @@ getColor config section option = do
                         Nothing -> return ()
                         Just a  -> Qt.setAlphaF color a
                     return color
-                Nothing -> Qt.qColor colorSpec
+                _ -> Qt.qColor colorSpec
 
 defaultConfig :: ConfigParser
 defaultConfig = emptyCP { optionxform = id
