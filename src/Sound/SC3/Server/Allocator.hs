@@ -32,9 +32,3 @@ modifyM f = do
 
 allocM :: (IdAllocator i a, MonadError String m, MonadState a m) => m i
 allocM = modifyM alloc
-
-allocManyM :: (IdAllocator i a, MonadError String m, MonadState a m) => Int -> m [i]
-allocManyM n = modifyM (allocMany n)
-
-allocRangeM :: (RangeAllocator i a, MonadError String m, MonadState a m) => Int -> m (Range i)
-allocRangeM n = modifyM (allocRange n)
