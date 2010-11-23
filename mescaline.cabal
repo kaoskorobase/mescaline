@@ -245,7 +245,6 @@ library
         Mescaline.Meap.Chain
         Mescaline.Meap.Extractor
         Mescaline.Meap.Feature
-        -- Mescaline.Meap.File
         Mescaline.Meap.Import
         Mescaline.Meap.Process
         Mescaline.Meap.Segmenter
