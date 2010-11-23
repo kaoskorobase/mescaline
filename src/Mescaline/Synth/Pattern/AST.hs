@@ -538,8 +538,6 @@ data Boolean =
   | B_list Enumerator Scalar [Boolean]
   -- Scalar comparison
   | B_compare Comparison Scalar Scalar
-  -- Regions
-  | B_contains Coord Scalar Coord
   -- Debugging
   | B_trace Boolean
   deriving (Eq, Read, Show)
