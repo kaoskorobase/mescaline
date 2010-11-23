@@ -1,8 +1,13 @@
 {-# LANGUAGE CPP #-}
 
-import Distribution.PackageDescription
-import Distribution.Simple
-import System.FilePath (combine)
+import           Control.Monad
+import           Data.Char (toLower)
+import qualified Data.List as List
+import           Distribution.Simple.LocalBuildInfo (localPkgDescr)
+import           Distribution.PackageDescription as PD
+import           Distribution.Simple
+import           Distribution.Simple.Setup
+import           System.FilePath (combine)
 
 #if darwin_HOST_OS == 1
 import Distribution.MacOSX
@@ -11,9 +16,15 @@ import Distribution.MacOSX
 main :: IO ()
 
 #if darwin_HOST_OS == 1
+mescaline :: String
+mescaline = "Mescaline"
+
+isMescaline :: String -> Bool
+isMescaline = (==) (map toLower mescaline) . map toLower
+
 mescalineApp :: [FilePath] -> MacApp
 mescalineApp resources =
-    MacApp "Mescaline"
+    MacApp mescaline
         (Just "app/mescaline.icns")
         Nothing -- Build a default Info.plist for the icon.
         -- Resources to include
@@ -57,14 +68,20 @@ mescalineApp resources =
         -- ChaseWithDefaults
         (ChaseWith (defaultExclusions ++ ["libstdc++"]))
 
+buildAppBundle :: BuildInfo -> Bool
+buildAppBundle = (/=) Nothing . lookup "x-build-app-bundle" . customFieldsBI
+
 postBuildHook args buildFlags pkgDesc buildInfo = do
-    -- Use data files from package description as resources
-    let resources = map (combine (dataDir pkgDesc)) (dataFiles pkgDesc)
-    appBundleBuildHook [mescalineApp resources] args buildFlags pkgDesc buildInfo
-    
-main =
+    case List.find (isMescaline . exeName) (executables (localPkgDescr buildInfo)) of
+        Nothing -> return ()
+        Just exe ->
+            when (buildAppBundle (PD.buildInfo exe)) $ do
+                -- Use data files from package description as resources
+                let resources = map (combine (dataDir pkgDesc)) (dataFiles pkgDesc)
+                appBundleBuildHook [mescalineApp resources] args buildFlags pkgDesc buildInfo
+
+main = do
     defaultMainWithHooks $ simpleUserHooks {
-        -- TODO: Make this dependent on a configure flag (preConfHook)
         postBuild = postBuildHook
     }
 #else

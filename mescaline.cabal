@@ -162,6 +162,10 @@ data-files:
     hugs/packages/mtl/Control/Monad/Writer.hs
     hugs/packages/mtl/LICENSE
 
+flag build-app-bundle
+    description: Build an MacOS X application bundle
+    default: False
+
 flag bktrees
     description: Use the bktrees package instead of a kd-tree
     default: False
@@ -330,6 +334,8 @@ executable mescaline
         cpp-options: -DUSE_KDTREE=0
     else
         cpp-options: -DUSE_KDTREE=1
+    if flag(build-app-bundle)
+        x-build-app-bundle: True
 
 executable mescalinedb
     main-is:            mescalinedb.hs
