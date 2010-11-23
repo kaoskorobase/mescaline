@@ -9,7 +9,6 @@ module Mescaline.Synth.FeatureSpace.Process (
 import           Control.Concurrent.Process hiding (Handle)
 import qualified Control.Concurrent.Process as Process
 import           Control.Seq
-import qualified Data.Vector.Generic as V
 import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.Unit as DBUnit

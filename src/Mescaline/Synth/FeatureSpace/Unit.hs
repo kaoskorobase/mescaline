@@ -28,6 +28,9 @@ data Unit = Unit {
   , features :: !(Vector Feature.Feature)
   } deriving (Show)
 
+instance Eq (Unit) where
+    (==) a b = Unique.uuid (unit a) == Unique.uuid (unit b)
+
 cons :: Unit.Unit -> [Feature.Feature] -> Unit
 cons u = Unit u . V.fromList
 

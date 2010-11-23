@@ -166,10 +166,6 @@ flag build-app-bundle
     description: Build an MacOS X application bundle
     default: False
 
-flag bktrees
-    description: Use the bktrees package instead of a kd-tree
-    default: False
-
 library
     hs-source-dirs: src
     ghc-options:    -Wall
@@ -218,12 +214,6 @@ library
       -- , template-haskell
       , uuid >= 1.0
       , vector >= 0.5
-    if flag(bktrees)
-        build-depends:
-            bktrees >= 0.3 && < 0.4
-        cpp-options: -DUSE_KDTREE=0
-    else
-        cpp-options: -DUSE_KDTREE=1
     exposed-modules:
         -- Control.CCA.ArrowP
         Control.Concurrent.Chan.Chunked
@@ -330,10 +320,6 @@ executable mescaline
             cabal-macosx >= 0.1 && < 0.2
         ld-options:
             -headerpad_max_install_names
-    if flag(bktrees)
-        cpp-options: -DUSE_KDTREE=0
-    else
-        cpp-options: -DUSE_KDTREE=1
     if flag(build-app-bundle)
         x-build-app-bundle: True
 
