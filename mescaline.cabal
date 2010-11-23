@@ -287,7 +287,6 @@ library
         Mescaline.Time
         Mescaline.UI
         Mescaline.Util
-        Sound.OpenSoundControl.BufferedTransport
         Sound.SC3.Server.Allocator
         Sound.SC3.Server.Allocator.Range
         Sound.SC3.Server.Allocator.SetAllocator
