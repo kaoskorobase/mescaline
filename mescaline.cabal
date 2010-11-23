@@ -232,7 +232,6 @@ library
         Mescaline.Data.Unique
         Mescaline.Database
         Mescaline.Database.Feature
-        -- Mescaline.Database.FlatFile
         Mescaline.Database.Model
         -- Mescaline.Database.Query
         Mescaline.Database.SoundFile
