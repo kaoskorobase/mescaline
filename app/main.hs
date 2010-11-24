@@ -463,10 +463,14 @@ main = do
     examplesMenu <- directoryMenu (action_help_openExample patternP) ["msc"] =<< App.getResourcePath "patches/examples"
     
     let aboutAction = Action "about" "About Mescaline" "Show about message box" Trigger Nothing action_about
-        darwinMenuDef = [ Menu "about" "about.Mescaline" [ aboutAction ] ]
-        helpMenuDef   = [ Menu "help" "Help" [ aboutAction ] ]
+        osMenu = case App.buildOS of
+                    App.OSX -> Just $ Menu "about" "about.Mescaline" [ aboutAction ]
+                    _       -> Nothing
+        mkHelpMenu actions = case App.buildOS of
+                                App.OSX -> actions
+                                _       -> aboutAction:actions
         menuDef =
-            (if App.buildOS == App.OSX then darwinMenuDef else [])
+            maybeToList osMenu
             ++
             [ Menu "file" "File"
               [ Action "openFile" "Open..." "Open file" Trigger (Just "Ctrl+o") (action_file_openFile patternP)
@@ -496,15 +500,13 @@ main = do
               , Separator
               , Action "logWindow" "Messages" "Show message window" Trigger (Just "Ctrl+Shift+m") (action_showWindow logWindow)
               , Action "clearLog" "Clear Messages" "Clear message window" Trigger (Just "Ctrl+Shift+c") (const (const (clearLog logWindow))) ]
-            , Menu "help" "Help"
+            , Menu "help" "Help" $ mkHelpMenu
               [ Action "help" "Mescaline Help" "Open Mescaline manual in browser" Trigger Nothing action_help_manual
               , Action "help_patternRef" "Pattern Reference" "Open pattern reference in browser" Trigger Nothing action_help_patternRef
               , Separator
               , Menu "help_examples" "Examples" examplesMenu
               ]
             ]
-            ++
-            (if App.buildOS /= App.OSX then helpMenuDef else [])
 
     actions <- defineWindowMenu menuDef (Qt.objectCast mainWindow)
     trigger "/featureSpace/zoom/reset" actions
