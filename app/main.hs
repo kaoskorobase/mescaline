@@ -396,6 +396,7 @@ main = do
     mainWindow <- loadUI =<< App.getResourcePath "mescaline.ui"
     editorWindow <- loadUI =<< App.getResourcePath "editor.ui"
     logWindow <- loadUI =<< App.getResourcePath "messages.ui"
+    createLoggers logWindow
 
     -- Qt.setHandler mainWindow "keyPressEvent(QKeyEvent*)" $ windowKeyPressEvent
 
@@ -512,7 +513,6 @@ main = do
     trigger "/featureSpace/zoom/reset" actions
     defineWindowMenu menuDef (Qt.objectCast editorWindow)
     defineWindowMenu menuDef (Qt.objectCast logWindow)
-    createLoggers logWindow -- =<< Qt.findChild logWindow ("<QTextEdit*>", "textEdit")
 
     -- OSC server process
     oscServer <- OSCServer.new 2010 synthP fspaceP
