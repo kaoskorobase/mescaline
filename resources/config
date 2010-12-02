@@ -41,5 +41,5 @@ activeCursorLineWidth = 4
 
 [Synth]
 
-logLevel        = NOTICE
+logLevel        = INFO
 dumpOSC         = none

@@ -40,7 +40,7 @@ import           Sound.SC3.Server.Allocator.SetAllocator (SetAllocator)
 import qualified Sound.SC3.Server.Allocator.SetAllocator as SetAlloc
 import           Sound.SC3.Server.Allocator.SimpleAllocator (SimpleAllocator)
 import qualified Sound.SC3.Server.Allocator.SimpleAllocator as SAlloc
-import           Sound.SC3.Server.Process.Options (ServerOptions(..))
+import           Sound.SC3.Server.Options (ServerOptions(..))
 
 -- Hide the actual allocator
 data IntAllocator = forall a . (IdAllocator Int a, NFData a) => IntAllocator !a

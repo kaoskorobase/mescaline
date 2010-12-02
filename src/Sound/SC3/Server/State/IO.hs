@@ -18,7 +18,7 @@ import           Sound.SC3.Server.Allocator (IdAllocator, RangeAllocator, Range)
 import qualified Sound.SC3.Server.Allocator as Alloc
 import           Sound.SC3.Server.State (State)
 import qualified Sound.SC3.Server.State as State
-import           Sound.SC3.Server.Process.Options (ServerOptions)
+import           Sound.SC3.Server.Options (ServerOptions)
 
 type IOState = MVar State
 

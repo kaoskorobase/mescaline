@@ -14,6 +14,7 @@ import qualified Control.Concurrent.Process as Process
 import           Control.Exception
 import           Control.Monad.Error
 import           Data.Accessor
+import qualified Data.List as L
 import           Mescaline (Time)
 import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Config as Config
@@ -25,9 +26,8 @@ import qualified Mescaline.Synth.Sampler.Model as Model
 import qualified Sound.OpenSoundControl as OSC
 import           Sound.SC3 (dumpOSC, PrintLevel(..))
 import qualified Sound.SC3.Server.Process as Server
-import qualified Sound.SC3.Server.Process.Monad as Server
+import qualified Sound.SC3.Server.Process.Monad as ServerM
 import           Sound.SC3.Server.Monad as S
-import qualified Sound.SC3.Server.Process.CommandLine as Server
 
 data Input =
     Reset
@@ -62,6 +62,33 @@ getEnginePaths = do
             plg <- App.getResourcePath "usr/local/lib/supercollider/plugins"
             return (exe', Just [plg])
 
+getEngine internal =
+    if internal
+        then do
+            let plgBase = "usr/local/lib/supercollider/plugins"
+                splg = "/" ++ plgBase
+            rplg <- App.getResourcePath plgBase
+            let plg = [rplg, splg]
+            Log.infoM "Synth" $ "Using internal server with plugin path `" ++ L.intercalate ":" plg ++ "'"
+            return $ ServerM.withInternal
+                        serverOptions { Server.ugenPluginPath = Just plg }
+                        rtOptions
+                        outputHandler
+        else do
+            (scsynth, plg) <- getEnginePaths
+            Log.infoM "Synth" $ "Using local server `" ++ scsynth ++ "'"
+                              ++ maybe "" (\p -> " with plugins path `" ++ L.intercalate ":" p ++ "'") plg
+            return $ ServerM.withSynth
+                        Server.openUDP
+                        serverOptions { Server.serverProgram = scsynth
+                                      , Server.ugenPluginPath = plg }
+                        rtOptions { Server.udpPortNumber = 2278 }
+                        outputHandler
+    where
+        serverOptions = Server.defaultServerOptions { Server.loadSynthDefs = False }
+        rtOptions = Server.defaultRTOptions
+        outputHandler = Server.OutputHandler (Log.noticeM "Synth") (Log.errorM "Synth")
+
 getPrintLevel :: MonadError Config.CPError m => Config.ConfigParser -> Config.SectionSpec -> Config.OptionSpec -> m PrintLevel
 getPrintLevel conf section option = do
     s <- Config.get conf section option
@@ -74,38 +101,23 @@ getPrintLevel conf section option = do
 
 new :: IO (Handle, IO ())
 new = do
-    (scsynth, plugins) <- getEnginePaths
-    let
-        serverOptions = Server.defaultServerOptions {
-            Server.loadSynthDefs  = False
-          , Server.serverProgram  = scsynth
-          , Server.ugenPluginPath = plugins
-          }
-        rtOptions = Server.defaultRTOptions { Server.udpPortNumber = 2278 }
-
-    Log.infoM "Synth" (unwords (Server.rtCommandLine serverOptions rtOptions))
-    
     conf <- Config.getConfig
+
+    -- Get the engine function depending on config file variable
+    engine <- getEngine (either (const False) id (Config.get conf "Synth" "useInternalServer"))
+
     let printLevel = either (const NoPrinter) id (getPrintLevel conf "Synth" "dumpOSC")
         initBundle = OSC.Bundle OSC.immediately [dumpOSC printLevel]
 
     chan <- newChan
     quit <- newEmptyMVar
     h <- spawn $ process chan
-    _ <- forkIO $ runSynth serverOptions rtOptions initBundle h chan quit
+    _ <- forkIO $ runSynth engine initBundle h chan quit
 
     return (h, sendTo h Quit >> readMVar quit)
     where
-        runSynth serverOptions rtOptions initBundle h chan quit = do
-            e <- try $
-                Server.withSynthUDP
-                    serverOptions
-                    rtOptions
-                    (Server.OutputHandler (Log.noticeM "Synth") (Log.errorM "Synth"))
-                    -- (Server.withTransport
-                    --     serverOptions
-                    --     rtOptions
-                    (S.async (S.send initBundle) >> Model.new >>= loop h chan)
+        runSynth engine initBundle h chan quit = do
+            e <- try $ engine (S.async initBundle >> Model.new >>= loop h chan)
             case e of
                 Left exc -> writeChan chan $ EngineException_ exc
                 _ -> return ()
