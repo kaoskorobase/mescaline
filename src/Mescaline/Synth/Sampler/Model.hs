@@ -28,6 +28,7 @@ import           Sound.SC3 hiding (Output, free, gate, sync)
 import           Sound.SC3.Lang.Collection
 import           Sound.SC3.Server.Command.Completion
 import           Sound.SC3.Server.Monad (BusId, NodeId, Server)
+import           Sound.SC3.Server.Monad (syncWith)
 import qualified Sound.SC3.Server.Monad as S
 import           Sound.SC3.Server.Notification (n_end)
 import           System.Directory
@@ -215,7 +216,7 @@ allocVoice cache unit completion = do
 freeVoice :: BufferCache -> Voice -> Server ()
 freeVoice cache voice = do
     S.free S.nodeId (voiceId voice)
-    S.sync $ S.send $ b_close $ fromIntegral $ BC.uid $ buffer voice
+    S.sync $ b_close (fromIntegral (BC.uid (buffer voice)))
     BC.freeBuffer cache (buffer voice)
 
 data Sampler = Sampler {
@@ -237,9 +238,9 @@ new = do
     let fx = [fx1, fx2]
 
     -- Load synthdefs
-    S.sync $ S.send $ Bundle OSC.immediately $ [ d_recv (synthdef (voiceDefName 1) (voiceDef 1))
-                                               , d_recv (synthdef (voiceDefName 2) (voiceDef 2)) ]
-                                               ++ mapMaybe fxLoadMsg fx
+    S.sync $ Bundle OSC.immediately $ [ d_recv (synthdef (voiceDefName 1) (voiceDef 1))
+                                      , d_recv (synthdef (voiceDefName 2) (voiceDef 2)) ]
+                                      ++ mapMaybe fxLoadMsg fx
 
     -- Pre-allocate disk buffers, mono and stereo
     let nb = 64
@@ -251,7 +252,7 @@ new = do
 
 free :: Sampler -> Server ()
 free sampler = do
-    S.async $ S.send $ g_freeAll [0]
+    S.async $ g_freeAll [0]
     BC.release (bufferCache sampler)
 
 playUnit :: Sampler -> Time -> Synth -> Server ()
@@ -261,12 +262,13 @@ playUnit_noSchedComplBundles :: Sampler -> Time -> Synth -> Server ()
 playUnit_noSchedComplBundles sampler time synth = do
     voice <- allocVoice cache unit (const Nothing)
     let bounds = synthBounds synth
-    S.sync $ S.send $ b_read
-                        (fromIntegral (BC.uid (buffer voice)))
-                        (SourceFile.path sourceFile)
-                        (truncate (SourceFile.sampleRate sourceFile * onset bounds))
-                        (-1) 0 1
-    _ <- S.send (startVoice voice time synth bounds (effects sampler)) `S.syncWith` n_end (voiceId voice)
+    S.sync $ b_read
+               (fromIntegral (BC.uid (buffer voice)))
+               (SourceFile.path sourceFile)
+               (truncate (SourceFile.sampleRate sourceFile * onset bounds))
+               (-1) 0 1
+    startVoice voice time synth bounds (effects sampler)
+        `syncWith` n_end (voiceId voice)
     freeVoice cache voice
     return ()
     where
@@ -277,23 +279,14 @@ playUnit_noSchedComplBundles sampler time synth = do
 playUnit_schedComplBundles :: Sampler -> Time -> Synth -> Server ()
 playUnit_schedComplBundles sampler time synth = do
     let bounds = synthBounds synth
-    voice <- allocVoice cache unit (\voice ->
-            Just $
-                b_read'
-                    (startVoice voice time synth bounds (effects sampler))
-                    (fromIntegral $ BC.uid $ buffer voice)
-                    (SourceFile.path sourceFile)
-                    (truncate $ SourceFile.sampleRate sourceFile * onset bounds)
-                    (-1) 0 1)
-    -- tu <- utcr
-    -- FIXME: Why is this necessary?!
-    S.unsafeSync
-    -- print (t-tu, t+dur-tu)
-    let dur = duration bounds
-    liftIO $ OSC.pauseThreadUntil (time + dur)
-    _ <- S.send (stopVoice voice (time + dur) synth) `S.syncWith` n_end (voiceId voice)
-    -- tu' <- utcr
-    -- liftIO $ putStrLn ("node end: " ++ show voice)
+    voice <- allocVoice cache unit (const Nothing)
+    b_read'
+        (startVoice voice time synth bounds (effects sampler))
+        (fromIntegral (BC.uid (buffer voice)))
+        (SourceFile.path sourceFile)
+        (truncate (SourceFile.sampleRate sourceFile * onset bounds))
+        (-1) 0 1
+        `syncWith` n_end (voiceId voice)
     freeVoice cache voice
     return ()
     where

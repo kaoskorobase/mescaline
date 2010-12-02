@@ -22,8 +22,6 @@ module Sound.SC3.Server.Monad (
   , freeRange
   -- *Synchronization
   , fork
-  , Send
-  , send
   , async
   , syncWith
   , syncAddress
@@ -38,7 +36,7 @@ import           Control.Monad.Trans (MonadIO, MonadTrans, liftIO)
 import           Data.Accessor
 import           Sound.SC3 (Rate(..))
 import           Sound.SC3.Server.Allocator (IdAllocator, RangeAllocator, Range)
-import           Sound.SC3.Server.Connection (Connection, Send)
+import           Sound.SC3.Server.Connection (Connection)
 import qualified Sound.SC3.Server.Connection as C
 -- import           Sound.SC3.Server.Process.Options (ServerOptions, numberOfInputBusChannels, numberOfOutputBusChannels)
 import           Sound.SC3.Server.State (BufferId, BufferIdAllocator, BusId, BusIdAllocator, NodeId, NodeIdAllocator, State)
@@ -100,19 +98,16 @@ freeRange a r = asks C.state >>= liftIO . flip (IOState.freeRange a) r
 fork :: (MonadIO m) => ServerT IO () -> ServerT m ThreadId
 fork = liftConn . flip C.fork . runServerT
 
-send :: OSC -> Send ()
-send = C.send
-
-async :: (MonadIO m) => Send () -> ServerT m ()
+async :: (MonadIO m) => OSC -> ServerT m ()
 async = liftConn . C.async
 
-syncWith :: (MonadIO m) => Send () -> (OSC -> Maybe a) -> ServerT m a
+syncWith :: (MonadIO m) => OSC -> (OSC -> Maybe a) -> ServerT m a
 syncWith s = liftConn . C.syncWith s
 
-syncAddress :: (MonadIO m) => Send () -> String -> ServerT m OSC
+syncAddress :: (MonadIO m) => OSC -> String -> ServerT m OSC
 syncAddress s = liftConn . C.syncAddress s
 
-sync :: (MonadIO m) => Send () -> ServerT m ()
+sync :: (MonadIO m) => OSC -> ServerT m ()
 sync = liftConn . C.sync
 
 unsafeSync :: (MonadIO m) => ServerT m ()

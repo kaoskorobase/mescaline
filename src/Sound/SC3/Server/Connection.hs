@@ -6,8 +6,6 @@ module Sound.SC3.Server.Connection (
   , new
   , close
   , fork
-  , Send
-  , send
   , async
   , syncWith
   , syncAddress
@@ -43,7 +41,7 @@ listeners (Connection _ _ l) = l
 
 initServer :: Connection -> IO ()
 initServer c = do
-    _ <- send (Bundle immediately [notify True]) `syncWith` done "notify" $ c
+    Bundle immediately [notify True] `syncWith` done "notify" $ c
     return ()
 
 recvLoop :: Connection -> IO ()
@@ -68,28 +66,22 @@ close (Connection t _ _) = OSC.close t
 fork :: Connection -> (Connection -> IO ()) -> IO ThreadId
 fork c f = forkIO (f c)
 
-newtype Send a = Send { unSend :: Writer.Writer OSC a }
-                    deriving (Functor, Monad, MonadWriter OSC)
-
-send :: OSC -> Send ()
-send = Send . Writer.tell
-
 addListener :: Listener -> Connection -> IO ListenerId
 addListener l c = modifyMVar
                     (listeners c) $
                     \(ListenerMap h lid) -> do
                         Hash.insert h lid l
+                        -- lc <- Hash.longestChain h
+                        -- putStrLn $ "addListener: longestChain=" ++ show (length lc)
                         return (ListenerMap h (lid+1), lid)
 
 removeListener :: ListenerId -> Connection -> IO ()
 removeListener uid c = modifyMVar_ (listeners c) (\lm@(ListenerMap h _) -> Hash.delete h uid >> return lm)
 
-async :: Send () -> Connection -> IO ()
-async s (Connection t _ _) = do
-    let osc = Writer.execWriter (unSend s)
-    OSC.send t osc
+async :: OSC -> Connection -> IO ()
+async osc (Connection t _ _) = OSC.send t osc
 
-syncWith :: Send () -> (OSC -> Maybe a) -> Connection -> IO a
+syncWith :: OSC -> (OSC -> Maybe a) -> Connection -> IO a
 syncWith s f c = do
     res <- newEmptyMVar
     uid <- addListener (action res) c
@@ -104,20 +96,20 @@ syncWith s f c = do
                 Just a  -> putMVar res a
 
 -- | Wait for an OSC message matching a specific address.
-syncAddress :: Send () -> String -> Connection -> IO OSC
+syncAddress :: OSC -> String -> Connection -> IO OSC
 syncAddress s a = s `syncWith` hasAddress
     where
         hasAddress m@(Message a' _) = if a == a' then Just m else Nothing
         hasAddress _                = Nothing
 
-sync :: Send () -> Connection -> IO ()
+sync :: OSC -> Connection -> IO ()
 sync s c = do
     i <- IOState.alloc State.syncId (state c)
-    _ <- (s >> send (Message "/sync" [Int i])) `syncWith` synced i $ c
+    _ <- (s `mappend` Message "/sync" [Int i]) `syncWith` synced i $ c
     IOState.free State.syncId (state c) i
     return ()
 
 -- NOTE: This is only guaranteed to work with a transport that preserves
 -- packet order. NOTE 2: And not even then ;)
 unsafeSync :: Connection -> IO ()
-unsafeSync = sync (return ())
+unsafeSync = sync mempty
