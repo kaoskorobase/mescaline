@@ -1,4 +1,4 @@
-module Mescaline.Synth.FeatureSpace.Unit (
+module Mescaline.FeatureSpace.Unit (
     Feature
   , Unit
   , cons

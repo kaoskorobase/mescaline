@@ -268,9 +268,9 @@ library
         Mescaline.Synth.BufferCache.Server
         Mescaline.Synth.Database.Model
         Mescaline.Synth.Database.Process
-        Mescaline.Synth.FeatureSpace.Model
-        Mescaline.Synth.FeatureSpace.Process
-        Mescaline.Synth.FeatureSpace.Unit
+        Mescaline.FeatureSpace.Model
+        Mescaline.FeatureSpace.Process
+        Mescaline.FeatureSpace.Unit
         Mescaline.Synth.OSCServer
         Mescaline.Synth.Sampler.Model
         Mescaline.Synth.Sampler.Process
@@ -308,7 +308,7 @@ executable mescaline
     if flag(build-app-bundle)
         x-build-app-bundle: True
     Other-Modules:
-        Mescaline.Synth.FeatureSpace.View
+        Mescaline.FeatureSpace.View
         Mescaline.Pattern.View
         Mescaline.UI
 

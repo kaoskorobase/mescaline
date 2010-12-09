@@ -17,7 +17,7 @@ module Mescaline.Pattern.Patch (
 import           Control.Exception
 import           Data.Typeable
 import qualified Mescaline.Application as App
-import           Mescaline.Synth.FeatureSpace.Model (Region, defaultRegions)
+import           Mescaline.FeatureSpace.Model (Region, defaultRegions)
 import           Mescaline.Pattern
 import qualified Mescaline.Pattern.AST as AST
 import           Mescaline.Pattern.Compiler (CompileError)

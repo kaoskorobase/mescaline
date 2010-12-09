@@ -26,9 +26,9 @@ import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Synth.Database.Process as DatabaseP
 import qualified Mescaline.Synth.Sampler.Process as SynthP
 import qualified Mescaline.Pattern.Sequencer as Sequencer
-import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
-import qualified Mescaline.Synth.FeatureSpace.Process as FeatureSpaceP
-import qualified Mescaline.Synth.FeatureSpace.View as FeatureSpaceView
+import qualified Mescaline.FeatureSpace.Model as FeatureSpace
+import qualified Mescaline.FeatureSpace.Process as FeatureSpaceP
+import qualified Mescaline.FeatureSpace.View as FeatureSpaceView
 import qualified Mescaline.Synth.OSCServer as OSCServer
 import qualified Mescaline.Pattern as Pattern
 import qualified Mescaline.Pattern.Environment as Pattern

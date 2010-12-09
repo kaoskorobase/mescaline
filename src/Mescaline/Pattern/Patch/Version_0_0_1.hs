@@ -13,7 +13,7 @@ import           Data.Typeable (Typeable)
 import qualified Data.Vector.Generic as V
 import qualified Mescaline.Pattern.Patch as P
 import qualified Mescaline.Pattern.Sequencer as S
-import qualified Mescaline.Synth.FeatureSpace.Model as FS
+import qualified Mescaline.FeatureSpace.Model as FS
 import           Prelude hiding (catch)
 
 data Sequencer = Sequencer Int Int [((Int, Int), Double)] [(Int, (Int, Int))]

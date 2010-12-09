@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances
            , TypeSynonymInstances
            , ExistentialQuantification #-}
-module Mescaline.Synth.FeatureSpace.View (
+module Mescaline.FeatureSpace.View (
     FeatureSpaceView
   , Input
   , Output
@@ -26,9 +26,9 @@ import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Data.Unique as Unique
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.SourceFile as SourceFile
-import qualified Mescaline.Synth.FeatureSpace.Model as Model
-import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
-import qualified Mescaline.Synth.FeatureSpace.Process as Process
+import qualified Mescaline.FeatureSpace.Model as Model
+import qualified Mescaline.FeatureSpace.Unit as Unit
+import qualified Mescaline.FeatureSpace.Process as Process
 import qualified Mescaline.Pattern.Event as Synth
 import qualified Mescaline.Synth.Sampler.Process as Synth
 import qualified Mescaline.UI as Config

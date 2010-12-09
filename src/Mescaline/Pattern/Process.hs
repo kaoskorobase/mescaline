@@ -21,8 +21,8 @@ import           Data.Maybe (fromJust)
 import           Mescaline (Time)
 import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Application.Config as Config
-import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
-import qualified Mescaline.Synth.FeatureSpace.Process as FeatureSpaceP
+import qualified Mescaline.FeatureSpace.Model as FeatureSpace
+import qualified Mescaline.FeatureSpace.Process as FeatureSpaceP
 import           Mescaline.Pattern.Environment (Environment)
 import qualified Mescaline.Pattern.Environment as Environment
 import           Mescaline.Pattern.Event (Event)

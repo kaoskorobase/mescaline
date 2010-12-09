@@ -36,7 +36,7 @@ import qualified Mescaline.Pattern.Event as Event
 import qualified Mescaline.Pattern.Sequencer as Sequencer
 import           Mescaline.Pattern hiding (step)
 import qualified Mescaline.Pattern as Pattern
-import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
+import qualified Mescaline.FeatureSpace.Model as FeatureSpace
 
 pmaybe :: b -> (a -> b) -> P s (Maybe a) -> P s b
 pmaybe b f = fmap (maybe b f)

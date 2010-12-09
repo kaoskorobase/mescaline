@@ -5,8 +5,8 @@ module Mescaline.Synth.OSCServer (
 import           Control.Concurrent.Process hiding (Handle)
 import qualified Control.Concurrent.Process as Process
 import           Data.Accessor
-import qualified Mescaline.Synth.FeatureSpace.Process as FSpace
-import qualified Mescaline.Synth.FeatureSpace.Model as FSpace
+import qualified Mescaline.FeatureSpace.Process as FSpace
+import qualified Mescaline.FeatureSpace.Model as FSpace
 import qualified Mescaline.Pattern.Event as Event
 import qualified Mescaline.Synth.Sampler.Process as Synth
 import qualified Sound.OpenSoundControl as OSC

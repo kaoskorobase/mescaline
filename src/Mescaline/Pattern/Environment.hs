@@ -15,7 +15,7 @@ module Mescaline.Pattern.Environment (
 import           Data.Accessor
 import           Mescaline.Pattern.Binding (Bindings)
 import qualified Mescaline.Pattern.Sequencer as Sequencer
-import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
+import qualified Mescaline.FeatureSpace.Model as FeatureSpace
 import qualified System.Random as Random
 
 data Environment = Environment {

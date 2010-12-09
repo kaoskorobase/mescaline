@@ -19,7 +19,7 @@ import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Database.SourceFile as SourceFile
 import           Mescaline.Synth.BufferCache.Server (Buffer, BufferCache)
 import qualified Mescaline.Synth.BufferCache.Server as BC
-import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
+import qualified Mescaline.FeatureSpace.Unit as Unit
 import           Mescaline.Pattern.Event (Synth)
 import qualified Mescaline.Pattern.Event as P
 import           Sound.OpenSoundControl (OSC(..))

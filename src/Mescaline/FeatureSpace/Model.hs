@@ -1,5 +1,5 @@
 {-# LANGUAGE BangPatterns, CPP, FlexibleContexts #-}
-module Mescaline.Synth.FeatureSpace.Model (
+module Mescaline.FeatureSpace.Model (
     Unit
   , RegionId
   , Region
@@ -36,8 +36,8 @@ import qualified Data.List as List
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Storable as SV
 import qualified Mescaline.Database.Feature as Feature
-import           Mescaline.Synth.FeatureSpace.Unit (Unit)
-import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
+import           Mescaline.FeatureSpace.Unit (Unit)
+import qualified Mescaline.FeatureSpace.Unit as Unit
 import qualified System.Random as Random
 
 type UnitSet = KDTree.Tree SV.Vector Unit

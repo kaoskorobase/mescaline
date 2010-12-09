@@ -33,8 +33,8 @@ module Mescaline.Pattern.Event (
 import           Data.Accessor
 import           Mescaline.Time (Duration)
 import qualified Mescaline.Time as Time
-import           Mescaline.Synth.FeatureSpace.Model ()
-import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
+import           Mescaline.FeatureSpace.Model ()
+import qualified Mescaline.FeatureSpace.Unit as Unit
 
 data Synth = Synth {
     _unit         :: Unit.Unit

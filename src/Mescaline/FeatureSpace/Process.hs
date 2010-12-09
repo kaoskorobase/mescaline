@@ -1,5 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
-module Mescaline.Synth.FeatureSpace.Process (
+module Mescaline.FeatureSpace.Process (
     Handle
   , Input(..)
   , Output(..)
@@ -13,8 +13,8 @@ import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.Unit as DBUnit
 import qualified Mescaline.Synth.Database.Model as DB
-import qualified Mescaline.Synth.FeatureSpace.Model as Model
-import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
+import qualified Mescaline.FeatureSpace.Model as Model
+import qualified Mescaline.FeatureSpace.Unit as Unit
 import qualified System.Random as Random
 
 data Input =

@@ -20,7 +20,7 @@ import qualified Data.IntMap as Map
 import           Data.Typeable (Typeable)
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Math as Math
-import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
+import qualified Mescaline.FeatureSpace.Unit as Unit
 import qualified Mescaline.Pattern.AST as AST
 import           Mescaline.Pattern hiding (step)
 import qualified Mescaline.Pattern.Binding as B
