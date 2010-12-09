@@ -1,11 +1,11 @@
-module Mescaline.Synth.Pattern.Ppar (
+module Mescaline.Pattern.Ppar (
     ppar
 ) where
 
 import           Data.Accessor
 import           Data.List (foldl')
 import qualified Mescaline.Data.PriorityQueue as PQ
-import           Mescaline.Synth.Pattern.Base
+import           Mescaline.Pattern.Base
 import           Mescaline.Time
 
 -- | Parallel pattern composition

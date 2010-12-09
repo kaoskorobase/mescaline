@@ -246,6 +246,22 @@ library
         Mescaline.Meap.Import
         Mescaline.Meap.Process
         Mescaline.Meap.Segmenter
+        Mescaline.Pattern
+        Mescaline.Pattern.AST
+        Mescaline.Pattern.AST.Library
+        Mescaline.Pattern.Base
+        Mescaline.Pattern.Binding
+        Mescaline.Pattern.Compiler
+        Mescaline.Pattern.Environment
+        Mescaline.Pattern.Event
+        Mescaline.Pattern.Interpreter
+        Mescaline.Pattern.Library
+        Mescaline.Pattern.Patch
+        Mescaline.Pattern.Patch.Version_0_0_1
+        Mescaline.Pattern.Ppar
+        Mescaline.Pattern.Player
+        Mescaline.Pattern.Process
+        Mescaline.Pattern.Sequencer
         Mescaline.Statistics.PCA
         Mescaline.Synth.BufferCache
         Mescaline.Synth.BufferCache.Alloc
@@ -256,22 +272,6 @@ library
         Mescaline.Synth.FeatureSpace.Process
         Mescaline.Synth.FeatureSpace.Unit
         Mescaline.Synth.OSCServer
-        Mescaline.Synth.Pattern
-        Mescaline.Synth.Pattern.AST
-        Mescaline.Synth.Pattern.ASTLib
-        Mescaline.Synth.Pattern.Base
-        Mescaline.Synth.Pattern.Binding
-        Mescaline.Synth.Pattern.Compiler
-        Mescaline.Synth.Pattern.Environment
-        Mescaline.Synth.Pattern.Event
-        Mescaline.Synth.Pattern.Interpreter
-        Mescaline.Synth.Pattern.Library
-        Mescaline.Synth.Pattern.Patch
-        Mescaline.Synth.Pattern.Patch.Version_0_0_1
-        Mescaline.Synth.Pattern.Ppar
-        Mescaline.Synth.Pattern.Player
-        Mescaline.Synth.Pattern.Process
-        Mescaline.Synth.Pattern.Sequencer
         Mescaline.Synth.Sampler.Model
         Mescaline.Synth.Sampler.Process
         -- Mescaline.Synth.SSF
@@ -309,7 +309,7 @@ executable mescaline
         x-build-app-bundle: True
     Other-Modules:
         Mescaline.Synth.FeatureSpace.View
-        Mescaline.Synth.Pattern.View
+        Mescaline.Pattern.View
         Mescaline.UI
 
 executable mescalinedb

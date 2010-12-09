@@ -1,6 +1,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 
-module Mescaline.Synth.Pattern.Base where
+module Mescaline.Pattern.Base where
 
 import qualified Control.Applicative as A
 import qualified Control.Monad as M

@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-module Mescaline.Synth.Pattern.ASTLib (
+module Mescaline.Pattern.AST.Library (
   -- *Structure
     Pattern
   , patch
@@ -98,7 +98,7 @@ module Mescaline.Synth.Pattern.ASTLib (
   , trace
 ) where
 
-import Mescaline.Synth.Pattern.AST
+import Mescaline.Pattern.AST
 import Prelude hiding ( cycle, filter, min, map, max, replicate, seq, take, zip )
 import qualified Prelude as P
 

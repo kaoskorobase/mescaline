@@ -2,7 +2,7 @@
            , ExistentialQuantification
            , FlexibleInstances
            , MultiParamTypeClasses #-}
-module Mescaline.Synth.Pattern.Binding (
+module Mescaline.Pattern.Binding (
     Binding
   , mkBinding
   , value
@@ -25,8 +25,8 @@ module Mescaline.Synth.Pattern.Binding (
 
 import           Data.Accessor
 import qualified Data.IntMap as Map
-import           Mescaline.Synth.Pattern.Base
-import           Mescaline.Synth.Pattern.Event
+import           Mescaline.Pattern.Base
+import           Mescaline.Pattern.Event
 
 -- import           Debug.Trace
 

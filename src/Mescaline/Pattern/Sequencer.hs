@@ -1,4 +1,4 @@
-module Mescaline.Synth.Pattern.Sequencer (
+module Mescaline.Pattern.Sequencer (
     Cursor(..)
   , position
   , Sequencer

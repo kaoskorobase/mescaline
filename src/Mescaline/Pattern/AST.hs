@@ -4,7 +4,7 @@
 -- | Abstract syntax tree construction for pattern DSL.
 --
 -- This is heavily inspired by <http://okmij.org/ftp/Haskell/DSLSharing.hs>.
-module Mescaline.Synth.Pattern.AST where
+module Mescaline.Pattern.AST where
 
 import           Control.Monad
 import           Control.Monad.State (State)

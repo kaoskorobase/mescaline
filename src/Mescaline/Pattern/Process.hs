@@ -1,6 +1,6 @@
 {-# LANGUAGE BangPatterns
            , ScopedTypeVariables #-}
-module Mescaline.Synth.Pattern.Process (
+module Mescaline.Pattern.Process (
     Handle
   , TransportState(..)
   , TransportChange(..)
@@ -23,18 +23,18 @@ import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpace.Process as FeatureSpaceP
-import           Mescaline.Synth.Pattern.Environment (Environment)
-import qualified Mescaline.Synth.Pattern.Environment as Environment
-import           Mescaline.Synth.Pattern.Event (Event)
-import qualified Mescaline.Synth.Pattern.Event as Event
-import qualified Mescaline.Synth.Pattern.Compiler as Comp
-import           Mescaline.Synth.Pattern.Sequencer (Sequencer)
-import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
-import           Mescaline.Synth.Pattern (Pattern)
-import qualified Mescaline.Synth.Pattern as Model
-import           Mescaline.Synth.Pattern.Patch (Patch)
-import qualified Mescaline.Synth.Pattern.Patch as Patch
-import qualified Mescaline.Synth.Pattern.Patch.Version_0_0_1 as Patch
+import           Mescaline.Pattern.Environment (Environment)
+import qualified Mescaline.Pattern.Environment as Environment
+import           Mescaline.Pattern.Event (Event)
+import qualified Mescaline.Pattern.Event as Event
+import qualified Mescaline.Pattern.Compiler as Comp
+import           Mescaline.Pattern.Sequencer (Sequencer)
+import qualified Mescaline.Pattern.Sequencer as Sequencer
+import           Mescaline.Pattern (Pattern)
+import qualified Mescaline.Pattern as Model
+import           Mescaline.Pattern.Patch (Patch)
+import qualified Mescaline.Pattern.Patch as Patch
+import qualified Mescaline.Pattern.Patch.Version_0_0_1 as Patch
 import           Prelude hiding (catch)
 import qualified Sound.OpenSoundControl.Time as Time
 

@@ -20,8 +20,8 @@ import qualified Mescaline.Database.SourceFile as SourceFile
 import           Mescaline.Synth.BufferCache.Server (Buffer, BufferCache)
 import qualified Mescaline.Synth.BufferCache.Server as BC
 import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
-import           Mescaline.Synth.Pattern.Event (Synth)
-import qualified Mescaline.Synth.Pattern.Event as P
+import           Mescaline.Pattern.Event (Synth)
+import qualified Mescaline.Pattern.Event as P
 import           Sound.OpenSoundControl (OSC(..))
 import qualified Sound.OpenSoundControl as OSC
 import           Sound.SC3 hiding (Output, free, gate, sync)

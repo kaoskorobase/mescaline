@@ -20,8 +20,8 @@ import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
-import           Mescaline.Synth.Pattern.Event (Synth)
-import qualified Mescaline.Synth.Pattern.Event as Event
+import           Mescaline.Pattern.Event (Synth)
+import qualified Mescaline.Pattern.Event as Event
 import qualified Mescaline.Synth.Sampler.Model as Model
 import qualified Sound.OpenSoundControl as OSC
 import           Sound.SC3 (dumpOSC, PrintLevel(..))

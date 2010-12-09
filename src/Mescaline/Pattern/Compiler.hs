@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable
            , FlexibleContexts #-}
-module Mescaline.Synth.Pattern.Compiler (
+module Mescaline.Pattern.Compiler (
     CompileError(..)
   , Bindings
   , compile
@@ -21,13 +21,13 @@ import           Data.Typeable (Typeable)
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Math as Math
 import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
-import qualified Mescaline.Synth.Pattern.AST as AST
-import           Mescaline.Synth.Pattern hiding (step)
-import qualified Mescaline.Synth.Pattern.Binding as B
-import           Mescaline.Synth.Pattern.Environment as Env
-import           Mescaline.Synth.Pattern.Event
-import           Mescaline.Synth.Pattern.Library
-import qualified Mescaline.Synth.Pattern.Sequencer as Seq
+import qualified Mescaline.Pattern.AST as AST
+import           Mescaline.Pattern hiding (step)
+import qualified Mescaline.Pattern.Binding as B
+import           Mescaline.Pattern.Environment as Env
+import           Mescaline.Pattern.Event
+import           Mescaline.Pattern.Library
+import qualified Mescaline.Pattern.Sequencer as Seq
 import           Prelude hiding (id, (.))
 
 -- | A type for compilation errors.

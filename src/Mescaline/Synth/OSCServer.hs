@@ -7,7 +7,7 @@ import qualified Control.Concurrent.Process as Process
 import           Data.Accessor
 import qualified Mescaline.Synth.FeatureSpace.Process as FSpace
 import qualified Mescaline.Synth.FeatureSpace.Model as FSpace
-import qualified Mescaline.Synth.Pattern.Event as Event
+import qualified Mescaline.Pattern.Event as Event
 import qualified Mescaline.Synth.Sampler.Process as Synth
 import qualified Sound.OpenSoundControl as OSC
 import qualified System.Random as Random

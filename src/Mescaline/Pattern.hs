@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
-module Mescaline.Synth.Pattern (
+module Mescaline.Pattern (
     Pattern
     -- *Reader
   , ask
@@ -14,11 +14,11 @@ module Mescaline.Synth.Pattern (
     -- *MonadRandom
   , runRand
     -- *Patterns
-  , module Mescaline.Synth.Pattern.Ppar
+  , module Mescaline.Pattern.Ppar
   , ptrace
   , ptraceEnv
     -- *Base module
-  , module Mescaline.Synth.Pattern.Base
+  , module Mescaline.Pattern.Base
 ) where
 
 import qualified Control.Monad as M
@@ -26,10 +26,10 @@ import qualified Control.Monad.Random as R
 import           Control.Monad.Reader (MonadReader(..), asks)
 import           Control.Monad.State (MonadState(..), modify, gets)
 import           Data.Accessor
-import           Mescaline.Synth.Pattern.Environment (Environment)
-import qualified Mescaline.Synth.Pattern.Environment as Env
-import           Mescaline.Synth.Pattern.Ppar
-import           Mescaline.Synth.Pattern.Base
+import           Mescaline.Pattern.Environment (Environment)
+import qualified Mescaline.Pattern.Environment as Env
+import           Mescaline.Pattern.Ppar
+import           Mescaline.Pattern.Base
 import           Debug.Trace
 
 type Pattern = P Environment

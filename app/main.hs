@@ -25,17 +25,17 @@ import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Synth.Database.Process as DatabaseP
 import qualified Mescaline.Synth.Sampler.Process as SynthP
-import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
+import qualified Mescaline.Pattern.Sequencer as Sequencer
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.Synth.FeatureSpace.Process as FeatureSpaceP
 import qualified Mescaline.Synth.FeatureSpace.View as FeatureSpaceView
 import qualified Mescaline.Synth.OSCServer as OSCServer
-import qualified Mescaline.Synth.Pattern as Pattern
-import qualified Mescaline.Synth.Pattern.Environment as Pattern
-import qualified Mescaline.Synth.Pattern.Event as Event
-import qualified Mescaline.Synth.Pattern.Patch as Patch
-import qualified Mescaline.Synth.Pattern.Process as PatternP
-import qualified Mescaline.Synth.Pattern.View as PatternView
+import qualified Mescaline.Pattern as Pattern
+import qualified Mescaline.Pattern.Environment as Pattern
+import qualified Mescaline.Pattern.Event as Event
+import qualified Mescaline.Pattern.Patch as Patch
+import qualified Mescaline.Pattern.Process as PatternP
+import qualified Mescaline.Pattern.View as PatternView
 import           Mescaline.Util (findFiles)
 import qualified Sound.OpenSoundControl as OSC
 import qualified Sound.SC3.Server.State as State

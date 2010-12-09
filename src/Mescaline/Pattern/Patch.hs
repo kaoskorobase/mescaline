@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable
            , FlexibleInstances #-}
-module Mescaline.Synth.Pattern.Patch (
+module Mescaline.Pattern.Patch (
     Patch
   , sourceCode
   , setSourceCode
@@ -18,14 +18,14 @@ import           Control.Exception
 import           Data.Typeable
 import qualified Mescaline.Application as App
 import           Mescaline.Synth.FeatureSpace.Model (Region, defaultRegions)
-import           Mescaline.Synth.Pattern
-import qualified Mescaline.Synth.Pattern.AST as AST
-import           Mescaline.Synth.Pattern.Compiler (CompileError)
-import qualified Mescaline.Synth.Pattern.Compiler as Comp
-import           Mescaline.Synth.Pattern.Event
-import qualified Mescaline.Synth.Pattern.Interpreter as Interp
-import           Mescaline.Synth.Pattern.Sequencer (Sequencer)
-import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
+import           Mescaline.Pattern
+import qualified Mescaline.Pattern.AST as AST
+import           Mescaline.Pattern.Compiler (CompileError)
+import qualified Mescaline.Pattern.Compiler as Comp
+import           Mescaline.Pattern.Event
+import qualified Mescaline.Pattern.Interpreter as Interp
+import           Mescaline.Pattern.Sequencer (Sequencer)
+import qualified Mescaline.Pattern.Sequencer as Sequencer
 
 type SyntaxTree = AST.Tree AST.Event
 

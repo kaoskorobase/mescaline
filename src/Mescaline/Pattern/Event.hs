@@ -2,7 +2,7 @@
 
 #include "Accessor.h"
 
-module Mescaline.Synth.Pattern.Event (
+module Mescaline.Pattern.Event (
     Event
   , Cursor
   , rest

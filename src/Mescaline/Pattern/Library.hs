@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-module Mescaline.Synth.Pattern.Library (
+module Mescaline.Pattern.Library (
     -- *Generators
     closest
   , region
@@ -30,12 +30,12 @@ import qualified Data.Complex as C
 import qualified Data.Monoid as M
 -- import qualified Data.Packed.Random as R
 import           Data.Typeable (Typeable)
-import qualified Mescaline.Synth.Pattern.Environment as Environment
-import           Mescaline.Synth.Pattern.Event (Event)
-import qualified Mescaline.Synth.Pattern.Event as Event
-import qualified Mescaline.Synth.Pattern.Sequencer as Sequencer
-import           Mescaline.Synth.Pattern hiding (step)
-import qualified Mescaline.Synth.Pattern as Pattern
+import qualified Mescaline.Pattern.Environment as Environment
+import           Mescaline.Pattern.Event (Event)
+import qualified Mescaline.Pattern.Event as Event
+import qualified Mescaline.Pattern.Sequencer as Sequencer
+import           Mescaline.Pattern hiding (step)
+import qualified Mescaline.Pattern as Pattern
 import qualified Mescaline.Synth.FeatureSpace.Model as FeatureSpace
 
 pmaybe :: b -> (a -> b) -> P s (Maybe a) -> P s b

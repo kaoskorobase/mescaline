@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable
            , ScopedTypeVariables #-}
-module Mescaline.Synth.Pattern.Patch.Version_0_0_1 (
+module Mescaline.Pattern.Patch.Version_0_0_1 (
     LoadError(..)
   , load
   , store
@@ -11,8 +11,8 @@ import           Control.Exception
 import qualified Data.List as List
 import           Data.Typeable (Typeable)
 import qualified Data.Vector.Generic as V
-import qualified Mescaline.Synth.Pattern.Patch as P
-import qualified Mescaline.Synth.Pattern.Sequencer as S
+import qualified Mescaline.Pattern.Patch as P
+import qualified Mescaline.Pattern.Sequencer as S
 import qualified Mescaline.Synth.FeatureSpace.Model as FS
 import           Prelude hiding (catch)
 

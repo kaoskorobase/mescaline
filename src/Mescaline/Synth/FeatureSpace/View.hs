@@ -29,7 +29,7 @@ import qualified Mescaline.Database.SourceFile as SourceFile
 import qualified Mescaline.Synth.FeatureSpace.Model as Model
 import qualified Mescaline.Synth.FeatureSpace.Unit as Unit
 import qualified Mescaline.Synth.FeatureSpace.Process as Process
-import qualified Mescaline.Synth.Pattern.Event as Synth
+import qualified Mescaline.Pattern.Event as Synth
 import qualified Mescaline.Synth.Sampler.Process as Synth
 import qualified Mescaline.UI as Config
 import           System.FilePath

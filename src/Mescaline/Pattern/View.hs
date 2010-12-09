@@ -1,4 +1,4 @@
-module Mescaline.Synth.Pattern.View (
+module Mescaline.Pattern.View (
     View
   , Input
   , Output
@@ -14,9 +14,9 @@ import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import qualified Mescaline.Application.Config as Config
 import           Mescaline.Synth.FeatureSpace.View (getRegionColors)
-import qualified Mescaline.Synth.Pattern.Sequencer as Model
-import qualified Mescaline.Synth.Pattern.Process as Process
-import qualified Mescaline.Synth.Pattern.Patch as Patch
+import qualified Mescaline.Pattern.Sequencer as Model
+import qualified Mescaline.Pattern.Process as Process
+import qualified Mescaline.Pattern.Patch as Patch
 
 import qualified Qtc.Classes.Gui                    as Qt
 import qualified Qtc.Classes.Object                 as Qt
