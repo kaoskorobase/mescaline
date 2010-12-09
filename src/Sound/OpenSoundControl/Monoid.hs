@@ -1,4 +1,7 @@
+{-# LANGUAGE CPP #-}
 module Sound.OpenSoundControl.Monoid () where
+
+#if !MIN_VERSION_hosc(0,9,0)
 
 import Data.Monoid (Monoid(..))
 import Sound.OpenSoundControl
@@ -12,3 +15,5 @@ instance Monoid (OSC) where
     mappend b@(Bundle _ _)      (Bundle _ [])  = b
     mappend   (Bundle _ [])   b@(Bundle _ _)   = b
     mappend   (Bundle t xs1)    (Bundle _ xs2) = Bundle t           (xs1++xs2)
+
+#endif -- hosc < 0.9.0
