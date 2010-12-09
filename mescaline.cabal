@@ -310,7 +310,7 @@ executable mescaline
     Other-Modules:
         Mescaline.FeatureSpace.View
         Mescaline.Pattern.View
-        Mescaline.UI
+        Mescaline.Application.Config.Qt
 
 executable mescalinedb
     main-is:            mescalinedb.hs

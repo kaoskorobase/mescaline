@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-module Mescaline.UI (
+module Mescaline.Application.Config.Qt (
   getColor
 ) where
 

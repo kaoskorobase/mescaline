@@ -23,6 +23,7 @@ import           Data.IntMap (IntMap)
 import qualified Data.IntMap as IMap
 import qualified Data.Vector.Generic as V
 import qualified Mescaline.Application.Config as Config
+import qualified Mescaline.Application.Config.Qt as Config
 import qualified Mescaline.Data.Unique as Unique
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.SourceFile as SourceFile
@@ -31,7 +32,6 @@ import qualified Mescaline.FeatureSpace.Unit as Unit
 import qualified Mescaline.FeatureSpace.Process as Process
 import qualified Mescaline.Pattern.Event as Synth
 import qualified Mescaline.Synth.Sampler.Process as Synth
-import qualified Mescaline.UI as Config
 import           System.FilePath
 import           Text.Printf (printf)
 
