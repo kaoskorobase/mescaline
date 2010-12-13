@@ -1,4 +1,4 @@
-module Mescaline.Meap.Process (
+module Mescaline.Analysis.Meap.Process (
     OutputHandler(..)
   , defaultOutputHandler
   , runMeap

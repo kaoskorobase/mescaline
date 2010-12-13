@@ -1,9 +1,7 @@
-module Mescaline.Database.SoundFile (
+module Sound.File.Sndfile.Util (
     getInfo
-  , module Sound.File.Sndfile
 ) where
 
-import Sound.File.Sndfile
 import Sound.File.Sndfile as SF
 
 getInfo :: FilePath -> IO SF.Info

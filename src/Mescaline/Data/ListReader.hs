@@ -1,9 +1,12 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Mescaline.Data.ListReader (
     ListReader
   , runListReader
   , execListReader
   , head
   , take
+  , tail
+  , drop
   , ListWriter
   , runListWriter
   , execListWriter
@@ -11,7 +14,8 @@ module Mescaline.Data.ListReader (
 ) where
 
 import           Control.Arrow (second)
-import           Control.Monad.Error (ErrorT)
+import           Control.Monad
+import           Control.Monad.Error (ErrorT, MonadError, throwError)
 import qualified Control.Monad.Error as Error
 import           Control.Monad.State (State)
 import qualified Control.Monad.State as State
@@ -20,18 +24,18 @@ import qualified Control.Monad.Writer as Writer
 import           Control.Monad.Trans (lift)
 import qualified Data.Foldable as Seq
 import qualified Data.Sequence as Seq
-import 			 Prelude hiding (head, take)
+import 			 Prelude hiding (drop, head, tail, take)
 
 type ListReader a b = ErrorT String (State [a]) b
 
-runListReader :: ListReader a b -> [a] -> Either String (b, [a])
-runListReader a l =
+runListReader :: MonadError String m => ListReader a b -> [a] -> m (b, [a])
+runListReader a l = do
     case State.runState (Error.runErrorT a) l of
-        (Left e, _)   -> Left e
-        (Right b, as) -> Right (b, as)
+        (Left e, _)   -> throwError e
+        (Right b, as) -> return (b, as)
 
-execListReader :: ListReader a b -> [a] -> Either String b
-execListReader = (fmap.fmap) fst . runListReader
+execListReader :: MonadError String m => ListReader a b -> [a] -> m b
+execListReader r = liftM fst . runListReader r
 
 take :: Int -> ListReader a [a]
 take n = do
@@ -47,6 +51,12 @@ head = do
 	-- TODO: error handling
 	lift (State.put l')
 	return r
+
+tail :: ListReader a ()
+tail = drop 1
+
+drop :: Int -> ListReader a ()
+drop n = take n >> return ()
 
 type ListWriter a b = Writer (Seq.Seq a) b
 

@@ -10,7 +10,7 @@ import qualified Control.Concurrent.Process as Process
 import           Control.Monad
 import           Data.Maybe
 import qualified Mescaline.Database.Feature as Feature
-import qualified Mescaline.Meap.Import as Meap
+import qualified Mescaline.Analysis.Meap as Meap
 import qualified Mescaline.Synth.Database.Model as Model
 
 data Input =

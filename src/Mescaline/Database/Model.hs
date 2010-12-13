@@ -11,6 +11,7 @@ import qualified Mescaline.Database.Feature as Feature
 import           Mescaline.Database.Table (ColumnType(..), Model(..))
 import qualified Mescaline.Database.Table as Table
 import qualified Mescaline.Database.Unit as Unit
+import qualified Mescaline.Database.Hash as Hash
 import qualified Mescaline.Database.SourceFile as SourceFile
 import           Mescaline.Database.Sql (SqlRow(..))
 import qualified Mescaline.Database.Sql as Sql
@@ -21,7 +22,7 @@ import qualified Mescaline.Database.Sql as Sql
 instance SqlRow Unique.Id where
     putRow = ListReader.put . toSql
     getRow = fmap fromSql ListReader.head
-instance SqlRow SourceFile.Hash where
+instance SqlRow Hash.Hash where
     putRow = ListReader.put . toSql
     getRow = fmap fromSql ListReader.head
 

@@ -1,4 +1,4 @@
-module Mescaline.Meap.Feature (
+module Mescaline.Analysis.Meap.Feature (
     defaultFeatures
 ) where
 

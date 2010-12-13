@@ -1,10 +1,10 @@
-module Mescaline.Meap.Extractor (
+module Mescaline.Analysis.Meap.Extractor (
     Options(..)
   , defaultOptions
   , run
 ) where
 
-import Mescaline.Meap.Process (OutputHandler, defaultOutputHandler, runMeap)
+import Mescaline.Analysis.Meap.Process (OutputHandler, defaultOutputHandler, runMeap)
 import System.Exit (ExitCode)
 
 data UnitBoundary = Onset | Beat

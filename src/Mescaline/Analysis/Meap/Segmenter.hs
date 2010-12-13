@@ -1,11 +1,11 @@
-module Mescaline.Meap.Segmenter (
+module Mescaline.Analysis.Meap.Segmenter (
     Segmentation(..)
   , Options(..)
   , defaultOptions
   , run
 ) where
 
-import Mescaline.Meap.Process   (OutputHandler, defaultOutputHandler, runMeap)
+import Mescaline.Analysis.Meap.Process   (OutputHandler, defaultOutputHandler, runMeap)
 import System.Exit              (ExitCode)
 
 data Segmentation = Onset | Beat

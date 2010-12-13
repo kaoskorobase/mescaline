@@ -16,7 +16,8 @@ import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Database.SourceFile as SourceFile
 import qualified Mescaline.Database.Table as Table
-import qualified Mescaline.Meap.Import as Meap
+import qualified Mescaline.Analysis as Analysis
+import qualified Mescaline.Analysis.Meap as Meap
 import qualified Mescaline.Statistics.PCA as PCA
 import           Numeric.LinearAlgebra as H
 import           System.IO
@@ -56,6 +57,16 @@ transformFeature' func dbFile features = do
             case res of
                 Left e -> fail e
                 Right (us, _) -> do
+                    let xs0 = map (foldl (V.++) V.empty . map Feature.value) (map snd us)
+                        (encode, _) = PCA.pca 2 (H.fromRows xs0)
+                        xs = map encode xs0
+                        dstMin = V.fromList [0, 0]
+                        dstMax = V.fromList [1, 1]
+                        (srcMin, srcMax) = first fromList $ unzip $ map (\c -> (minElement c, maxElement c)) (toColumns $ fromRows xs)
+                        srcScale         = recip (fromList srcMax `sub` srcMin)
+                        dstScale         = dstMax `sub` dstMin
+                        rescale          = dstScale `mul` srcScale
+                    print (srcMin, srcMax, srcScale, dstScale, rescale)
                     case func (map snd us) of
                         [] -> return ()
                         fs -> do
@@ -80,20 +91,21 @@ featurePCA :: Feature.Descriptor -> [[Feature.Feature]] -> [Feature.Feature]
 featurePCA d fs = zipWith (\(f:_) x -> Feature.cons (Feature.unit f) d x) fs encoded
     where
         observations = map (foldl (V.++) V.empty . map Feature.value) fs
-        (encode, _)  = PCA.pca (Feature.degree d) (H.fromRows observations)
-        encoded      = linearMap 0 1 (map encode observations)
+        m            = Feature.degree d
+        (encode, _)  = PCA.pca m (H.fromRows observations)
+        encoded      = linearMap (V.replicate m 0) (V.replicate m 1) (map encode observations)
 
 -- | Analyse a directory recursively, writing the results to a database.
 importPaths :: FilePath -> [FilePath] -> IO ()
 importPaths dbFile paths = DB.handleSqlError
                            $ DB.withDatabase dbFile
-                           $ Meap.importPaths Nothing paths
+                           $ Analysis.importPaths Nothing paths Meap.analyser
 
 query :: FilePath -> Segmentation -> String -> [Feature.Descriptor] -> IO (Either String ([(Unit.Unit, [Feature.Feature])], Sql.SourceFileMap))
 query dbFile seg pattern features = do
     DB.withDatabase dbFile $ \c -> do
         initTables features c
-        Sql.unitQuery (DB.quickQuery c)
+        Sql.unitQuery (DB.quickQuery' c)
               ((url sourceFile `like` pattern) `and` (segmentation unit `eq` seg))
               features
 

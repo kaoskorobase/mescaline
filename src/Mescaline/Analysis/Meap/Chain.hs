@@ -1,17 +1,16 @@
-module Mescaline.Meap.Chain (
+module Mescaline.Analysis.Meap.Chain (
     Options(..)
   , defaultOptions
   , run
-  , mapFiles
 ) where
 
 import           Control.ThreadPool (threadPoolIO)
 import qualified Control.Concurrent.Chan as Chan
 import           Control.Exception (evaluate)
 
-import qualified Mescaline.Meap.Extractor as Extractor
-import           Mescaline.Meap.Process (withTempFile)
-import qualified Mescaline.Meap.Segmenter as Segmenter
+import qualified Mescaline.Analysis.Meap.Extractor as Extractor
+import           Mescaline.Analysis.Meap.Process (withTempFile)
+import qualified Mescaline.Analysis.Meap.Segmenter as Segmenter
 
 import           Sound.Analysis.Meapsoft (MEAP)
 import qualified Sound.Analysis.Meapsoft as Meap
@@ -80,14 +79,3 @@ run opts audioFile =
                                     return $ Left $ "Extractor failed with exit code " ++ show i
                                 ExitSuccess -> do
                                     Meap.read_meap featFile
-
--- | Run the segmenter and extractor chain on a list of files.
---
--- The results are returned as a lazy list of pairs of file names and analysis results.
-mapFiles :: Int -> Options -> [FilePath] -> IO [(FilePath, Either String MEAP)]
-mapFiles np opts paths = do
-    (ichan, ochan) <- threadPoolIO np (\path -> run opts path >>= evaluate >>= return . (,) path)
-    -- Push jobs to input channel
-    mapM_ (Chan.writeChan ichan) paths
-    -- Pull results from output channel as a lazy list
-    Chan.getChanContents ochan >>= return . take (length paths)

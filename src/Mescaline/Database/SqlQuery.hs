@@ -145,7 +145,7 @@ unitQueryString q ds = (printf "SELECT %s FROM %s JOIN %s ON %s WHERE %s"
 
 unitQuery :: SqlQueryFunc -> Query -> [Feature.Descriptor] -> IO (Either String ([(Unit.Unit, [Feature.Feature])], SourceFileMap))
 unitQuery action q ds = do
-    -- print (unitQueryString q ds)
+    print (unitQueryString q ds)
     rows <- uncurry action (unitQueryString q ds)
     -- print $ Prelude.length rows
     case State.runState (Error.runErrorT (mapM readUnit rows)) Map.empty of

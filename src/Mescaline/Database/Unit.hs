@@ -46,4 +46,4 @@ unsafeCons = Unit
 
 cons :: SourceFile -> Segmentation -> Time -> Duration -> Unit
 cons sf s o d = unsafeCons (Unique.fromBinary namespace p) sf s o d
-    where p = Binary.put (fromEnum o) >> Binary.put o >> Binary.put d
+    where p = Binary.put (fromEnum s) >> Binary.put o >> Binary.put d

@@ -1,20 +1,14 @@
-import           Control.Arrow (first)
 import           Data.Maybe (fromJust)
 import qualified Data.Vector.Generic as V
 import qualified Database.HDBC as DB
-import qualified GHC.Conc as GHC
 import qualified Mescaline.Data.Unique as Unique
 import qualified Mescaline.Database as DB
-import           Mescaline.Database.SqlQuery as Sql
 import           Mescaline.Database.Unit (Segmentation(..))
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.Unit as Unit
 import qualified Mescaline.Database.Table as Table
-import qualified Mescaline.Meap.Import as Meap
-import qualified Mescaline.Statistics.PCA as PCA
+import qualified Mescaline.Analysis.Meap as Meap
 import qualified Mescaline.Synth.Database.Model as DB
-import           Numeric.LinearAlgebra as H
-import           Database.HDBC (quickQuery')
 import           System.Environment (getArgs)
 import           System.IO
 import           Text.Printf (printf)
@@ -57,8 +51,8 @@ cmd_delete _ = return ()
 cmd_transform :: FilePath -> String -> String -> [String] -> IO ()
 cmd_transform dbFile transName dstFeature srcFeatures = do
     trans <- case transName of
-                "pca"     -> return DB.PCA
-                otherwise -> fail $ "Unknown transform: " ++ transName
+                "pca" -> return DB.PCA
+                _     -> fail $ "Unknown transform: " ++ transName
     DB.handleSqlError $ DB.transformFeature
                             dbFile trans
                             (Feature.consDescriptor dstFeature 2)
@@ -76,24 +70,24 @@ main = do
                 "delete" -> do
                     case args of
                         (dbFile:[]) -> cmd_delete dbFile
-                        otherwise -> putStrLn $ usage "delete DBFILE"
+                        _ -> putStrLn $ usage "delete DBFILE"
                 "import" -> do
                     case args of
                         (dbFile:paths) -> cmd_import dbFile paths
-                        otherwise -> putStrLn $ usage "import DBFILE DIRECTORY"
+                        _ -> putStrLn $ usage "import DBFILE DIRECTORY"
                 "insert" -> do
                     case args of
                         (dbFile:seg:name:degree:file:[]) -> cmd_insert dbFile (read seg :: Segmentation) name (read degree) file
-                        otherwise -> putStrLn $ usage "insert DBFILE SEGMENTATION NAME DEGREE {FILE|-}"
+                        _ -> putStrLn $ usage "insert DBFILE SEGMENTATION NAME DEGREE {FILE|-}"
                 "query" -> do
                     case args of
                         (dbFile:seg:pattern:features) -> cmd_query dbFile (read seg :: Segmentation) pattern features
-                        otherwise -> putStrLn $ usage "query DBFILE PATTERN SEGMENTATION FEATURE..."
+                        _ -> putStrLn $ usage "query DBFILE PATTERN SEGMENTATION FEATURE..."
                 "transform" -> do
                     case args of
                         (dbFile:transform:dstFeature:srcFeatures) -> cmd_transform dbFile transform dstFeature srcFeatures
-                        otherwise -> putStrLn $ usage "transform DBFILE TYPE DST_FEATURE SRC_FEATURE..."
-                otherwise -> putStrLn cmdUsage
+                        _ -> putStrLn $ usage "transform DBFILE TYPE DST_FEATURE SRC_FEATURE..."
+                _ -> putStrLn cmdUsage
         _ -> putStrLn cmdUsage
     where
         cmdUsage = usage "{delete,import,insert,query} ARGS..."
