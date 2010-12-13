@@ -102,10 +102,18 @@ syncAddress s a = s `syncWith` hasAddress
         hasAddress m@(Message a' _) = if a == a' then Just m else Nothing
         hasAddress _                = Nothing
 
+-- | Append a @\/sync@ message to an OSC packet.
+appendSync :: OSC -> Int -> OSC
+appendSync p i =
+    case p of
+        m@(Message _ _) -> Bundle immediately [m, s]
+        (Bundle t xs)   -> Bundle t (xs ++ [s])
+    where s = Message "/sync" [Int i]
+
 sync :: OSC -> Connection -> IO ()
-sync s c = do
+sync osc c = do
     i <- IOState.alloc State.syncId (state c)
-    _ <- (s `mappend` Message "/sync" [Int i]) `syncWith` synced i $ c
+    _ <- osc `appendSync` i `syncWith` synced i $ c
     IOState.free State.syncId (state c) i
     return ()
 
