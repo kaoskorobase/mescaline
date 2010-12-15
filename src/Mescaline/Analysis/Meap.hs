@@ -1,7 +1,7 @@
 module Mescaline.Analysis.Meap (
     Meap
   , analyser
-  , lookupFeature
+  -- , lookupFeature
 ) where
 
 import           Control.Monad

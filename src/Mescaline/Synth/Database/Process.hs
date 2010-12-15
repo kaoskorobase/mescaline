@@ -39,9 +39,9 @@ new = spawn $ loop $ State "" "%"
                         io $ do
                             Model.importPaths (path state) paths
                             Model.transformFeature (path state)
-                                Model.PCA
-                                (Feature.consDescriptor "es.globero.mescaline.spectral" 2)
-                                [fromJust (Meap.lookupFeature "com.meapsoft.AvgMFCC")]
+                                (Model.PCA 2)
+                                "es.globero.mescaline.spectral"
+                                ["http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-mfcc"]
                         return (state, True)
             when changed $ notify $ Changed (path state') (pattern state')
             loop state'

@@ -16,6 +16,7 @@ import           Mescaline (Duration, Time)
 import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Application.Logger as Log
+import qualified Mescaline.Database.Entity as DB
 import qualified Mescaline.Database.SourceFile as SourceFile
 import           Mescaline.Synth.BufferCache.Server (Buffer, BufferCache)
 import qualified Mescaline.Synth.BufferCache.Server as BC
@@ -209,7 +210,7 @@ allocVoice cache unit completion = do
             (completion . Voice nid)
             cache
             (BC.allocBytes
-                (SourceFile.numChannels (Unit.sourceFile unit))
+                (DB.sourceFileNumChannels (Unit.sourceFile unit))
                 diskBufferSize)
     return $ Voice nid buf
 
@@ -264,8 +265,8 @@ playUnit_noSchedComplBundles sampler time synth = do
     let bounds = synthBounds synth
     S.sync $ b_read
                (fromIntegral (BC.uid (buffer voice)))
-               (SourceFile.path sourceFile)
-               (truncate (SourceFile.sampleRate sourceFile * onset bounds))
+               (DB.sourceFileUrl sourceFile)
+               (truncate (DB.sourceFileSampleRate sourceFile * onset bounds))
                (-1) 0 1
     startVoice voice time synth bounds (effects sampler)
         `syncWith` n_end (voiceId voice)
@@ -283,8 +284,8 @@ playUnit_schedComplBundles sampler time synth = do
     b_read'
         (startVoice voice time synth bounds (effects sampler))
         (fromIntegral (BC.uid (buffer voice)))
-        (SourceFile.path sourceFile)
-        (truncate (SourceFile.sampleRate sourceFile * onset bounds))
+        (DB.sourceFileUrl sourceFile)
+        (truncate (DB.sourceFileSampleRate sourceFile * onset bounds))
         (-1) 0 1
         `syncWith` n_end (voiceId voice)
     freeVoice cache voice

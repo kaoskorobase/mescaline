@@ -7,14 +7,13 @@ import           Control.Concurrent.MVar
 import           Control.Concurrent.Process
 import           Control.Exception
 import           Control.Monad
-import           Data.Accessor
+-- import           Data.Accessor
 import           Data.Bits
 import           Data.Char (ord)
 import           Data.Function (fix)
 import qualified Data.List as List
 import           Data.Maybe
 import           Data.Version (showVersion)
-import           Database.HDBC (quickQuery')
 import           Mescaline (Time)
 import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Desktop as App

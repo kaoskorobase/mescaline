@@ -1,0 +1,9 @@
+@prefix xsd:      <http://www.w3.org/2001/XMLSchema#> .
+@prefix vamp:     <http://purl.org/ontology/vamp/> .
+@prefix :         <#> .
+
+:transform2 a vamp:Transform ;
+    vamp:plugin <http://vamp-plugins.org/rdf/plugins/vamp-example-plugins#spectralcentroid> ;
+    vamp:step_size "512"^^xsd:int ; 
+    vamp:block_size "1024"^^xsd:int ; 
+    vamp:output <http://vamp-plugins.org/rdf/plugins/vamp-example-plugins#spectralcentroid_output_linearcentroid> .

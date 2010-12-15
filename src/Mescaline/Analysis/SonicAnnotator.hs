@@ -35,20 +35,22 @@ runSonicAnnotator args = do
 
 decodeCSV x = D.decode "," (B.fromChunks [x])
 
+forceEither :: Either String a -> IO a
+forceEither = either fail return
+
 getSegmentation file = do
-    (e, x, err) <- runSonicAnnotator [ "-w", "csv", "--csv-stdout"
-                                     , "-t", "resources/analysis/segmentation.n3"
-                                     ,  file ]
-    putStrLn (BSC.unpack err)
+    (e, csv, err) <- runSonicAnnotator [ "-w", "csv", "--csv-stdout"
+                                       , "-t", "resources/analysis/segmentation.n3"
+                                       ,  file ]
     case e of
-        ExitFailure _ -> return $ Left "Shit!"
-        ExitSuccess   -> return $ fmap (map (!!1)) (decodeCSV x)
+        ExitFailure _ -> fail $ "Segmenter failed: " ++ BSC.unpack err
+        ExitSuccess   -> liftM (map (!!1)) (forceEither (decodeCSV csv))
 
 data Transform = Transform {
     transformFile   :: String
   , transformName   :: String
   , transformDegree :: Int
-}
+  } deriving (Eq, Show)
 
 transforms :: [Transform]
 transforms = [
@@ -64,27 +66,25 @@ getUnitFeature name n = do
     f <- getFeature (Descriptor name n)
     return (u, f)
 
-execTransform t = mapM (L.execListReader (getUnitFeature (transformName t) (transformDegree t)))
-
-getUnits :: FilePath -> [BS.ByteString] -> IO [(Unit, [Feature])]
-getUnits file segmentation = do
-    (e, x, err) <- runSonicAnnotator $
+extractFeatures :: FilePath -> [BS.ByteString] -> Transform -> IO [(Unit, Feature)]
+extractFeatures file segmentation transform = do
+    let segs = BSC.unpack (BS.intercalate (BSC.pack ",") segmentation)
+    -- putStrLn $ "Segmentation: " ++ show segs
+    (e, csv, err) <- runSonicAnnotator $
                         [ "-w", "csv", "--csv-stdout"
                         , "-S", "mean", "--summary-only"
-                        , "--segments", BSC.unpack (BS.intercalate (BSC.pack ",") segmentation)
+                        , "--segments", segs
+                        , "-t", "resources/analysis" </> transformFile transform
                         ]
-                        ++ concatMap (\t -> [ "-t", "resources/analysis" </> transformFile t ]) transforms
                         ++ [ file ]
-    putStrLn (BSC.unpack err)
     case e of
-        ExitFailure _ -> fail "Fucking asshole"
-        ExitSuccess ->
-            case decodeCSV x of
-                Left e -> fail e
-                Right rows -> do
-                    let n = length segmentation + 1
-                    fs <- either fail (return . List.transpose) (zipWithM execTransform transforms (clump n rows))
-                    return $ map (\us -> (fst (head us), map snd us)) fs
+        ExitFailure _ -> fail $ "Extractor failed: " ++ BSC.unpack err
+        ExitSuccess -> mapM (execTransform transform) =<< forceEither (decodeCSV csv)
+    where
+        execTransform t = forceEither . L.execListReader (getUnitFeature (transformName t) (transformDegree t))
+
+transposeFeatures :: [[(Unit, Feature)]] -> [(Unit, [Feature])]
+transposeFeatures = map (\xs -> (fst (head xs), map snd xs)) . List.transpose
 
 data SonicAnnotator = SonicAnnotator
 
@@ -94,11 +94,9 @@ analyser = SonicAnnotator
 instance Analyser SonicAnnotator where
     analyse _ file = do
         seg <- getSegmentation file
-        case seg of
-            Left e -> fail e
-            Right seg -> do
-                us <- getUnits file seg
-                newAnalysis file us
+        newAnalysis file
+            =<< liftM transposeFeatures
+                    (mapM (extractFeatures file seg) transforms)
     fileExtensions = const [
         "aif", "aiff", "au", "avi", "avr", "caf", "htk", "iff", "m4a", "m4b", "m4p", "m4v", "mat", "mov", "mp3", 
         "mp4", "ogg", "paf", "pvf", "raw", "sd2", "sds", "sf", "voc", "w64", "wav", "xi" ]

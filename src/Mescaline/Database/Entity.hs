@@ -5,11 +5,14 @@ import           Database.Persist.Sqlite
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as B
 import           Data.Int (Int64)
+import           Data.Map (Map)
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Storable as SV
 -- import Control.Monad.IO.Class (liftIO)
-import           Database.Persist (PersistField(..))
+import           Database.Persist (PersistField(..), PersistBackend)
+import qualified Database.Persist as DB
 import           Database.Persist.Base (PersistValue(..), SqlType(..))
+import qualified Database.Persist.GenericSql as DB
 import qualified Mescaline.Data.ByteString as B
 import qualified Mescaline.Database.Hash as Hash
 import qualified Sound.OpenSoundControl.Byte as OSC
@@ -44,6 +47,9 @@ instance PersistField Vector where
             p -> Left ("Couldn't create Vector from PersistValue " ++ show p)
     sqlType _ = SqlBlob
 
+fromVector :: SV.Vector Double -> Vector
+fromVector = Vector
+
 fromList :: [Double] -> Vector
 fromList = Vector . V.fromList
 
@@ -54,47 +60,34 @@ SourceFile
     numChannels Int
     sampleRate  Double
     frames      Int64
-    UniqueSourceFile url
+    UniqueSourceFile hash
 Unit
     sourceFile  SourceFileId Eq
     onset       Double
     duration    Double
 Descriptor
-    name        String
+    name        String Eq
     degree      Int
+    UniqueDescriptor name
 Feature
-    unit        UnitId Eq
+    unit        UnitId Eq Asc
     descriptor  DescriptorId Eq
     value       Vector
+    UniqueFeature unit descriptor
 |]
 
--- main :: IO ()
--- main = withSqliteConn "test.db" $ runSqlConn go
--- 
--- go :: SqlPersist IO ()
--- go = do
---     runMigration $ migrate (undefined :: SourceFile) >> migrate (undefined :: Unit)
---     let sf0 = SourceFile "/User/sk/Music/dam.wav" 2
---     b <- checkUnique sf0
---     if b
---         then do
---             sf <- insert sf0
---             liftIO $ print sf
---             mapM_ insert [Unit sf 0.2 0.8, Unit sf 1.0 0.1, Unit sf 1.1 0.6]
---             -- liftIO $ print u
---         else do
---             Just (sfId, sf) <- getBy (UniqueSourceFile "/User/sk/Music/dam.wav")
---             liftIO $ print (sfId, sf)
---             us <- run_ (select [UnitSourceFileEq sfId] [] 0 0 $$ consume)
---             liftIO $ print us
+type SourceFileMap = Map (Key SourceFile) SourceFile
 
-  -- p1 <- get key
-  -- liftIO $ print p1
-  -- update key [PersonAge 26]
-  -- p2 <- get key
-  -- liftIO $ print p2
-  -- p3 <- selectList [PersonNameEq "Michael"] [] 0 0
-  -- liftIO $ print p3
-  -- delete key
-  -- p4 <- selectList [PersonNameEq "Michael"] [] 0 0
-  -- liftIO $ print p4
+migrate :: DB.SqlPersist IO ()
+migrate = DB.runMigration $ do
+    DB.migrate (undefined :: SourceFile)
+    DB.migrate (undefined :: Unit)
+    DB.migrate (undefined :: Descriptor)
+    DB.migrate (undefined :: Feature)
+
+getDescriptor :: PersistBackend m => String -> Int -> m DescriptorId
+getDescriptor name degree = do
+    x <- getBy (UniqueDescriptor name)
+    case x of
+        Nothing -> insert (Descriptor name degree)
+        Just (d, _) -> return d

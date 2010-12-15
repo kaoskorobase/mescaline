@@ -18,16 +18,20 @@ import           Prelude hiding (and)
 cmd_import :: FilePath -> [FilePath] -> IO ()
 cmd_import dbFile paths = do
     DB.importPaths dbFile paths
-    DB.transformFeature dbFile DB.PCA (Feature.consDescriptor "es.globero.mescaline.spectral" 2)
-                                      [fromJust (Meap.lookupFeature "com.meapsoft.AvgMFCC")]
+    DB.transformFeature
+        dbFile
+        (DB.PCA 2)
+        "es.globero.mescaline.spectral"
+        ["http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-mfcc"]
 
 cmd_query :: FilePath -> Segmentation -> String -> [String] -> IO ()
 cmd_query dbFile seg pattern features = do
-    units <- DB.query dbFile seg pattern (map (fromJust . Meap.lookupFeature) features)
-    case units of
-        Left e -> fail e
-        Right (us, _) -> let ls = map (\(u, fs) -> Unique.toString (Unit.id u) : map show (concatMap (V.toList.Feature.value) fs)) us
-                         in putStr $ unlines (map unwords ls)
+    (sfs, us) <- DB.query dbFile pattern features
+    -- case units of
+    --     Left e -> fail e
+    --     Right (us, _) -> let ls = map (\(u, fs) -> Unique.toString (Unit.id u) : map show (concatMap (V.toList.Feature.value) fs)) us
+    --                      in putStr $ unlines (map unwords ls)
+    mapM_ print us
 
 cmd_insert :: FilePath -> Segmentation -> String -> Int -> FilePath -> IO ()
 cmd_insert dbFile _ name degree file = do
@@ -51,12 +55,12 @@ cmd_delete _ = return ()
 cmd_transform :: FilePath -> String -> String -> [String] -> IO ()
 cmd_transform dbFile transName dstFeature srcFeatures = do
     trans <- case transName of
-                "pca" -> return DB.PCA
+                "pca" -> return (DB.PCA 2)
                 _     -> fail $ "Unknown transform: " ++ transName
     DB.handleSqlError $ DB.transformFeature
                             dbFile trans
-                            (Feature.consDescriptor dstFeature 2)
-                            (map (fromJust . Meap.lookupFeature) srcFeatures)
+                            dstFeature
+                            srcFeatures
 
 usage :: String -> String
 usage = ("Usage: mkdb " ++)

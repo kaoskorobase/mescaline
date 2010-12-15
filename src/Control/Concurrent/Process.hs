@@ -25,6 +25,7 @@ module Control.Concurrent.Process (
 ) where
 
 import Control.Exception (PatternMatchFail)
+import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State.Class
 import Control.Monad.Writer.Class

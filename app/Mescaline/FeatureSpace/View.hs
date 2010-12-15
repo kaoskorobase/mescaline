@@ -18,13 +18,14 @@ import           Control.Monad.Trans
 import           Data.Bits
 import           Data.HashTable (HashTable)
 import qualified Data.HashTable as Hash
-import           Data.Int (Int32)
+import           Data.Int (Int32, Int64)
 import           Data.IntMap (IntMap)
 import qualified Data.IntMap as IMap
 import qualified Data.Vector.Generic as V
 import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Application.Config.Qt as Config
 import qualified Mescaline.Data.Unique as Unique
+import qualified Mescaline.Database.Entity as DB
 import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Database.SourceFile as SourceFile
 import qualified Mescaline.FeatureSpace.Model as Model
@@ -119,14 +120,14 @@ data UnitHighlight  = UnitHighlight !(Qt.QGraphicsItem ()) !Int
 
 data HighlightState = HighlightState {
     highlightPen :: Qt.QPen ()
-  , highlights   :: MVar (HashTable Unique.Id UnitHighlight)
+  , highlights   :: MVar (HashTable Int64 UnitHighlight)
   }
 
 data State = State {
     featureSpace :: Process.Handle
   , synth        :: Synth.Handle
   , unitGroup    :: MVar (Maybe (Qt.QGraphicsItem ()))
-  , units        :: MVar (HashTable Unique.Id (Qt.QGraphicsItem ()))
+  , units        :: MVar (HashTable Int64 (Qt.QGraphicsItem ()))
   , highlight    :: Maybe HighlightState
   , regionColors :: IntMap (Qt.QBrush ())
   , regions      :: MVar (HashTable Int Region)
@@ -218,7 +219,7 @@ showUnits view state us = do
         Qt.addItem view g'
 
         modifyMVar_ (units state) $ \_ -> do
-            table <- Hash.new (==) hashUnique
+            table <- Hash.new (==) hashInt64
             mapM_ (addUnit g' state table) us
             return table
 
@@ -227,10 +228,10 @@ showUnits view state us = do
 unitToolTip :: Model.Unit -> String
 unitToolTip unit = printf "%s - %s"
                           -- (Unit.value 0 unit V.! 0) (Unit.value 0 unit V.! 1)
-                          (unwords (map (printf "%.4f") (concatMap (V.toList . Feature.value) (V.toList (Unit.features unit)))))
-                          (takeFileName (SourceFile.url (Unit.sourceFile unit)))
+                          (unwords (map (printf "%.4f") (concatMap V.toList (V.toList (Unit.featureVectors unit)))))
+                          (takeFileName (DB.sourceFileUrl (Unit.sourceFile unit)))
 
-addUnit :: Qt.QGraphicsItem () -> State -> HashTable Unique.Id (Qt.QGraphicsItem ()) -> Model.Unit -> IO ()
+addUnit :: Qt.QGraphicsItem () -> State -> HashTable Int64 (Qt.QGraphicsItem ()) -> Model.Unit -> IO ()
 addUnit parent state table unit = do
     let (x, y) = pair (Unit.value 0 unit)
         r      = unitRadius -- Model.minRadius
@@ -336,6 +337,9 @@ getRegionColors :: Config.ConfigParser -> IO [Qt.QColor ()]
 getRegionColors config = mapM (\i -> Config.getColor config "FeatureSpace" ("regionColor" ++ show i)) [1..n]
     where n = length Model.defaultRegions
 
+hashInt64 :: Int64 -> Int32
+hashInt64 = fromIntegral
+
 hashUnique :: Unique.Id -> Int32
 hashUnique = Hash.hashString . Unique.toString
 
@@ -344,13 +348,13 @@ newState fspace synth = do
     config <- Config.getConfig
 
     ug <- newMVar Nothing
-    us <- newMVar =<< Hash.new (==) hashUnique
+    us <- newMVar =<< Hash.new (==) hashInt64
 
     hl <- Config.getIO config "FeatureSpace" "highlightUnits" :: IO Bool
     hlState <-
         if hl
             then do
-                hls     <- newMVar =<< Hash.new (==) hashUnique
+                hls     <- newMVar =<< Hash.new (==) hashInt64
                 hlColor <- Config.getColor config "FeatureSpace" "highlightColor"
                 hlBrush <- Qt.qBrush hlColor
                 hlPen   <- Qt.qPen (hlBrush, 0::Double)

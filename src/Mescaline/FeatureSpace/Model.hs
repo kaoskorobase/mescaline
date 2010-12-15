@@ -148,7 +148,7 @@ filterMaybe :: [Maybe a] -> [a]
 filterMaybe l = [ x | Just x <- l ]
 
 activateRegions :: [RegionId] -> FeatureSpace -> ([Unit], FeatureSpace)
-activateRegions is f = first filterMaybe $ State.runState (sequence (map (State.State . activateRegion) is)) f
+activateRegions is f = first filterMaybe $ State.runState (sequence (map (State.state . activateRegion) is)) f
 
 -- | Return the closest unit to a point in feature space.
 closest2D :: (Double, Double) -> FeatureSpace -> Maybe (Unit, Double)

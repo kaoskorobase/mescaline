@@ -1,0 +1,28 @@
+@prefix xsd:      <http://www.w3.org/2001/XMLSchema#> .
+@prefix vamp:     <http://purl.org/ontology/vamp/> .
+@prefix :         <#> .
+
+:transform_plugin a vamp:Plugin ;
+    vamp:identifier "onsetsds" .
+
+:transform_library a vamp:PluginLibrary ;
+    vamp:identifier "vamp-onsetsds" ;
+    vamp:available_plugin :transform_plugin .
+
+:transform a vamp:Transform ;
+    vamp:plugin :transform_plugin ;
+    vamp:step_size "256"^^xsd:int ; 
+    vamp:block_size "512"^^xsd:int ; 
+    vamp:parameter_binding [
+        vamp:parameter [ vamp:identifier "dftype" ] ;
+        vamp:value "3"^^xsd:float ;
+    ] ;
+    vamp:parameter_binding [
+        vamp:parameter [ vamp:identifier "medspan" ] ;
+        vamp:value "11"^^xsd:float ;
+    ] ;
+    vamp:parameter_binding [
+        vamp:parameter [ vamp:identifier "threshold" ] ;
+        vamp:value "0.5"^^xsd:float ;
+    ] ;
+    vamp:output [ vamp:identifier "onsets" ] .

@@ -150,7 +150,7 @@ field (AST.Feature i j) = synthAccessor 0 (acc . unit) . second
     where
         at k v | k < 0 || k >= V.length v = Nothing
                | otherwise                = Just (v V.! k)
-        acc = accessor (maybe 0 id . join . fmap (at j) . fmap Feature.value . at i . Unit.features)
+        acc = accessor (maybe 0 id . join . fmap (at j) . at i . Unit.featureVectors)
                        (const id)
 
 limit :: AST.Limit -> (Double -> Double -> Double -> Double)
