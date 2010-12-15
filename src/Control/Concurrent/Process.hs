@@ -86,7 +86,7 @@ recv = RT $ ask >>= liftIO . readChan . chan
 -- @
 poll :: MonadIO m => ReceiverT i o m (Maybe i)
 poll = RT $ do
-    c <- chan `fmap` ask
+    c <- liftM chan ask
     b <- liftIO $ isEmptyChan c
     if b
         then return Nothing
