@@ -223,11 +223,11 @@ showUnits view state us = do
 
         return (Just g')
 
-unitToolTip :: Model.Unit -> String
-unitToolTip unit = printf "%s - %s"
-                          -- (Unit.value 0 unit V.! 0) (Unit.value 0 unit V.! 1)
-                          (unwords (map (printf "%.4f") (concatMap V.toList (V.toList (Unit.featureVectors unit)))))
-                          (takeFileName (DB.sourceFileUrl (Unit.sourceFile unit)))
+-- unitToolTip :: Model.Unit -> String
+-- unitToolTip unit = printf "%s - %s"
+--                           -- (Unit.value 0 unit V.! 0) (Unit.value 0 unit V.! 1)
+--                           (unwords (map (printf "%.4f") (concatMap V.toList (V.toList (Unit.featureVectors unit)))))
+--                           (takeFileName (DB.sourceFileUrl (Unit.sourceFile unit)))
 
 addUnit :: Qt.QGraphicsItem () -> State -> HashTable Int64 (Qt.QGraphicsItem ()) -> Model.Unit -> IO ()
 addUnit parent state table unit = do
@@ -237,7 +237,7 @@ addUnit parent state table unit = do
     item <- Qt.qGraphicsEllipseItem_nf box
     Qt.setParentItem item parent
     Qt.setPos item (Qt.pointF x y)
-    Qt.setToolTip item (unitToolTip unit)
+    -- Qt.setToolTip item (unitToolTip unit)
 
     -- Qt.setFlags item Qt.fItemIgnoresTransformations
     -- Qt.setHandler item "mousePressEvent(QGraphicsSceneMouseEvent*)" $ mouseHandler (unit u) action
