@@ -35,7 +35,6 @@ import qualified Data.KDTree as KDTree
 import qualified Data.List as List
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Storable as SV
-import qualified Mescaline.Database.Feature as Feature
 import           Mescaline.FeatureSpace.Unit (Unit)
 import qualified Mescaline.FeatureSpace.Unit as Unit
 import qualified System.Random as Random
@@ -46,8 +45,8 @@ type RegionId = Int
 
 data Region = Region {
     regionId :: RegionId
-  , center   :: Feature.Value -- Circle center in feature space
-  , radius   :: Double        -- Circle radius in feature space  
+  , center   :: SV.Vector Double -- Circle center in feature space
+  , radius   :: Double           -- Circle radius in feature space  
   } deriving (Eq, Show)   
 
 pair :: (V.Vector v a, Num a) => v a -> (a, a)
@@ -83,7 +82,7 @@ clip lo hi x
     | x > hi    = hi
     | otherwise = x
 
-mkRegion :: RegionId -> Feature.Value -> Double -> Region
+mkRegion :: RegionId -> SV.Vector Double -> Double -> Region
 mkRegion i c r = Region i (V.fromList [clip minPos maxPos (c V.! 0), clip minPos maxPos (c V.! 1)])
                           (clip minRadius maxRadius r)
 

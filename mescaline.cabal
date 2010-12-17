@@ -43,8 +43,6 @@ library
       , filepath
       , FindBin >= 0.0 && < 0.1
       , fingertree
-      , HDBC >= 1.1 && < 2
-      , HDBC-sqlite3 >= 1.1 && < 2
       , hmatrix >= 0.10 && < 0.11
       , hmeap >= 0.8
       , hosc >= 0.8
@@ -79,13 +77,14 @@ library
         -- Data.Signal.SF.Event
         Mescaline
         Mescaline.Analysis
-        Mescaline.Analysis.SonicAnnotator
         Mescaline.Analysis.Meap
         Mescaline.Analysis.Meap.Chain
         Mescaline.Analysis.Meap.Extractor
         Mescaline.Analysis.Meap.Feature
         Mescaline.Analysis.Meap.Process
         Mescaline.Analysis.Meap.Segmenter
+        Mescaline.Analysis.SonicAnnotator
+        Mescaline.Analysis.Types
         Mescaline.Application
         Mescaline.Application.Config
         Mescaline.Application.Desktop
@@ -96,15 +95,12 @@ library
         Mescaline.Data.Unique
         Mescaline.Database
         Mescaline.Database.Entity
-        Mescaline.Database.Feature
         Mescaline.Database.Hash
-        Mescaline.Database.Model
-        -- Mescaline.Database.Query
-        Mescaline.Database.SourceFile
-        Mescaline.Database.Sql
-        Mescaline.Database.SqlQuery
-        Mescaline.Database.Table
-        Mescaline.Database.Unit
+        Mescaline.Database.Process
+        Mescaline.Database.Vector
+        Mescaline.FeatureSpace.Model
+        Mescaline.FeatureSpace.Process
+        Mescaline.FeatureSpace.Unit
         Mescaline.Hugs
         Mescaline.Math
         Mescaline.Pattern
@@ -127,11 +123,6 @@ library
         Mescaline.Synth.BufferCache
         Mescaline.Synth.BufferCache.Alloc
         Mescaline.Synth.BufferCache.Server
-        Mescaline.Synth.Database.Model
-        Mescaline.Synth.Database.Process
-        Mescaline.FeatureSpace.Model
-        Mescaline.FeatureSpace.Process
-        Mescaline.FeatureSpace.Unit
         Mescaline.Synth.OSCServer
         Mescaline.Synth.Sampler.Model
         Mescaline.Synth.Sampler.Process

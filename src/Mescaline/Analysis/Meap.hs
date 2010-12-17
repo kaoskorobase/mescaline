@@ -1,31 +1,22 @@
 module Mescaline.Analysis.Meap (
     Meap
   , analyser
-  -- , lookupFeature
 ) where
 
-import           Control.Monad
-import qualified Data.Vector.Generic as V
-import           Database.HDBC (IConnection)
-import qualified GHC.Conc as GHC
-import           Mescaline.Analysis
+import           Control.Arrow (first)
+import           Mescaline.Analysis.Types
 import qualified Mescaline.Application.Logger as Log
-import qualified Mescaline.Database as DB
-import qualified Mescaline.Database.Feature as Feature
-import           Mescaline.Database.Model ()
-import qualified Mescaline.Database.Unit as Unit
-import qualified Mescaline.Database.SourceFile as SourceFile
-import           Mescaline.Database.Sql (SqlRow)
-import qualified Mescaline.Database.Table as Table
 import           Mescaline.Analysis.Meap.Chain as Chain
 import qualified Mescaline.Analysis.Meap.Extractor as Extractor
 import           Mescaline.Analysis.Meap.Process (OutputHandler(..))
 import qualified Mescaline.Analysis.Meap.Segmenter as Segmenter
-import           Mescaline.Util (findFiles)
 import qualified Sound.Analysis.Meapsoft as Meap
 
+meapFeaturePrefix :: String
+meapFeaturePrefix = "com.meapsoft."
+
 meapFeatures :: [(String, Int)]
-meapFeatures = [
+meapFeatures = map (first (meapFeaturePrefix++)) [
   --   ( "AvgChroma"         , 12  )
   -- , ( "AvgChromaScalar"   , 1   )
     ( "AvgChunkPower"     , 1   )
@@ -43,23 +34,12 @@ meapFeatures = [
   -- , ( "SpectralStability" , 1   )
   ]
 
-meapFeaturePrefix :: String
-meapFeaturePrefix = "com.meapsoft."
-
-features :: [(String, Feature.Descriptor)]
-features = map (\(n, d) -> let n' = meapFeaturePrefix ++ n in (n', Feature.consDescriptor n' d)) meapFeatures
-
-lookupFeature :: String -> Maybe Feature.Descriptor
-lookupFeature = flip lookup features
-
-options :: Unit.Segmentation -> Chain.Options
-options seg =
+meapOptions :: Chain.Options
+meapOptions =
     Chain.defaultOptions {
         segmenter = Segmenter.defaultOptions {
             Segmenter.outputHandler = outputHandler
-          , Segmenter.segmentation = case seg of
-                                        Unit.Beat -> Segmenter.Beat
-                                        Unit.Onset -> Segmenter.Onset
+          , Segmenter.segmentation = Segmenter.Onset
           , Segmenter.smoothingWindow = 0.01
         }
       , extractor = Extractor.defaultOptions {
@@ -101,7 +81,7 @@ instance Analyser Meap where
     fileExtensions = const ["aif", "aiff", "wav"]
     analyse _ path = do
         putStrLn "Meap analysis ..."
-        r <- Chain.run (options Unit.Onset) path
+        r <- Chain.run meapOptions path
         case r of
             Left e -> fail e
             Right meap -> do

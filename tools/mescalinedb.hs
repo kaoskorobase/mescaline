@@ -1,53 +1,45 @@
-import           Data.Maybe (fromJust)
-import qualified Data.Vector.Generic as V
-import qualified Database.HDBC as DB
-import qualified Mescaline.Data.Unique as Unique
+import qualified Data.Map as Map
+import qualified Mescaline.Analysis as Analysis
 import qualified Mescaline.Database as DB
-import           Mescaline.Database.Unit (Segmentation(..))
-import qualified Mescaline.Database.Feature as Feature
-import qualified Mescaline.Database.Unit as Unit
-import qualified Mescaline.Database.Table as Table
-import qualified Mescaline.Analysis.Meap as Meap
-import qualified Mescaline.Synth.Database.Model as DB
 import           System.Environment (getArgs)
 import           System.IO
-import           Text.Printf (printf)
 import           Prelude hiding (and)
 
 -- | Analyse a directory recursively, writing the results to a database.
 cmd_import :: FilePath -> [FilePath] -> IO ()
 cmd_import dbFile paths = do
-    DB.importPaths dbFile paths
-    DB.transformFeature
-        dbFile
-        (DB.PCA 2)
-        "es.globero.mescaline.spectral"
-        ["http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-mfcc"]
+    Analysis.importPathsDefault Nothing dbFile paths
+    DB.withDatabase dbFile $
+        DB.transformFeature
+            (DB.PCA 2)
+            "es.globero.mescaline.spectral"
+            ["http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-mfcc"]
 
-cmd_query :: FilePath -> Segmentation -> String -> [String] -> IO ()
-cmd_query dbFile seg pattern features = do
-    (sfs, us) <- DB.query dbFile pattern features
+cmd_query :: FilePath -> String -> [String] -> IO ()
+cmd_query dbFile pattern features = do
+    (sfs, us) <- DB.withDatabase dbFile $ DB.query pattern features
     -- case units of
     --     Left e -> fail e
     --     Right (us, _) -> let ls = map (\(u, fs) -> Unique.toString (Unit.id u) : map show (concatMap (V.toList.Feature.value) fs)) us
     --                      in putStr $ unlines (map unwords ls)
-    mapM_ print us
+    mapM_ print (Map.toList us)
 
-cmd_insert :: FilePath -> Segmentation -> String -> Int -> FilePath -> IO ()
-cmd_insert dbFile _ name degree file = do
-    rows <- if file == "-" then read_dlm stdin else withFile file ReadMode read_dlm
-    let units = map head rows
-        rowData = map (map read . take degree . tail) rows :: [[Double]]
-        desc = Feature.consDescriptor name degree
-        features = zipWith (\u r -> Feature.cons (Unique.unsafeFromString u) desc (V.fromList r)) units rowData
-        table = Table.toTable (Feature.FeatureOf desc)
-    putStrLn $ printf "Feature %s into table `%s'" (show desc) (Table.name table)
-    DB.withDatabase dbFile $ \c -> do
-        DB.handleSqlError $ DB.run c (printf "drop table %s" (Table.name table)) []
-        mapM_ (Table.insert c) features
-        DB.commit c
-    where
-        read_dlm = fmap (map words . lines) . hGetContents
+cmd_insert :: FilePath -> String -> Int -> FilePath -> IO ()
+cmd_insert _ _ _ _ = return ()
+-- cmd_insert dbFile _ name degree file = do
+--     rows <- if file == "-" then read_dlm stdin else withFile file ReadMode read_dlm
+--     let units = map head rows
+--         rowData = map (map read . take degree . tail) rows :: [[Double]]
+--         desc = Feature.consDescriptor name degree
+--         features = zipWith (\u r -> Feature.cons (Unique.unsafeFromString u) desc (V.fromList r)) units rowData
+--         table = Table.toTable (Feature.FeatureOf desc)
+--     putStrLn $ printf "Feature %s into table `%s'" (show desc) (Table.name table)
+--     DB.withDatabase dbFile $ \c -> do
+--         DB.handleSqlError $ DB.run c (printf "drop table %s" (Table.name table)) []
+--         mapM_ (Table.insert c) features
+--         DB.commit c
+--     where
+--         read_dlm = fmap (map words . lines) . hGetContents
 
 cmd_delete :: FilePath -> IO ()
 cmd_delete _ = return ()
@@ -57,10 +49,11 @@ cmd_transform dbFile transName dstFeature srcFeatures = do
     trans <- case transName of
                 "pca" -> return (DB.PCA 2)
                 _     -> fail $ "Unknown transform: " ++ transName
-    DB.handleSqlError $ DB.transformFeature
-                            dbFile trans
-                            dstFeature
-                            srcFeatures
+    DB.withDatabase dbFile $
+        DB.transformFeature
+            trans
+            dstFeature
+            srcFeatures
 
 usage :: String -> String
 usage = ("Usage: mkdb " ++)
@@ -81,12 +74,12 @@ main = do
                         _ -> putStrLn $ usage "import DBFILE DIRECTORY"
                 "insert" -> do
                     case args of
-                        (dbFile:seg:name:degree:file:[]) -> cmd_insert dbFile (read seg :: Segmentation) name (read degree) file
-                        _ -> putStrLn $ usage "insert DBFILE SEGMENTATION NAME DEGREE {FILE|-}"
+                        (dbFile:name:degree:file:[]) -> cmd_insert dbFile name (read degree) file
+                        _ -> putStrLn $ usage "insert DBFILE NAME DEGREE {FILE|-}"
                 "query" -> do
                     case args of
-                        (dbFile:seg:pattern:features) -> cmd_query dbFile (read seg :: Segmentation) pattern features
-                        _ -> putStrLn $ usage "query DBFILE PATTERN SEGMENTATION FEATURE..."
+                        (dbFile:pattern:features) -> cmd_query dbFile pattern features
+                        _ -> putStrLn $ usage "query DBFILE PATTERN FEATURE..."
                 "transform" -> do
                     case args of
                         (dbFile:transform:dstFeature:srcFeatures) -> cmd_transform dbFile transform dstFeature srcFeatures

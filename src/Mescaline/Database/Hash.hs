@@ -16,7 +16,6 @@ import qualified Data.ByteString.Char8 as BC
 import           Database.Persist (PersistField(..))
 import           Database.Persist.Base (PersistValue(..), SqlType(..))
 import           Codec.Digest.SHA
-import qualified Database.HDBC as HDBC
 
 newtype Hash = Hash B.ByteString deriving (Eq, Ord, Read, Show)
 
@@ -55,7 +54,3 @@ fromFile = liftM fromData . B.readFile
 -- | Placeholder for a zero hash.
 noHash :: Hash
 noHash = Hash (BC.pack "")
-
-instance HDBC.SqlType Hash where
-    fromSql = fromString . HDBC.fromSql
-    toSql   = HDBC.toSql . toString

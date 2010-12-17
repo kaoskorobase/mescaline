@@ -9,11 +9,9 @@ module Mescaline.FeatureSpace.Process (
 import           Control.Concurrent.Process hiding (Handle)
 import qualified Control.Concurrent.Process as Process
 import           Control.Seq
+import qualified Data.Map as Map
 import qualified Mescaline.Application.Logger as Log
-import qualified Mescaline.Database.Entity as DB
-import qualified Mescaline.Database.Feature as Feature
-import qualified Mescaline.Database.Unit as DBUnit
-import qualified Mescaline.Synth.Database.Model as DB
+import qualified Mescaline.Database as DB
 import qualified Mescaline.FeatureSpace.Model as Model
 import qualified Mescaline.FeatureSpace.Unit as Unit
 import qualified System.Random as Random
@@ -32,13 +30,11 @@ type Handle = Process.Handle Input Output
 
 getUnits :: FilePath
          -> String
-         -> [Feature.Descriptor]
+         -> [String]
          -> IO [Unit.Unit]
 getUnits dbFile pattern features = do
-    (sfs, us) <- DB.query dbFile
-                    pattern
-                    (map Feature.name features)
-    let us' = map (\(i, u, fs) -> Unit.cons sfs i u fs) us
+    (sfs, us) <- DB.withDatabase dbFile $ DB.query pattern features
+    let us' = map (\(i, (u, fs)) -> Unit.cons sfs i u fs) (Map.toList us)
     seqList rseq us' `seq` return us'
 
 new :: IO Handle
@@ -51,9 +47,9 @@ new = do
             f' <- case msg of
                     LoadDatabase path pattern -> do
                         units <- io $ getUnits path pattern [
-                            Feature.consDescriptor "es.globero.mescaline.spectral" 2 ]
-                          -- , Feature.consDescriptor "com.meapsoft.AvgChunkPower" 1
-                          -- , Feature.consDescriptor "com.meapsoft.AvgFreqSimple" 1 ]
+                            "es.globero.mescaline.spectral" ]
+                          -- , "com.meapsoft.AvgChunkPower"
+                          -- , "com.meapsoft.AvgFreqSimple" ]
                         let f' = Model.setUnits f units
                         notify $ DatabaseLoaded (Model.units f')
                         return $ f'

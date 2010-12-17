@@ -19,22 +19,19 @@ import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Desktop as App
 import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Database as DB
-import qualified Mescaline.Database.SqlQuery as Sql
-import qualified Mescaline.Database.Feature as Feature
-import qualified Mescaline.Database.Unit as Unit
-import qualified Mescaline.Synth.Database.Process as DatabaseP
-import qualified Mescaline.Synth.Sampler.Process as SynthP
+import qualified Mescaline.Database.Process as DatabaseP
 import qualified Mescaline.Pattern.Sequencer as Sequencer
 import qualified Mescaline.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.FeatureSpace.Process as FeatureSpaceP
 import qualified Mescaline.FeatureSpace.View as FeatureSpaceView
-import qualified Mescaline.Synth.OSCServer as OSCServer
 import qualified Mescaline.Pattern as Pattern
 import qualified Mescaline.Pattern.Environment as Pattern
 import qualified Mescaline.Pattern.Event as Event
 import qualified Mescaline.Pattern.Patch as Patch
 import qualified Mescaline.Pattern.Process as PatternP
 import qualified Mescaline.Pattern.View as PatternView
+import qualified Mescaline.Synth.OSCServer as OSCServer
+import qualified Mescaline.Synth.Sampler.Process as SynthP
 import           Mescaline.Util (findFiles)
 import qualified Sound.OpenSoundControl as OSC
 import qualified Sound.SC3.Server.State as State
@@ -390,7 +387,7 @@ main = do
                 _     -> App.getUserDataPath "mescaline.db"
     let pattern = case args of
                     (_:p:_) -> p
-                    _       -> "%"
+                    _       -> ".*"
 
     mainWindow <- loadUI =<< App.getResourcePath "mescaline.ui"
     editorWindow <- loadUI =<< App.getResourcePath "editor.ui"

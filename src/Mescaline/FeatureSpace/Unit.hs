@@ -1,6 +1,5 @@
 module Mescaline.FeatureSpace.Unit (
-    Feature
-  , Unit
+    Unit
   , cons
   , unit
   , id
@@ -20,12 +19,7 @@ import           Data.Vector (Vector)
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Storable as SV
 import qualified Database.Persist as DB
-import qualified Mescaline.Data.Unique as Unique
-import qualified Mescaline.Database.Entity as DB
-import           Mescaline.Database.Feature (Feature)
-import qualified Mescaline.Database.Feature as Feature
-import qualified Mescaline.Database.Unit as Unit
-import           Mescaline.Database.SourceFile (SourceFile)
+import qualified Mescaline.Database as DB
 import           Mescaline.Time (Duration, Time)
 import           Prelude hiding (id)
 

@@ -18,7 +18,6 @@ import           Data.Accessor.Monad.MTL.State ((%:))
 import qualified Data.Vector.Generic as V
 import qualified Data.IntMap as Map
 import           Data.Typeable (Typeable)
-import qualified Mescaline.Database.Feature as Feature
 import qualified Mescaline.Math as Math
 import qualified Mescaline.FeatureSpace.Unit as Unit
 import qualified Mescaline.Pattern.AST as AST

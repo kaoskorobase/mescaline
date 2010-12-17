@@ -9,7 +9,7 @@ import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.List as List
-import           Mescaline.Analysis
+import           Mescaline.Analysis.Types
 import qualified Mescaline.Data.ListReader as L
 import           System.Exit
 import           System.FilePath
@@ -42,6 +42,7 @@ getSegmentation file = do
     (e, csv, err) <- runSonicAnnotator [ "-w", "csv", "--csv-stdout"
                                        , "-t", "resources/analysis/segmentation.n3"
                                        ,  file ]
+    -- BS.writeFile "segmentation.csv" csv
     case e of
         ExitFailure _ -> fail $ "Segmenter failed: " ++ BSC.unpack err
         ExitSuccess   -> liftM (map (!!1)) (forceEither (decodeCSV csv))
@@ -77,6 +78,7 @@ extractFeatures file segmentation transform = do
                         , "-t", "resources/analysis" </> transformFile transform
                         ]
                         ++ [ file ]
+    -- BS.writeFile (takeFileName (transformName transform) ++ ".csv") csv
     case e of
         ExitFailure _ -> fail $ "Extractor failed: " ++ BSC.unpack err
         ExitSuccess -> mapM (execTransform transform) =<< forceEither (decodeCSV csv)
@@ -94,9 +96,9 @@ analyser = SonicAnnotator
 instance Analyser SonicAnnotator where
     analyse _ file = do
         seg <- getSegmentation file
-        newAnalysis file
-            =<< liftM transposeFeatures
-                    (mapM (extractFeatures file seg) transforms)
+        fs <- mapM (extractFeatures file seg) transforms
+        mapM_ (print . length) fs
+        newAnalysis file (transposeFeatures fs)
     fileExtensions = const [
         "aif", "aiff", "au", "avi", "avr", "caf", "htk", "iff", "m4a", "m4b", "m4p", "m4v", "mat", "mov", "mp3", 
         "mp4", "ogg", "paf", "pvf", "raw", "sd2", "sds", "sf", "voc", "w64", "wav", "xi" ]

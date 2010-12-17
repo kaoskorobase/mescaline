@@ -1,4 +1,4 @@
-module Mescaline.Synth.Database.Process (
+module Mescaline.Database.Process (
     Input(..)
   , Output(..)
   , Handle
@@ -8,10 +8,8 @@ module Mescaline.Synth.Database.Process (
 import           Control.Concurrent.Process hiding (Handle)
 import qualified Control.Concurrent.Process as Process
 import           Control.Monad
-import           Data.Maybe
-import qualified Mescaline.Database.Feature as Feature
-import qualified Mescaline.Analysis.Meap as Meap
-import qualified Mescaline.Synth.Database.Model as Model
+import qualified Mescaline.Analysis as Analysis
+import qualified Mescaline.Database as DB
 
 data Input =
     Load !FilePath !String
@@ -37,11 +35,12 @@ new = spawn $ loop $ State "" "%"
                         return (State path pattern, True)
                     Import paths -> do
                         io $ do
-                            Model.importPaths (path state) paths
-                            Model.transformFeature (path state)
-                                (Model.PCA 2)
-                                "es.globero.mescaline.spectral"
-                                ["http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-mfcc"]
+                            Analysis.importPathsDefault Nothing (path state) paths
+                            DB.withDatabase (path state) $
+                                DB.transformFeature
+                                    (DB.PCA 2)
+                                    "es.globero.mescaline.spectral"
+                                    ["http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-mfcc"]
                         return (state, True)
             when changed $ notify $ Changed (path state') (pattern state')
             loop state'

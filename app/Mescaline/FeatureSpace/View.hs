@@ -26,8 +26,6 @@ import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Application.Config.Qt as Config
 import qualified Mescaline.Data.Unique as Unique
 import qualified Mescaline.Database.Entity as DB
-import qualified Mescaline.Database.Feature as Feature
-import qualified Mescaline.Database.SourceFile as SourceFile
 import qualified Mescaline.FeatureSpace.Model as Model
 import qualified Mescaline.FeatureSpace.Unit as Unit
 import qualified Mescaline.FeatureSpace.Process as Process

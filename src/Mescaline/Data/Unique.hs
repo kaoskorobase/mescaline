@@ -20,7 +20,6 @@ import qualified Data.Map as Map
 import           Data.UUID (UUID)
 import qualified Data.UUID as UUID
 import           Data.UUID.V5 (generateNamed)
-import           Database.HDBC (SqlType(..))
 import qualified System.Random as Random
 
 newtype Id = Id { unId :: UUID } deriving (Eq, Ord, Random.Random, Show)
@@ -31,12 +30,6 @@ class Unique a where
 
 instance Unique Id where
     uuid = id
-
-instance SqlType Id where
-    fromSql s = case UUID.fromString (fromSql s) of
-                    Nothing -> error ("Couldn't convert SqlType to UUID: " ++ show s)
-                    Just u  -> Id u
-    toSql = toSql . UUID.toString . unId
 
 unsafeFromString :: String -> Id
 unsafeFromString s = maybe e id (fromString s)
