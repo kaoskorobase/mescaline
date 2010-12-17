@@ -90,7 +90,6 @@ library
         Mescaline.Application.Desktop
         Mescaline.Application.Logger
         Mescaline.Data.ByteString
-        Mescaline.Data.ListReader
         Mescaline.Data.PriorityQueue
         Mescaline.Data.Unique
         Mescaline.Database

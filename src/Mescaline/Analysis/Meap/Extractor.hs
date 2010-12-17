@@ -7,8 +7,6 @@ module Mescaline.Analysis.Meap.Extractor (
 import Mescaline.Analysis.Meap.Process (OutputHandler, defaultOutputHandler, runMeap)
 import System.Exit (ExitCode)
 
-data UnitBoundary = Onset | Beat
-
 data Options = Options {
     outputHandler :: OutputHandler
   , windowSize    :: Int

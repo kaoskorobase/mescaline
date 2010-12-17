@@ -8,14 +8,14 @@ import           Control.Monad
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
+import           Data.Enumerator (($$))
+import qualified Data.Enumerator as E
 import qualified Data.List as List
 import           Mescaline.Analysis.Types
-import qualified Mescaline.Data.ListReader as L
 import           System.Exit
 import           System.FilePath
 import           System.Process
 import           Text.Delimited as D
-import           Sound.SC3.Lang.Collection.SequenceableCollection (clump)
 
 runSonicAnnotator args = do
     (_, hOut, hErr, h) <-
@@ -59,18 +59,34 @@ transforms = [
   , Transform "spectralcentroid.n3" "http://vamp-plugins.org/rdf/plugins/vamp-example-plugins#spectralcentroid" 1
   ]
 
-getUnitFeature :: String -> Int -> L.ListReader BS.ByteString (Unit, Feature)
+getUnitFeature :: Monad m => String -> Int -> E.Iteratee BS.ByteString m (Unit, Feature)
 getUnitFeature name n = do
-    L.tail
+    E.drop 1
     u <- getUnit
-    L.tail
+    E.drop 1
     f <- getFeature (Descriptor name n)
     return (u, f)
+
+getUnits :: Monad m => Transform -> E.Iteratee [BS.ByteString] m [(Unit, Feature)]
+getUnits transform = do
+    us <- go []
+    return $ reverse us
+    where
+        go us = do
+            m <- E.head
+            case m of
+                Nothing -> return us
+                Just row -> do
+                    (u, f) <- E.run_ $ E.enumList 1024 row $$
+                                getUnitFeature (transformName transform)
+                                               (transformDegree transform)
+                    if onset u <= 0
+                        then go us
+                        else go ((u,f):us)
 
 extractFeatures :: FilePath -> [BS.ByteString] -> Transform -> IO [(Unit, Feature)]
 extractFeatures file segmentation transform = do
     let segs = BSC.unpack (BS.intercalate (BSC.pack ",") segmentation)
-    -- putStrLn $ "Segmentation: " ++ show segs
     (e, csv, err) <- runSonicAnnotator $
                         [ "-w", "csv", "--csv-stdout"
                         , "-S", "mean", "--summary-only"
@@ -81,9 +97,9 @@ extractFeatures file segmentation transform = do
     -- BS.writeFile (takeFileName (transformName transform) ++ ".csv") csv
     case e of
         ExitFailure _ -> fail $ "Extractor failed: " ++ BSC.unpack err
-        ExitSuccess -> mapM (execTransform transform) =<< forceEither (decodeCSV csv)
-    where
-        execTransform t = forceEither . L.execListReader (getUnitFeature (transformName t) (transformDegree t))
+        ExitSuccess -> do
+            rows <- forceEither (decodeCSV csv)
+            E.run_ (E.enumList 1024 rows $$ getUnits transform)
 
 transposeFeatures :: [[(Unit, Feature)]] -> [(Unit, [Feature])]
 transposeFeatures = map (\xs -> (fst (head xs), map snd xs)) . List.transpose
@@ -97,7 +113,6 @@ instance Analyser SonicAnnotator where
     analyse _ file = do
         seg <- getSegmentation file
         fs <- mapM (extractFeatures file seg) transforms
-        mapM_ (print . length) fs
         newAnalysis file (transposeFeatures fs)
     fileExtensions = const [
         "aif", "aiff", "au", "avi", "avr", "caf", "htk", "iff", "m4a", "m4b", "m4p", "m4v", "mat", "mov", "mp3", 

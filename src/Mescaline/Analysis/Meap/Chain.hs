@@ -4,17 +4,11 @@ module Mescaline.Analysis.Meap.Chain (
   , run
 ) where
 
-import           Control.ThreadPool (threadPoolIO)
-import qualified Control.Concurrent.Chan as Chan
-import           Control.Exception (evaluate)
-
 import qualified Mescaline.Analysis.Meap.Extractor as Extractor
 import           Mescaline.Analysis.Meap.Process (withTempFile)
 import qualified Mescaline.Analysis.Meap.Segmenter as Segmenter
-
 import           Sound.Analysis.Meapsoft (MEAP)
 import qualified Sound.Analysis.Meapsoft as Meap
-
 import           System.Exit (ExitCode(..))
 import           System.IO (hClose)
 
@@ -50,12 +44,6 @@ runSegmenter = Segmenter.run -- TODO: heuristics
 
 runExtractor :: Extractor.Options -> FilePath -> FilePath -> IO ExitCode
 runExtractor = Extractor.run
-
-segmenterExtension :: String
-segmenterExtension = ".seg_beats"
-
-extractorExtension :: String
-extractorExtension = ".feat_beats"
 
 -- | Run the segmenter\/extractor chain with the given options on a sound file.
 --

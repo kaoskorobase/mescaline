@@ -10,7 +10,7 @@ import qualified Control.Concurrent.Chan as Chan
 import           Control.Exception
 import           Control.Monad
 import           Control.Monad.Error
-import qualified Data.Traversable as T
+import qualified Data.Foldable as Fold
 import           Database.Persist.Sqlite
 import qualified GHC.Conc as GHC
 import qualified Mescaline.Application.Logger as Log
@@ -58,7 +58,7 @@ insertAnalysis analysis = do
     when (m == Nothing) $ do
         sf <- insertSourceFile (soundFile analysis)
         liftIO $ Log.noticeM "Database" ("insertFile: " ++ show sf ++ " " ++ show (soundFile analysis))
-        ds <- T.mapM insertDescriptor (descriptorMap analysis)
+        Fold.mapM_ insertDescriptor (descriptorMap analysis)
         mapM_ (uncurry (insertUnit sf)) (units analysis)
 
 -- | Run the segmenter and extractor chain on a list of files.
@@ -84,8 +84,7 @@ importPaths a np dbFile ps = DB.withDatabase dbFile $ do
     -- files' <- filterM (\p -> do { sf <- SourceFile.newLocal p ; fmap not $ Table.isStored c sf }) files
     liftIO (mapFiles (maybe GHC.numCapabilities id np) a =<< findFiles (fileExtensions a) ps)
     >>= mapM_ (\(p, e) ->
-            either -- (\s -> Log.errorM "Database" (p ++ ": " ++ s))
-                   fail
+            either (\s -> liftIO $ Log.errorM "Database" (p ++ ": " ++ s))
                    insertAnalysis
                    e)
 
