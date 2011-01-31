@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, GeneralizedNewtypeDeriving, QuasiQuotes #-}
+{-# LANGUAGE TypeFamilies, GeneralizedNewtypeDeriving, QuasiQuotes, TemplateHaskell #-}
 module Mescaline.Database.Entity where
 
 import           Data.Int (Int64)
@@ -6,11 +6,11 @@ import           Data.Map (Map)
 import qualified Database.Persist as DB
 import qualified Database.Persist.GenericSql as DB
 import           Database.Persist.Quasi
-import           Database.Persist.TH
+import qualified Database.Persist.TH as DB
 import qualified Mescaline.Database.Hash as Hash
 import           Mescaline.Database.Vector (Vector)
 
-mkPersist [$persist|
+DB.share2 DB.mkPersist (DB.mkMigrate "migrateAll") [persist|
 SourceFile
     url         FilePath Eq
     hash        Hash.Hash Eq
@@ -34,10 +34,3 @@ Feature
 |]
 
 type SourceFileMap = Map (DB.Key SourceFile) SourceFile
-
-migrate :: DB.SqlPersist IO ()
-migrate = DB.runMigration $ do
-    DB.migrate (undefined :: SourceFile)
-    DB.migrate (undefined :: Unit)
-    DB.migrate (undefined :: Descriptor)
-    DB.migrate (undefined :: Feature)

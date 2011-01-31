@@ -38,7 +38,7 @@ import           Text.Regex
 import           Prelude hiding (and)
 
 withDatabase :: String -> SqlPersist IO a -> IO a
-withDatabase path action = withSqliteConn path (runSqlConn (Entity.migrate >> action))
+withDatabase path action = withSqliteConn path (runSqlConn (runMigration Entity.migrateAll >> action))
 
 entityMapI :: (Monad m, Ord (Key v), PersistEntity v) => E.Iteratee (Key v, v) m (Map.Map (Key v) v)
 entityMapI = go Map.empty
