@@ -24,6 +24,7 @@ library
         base >= 4 && < 5
       , array >= 0.2
       -- , arrows
+      , attoparsec-text
       , binary
       , bitset >= 1.0
       , bytestring
@@ -60,12 +61,14 @@ library
       , process >= 1.0
       , random >= 1.0
       , regex-compat >= 0.92
-      -- , statistics >= 0.8 && < 0.9
       , SHA2 >= 0.2
+      , statistics >= 0.8
       , strict-concurrency >= 0.2
       -- , template-haskell
+      , text
       , uuid >= 1.0
       , vector >= 0.5
+      , xml-enumerator
     exposed-modules:
         -- Control.CCA.ArrowP
         Control.Concurrent.Chan.Chunked
@@ -130,6 +133,10 @@ library
         -- Mescaline.Synth.SSF.DiskSampler
         Mescaline.Time
         Mescaline.Util
+        Sound.Analysis.Segmentation
+        Sound.Analysis.Segmentation.Statistics
+        Sound.Analysis.SonicAnnotator
+        Sound.Analysis.Vector
         Sound.File.Sndfile.Util
         Sound.OpenSoundControl.Monoid
         Sound.SC3.Server.Allocator

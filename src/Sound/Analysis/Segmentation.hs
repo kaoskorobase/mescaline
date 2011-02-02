@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 module Sound.Analysis.Segmentation (
     Segment(..)
   , Interval(..)
@@ -32,9 +33,8 @@ toInterval s = IM.Interval (onset s) (onset s + duration s)
 instance Functor (Segment t) where
     fmap f (Segment x1 x2 a) = Segment x1 x2 (f a)
 
-data Segmentation t a = Segmentation {
-  segments :: IM.IntervalMap t (Segment t a)
-  }
+newtype Segmentation t a = Segmentation { segments :: IM.IntervalMap t (Segment t a) }
+	deriving (Functor)
 
 instance (Eq t, Eq a) => Eq (Segmentation t a) where
     (==) a b = toList a == toList b

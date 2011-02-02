@@ -87,7 +87,7 @@ transformFeatureP func srcFeatures dstFeature = do
     -- liftIO $ print d
     deleteFeature d
     fs <- getFeatures srcFeatures
-    -- liftIO $ print fs
+    -- liftIO $ print (map (map (V.length.Vector.toVector.featureValue)) fs)
     let xs = map (foldl (V.++) V.empty . map (Vector.toVector . featureValue)) fs
         xs' = func xs
     -- liftIO $ print xs'

@@ -19,5 +19,8 @@ transpose xs = ST.runST $ do
         m = V.length (head xs)
         loop [] _ _ = return ()
         loop (v:vs) !i mvs = do
-            zipWithM_ (\j mv -> do { MV.unsafeWrite mv i (v V.! j) }) [0..] mvs
-            loop vs (i+1) mvs
+            if V.length v /= m
+                then fail $ "Sound.Analysis.Vector.transpose: dimension mismatch: expected " ++ show m ++ ", got " ++ show (V.length v)
+                else do
+                    zipWithM_ (\j mv -> do { MV.unsafeWrite mv i (v V.! j) }) [0..] mvs
+                    loop vs (i+1) mvs

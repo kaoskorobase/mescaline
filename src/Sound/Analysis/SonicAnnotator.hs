@@ -1,8 +1,9 @@
 {-# LANGUAGE DeriveDataTypeable, OverloadedStrings #-}
 module Sound.Analysis.SonicAnnotator (
-    -- SonicAnnotator
-  -- , analyser
-    -- parseFile
+	Exception(..)
+  , Feature(..)
+  , Analysis
+  , analyse
 ) where
 
 import           Control.Concurrent
@@ -56,7 +57,7 @@ parseTimeStamp = do
 parseValue :: P.Parser Double
 parseValue = do
     P.char ':'
-    x <- P.takeWhile1 (\x -> isDigit x || x == '.' || x == '-')
+    x <- P.takeWhile1 (\x -> isDigit x || x == '.' || x == '-' || x == 'e')
     return (read (T.unpack x))
 
 parseVector :: P.Parser [Double]
@@ -95,7 +96,9 @@ parseHandle bs h re p =
           $ parseBytes        $$ E.joinI
           $ simplify re       $$ p
 
-analyse :: FilePath -> FilePath -> IO (Map.Map String (S.Segmentation Double (Maybe (V.Vector Double))))
+type Analysis = Map.Map String (S.Segmentation Double (Maybe [Double]))
+
+analyse :: FilePath -> FilePath -> IO Analysis
 analyse transforms file = do
     (_, hOut, hErr, h) <-
         runInteractiveProcess
@@ -117,6 +120,6 @@ analyse transforms file = do
                     info <- SF.getInfo file
                     return $ flip fmap x $
                         S.fromEvents (SF.duration info)
-                      . map (\f -> (timeStamp f, fmap V.fromList (values f)))
+                      . map (\f -> (timeStamp f, values f))
                       . L.sortBy (comparing timeStamp)
         ExitFailure _ -> readMVar err >>= E.throwIO . AnalysisError
