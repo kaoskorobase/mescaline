@@ -45,7 +45,7 @@ toString (Hash b) = showBSasHex b
 
 -- | Construct a Hash from data.
 fromData :: B.ByteString -> Hash
-fromData = Hash . hash SHA512
+fromData = Hash . hash SHA384 -- FIXME: SHA512 produces different hashes for the same content.
 
 -- | Construct a Hash from a file.
 fromFile :: FilePath -> IO Hash
