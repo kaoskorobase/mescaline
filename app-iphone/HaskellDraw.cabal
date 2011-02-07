@@ -1,0 +1,21 @@
+Name: HaskellDraw
+Version: 0.1
+Synopsis: iPhone draw program
+Description: A draw program for iPhone
+Build-type: Simple
+Cabal-Version: >= 1.6
+
+Executable HaskellDraw
+    Main-Is: Main.hs
+    Frameworks:
+        Foundation
+        UIKit
+        CoreGraphics
+    Build-Depends:
+        base >= 4,
+        network,
+        template-haskell
+--    c-sources:
+--        MainWindow.m
+--        HaskellDrawAppDelegate.m
+--        HaskellDrawViewController.m
