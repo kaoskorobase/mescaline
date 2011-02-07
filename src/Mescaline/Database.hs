@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE CPP, FlexibleContexts #-}
 module Mescaline.Database (
     module Mescaline.Database.Entity
   , module Mescaline.Database.Vector
@@ -8,8 +8,10 @@ module Mescaline.Database (
   , getDescriptorId
   , deleteFeature
   , query
+#if USE_ANALYSIS
   , Transform(..)
   , transformFeature
+#endif
 ) where
 
 import           Control.Arrow (first)
@@ -28,11 +30,13 @@ import           Mescaline.Database.Entity as Entity
 import           Mescaline.Database.Vector
 import           Mescaline.Database.Vector as Vector
 import           Database.Persist.Sqlite as DB
-import qualified Mescaline.Analysis.Types as Analysis
 -- import qualified Mescaline.Analysis.Meap as Meap
 -- import qualified Mescaline.Analysis.SonicAnnotator as SonicAnnotator
+#if USE_ANALYSIS
+import qualified Mescaline.Analysis.Types as Analysis
 import qualified Mescaline.Statistics.PCA as PCA
 import           Numeric.LinearAlgebra as H
+#endif
 import           System.IO
 import           Text.Regex
 import           Prelude hiding (and)
@@ -73,42 +77,6 @@ getFeatures :: PersistBackend m => [DescriptorId] -> m [[Feature]]
 getFeatures ds = do
     fs <- liftM L.transpose $ mapM (\d -> DB.selectList [FeatureDescriptorEq d] [FeatureUnitAsc] 0 0) ds
     return (map (map snd) fs)
-
-transformFeatureP ::
-    (PersistBackend m, MonadIO m) =>
-    ([SV.Vector Double] -> [SV.Vector Double])
- -> [DescriptorId]
- -> Analysis.Descriptor
- -> m ()
-transformFeatureP func srcFeatures dstFeature = do
-    -- fs <- liftM L.transpose $ mapM (\d -> E.run_ $ DB.select [DB.FeatureDescriptorEq d] [DB.FeatureUnitAsc] 0 0 $$ E.consume) srcFeatures
-    -- liftIO $ print fs
-    d <- getDescriptor (Analysis.name dstFeature) (Analysis.degree dstFeature)
-    -- liftIO $ print d
-    deleteFeature d
-    fs <- getFeatures srcFeatures
-    -- liftIO $ print (map (map (V.length.Vector.toVector.featureValue)) fs)
-    let xs = map (foldl (V.++) V.empty . map (Vector.toVector . featureValue)) fs
-        xs' = func xs
-    -- liftIO $ print xs'
-    -- liftIO $ print d
-    zipWithM_ (\u x -> insert (Feature u d (Vector.fromVector x))) (map (featureUnit . head) fs) xs'
-    return ()
-
--- | Map a list of vectors to a target range.
-linearMap :: H.Vector Double -> H.Vector Double -> [H.Vector Double] -> [H.Vector Double]
-linearMap dstMin dstMax xs = map (\v -> dstMin `add` ((v `sub` srcMin) `mul` rescale)) xs
-    where
-        (srcMin, srcMax) = first H.fromList $ unzip $ map (\c -> (minElement c, maxElement c)) (toColumns $ fromRows xs)
-        srcScale         = recip (H.fromList srcMax `sub` srcMin)
-        dstScale         = dstMax `sub` dstMin
-        rescale          = dstScale `mul` srcScale
-
-featurePCA :: Int -> [H.Vector Double] -> [H.Vector Double]
-featurePCA m rows = encoded
-    where
-        (encode, _)  = PCA.pca m (H.fromRows rows)
-        encoded      = linearMap (V.replicate m 0) (V.replicate m 1) (map encode rows)
 
 featuresI :: Monad m => E.Iteratee (FeatureId, Feature) m (Map.Map DescriptorId Feature)
 featuresI = go Map.empty
@@ -181,6 +149,7 @@ query pattern features = do
 -- query :: FilePath -> String -> [String] -> IO (SourceFileMap, [(UnitId, Unit, [Feature])])
 -- query dbFile pattern features = withDatabase dbFile (queryP pattern features)
 
+#if USE_ANALYSIS
 data Transform = PCA Int deriving (Eq, Show)
 
 transformFeature :: (MonadIO m, PersistBackend m) => Transform -> String -> [String] -> m ()
@@ -188,3 +157,40 @@ transformFeature transform dstFeature srcFeatures = do
     ds <- mapM getDescriptorId srcFeatures
     case transform of
         PCA m -> transformFeatureP (featurePCA m) ds (Analysis.Descriptor dstFeature m)
+
+transformFeatureP ::
+    (PersistBackend m, MonadIO m) =>
+    ([SV.Vector Double] -> [SV.Vector Double])
+ -> [DescriptorId]
+ -> Analysis.Descriptor
+ -> m ()
+transformFeatureP func srcFeatures dstFeature = do
+    -- fs <- liftM L.transpose $ mapM (\d -> E.run_ $ DB.select [DB.FeatureDescriptorEq d] [DB.FeatureUnitAsc] 0 0 $$ E.consume) srcFeatures
+    -- liftIO $ print fs
+    d <- getDescriptor (Analysis.name dstFeature) (Analysis.degree dstFeature)
+    -- liftIO $ print d
+    deleteFeature d
+    fs <- getFeatures srcFeatures
+    -- liftIO $ print (map (map (V.length.Vector.toVector.featureValue)) fs)
+    let xs = map (foldl (V.++) V.empty . map (Vector.toVector . featureValue)) fs
+        xs' = func xs
+    -- liftIO $ print xs'
+    -- liftIO $ print d
+    zipWithM_ (\u x -> insert (Feature u d (Vector.fromVector x))) (map (featureUnit . head) fs) xs'
+    return ()
+
+-- | Map a list of vectors to a target range.
+linearMap :: H.Vector Double -> H.Vector Double -> [H.Vector Double] -> [H.Vector Double]
+linearMap dstMin dstMax xs = map (\v -> dstMin `add` ((v `sub` srcMin) `mul` rescale)) xs
+    where
+        (srcMin, srcMax) = first H.fromList $ unzip $ map (\c -> (minElement c, maxElement c)) (toColumns $ fromRows xs)
+        srcScale         = recip (H.fromList srcMax `sub` srcMin)
+        dstScale         = dstMax `sub` dstMin
+        rescale          = dstScale `mul` srcScale
+
+featurePCA :: Int -> [H.Vector Double] -> [H.Vector Double]
+featurePCA m rows = encoded
+    where
+        (encode, _)  = PCA.pca m (H.fromRows rows)
+        encoded      = linearMap (V.replicate m 0) (V.replicate m 1) (map encode rows)
+#endif -- USE_ANALYSIS

@@ -11,10 +11,22 @@ maintainer:         mescaline@globero.es
 homepage:           http://mescaline.globero.es
 bug-reports:        http://sourceforge.net/tracker/?group_id=266308&atid=1133628
 cabal-version:      >= 1.2
-build-type:         Custom
+build-type:         Simple
 
 extra-source-files:
     README
+
+Flag analysis
+    Description: Include analysis code
+    Default: True
+
+Flag ios
+    Description: Build an iOS application
+    Default: False
+
+flag build-app-bundle
+    description: Build an MacOS X application bundle
+    default: False
 
 library
     hs-source-dirs: src
@@ -24,7 +36,6 @@ library
         base >= 4 && < 5
       , array >= 0.2
       -- , arrows
-      , attoparsec-text
       , binary
       , bitset >= 1.0
       , bytestring
@@ -44,7 +55,6 @@ library
       , filepath
       , FindBin >= 0.0
       , fingertree
-      , hmatrix >= 0.11
       , hmeap >= 0.8
       , hosc >= 0.8
       , hslogger >= 1.1
@@ -61,14 +71,13 @@ library
       , process >= 1.0
       , random >= 1.0
       , regex-compat >= 0.92
-      , SHA2 >= 0.2
+      , SHA2 >= 0.2.3
       , statistics >= 0.8
       , strict-concurrency >= 0.2
       -- , template-haskell
       , text
-      , uuid >= 1.0
+      -- , uuid >= 1.0
       , vector >= 0.5
-      , xml-enumerator
     exposed-modules:
         -- Control.CCA.ArrowP
         Control.Concurrent.Chan.Chunked
@@ -79,22 +88,13 @@ library
         -- Data.Signal.SF.Base
         -- Data.Signal.SF.Event
         Mescaline
-        Mescaline.Analysis
-        Mescaline.Analysis.Meap
-        Mescaline.Analysis.Meap.Chain
-        Mescaline.Analysis.Meap.Extractor
-        Mescaline.Analysis.Meap.Feature
-        Mescaline.Analysis.Meap.Process
-        Mescaline.Analysis.Meap.Segmenter
-        Mescaline.Analysis.SonicAnnotator
-        Mescaline.Analysis.Types
         Mescaline.Application
         Mescaline.Application.Config
         Mescaline.Application.Desktop
         Mescaline.Application.Logger
         Mescaline.Data.ByteString
         Mescaline.Data.PriorityQueue
-        Mescaline.Data.Unique
+        -- Mescaline.Data.Unique
         Mescaline.Database
         Mescaline.Database.Entity
         Mescaline.Database.Hash
@@ -121,7 +121,6 @@ library
         Mescaline.Pattern.Player
         Mescaline.Pattern.Process
         Mescaline.Pattern.Sequencer
-        Mescaline.Statistics.PCA
         Mescaline.Synth.BufferCache
         Mescaline.Synth.BufferCache.Alloc
         Mescaline.Synth.BufferCache.Server
@@ -133,10 +132,6 @@ library
         -- Mescaline.Synth.SSF.DiskSampler
         Mescaline.Time
         Mescaline.Util
-        Sound.Analysis.Segmentation
-        Sound.Analysis.Segmentation.Statistics
-        Sound.Analysis.SonicAnnotator
-        Sound.Analysis.Vector
         Sound.File.Sndfile.Util
         Sound.OpenSoundControl.Monoid
         Sound.SC3.Server.Allocator
@@ -149,11 +144,82 @@ library
         Sound.SC3.Server.Process.Monad
         Sound.SC3.Server.State
         Sound.SC3.Server.State.IO
+    if flag(analysis) && !flag(ios)
+        build-depends:
+            hmatrix >= 0.11
+          , attoparsec-text
+          , xml-enumerator
+        exposed-modules:
+            Mescaline.Analysis
+            Mescaline.Analysis.Meap
+            Mescaline.Analysis.Meap.Chain
+            Mescaline.Analysis.Meap.Extractor
+            Mescaline.Analysis.Meap.Feature
+            Mescaline.Analysis.Meap.Process
+            Mescaline.Analysis.Meap.Segmenter
+            Mescaline.Analysis.SonicAnnotator
+            Mescaline.Analysis.Types
+            Mescaline.Statistics.PCA
+            Sound.Analysis.Segmentation
+            Sound.Analysis.Segmentation.Statistics
+            Sound.Analysis.SonicAnnotator
+            Sound.Analysis.Vector
+        CPP-Options: -DUSE_ANALYSIS=1
+
     other-modules:
         Paths_mescaline
 
+executable mescaline
+    main-is:            main.hs
+    hs-source-dirs:     app, src
+    include-dirs:       include
+    ghc-options:        -W -threaded
+    ghc-prof-options:   -W -threaded -auto-all
+    if !flag(analysis) || flag(ios)
+        Buildable: False
+    else
+        build-depends:
+            base >= 4 && < 6
+          , containers
+          , directory
+          , hosc
+          , hsc3-process >= 0.4
+          , mtl >= 2
+          , filepath
+          , FindBin
+          , qt >= 1.1 && < 1.2
+          , random
+          , regex-compat
+          , vector
+        if os(darwin)
+            if flag(build-app-bundle)
+                build-depends:
+                    cabal-macosx >= 0.1 && < 0.2
+            ld-options:
+                -headerpad_max_install_names
+        if flag(build-app-bundle)
+            x-build-app-bundle: True
+    Other-Modules:
+        Mescaline.FeatureSpace.View
+        Mescaline.Pattern.View
+        Mescaline.Application.Config.Qt
+
 executable mescalinedb
     main-is:            mescalinedb.hs
-    build-depends:      hmatrix >= 0.11
+    if !flag(analysis) || flag(ios)
+        Buildable: False
+    else
+        build-depends:      hmatrix >= 0.11
     ghc-options:        -W -threaded -funbox-strict-fields
     hs-source-dirs:     src, tools
+    CPP-Options:        -DUSE_ANALYSIS=1
+
+executable mescaline-ios
+    Main-Is:            Main.hs
+    Executable:         False
+    if !flag(ios)
+        Buildable: False
+    ghc-options:        -W -threaded -funbox-strict-fields
+    Hs-Source-Dirs:     src, app-iphone
+    Ghc-Options:        -W
+    Include-Dirs:       include

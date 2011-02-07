@@ -104,7 +104,7 @@ new = do
     conf <- Config.getConfig
 
     -- Get the engine function depending on config file variable
-    engine <- getEngine (either (const False) id (Config.get conf "Synth" "useInternalServer"))
+    engine <- getEngine (either (const True) id (Config.get conf "Synth" "useInternalServer"))
 
     let printLevel = either (const NoPrinter) id (getPrintLevel conf "Synth" "dumpOSC")
         initBundle = OSC.Bundle OSC.immediately [dumpOSC printLevel]

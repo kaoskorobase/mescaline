@@ -9,14 +9,14 @@ import           Data.Int (Int64)
 import           Data.Map (Map)
 import qualified Database.Persist as DB
 import qualified Database.Persist.GenericSql as DB
-import           Database.Persist.Quasi
-import qualified Database.Persist.TH as DB
+-- import           Database.Persist.Quasi
+-- import qualified Database.Persist.TH as DB
 import qualified Mescaline.Database.Hash as Hash
 import           Mescaline.Database.Vector (Vector)
 
 import Data.Either
 import Database.Persist.Base
-import Database.Persist.TH
+-- import Database.Persist.TH
 -- import Control.Monad.Invert
 import Data.Int
 import Database.Persist.GenericSql

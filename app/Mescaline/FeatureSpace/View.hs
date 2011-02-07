@@ -24,7 +24,7 @@ import qualified Data.IntMap as IMap
 import qualified Data.Vector.Generic as V
 import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Application.Config.Qt as Config
-import qualified Mescaline.Data.Unique as Unique
+-- import qualified Mescaline.Data.Unique as Unique
 import qualified Mescaline.Database.Entity as DB
 import qualified Mescaline.FeatureSpace.Model as Model
 import qualified Mescaline.FeatureSpace.Unit as Unit
@@ -338,8 +338,8 @@ getRegionColors config = mapM (\i -> Config.getColor config "FeatureSpace" ("reg
 hashInt64 :: Int64 -> Int32
 hashInt64 = fromIntegral
 
-hashUnique :: Unique.Id -> Int32
-hashUnique = Hash.hashString . Unique.toString
+-- hashUnique :: Unique.Id -> Int32
+-- hashUnique = Hash.hashString . Unique.toString
 
 newState :: Process.Handle -> Synth.Handle -> IO State
 newState fspace synth = do

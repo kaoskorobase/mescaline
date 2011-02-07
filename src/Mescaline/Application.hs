@@ -10,6 +10,7 @@ module Mescaline.Application (
   , version
   , getArgs
   , getProgramDirectory
+  , getDataDirectory
   , getResourceDirectory
   , getResourcePath
   , getResourceExecutable

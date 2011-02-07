@@ -10,6 +10,7 @@ module Mescaline.Pattern.Patch (
   , setRegions
   , new
   , defaultPatch
+  , defaultPatchEmbedded
   , pattern
   , modifySequencer
 ) where
@@ -24,6 +25,7 @@ import           Mescaline.Pattern.Compiler (CompileError)
 import qualified Mescaline.Pattern.Compiler as Comp
 import           Mescaline.Pattern.Event
 import qualified Mescaline.Pattern.Interpreter as Interp
+import           Mescaline.Pattern.Patch.Default (defaultTree)
 import           Mescaline.Pattern.Sequencer (Sequencer)
 import qualified Mescaline.Pattern.Sequencer as Sequencer
 
@@ -53,6 +55,13 @@ defaultPatch = do
     where
         rs = defaultRegions
         n  = length rs
+
+defaultPatchEmbedded :: Patch
+defaultPatchEmbedded = cons src tree (Sequencer.empty n n) rs
+    where
+        (src, tree) = defaultTree
+        rs = defaultRegions
+        n = length rs
 
 pattern :: Patch -> Either CompileError (Pattern Event, Comp.Bindings)
 pattern = Comp.compile . syntaxTree
