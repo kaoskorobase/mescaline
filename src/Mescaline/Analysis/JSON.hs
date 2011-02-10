@@ -36,5 +36,7 @@ instance ToJSON Feature where
 instance ToJSON Analysis where
     toJSON x = object [
         "soundFile" .= soundFile x
-      , "units"     .= units x
+      , "units"     .= map mkPair (units x)
       ]
+      where
+          mkPair (u, fs) = object [ "unit" .= u, "features" .= fs ]
