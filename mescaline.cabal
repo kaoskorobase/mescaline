@@ -8,8 +8,8 @@ license-file:       COPYING
 author:             globero.es
 copyright:          (c) 2009-2010 globero.es
 maintainer:         mescaline@globero.es
-homepage:           http://mescaline.globero.es
-bug-reports:        http://sourceforge.net/tracker/?group_id=266308&atid=1133628
+homepage:           http://mescaline.puesnada.es
+bug-reports:        https://github.com/kaoskorobase/mescaline/issues
 cabal-version:      >= 1.2
 build-type:         Simple
 
