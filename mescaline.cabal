@@ -1,32 +1,21 @@
-name:               mescaline
-version:            0.0.1
-synopsis:           Mescaline is a data-driven sequencer and synthesizer.
-description:        Mescaline is a data-driven sequencer and synthesizer.
-category:           Sound
-license:            GPL-3
-license-file:       COPYING
-author:             globero.es
-copyright:          (c) 2009-2010 globero.es
-maintainer:         mescaline@globero.es
-homepage:           http://mescaline.puesnada.es
-bug-reports:        https://github.com/kaoskorobase/mescaline/issues
-cabal-version:      >= 1.2
-build-type:         Simple
-
-extra-source-files:
-    README
+Name:               mescaline
+Version:            0.0.1
+Synopsis:           Mescaline is a data-driven sequencer and synthesizer.
+Description:        Mescaline is a data-driven sequencer and synthesizer.
+Category:           Sound
+License:            GPL-3
+License-File:		COPYING
+Author:             puesnada.es
+Copyright:          (c) 2009-2011 puesnada.es
+Maintainer:         mescaline@puesnada.es
+Homepage:           http://mescaline.puesnada.es
+Bug-Reports:        https://github.com/kaoskorobase/mescaline/issues
+Cabal-Version:      >= 1.2
+Build-Type:         Simple
 
 Flag analysis
     Description: Include analysis code
     Default: True
-
-Flag ios
-    Description: Build an iOS application
-    Default: False
-
-flag build-app-bundle
-    description: Build an MacOS X application bundle
-    default: False
 
 library
     hs-source-dirs: src
@@ -47,16 +36,16 @@ library
       , ConfigFile >= 1.0
       , Control-Engine >= 1.0
       , data-accessor >= 0.2
-      , data-accessor-mtl >= 0.2
+      , data-accessor-mtl
       , data-ivar >= 0.30
       , deepseq >= 1.1
-      , delimited-text >= 0.2.1
+      -- , delimited-text >= 0.2.1
       , directory
       , enumerator >= 0.4
       , filepath
       , FindBin >= 0.0
       , fingertree
-      , hmeap >= 0.8
+      -- , hmeap >= 0.8
       , hosc >= 0.8
       , hslogger >= 1.1
       , hsc3 >= 0.8
@@ -117,6 +106,7 @@ library
         Mescaline.Pattern.Interpreter
         Mescaline.Pattern.Library
         Mescaline.Pattern.Patch
+        Mescaline.Pattern.Patch.Default
         Mescaline.Pattern.Patch.Version_0_0_1
         Mescaline.Pattern.Ppar
         Mescaline.Pattern.Player
@@ -145,19 +135,20 @@ library
         Sound.SC3.Server.Process.Monad
         Sound.SC3.Server.State
         Sound.SC3.Server.State.IO
-    if flag(analysis) && !flag(ios)
+    if flag(analysis)
         build-depends:
             hmatrix >= 0.11
           , attoparsec-text
           , xml-enumerator
         exposed-modules:
             Mescaline.Analysis
-            Mescaline.Analysis.Meap
-            Mescaline.Analysis.Meap.Chain
-            Mescaline.Analysis.Meap.Extractor
-            Mescaline.Analysis.Meap.Feature
-            Mescaline.Analysis.Meap.Process
-            Mescaline.Analysis.Meap.Segmenter
+            Mescaline.Analysis.JSON
+            -- Mescaline.Analysis.Meap
+            -- Mescaline.Analysis.Meap.Chain
+            -- Mescaline.Analysis.Meap.Extractor
+            -- Mescaline.Analysis.Meap.Feature
+            -- Mescaline.Analysis.Meap.Process
+            -- Mescaline.Analysis.Meap.Segmenter
             Mescaline.Analysis.SonicAnnotator
             Mescaline.Analysis.Types
             Mescaline.Statistics.PCA
@@ -169,68 +160,3 @@ library
 
     other-modules:
         Paths_mescaline
-
-executable mescaline
-    main-is:            main.hs
-    hs-source-dirs:     app, src
-    include-dirs:       include
-    ghc-options:        -W -threaded
-    ghc-prof-options:   -W -threaded -auto-all
-    if !flag(analysis) || flag(ios)
-        Buildable: False
-    else
-        build-depends:
-            base >= 4 && < 6
-          , containers
-          , directory
-          , hosc
-          , hsc3-process >= 0.4
-          , mtl >= 2
-          , filepath
-          , FindBin
-          , qt >= 1.1 && < 1.2
-          , random
-          , regex-compat
-          , vector
-        if os(darwin)
-            if flag(build-app-bundle)
-                build-depends:
-                    cabal-macosx >= 0.1 && < 0.2
-            ld-options:
-                -headerpad_max_install_names
-        if flag(build-app-bundle)
-            x-build-app-bundle: True
-    Other-Modules:
-        Mescaline.FeatureSpace.View
-        Mescaline.Pattern.View
-        Mescaline.Application.Config.Qt
-
-executable mescalinedb
-    main-is:            mescalinedb.hs
-    if !flag(analysis) || flag(ios)
-        Buildable: False
-    else
-        build-depends:      hmatrix >= 0.11
-    ghc-options:        -W -threaded -funbox-strict-fields
-    hs-source-dirs:     src, tools
-    CPP-Options:        -DUSE_ANALYSIS=1
-
-Executable mescaline-analyser
-    main-is: analyser.hs
-    if !flag(analysis) || flag(ios)
-        Buildable: False
-    else
-        Build-Depends: attoparsec >= 0.8
-    hs-source-dirs:     src, tools
-    ghc-options:        -W -threaded -funbox-strict-fields
-    CPP-Options:        -DUSE_ANALYSIS=1
-
-executable mescaline-ios
-    Main-Is:            Main.hs
-    Executable:         False
-    if !flag(ios)
-        Buildable: False
-    ghc-options:        -W -threaded -funbox-strict-fields
-    Hs-Source-Dirs:     src, app-iphone
-    Ghc-Options:        -W
-    Include-Dirs:       include

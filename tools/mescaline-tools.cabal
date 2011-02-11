@@ -1,0 +1,34 @@
+Name:               mescaline-tools
+Version:            0.0.1
+Synopsis:           Mescaline is a data-driven sequencer and synthesizer.
+Description:        Mescaline is a data-driven sequencer and synthesizer.
+Category:           Sound
+License:            GPL-3
+-- License-File:       COPYING
+Author:             puesnada.es
+Copyright:          (c) 2009-2011 puesnada.es
+Maintainer:         mescaline@puesnada.es
+Homepage:           http://mescaline.puesnada.es
+Bug-Reports:        https://github.com/kaoskorobase/mescaline/issues
+Cabal-Version:      >= 1.2
+Build-Type:         Simple
+
+Executable mescaline-db
+    Main-Is:            mescalinedb.hs
+    Build-Depends:
+        base >= 4 && < 5
+      , containers
+      , hmatrix >= 0.11
+      , mescaline
+    Ghc-Options:        -W -threaded -funbox-strict-fields
+
+Executable mescaline-analyser
+    main-is: analyser.hs
+    Build-Depends:
+        base >= 4 && < 5
+      , aeson
+      , attoparsec
+      , bytestring
+      , mescaline
+      , text
+    Ghc-Options:        -W -threaded -funbox-strict-fields

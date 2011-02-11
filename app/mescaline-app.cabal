@@ -1,17 +1,17 @@
-name:               mescaline-app
-version:            0.0.1
-synopsis:           Mescaline is a data-driven sequencer and synthesizer.
-description:        Mescaline is a data-driven sequencer and synthesizer.
-category:           Sound
-license:            GPL-3
-license-file:       COPYING
-author:             globero.es
-copyright:          (c) 2009-2010 globero.es
-maintainer:         mescaline@globero.es
-homepage:           http://mescaline.globero.es
-bug-reports:        http://sourceforge.net/tracker/?group_id=266308&atid=1133628
-cabal-version:      >= 1.2
-build-type:         Custom
+Name:               mescaline-app
+Version:            0.0.1
+Synopsis:           Mescaline is a data-driven sequencer and synthesizer.
+Description:        Mescaline is a data-driven sequencer and synthesizer.
+Category:           Sound
+License:            GPL-3
+-- License-File:       COPYING
+Author:             puesnada.es
+Copyright:          (c) 2009-2011 puesnada.es
+Maintainer:         mescaline@puesnada.es
+Homepage:           http://mescaline.puesnada.es
+Bug-Reports:        https://github.com/kaoskorobase/mescaline/issues
+Cabal-Version:      >= 1.2
+Build-Type:         Custom
 
 extra-source-files:
     ../README
@@ -46,8 +46,8 @@ data-files:
     meap/2.0/tritonus_mp3.jar
     meap/2.0/tritonus_share.jar
 
-    src/Mescaline/Synth/Pattern/AST.hs
-    src/Mescaline/Synth/Pattern/ASTLib.hs
+    src/Mescaline/Pattern/AST.hs
+    src/Mescaline/Pattern/Library.hs
 
     hugs/packages/base/Control/Applicative.hs
     hugs/packages/base/Control/Arrow.hs
@@ -180,7 +180,7 @@ executable mescaline
       , mtl >= 2
       , filepath
       , FindBin
-      , qt >= 1.1 && < 1.2
+      , qt >= 1.1
       , random
       , regex-compat
       , vector
