@@ -9,7 +9,7 @@ module Mescaline.Hugs (
 import           Data.List (intercalate)
 import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Logger as Log
-import           Mescaline.Analysis.Meap.Process (withTempFile)
+import           Mescaline.Util (withTempFile)
 import           Mescaline.Util (readMaybe)
 import           System.Exit (ExitCode(..))
 import           System.IO

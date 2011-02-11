@@ -2,16 +2,13 @@ module Mescaline.Analysis.Meap.Process (
     OutputHandler(..)
   , defaultOutputHandler
   , runMeap
-  , withTempFile
 ) where
 
 import           Control.Concurrent
 import           Control.Monad
 import           Data.List (intercalate)
-import qualified Distribution.Simple.Utils  as Cabal
 import qualified Mescaline.Application as App
-import           Mescaline.Util (findFiles)
-import           System.Directory (getTemporaryDirectory)
+import           Mescaline.Util (findFiles, withTempFile)
 import           System.Exit
 import           System.IO
 import           System.Process
@@ -51,11 +48,6 @@ runMeap handler mainClass args = do
     _ <- forkIO $ pipeOutput (onPutString handler) hOut
     _ <- forkIO $ pipeOutput (onPutError  handler) hErr
     waitForProcess hProc
-
-withTempFile :: String -> (FilePath -> Handle -> IO a) -> IO a
-withTempFile s f = do
-    tmpDir <- getTemporaryDirectory
-    Cabal.withTempFile tmpDir s f
 
 pipeOutput :: (String -> IO ()) -> Handle -> IO ()
 pipeOutput f h = hIsEOF h >>= flip unless (hGetLine h >>= f >> pipeOutput f h)

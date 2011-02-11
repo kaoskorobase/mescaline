@@ -1,6 +1,7 @@
 module Mescaline.Util (
     readMaybe
   , findFiles
+  , withTempFile
 ) where
 
 import           Control.Monad
@@ -8,8 +9,10 @@ import           Control.Monad.Trans (MonadIO, liftIO)
 import           Data.Enumerator (($$), (>>==))
 import qualified Data.Enumerator as E
 import           Data.Char
+import qualified Distribution.Simple.Utils  as Cabal
 import           System.Directory
 import           System.FilePath
+import			 System.IO (Handle)
 
 readMaybe :: (Read a) => String -> Maybe a
 readMaybe s = case reads s of
@@ -40,3 +43,8 @@ findFilesEnum exts paths = loop paths
 
 findFiles :: [String] -> [FilePath] -> IO [FilePath]
 findFiles exts paths = E.run_ (findFilesEnum exts paths $$ E.consume)
+
+withTempFile :: String -> (FilePath -> Handle -> IO a) -> IO a
+withTempFile s f = do
+    tmpDir <- getTemporaryDirectory
+    Cabal.withTempFile tmpDir s f
