@@ -1,5 +1,7 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Mescaline.Database.Vector (
     Vector
+  , GVector
   , fromVector
   , toVector
   , fromList
@@ -19,7 +21,8 @@ import qualified Mescaline.Data.ByteString as B
 import qualified Sound.OpenSoundControl.Byte as OSC
 import           Text.Read
 
-newtype Vector = Vector { toVector :: SV.Vector Double } deriving (Eq)
+type GVector = SV.Vector Double
+newtype Vector = Vector { toVector :: GVector } deriving (Eq)
 
 instance Show Vector where
     show x = "fromList " ++ show (V.toList (toVector x))
@@ -48,8 +51,8 @@ instance PersistField Vector where
             p -> Left ("Couldn't create Vector from PersistValue " ++ show p)
     sqlType _ = SqlBlob
 
-fromVector :: SV.Vector Double -> Vector
-fromVector = Vector
+fromVector :: V.Vector v Double => v Double -> Vector
+fromVector = Vector . V.unstream . V.stream
 
 fromList :: [Double] -> Vector
 fromList = Vector . V.fromList

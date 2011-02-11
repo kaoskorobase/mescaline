@@ -7,12 +7,14 @@ module Mescaline.Database.Entity where
 
 import           Data.Int (Int64)
 import           Data.Map (Map)
+import qualified Data.Vector.Storable as SV
 import qualified Database.Persist as DB
 import qualified Database.Persist.GenericSql as DB
 -- import           Database.Persist.Quasi
 -- import qualified Database.Persist.TH as DB
 import qualified Mescaline.Database.Hash as Hash
-import           Mescaline.Database.Vector (Vector)
+import           Mescaline.Database.Vector (Vector, GVector)
+import qualified Mescaline.Database.Vector as Vector
 
 import Data.Either
 import Database.Persist.Base
@@ -253,6 +255,9 @@ data Feature = Feature {
     featureDescriptor :: DescriptorId,
     featureValue :: Vector.Vector }
     deriving (Show, Read, Eq)
+
+featureVectorValue :: Feature -> GVector
+featureVectorValue = Vector.toVector . featureValue
 
 type FeatureId = Database.Persist.Base.Key Feature
 
