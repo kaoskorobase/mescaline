@@ -118,10 +118,10 @@ sourceFileI pattern features = go Map.empty Map.empty
 
 query :: (MonadIO m, PersistBackend m) => String -> [String] -> m (SourceFileMap, Map.Map UnitId (Unit, [Feature]))
 query pattern features = do
-    liftIO $ putStrLn "query: begin"
+    -- liftIO $ putStrLn "query: begin"
     ds <- mapM getDescriptorId features
     r <- E.run_ $ select [] [] 0 0 $$ sourceFileI pattern ds
-    liftIO $ putStrLn "query: done"
+    -- liftIO $ putStrLn "query: done"
     return r
 
 -- queryP :: (MonadIO m, PersistBackend m) => String -> [String] -> m (SourceFileMap, [(UnitId, Unit, [Feature])])
