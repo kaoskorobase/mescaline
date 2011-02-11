@@ -6,7 +6,6 @@ import qualified Data.Attoparsec as A
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as B
 import qualified Data.Text as Text
-import           Data.Typeable (Typeable)
 import           Mescaline.Analysis (analyse)
 import           Mescaline.Analysis.JSON ()
 import           Mescaline.Analysis.SonicAnnotator (analyser)

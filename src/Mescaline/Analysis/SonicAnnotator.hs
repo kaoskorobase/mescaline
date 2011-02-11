@@ -22,7 +22,6 @@ import qualified Sound.Analysis.SonicAnnotator as SA
 import           System.Exit
 import           System.FilePath
 import           System.Process
-import           Text.Delimited as D
 
 -- runSonicAnnotator args = do
 --     (_, hOut, hErr, h) <-

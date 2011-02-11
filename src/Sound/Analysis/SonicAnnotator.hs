@@ -30,7 +30,6 @@ import           System.Exit
 import           System.FilePath
 import qualified System.IO as IO
 import           System.Process
-import           Text.Delimited as D
 import           Text.XML.Enumerator.Parse hiding (parseFile)
 import           Data.Text.Lazy (Text, toStrict, unpack)
 import qualified Data.Text as T
