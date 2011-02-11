@@ -8,6 +8,17 @@ import System.IO
 import Data.IORef
 import Engine
 
+import qualified Control.Concurrent.Process as Process
+import           Data.Accessor
+import qualified Mescaline.FeatureSpace.Process as FSpace
+import qualified Mescaline.FeatureSpace.Model as FSpace
+import qualified Mescaline.Pattern.Event as Event
+import qualified Mescaline.Synth.Sampler.Process as Synth
+
+setEnv = setVal Event.attackTime 0.001 . setVal Event.releaseTime 0.001
+
+playUnit synth = maybe (return ()) (Process.sendTo synth . Synth.PlayUnit (-1) . setEnv . Event.defaultSynth)
+
 foreign import ccall safe "openWindow" openWindow
     :: IO CInt
 
@@ -29,6 +40,8 @@ foreign import ccall safe "setTouchesEnded" setTouchesEnded :: ViewController ->
 
 foreign import ccall safe "getTouchX" getTouchX :: ViewController -> UITouch -> IO CDouble
 foreign import ccall safe "getTouchY" getTouchY :: ViewController -> UITouch -> IO CDouble
+foreign import ccall safe "getTouchViewWidth" getTouchViewWidth :: UITouch -> IO CDouble
+foreign import ccall safe "getTouchViewHeight" getTouchViewHeight :: UITouch -> IO CDouble
 foreign import ccall safe "getTouchTapCount" getTouchTapCount :: UITouch -> IO CInt
 
 foreign import ccall safe "erase" erase :: ViewController -> IO ()
@@ -64,6 +77,7 @@ main = do
     hPutStrLn log "Haskell start"
 
     lastPoint <- newIORef Nothing
+    (synthP, fspaceP, cleanup) <- engine "/Users/sk/projects/mescaline/repos/test.db" ".*"
 
     tb <- mkTouches $ \vc touch -> do
         tapC <- getTouchTapCount touch
@@ -73,6 +87,17 @@ main = do
             else connect vc touch lastPoint
 
     tm <- mkTouches $ \vc touch -> do
+        x <- getTouchX vc touch
+        y <- getTouchY vc touch
+        w <- getTouchViewWidth touch
+        h <- getTouchViewHeight touch
+        hPutStrLn log $ show [x, y, w, h, x/w, y/h]
+        -- OSC.Message "/closest" [OSC.Float x, OSC.Float y] -> do
+        --     -- io $ putStrLn $ "/closest "  ++ show x ++ " " ++ show y
+        fspace <- Process.query fspaceP FSpace.GetModel
+        playUnit synthP (fmap fst (FSpace.closest2D (realToFrac (x/w), realToFrac (y/h)) fspace))
+        --     return g
+        
         connect vc touch lastPoint
 
     te <- mkTouches $ \vc touch -> do
@@ -85,7 +110,10 @@ main = do
         setTouchesMoved vc tm
         setTouchesEnded vc te
     setViewDidLoad vdl
-    engine "/Users/sk/projects/mescaline/repos/test.db" "*" openWindow
+    
+    openWindow
+
+    cleanup
     hPutStrLn log "Haskell exit"
     freeHaskellFunPtr vdl
     freeHaskellFunPtr tb

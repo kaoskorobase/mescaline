@@ -105,8 +105,8 @@ logAppDirs = do
     d3 <- App.getResourceDirectory
     logStrLn $ show [d1, d2, d3]
 
-engine :: FilePath -> String -> IO a -> IO ()
-engine _ pattern eventLoop = do
+engine :: FilePath -> String -> IO (SynthP.Handle, FeatureSpaceP.Handle, IO ())
+engine _ pattern = do
     logAppDirs
     
     docDir <- liftM (flip combine "Documents" . takeDirectory) App.getProgramDirectory
@@ -163,12 +163,8 @@ engine _ pattern eventLoop = do
     -- oscServer <- OSCServer.new 2010 synthP fspaceP
     -- logStrLn "OSCServer started"
 
-    logStrLn "Starting event loop"
-
-    eventLoop
+    -- logStrLn "Starting event loop"
 
     -- Signal synth thread and wait for it to exit.
     -- Otherwise stale scsynth processes will be lingering around.
-    -- synthQuit
-
-    logStrLn "Bye sucker."
+    return (synthP, fspaceP, synthQuit >> logStrLn "Bye sucker.")

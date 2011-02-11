@@ -37,6 +37,16 @@ double getTouchY(MescalineViewController* vc, UITouch* touch)
     return currentPoint.y;
 }
 
+double getTouchViewWidth(UITouch* touch)
+{
+  return [[touch view] bounds].size.width;
+}
+
+double getTouchViewHeight(UITouch* touch)
+{
+  return [[touch view] bounds].size.height;
+}
+
 int getTouchTapCount(UITouch* touch)
 {
     return [touch tapCount];
