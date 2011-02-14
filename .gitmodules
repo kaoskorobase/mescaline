@@ -1,0 +1,3 @@
+[submodule "upstream/persistent"]
+	path = upstream/persistent
+	url = git@github.com:kaoskorobase/persistent.git
