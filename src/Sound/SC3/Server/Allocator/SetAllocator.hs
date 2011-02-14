@@ -7,7 +7,7 @@ module Sound.SC3.Server.Allocator.SetAllocator (
   , cons
 ) where
 
-import Control.Monad.Error
+import Control.Failure (Failure, failure)
 import Control.DeepSeq (NFData(..))
 import Data.BitSet as Set
 import Sound.SC3.Server.Allocator
@@ -37,16 +37,16 @@ findNext (SetAllocator r u n) = loop (succ n)
             | Set.member (fromIntegral i) u = loop (succ i)
             | otherwise = Just i
 
-sa_alloc :: (Integral i, MonadError String m) => SetAllocator i -> m (i, SetAllocator i)
+sa_alloc :: (Integral i, Failure AllocFailure m) => SetAllocator i -> m (i, SetAllocator i)
 sa_alloc s@(SetAllocator r u n)
-    | Set.member (fromIntegral n) u = throwError "SetAllocator: No free Ids left"
+    | Set.member (fromIntegral n) u = failure NoFreeIds
     | otherwise = case findNext s of
-                    Nothing -> throwError "SetAllocator: No free Ids left"
+                    Nothing -> failure NoFreeIds
                     Just n' -> return (n, SetAllocator r (Set.insert (fromIntegral n) u) n')
 
-sa_free :: (Integral i, MonadError String m) => i -> SetAllocator i -> m (SetAllocator i)
+sa_free :: (Integral i, Failure AllocFailure m) => i -> SetAllocator i -> m (SetAllocator i)
 sa_free i (SetAllocator r u n) | Set.member (fromIntegral i) u = return (SetAllocator r u' n)
-                                  | otherwise = throwError "SetAllocator: Id not in use"
+                               | otherwise = failure InvalidId
     where u' = Set.delete (fromIntegral i) u
 
 instance (Integral i) => IdAllocator i (SetAllocator i) where

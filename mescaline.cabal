@@ -42,6 +42,7 @@ library
       -- , delimited-text >= 0.2.1
       , directory
       , enumerator >= 0.4
+      , failure
       , filepath
       , FindBin >= 0.0
       , fingertree
@@ -66,6 +67,7 @@ library
       , strict-concurrency >= 0.2
       -- , template-haskell
       , text
+      , transformers
       -- , uuid >= 1.0
       , vector >= 0.5
     exposed-modules:

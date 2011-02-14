@@ -1,34 +1,43 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE
     FlexibleContexts
   , FlexibleInstances
   , MultiParamTypeClasses #-}
 
-module Sound.SC3.Server.Allocator (
-    IdAllocator(..)
-  , RangeAllocator(..)
-  , module Sound.SC3.Server.Allocator.Range
-) where
+module Sound.SC3.Server.Allocator
+    ( AllocFailure(..)
+    , IdAllocator(..)
+    , RangeAllocator(..)
+    , module Sound.SC3.Server.Allocator.Range
+    ) where
 
-import Control.Monad.Error (MonadError)
-import Control.Monad.State.Strict (MonadState, get, put, runStateT)
+import Control.Exception (Exception)
+import Control.Failure (Failure)
+import Control.Monad (replicateM)
+import qualified Control.Monad.Trans.Class as State
+import qualified Control.Monad.Trans.State.Strict as State
+import Data.Typeable (Typeable)
 import Sound.SC3.Server.Allocator.Range
 
+data AllocFailure =
+    NoFreeIds
+  | InvalidId
+  deriving (Show, Typeable)
+
+instance Exception AllocFailure
+
 class IdAllocator i a where
-    alloc :: MonadError String m => a -> m (i, a)
-    free  :: MonadError String m => i -> a -> m a
+    alloc :: Failure AllocFailure m => a -> m (i, a)
+    free  :: Failure AllocFailure m => i -> a -> m a
     
-    allocMany :: MonadError String m => Int -> a -> m ([i], a)
-    allocMany n = runStateT (sequence (replicate n allocM))
+    allocMany :: Failure AllocFailure m => Int -> a -> m ([i], a)
+    allocMany n = State.runStateT (replicateM n (modifyM alloc))
+        where
+            modifyM f = do
+                (a, s') <- State.get >>= State.lift . f
+                State.put $! s'
+                return a
 
 class IdAllocator i a => RangeAllocator i a where
-    allocRange :: MonadError String m => Int -> a -> m (Range i, a)
-    freeRange  :: MonadError String m => Range i -> a -> m a
-
-modifyM :: (Monad m, MonadState s m) => (s -> m (a, s)) -> m a
-modifyM f = do
-    (a, s') <- get >>= f
-    put $! s'
-    return a
-
-allocM :: (IdAllocator i a, MonadError String m, MonadState a m) => m i
-allocM = modifyM alloc
+    allocRange :: Failure AllocFailure m => Int -> a -> m (Range i, a)
+    freeRange  :: Failure AllocFailure m => Range i -> a -> m a
