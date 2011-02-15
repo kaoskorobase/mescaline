@@ -1,3 +1,6 @@
 [submodule "upstream/persistent"]
 	path = upstream/persistent
 	url = git@github.com:kaoskorobase/persistent.git
+[submodule "upstream/cabal-macosx"]
+	path = upstream/cabal-macosx
+	url = git@github.com:kaoskorobase/cabal-macosx.git
