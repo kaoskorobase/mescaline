@@ -9,14 +9,14 @@ all:
 
 upstream-cabal-macosx:
 	cd upstream/cabal-macosx && $(CABAL) install
-upstream-data-accessor:
-	cd upstream/data-accessor/mtl && $(CABAL) install
+upstream-data-accessor-mtl2:
+	cd upstream/data-accessor-mtl2 && $(CABAL) install
 upstream-persistent:
 	cd upstream/persistent && $(CABAL) install
 	cd upstream/persistent/backends/sqlite && $(CABAL) install
 	cd upstream/persistent/packages/template && $(CABAL) install
-upstream: upstream-cabal-macosx upstream-data-accessor upstream-persistent
-.PHONY: upstream upstream-cabal-macosx upstream-data-accessor upstream-persistent
+upstream: upstream-cabal-macosx upstream-data-accessor-mtl2 upstream-persistent
+.PHONY: upstream upstream-cabal-macosx upstream-data-accessor-mtl2 upstream-persistent
 
 MESCALINE_CONFIGURE_ARGS = \
 	--extra-include-dir=$(SC_DIR)/include/{common,plugin_interface}
