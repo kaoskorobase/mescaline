@@ -23,8 +23,8 @@ module Mescaline.Pattern (
 
 import qualified Control.Monad as M
 import qualified Control.Monad.Random as R
-import           Control.Monad.Reader (MonadReader(..), asks)
-import           Control.Monad.State (MonadState(..), modify, gets)
+import           Control.Monad.Reader.Class (MonadReader(..), asks)
+import           Control.Monad.State.Class (MonadState(..), modify, gets)
 import           Data.Accessor
 import           Mescaline.Pattern.Environment (Environment)
 import qualified Mescaline.Pattern.Environment as Env

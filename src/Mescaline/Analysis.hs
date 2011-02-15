@@ -8,8 +8,8 @@ module Mescaline.Analysis (
 import           Control.ThreadPool (threadPoolIO)
 import qualified Control.Concurrent.Chan as Chan
 import           Control.Exception
-import           Control.Monad
-import           Control.Monad.Error
+import           Control.Monad (when)
+import           Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Foldable as Fold
 import           Database.Persist.Sqlite
 import qualified GHC.Conc as GHC
