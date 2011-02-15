@@ -1,0 +1,21 @@
+Name:             data-accessor-mtl2
+Version:          0.2.0.2
+License:          BSD3
+License-File:     LICENSE
+Author:           Henning Thielemann <haskell@henning-thielemann.de>
+Maintainer:       Stefan Kersten <sk@xdv.org>
+Homepage:         http://www.haskell.org/haskellwiki/Record_access
+Package-URL:      http://code.haskell.org/data-accessor/
+Category:         Data
+Build-Type:       Simple
+Build-Depends:
+  data-accessor >=0.2 && <0.4,
+  mtl >=1.0 && <3,
+  base >=1.0 && <6
+Synopsis:         Use Accessor to access state in mtl State monad class
+Description:      Use Accessor to access state in mtl State monad class. This is a version compatible with mtl 2.0.
+GHC-Options:      -Wall
+Tested-With:      GHC==6.8.2, GHC==6.10.4, GHC==7.0.1
+Hs-Source-Dirs:   src
+Exposed-Modules:
+  Data.Accessor.Monad.MTL.State
