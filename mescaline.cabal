@@ -65,7 +65,6 @@ library
       , SHA2 >= 0.2.3
       , statistics >= 0.8
       , strict-concurrency >= 0.2
-      -- , template-haskell
       , text
       , transformers
       -- , uuid >= 1.0
