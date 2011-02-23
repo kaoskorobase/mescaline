@@ -1,0 +1,83 @@
+Name:               mescaline-database
+Version:            0.0.1
+Synopsis:           Mescaline is a data-driven sequencer and synthesizer.
+Description:        Mescaline is a data-driven sequencer and synthesizer.
+Category:           Sound
+License:            GPL-3
+-- License-File:		COPYING
+Author:             puesnada.es
+Copyright:          (c) 2009-2011 puesnada.es
+Maintainer:         mescaline@puesnada.es
+Homepage:           http://mescaline.puesnada.es
+Bug-Reports:        https://github.com/kaoskorobase/mescaline/issues
+Cabal-Version:      >= 1.2
+Build-Type:         Simple
+
+Flag analysis
+    Description: Include analysis code
+    Default: True
+
+library
+    -- hs-source-dirs: src
+    ghc-options:    -W
+    -- include-dirs:   include
+    build-depends:
+        base >= 4 && < 5
+      , aeson
+      , binary
+      , bytestring
+      , bytestring-lexing >= 0.2
+      , Cabal >= 1.6
+      , containers
+      , Control-Engine >= 1.0
+      -- , delimited-text >= 0.2.1
+      , directory
+      , enumerator >= 0.4
+      , filepath
+      , fingertree
+      -- , hmeap >= 0.8
+      , hosc >= 0.8
+      , hsndfile >= 0.4
+      , mtl >= 2
+      , persistent >= 0.5
+      , persistent-sqlite >= 0.5
+      , process >= 1.0
+      , regex-compat >= 0.92
+      , SHA2 >= 0.2.3
+      , statistics >= 0.8
+      , text
+      , transformers
+      , vector >= 0.5
+    exposed-modules:
+        Mescaline.Database
+        Mescaline.Database.Entity
+        Mescaline.Database.Hash
+        -- Mescaline.Database.Process
+        Mescaline.Database.Vector
+        Mescaline.Util
+        Sound.File.Sndfile.Util
+    if flag(analysis)
+        build-depends:
+            hmatrix >= 0.11.0.1
+          , attoparsec-text
+          , xml-enumerator
+        exposed-modules:
+            Mescaline.Analysis
+            Mescaline.Analysis.JSON
+            -- Mescaline.Analysis.Meap
+            -- Mescaline.Analysis.Meap.Chain
+            -- Mescaline.Analysis.Meap.Extractor
+            -- Mescaline.Analysis.Meap.Feature
+            -- Mescaline.Analysis.Meap.Process
+            -- Mescaline.Analysis.Meap.Segmenter
+            Mescaline.Analysis.SonicAnnotator
+            Mescaline.Analysis.Types
+            Mescaline.Statistics.PCA
+            Sound.Analysis.Segmentation
+            Sound.Analysis.Segmentation.Statistics
+            Sound.Analysis.SonicAnnotator
+            Sound.Analysis.Vector
+        CPP-Options: -DUSE_ANALYSIS=1
+
+    -- other-modules:
+    --     Paths_mescaline
