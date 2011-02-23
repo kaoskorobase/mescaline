@@ -1,8 +1,5 @@
 SC_DIR = $(HOME)/dev/supercollider/supercollider
-
-GHC_BIN  = /usr/local/ghc/7.0.1/bin
-GHC_PATH = $(GHC_BIN):$(PATH)
-CABAL    = PATH=$(GHC_PATH) cabal
+CABAL = cabal
 
 all:
 	@echo Please specify a target.
