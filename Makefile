@@ -19,7 +19,8 @@ upstream: upstream-cabal-macosx upstream-data-accessor-mtl2 upstream-persistent
 .PHONY: upstream upstream-cabal-macosx upstream-data-accessor-mtl2 upstream-persistent
 
 MESCALINE_CONFIGURE_ARGS = \
-	--extra-include-dir=$(SC_DIR)/include/{common,plugin_interface}
+	--extra-include-dir=$(SC_DIR)/include/common \
+	--extra-include-dir=$(SC_DIR)/include/plugin_interface \
 
 mescaline:
 	$(CABAL) install $(MESCALINE_CONFIGURE_ARGS)
