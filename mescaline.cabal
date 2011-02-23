@@ -24,24 +24,18 @@ library
     build-depends:
         base >= 4 && < 5
       , array >= 0.2
-      , aeson
       -- , arrows
-      , binary
       , bitset >= 1.0
       , bytestring
-      , bytestring-lexing >= 0.2
       , Cabal >= 1.6
       -- , CCA >= 0.1.3 && < 0.2
       , containers
       , ConfigFile >= 1.0
-      , Control-Engine >= 1.0
       , data-accessor >= 0.2
       , data-accessor-mtl2
       , data-ivar >= 0.30
       , deepseq >= 1.1
-      -- , delimited-text >= 0.2.1
       , directory
-      , enumerator >= 0.4
       , failure
       , filepath
       , FindBin >= 0.0
@@ -52,20 +46,14 @@ library
       , hsc3 >= 0.8
       , hsc3-lang >= 0.8
       , hsc3-process >= 0.4
-      , hsndfile >= 0.4
+      , mescaline-database >= 0.0 && < 0.1
       , MonadCatchIO-mtl >= 0.3
       , MonadRandom >= 0.1
       , mtl >= 2
       , parallel >= 3
       , persistent >= 0.5
-      , persistent-sqlite >= 0.5
       , process >= 1.0
       , random >= 1.0
-      , regex-compat >= 0.92
-      , SHA2 >= 0.2.3
-      , statistics >= 0.8
-      , strict-concurrency >= 0.2
-      , text
       , transformers
       -- , uuid >= 1.0
       , vector >= 0.5
@@ -86,11 +74,7 @@ library
         Mescaline.Data.ByteString
         Mescaline.Data.PriorityQueue
         -- Mescaline.Data.Unique
-        Mescaline.Database
-        Mescaline.Database.Entity
-        Mescaline.Database.Hash
         Mescaline.Database.Process
-        Mescaline.Database.Vector
         Mescaline.FeatureSpace.Model
         Mescaline.FeatureSpace.Process
         Mescaline.FeatureSpace.Unit
@@ -123,9 +107,6 @@ library
         -- Mescaline.Synth.SSF.BufferCache
         -- Mescaline.Synth.SSF.DiskSampler
         Mescaline.Time
-        Mescaline.Util
-        Sound.File.Sndfile.Util
-        Sound.OpenSoundControl.Monoid
         Sound.SC3.Server.Allocator
         Sound.SC3.Server.Allocator.Range
         Sound.SC3.Server.Allocator.SetAllocator
@@ -137,26 +118,6 @@ library
         Sound.SC3.Server.State
         Sound.SC3.Server.State.IO
     if flag(analysis)
-        build-depends:
-            hmatrix >= 0.11.0.1
-          , attoparsec-text
-          , xml-enumerator
-        exposed-modules:
-            Mescaline.Analysis
-            Mescaline.Analysis.JSON
-            -- Mescaline.Analysis.Meap
-            -- Mescaline.Analysis.Meap.Chain
-            -- Mescaline.Analysis.Meap.Extractor
-            -- Mescaline.Analysis.Meap.Feature
-            -- Mescaline.Analysis.Meap.Process
-            -- Mescaline.Analysis.Meap.Segmenter
-            Mescaline.Analysis.SonicAnnotator
-            Mescaline.Analysis.Types
-            Mescaline.Statistics.PCA
-            Sound.Analysis.Segmentation
-            Sound.Analysis.Segmentation.Statistics
-            Sound.Analysis.SonicAnnotator
-            Sound.Analysis.Vector
         CPP-Options: -DUSE_ANALYSIS=1
 
     other-modules:

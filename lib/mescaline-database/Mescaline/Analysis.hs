@@ -13,7 +13,7 @@ import           Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Foldable as Fold
 import           Database.Persist.Sqlite
 import qualified GHC.Conc as GHC
-import qualified Mescaline.Application.Logger as Log
+-- import qualified Mescaline.Application.Logger as Log
 import           Mescaline.Analysis.Types
 import qualified Mescaline.Analysis.SonicAnnotator as SonicAnnotator
 import qualified Mescaline.Database as DB
@@ -46,6 +46,12 @@ insertUnit sf u fs = do
     mapM_ (insertFeature ui) fs
     return ui
 
+logError :: String -> String -> IO ()
+logError c s = putStrLn $ c ++ ": " ++ s
+
+logNotice :: String -> String -> IO ()
+logNotice = logError
+
 -- | Insert a single file and its analysis data into the database.
 --
 -- Currently, concurrent database accesses don't seem to be possible.
@@ -57,7 +63,7 @@ insertAnalysis analysis = do
     m <- getBy (DB.UniqueSourceFile (hash (soundFile analysis)))
     when (m == Nothing) $ do
         sf <- insertSourceFile (soundFile analysis)
-        liftIO $ Log.noticeM "Database" ("insertFile: " ++ show sf ++ " " ++ show (soundFile analysis))
+        liftIO $ logNotice "Database" ("insertFile: " ++ show sf ++ " " ++ show (soundFile analysis))
         Fold.mapM_ insertDescriptor (descriptorMap analysis)
         mapM_ (uncurry (insertUnit sf)) (units analysis)
 
@@ -84,7 +90,7 @@ importPaths a np dbFile ps = DB.withDatabase dbFile $ do
     -- files' <- filterM (\p -> do { sf <- SourceFile.newLocal p ; fmap not $ Table.isStored c sf }) files
     liftIO (mapFiles (maybe GHC.numCapabilities id np) a =<< findFiles (fileExtensions a) ps)
     >>= mapM_ (\(p, e) ->
-            either (\s -> liftIO $ Log.errorM "Database" (p ++ ": " ++ s))
+            either (\s -> liftIO $ logError "Database" (p ++ ": " ++ s))
                    insertAnalysis
                    e)
 

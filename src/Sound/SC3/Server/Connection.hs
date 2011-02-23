@@ -15,11 +15,9 @@ module Sound.SC3.Server.Connection (
 
 import           Control.Concurrent (ThreadId, forkIO)
 import           Control.Concurrent.MVar
-import           Control.Monad.Writer.Strict as Writer
 import qualified Data.HashTable as Hash
 import           Sound.OpenSoundControl (Datum(..), OSC(..), Transport, immediately)
 import qualified Sound.OpenSoundControl as OSC
-import           Sound.OpenSoundControl.Monoid ()
 
 import           Sound.SC3 (notify)
 import           Sound.SC3.Server.Notification (done, synced)
@@ -120,4 +118,4 @@ sync osc c = do
 -- NOTE: This is only guaranteed to work with a transport that preserves
 -- packet order. NOTE 2: And not even then ;)
 unsafeSync :: Connection -> IO ()
-unsafeSync = sync mempty
+unsafeSync = sync (Bundle immediately [])
