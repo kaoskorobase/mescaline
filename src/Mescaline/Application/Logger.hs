@@ -3,6 +3,7 @@ module Mescaline.Application.Logger (
   , module System.Log.Formatter
   , module System.Log.Handler.Simple
   , getComponents
+  , initialize
 ) where
 
 import           Control.Monad.Error
@@ -44,3 +45,6 @@ getComponents = do
     conf <- Config.getConfig
     return $ map (\(logger, var) -> (logger, getLogLevel conf logger var))
                  componentMap
+
+initialize :: IO ()
+initialize = mapM_ (\(l,p) -> updateGlobalLogger l (setLevel p)) =<< getComponents
