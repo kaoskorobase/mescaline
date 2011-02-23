@@ -18,11 +18,17 @@ upstream-persistent:
 upstream: upstream-cabal-macosx upstream-data-accessor-mtl2 upstream-persistent
 .PHONY: upstream upstream-cabal-macosx upstream-data-accessor-mtl2 upstream-persistent
 
+.PHONY: lib/mescaline-database
+lib/mescaline-database:
+	cd $@ && $(CABAL) install
+
 MESCALINE_CONFIGURE_ARGS = \
 	--extra-include-dir=$(SC_DIR)/include/common \
 	--extra-include-dir=$(SC_DIR)/include/plugin_interface \
 
-mescaline:
+.PHONY: mescaline mescaline-configure mescaline-build mescaline-clean
+
+mescaline: lib/mescaline-database
 	$(CABAL) install $(MESCALINE_CONFIGURE_ARGS)
 
 mescaline-configure:
@@ -34,7 +40,9 @@ mescaline-build:
 mescaline-clean:
 	$(CABAL) clean
 
-mescaline-tools:
+.PHONY: mescaline-tools mescaline-tools-configure mescaline-tools-build mescaline-tools-clean
+
+mescaline-tools: lib/mescaline-database
 	cd tools && $(CABAL) install
 
 mescaline-tools-configure:
@@ -45,6 +53,8 @@ mescaline-tools-build:
 
 mescaline-tools-clean:
 	cd tools && $(CABAL) clean
+
+.PHONY: mescaline-app mescaline-app-clean
 
 mescaline-app:
 	cd app && $(CABAL) install
