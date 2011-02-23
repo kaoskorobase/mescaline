@@ -19,7 +19,7 @@ Executable mescaline-db
         base >= 4 && < 5
       , containers
       , hmatrix >= 0.11
-      , mescaline
+      , mescaline-database >= 0.0 && < 0.1
     Ghc-Options:        -W -threaded -funbox-strict-fields
 
 Executable mescaline-analyser
@@ -29,6 +29,6 @@ Executable mescaline-analyser
       , aeson
       , attoparsec
       , bytestring
-      , mescaline
+      , mescaline-database >= 0.0 && < 0.1
       , text
     Ghc-Options:        -W -threaded -funbox-strict-fields
