@@ -1,0 +1,12 @@
+GHC_BIN = /opt/iphone/bin/iphone-simulator
+GHC_PATH = $(IOS_SIMULATOR_BIN):$(PATH)
+
+mescaline-ios-simulator-configure:
+	PATH=$(IOS_SIMULATOR_PATH) cabal-dev -s cabal-dev-iphone-simulator add-source $(ADDITIONAL_SOURCES)
+	PATH=$(IOS_SIMULATOR_PATH) cabal-dev -s cabal-dev-iphone-simulator configure \
+		--flags='-template-haskell ios' \
+		--extra-include-dir=$(SC_DIR)/include/{common,plugin_interface} \
+		--extra-lib-dir=$(HOME)/dev/supercollider/supercollider/platform/iphone/build_iphone/Debug-iphonesimulator/
+
+iphone-simulator:
+	PATH=$(IPHONE_SIMULATOR):$(PATH) cabal-dev -s cabal-dev-iphone-simulator build
