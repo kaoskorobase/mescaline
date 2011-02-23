@@ -10,7 +10,7 @@ Category:         Data
 Build-Type:       Simple
 Build-Depends:
   data-accessor >=0.2 && <0.4,
-  mtl >=1.0 && <3,
+  mtl >=2.0 && <3,
   base >=1.0 && <6
 Synopsis:         Use Accessor to access state in mtl State monad class
 Description:      Use Accessor to access state in mtl State monad class. This is a version compatible with mtl 2.0.
