@@ -9,6 +9,8 @@ import qualified Data.Text as Text
 import           Mescaline.Analysis (analyse)
 import           Mescaline.Analysis.JSON ()
 import           Mescaline.Analysis.SonicAnnotator (analyser)
+import           System.Environment (getArgs)
+import           System.Exit (ExitCode(..), exitWith)
 
 mkError s = object [ "error" .= Text.pack s ]
 
@@ -18,9 +20,8 @@ instance FromJSON Params where
     fromJSON (Object v) = Params <$> (Text.unpack `fmap` (v .: "path"))
     fromJSON _ = empty
 
-analyseit = do
-    result <- A.parse J.json `fmap` BS.getContents
-    case result of
+analyseit b = do
+    case A.parse J.json b of
         A.Fail _ _ e -> return $ mkError $ "Invalid input: " ++ e
         A.Partial _ -> return $ mkError $ "Invalid input: EOF while parsing JSON"
         A.Done _ value -> do
@@ -30,4 +31,10 @@ analyseit = do
                                 $ \(e :: SomeException) -> return $ mkError (show e)
 
 main :: IO ()
-main = B.putStrLn . J.encode =<< analyseit
+main = do
+    args <- getArgs
+    result <- case args of
+                [] -> BS.getContents >>= analyseit
+                [path] -> BS.readFile path >>= analyseit
+                _ -> putStrLn "Usage: mescaline-analyser [FILE]" >> exitWith (ExitFailure 1)
+    B.putStrLn (J.encode result)
