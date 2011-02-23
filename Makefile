@@ -37,6 +37,12 @@ mescaline-clean:
 mescaline-tools:
 	cd tools && $(CABAL) install
 
+mescaline-tools-configure:
+	cd tools && $(CABAL) configure
+
+mescaline-tools-build:
+	cd tools && $(CABAL) build
+
 mescaline-tools-clean:
 	cd tools && $(CABAL) clean
 
