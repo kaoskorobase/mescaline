@@ -71,14 +71,8 @@ class Feature:
     def value(self): return self.__value
 
     def to_sql_row(self):
-        print repr(self.value())
-        v = self.value().newbyteorder('>').tostring('C')
-        s = struct.pack(">i", self.value().size)
-        b = s + v
         b = struct.pack(">i" + ("d" * self.value().size), self.value().size, *self.value().tolist())
-        print (len(b), repr(b))
-        print np.ndarray(shape=((len(b)-4)/8,), dtype='>f8', offset=4, buffer=buffer(b))
-        return (self.unit().id(), self.descriptor().id(), b)
+        return (self.unit().id(), self.descriptor().id(), buffer(b))
 
     def __repr__(self):
         return str(self.__class__) + str((self.id(), self.unit(), self.descriptor(), self.value()))
@@ -128,17 +122,9 @@ def delete_feature(c, descriptor):
     c.execute('delete from Feature where descriptor = ?', (descriptor.id(),))
 
 def insert_features(c, features):
-    c.executemany('insert into Feature values (null, ?, ?, ?)', itertools.imap(Feature.to_sql_row, features))
+    c.executemany('insert into Feature(unit,descriptor,value) values (?, ?, ?)', itertools.imap(Feature.to_sql_row, features))
     c.commit()
 
-def test_byteconv():
-    v = np.array([1, 2])
-    print repr(v)
-    x = v.newbyteorder('>').tostring('C')
-    b = struct.pack(">i" + ("d" * v.size), v.size, *v.tolist())
-    # print (len(b), repr(b))
-    # print repr(np.ndarray(shape=((len(b)-4)/8,), dtype='>f8', offset=4, buffer=buffer(b)))
-    
 if __name__ == "__main__":
     conn = sqlite3.connect(sys.argv[1])
     sm = get_source_file_map(conn)
@@ -161,4 +147,3 @@ if __name__ == "__main__":
     insert_features(conn, [Feature(-1, u, d, v)])
     print get_features(conn, [d], [u])
     conn.close()
-    # test_byteconv()
