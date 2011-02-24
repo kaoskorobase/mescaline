@@ -23,15 +23,14 @@ import           Sound.SC3 (notify)
 import           Sound.SC3.Server.Notification (done, synced)
 import           Sound.SC3.Server.State (State)
 import qualified Sound.SC3.Server.State as State
-import           Sound.SC3.Server.State.IO (IOState)
-import qualified Sound.SC3.Server.State.IO as IOState
+import qualified Sound.SC3.Server.State.Concurrent as IOState
 
 type ListenerId  = Int
 type Listener    = OSC -> IO ()
 data ListenerMap = ListenerMap !(Hash.HashTable ListenerId Listener) !ListenerId
-data Connection  = forall t . Transport t => Connection t IOState (MVar ListenerMap)
+data Connection  = forall t . Transport t => Connection t (MVar State) (MVar ListenerMap)
 
-state :: Connection -> IOState
+state :: Connection -> MVar State
 state (Connection _ s _) = s
 
 listeners :: Connection -> MVar ListenerMap

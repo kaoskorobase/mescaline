@@ -30,7 +30,7 @@ module Sound.SC3.Server.Monad (
 ) where
 
 import           Control.Concurrent (ThreadId)
-import           Control.Concurrent.MVar
+import           Control.Concurrent.MVar.Strict
 import           Control.Monad.Reader (MonadReader, ReaderT(..), ask, asks, lift)
 import           Control.Monad.Trans (MonadIO, MonadTrans, liftIO)
 import           Data.Accessor
@@ -41,7 +41,7 @@ import qualified Sound.SC3.Server.Connection as C
 -- import           Sound.SC3.Server.Process.Options (ServerOptions, numberOfInputBusChannels, numberOfOutputBusChannels)
 import           Sound.SC3.Server.State (BufferId, BufferIdAllocator, BusId, BusIdAllocator, NodeId, NodeIdAllocator, State)
 import qualified Sound.SC3.Server.State as State
-import qualified Sound.SC3.Server.State.IO as IOState
+import qualified Sound.SC3.Server.State.Concurrent as IOState
 
 import           Sound.OpenSoundControl (OSC)
 
