@@ -16,7 +16,7 @@ data SetAllocator i =
     SetAllocator
         {-# UNPACK #-} !(Range i)
         {-# UNPACK #-} !(Set.BitSet i)
-        {-# UNPACK #-} !i
+                       !i
         deriving (Eq, Show)
 
 instance NFData i => NFData (SetAllocator i) where

@@ -23,9 +23,9 @@ library
     include-dirs:   include
     build-depends:
         base >= 4 && < 5
+      , bitset >= 1.0
       , array >= 0.2
       -- , arrows
-      , bitset >= 1.0
       , bytestring
       , Cabal >= 1.6
       -- , CCA >= 0.1.3 && < 0.2
@@ -46,6 +46,7 @@ library
       , hsc3 >= 0.8
       , hsc3-lang >= 0.8
       , hsc3-process >= 0.4
+      , hsc3-server >= 0.0
       , mescaline-database >= 0.0 && < 0.1
       , MonadCatchIO-mtl >= 0.3
       , MonadRandom >= 0.1
@@ -107,16 +108,6 @@ library
         -- Mescaline.Synth.SSF.BufferCache
         -- Mescaline.Synth.SSF.DiskSampler
         Mescaline.Time
-        Sound.SC3.Server.Allocator
-        Sound.SC3.Server.Allocator.Range
-        Sound.SC3.Server.Allocator.SetAllocator
-        Sound.SC3.Server.Allocator.SimpleAllocator
-        Sound.SC3.Server.Connection
-        Sound.SC3.Server.Monad
-        Sound.SC3.Server.Notification
-        Sound.SC3.Server.Process.Monad
-        Sound.SC3.Server.State
-        Sound.SC3.Server.State.IO
     if flag(analysis)
         CPP-Options: -DUSE_ANALYSIS=1
 

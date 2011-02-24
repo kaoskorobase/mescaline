@@ -83,13 +83,13 @@ instance NFData BusIdAllocator where
     rnf (BusIdAllocator a) = rnf a `seq` ()
 
 data State = State {
-   _options      :: !ServerOptions
- , _syncId       :: !IntAllocator
- , _nodeId       :: !NodeIdAllocator
- , _bufferId     :: !BufferIdAllocator
- , _controlBusId :: !BusIdAllocator
- , _audioBusId   :: !BusIdAllocator
- }
+    _options      :: !ServerOptions
+  , _syncId       :: !IntAllocator
+  , _nodeId       :: !NodeIdAllocator
+  , _bufferId     :: !BufferIdAllocator
+  , _controlBusId :: !BusIdAllocator
+  , _audioBusId   :: !BusIdAllocator
+  }
 
 instance NFData State where
     rnf (State x1 x2 x3 x4 x5 x6) =

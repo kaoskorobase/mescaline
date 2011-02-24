@@ -12,8 +12,8 @@ module Sound.SC3.Server.State.IO (
 
 import           Control.Arrow (second)
 import           Control.Failure (Failure)
-import           Control.Concurrent.MVar (MVar, newMVar)
-import           Control.Concurrent.MVar.StrictModify (modifyMVar, modifyMVar_)
+-- import           Control.Concurrent.MVar (MVar, newMVar)
+import           Control.Concurrent.MVar.Strict (MVar, modifyMVar, modifyMVar_, newMVar)
 import           Data.Accessor
 import           Sound.SC3.Server.Allocator (AllocFailure, IdAllocator, RangeAllocator, Range)
 import qualified Sound.SC3.Server.Allocator as Alloc

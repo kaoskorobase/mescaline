@@ -1,0 +1,48 @@
+Name:               hsc3-server
+Version:            0.0.0
+Synopsis:           Library for scsynth resource management.
+Description:        Library for scsynth resource management.
+License:            GPL
+License-File:       LICENSE
+Category:           Sound
+Copyright:          Copyright (c) Stefan Kersten 2008-2011
+Author:             Stefan Kersten
+Maintainer:         Stefan Kersten
+Stability:          experimental
+Homepage:           http://space.k-hornz.de/software/hsc3-server
+Tested-With:        GHC == 6.10.1, GHC == 6.12.3, GHC == 7.0.1
+Build-Type:         Simple
+Cabal-Version:      >= 1.6
+
+Library
+    Exposed-Modules:
+        Sound.SC3.Server.Allocator
+        Sound.SC3.Server.Allocator.Range
+        Sound.SC3.Server.Allocator.SetAllocator
+        Sound.SC3.Server.Allocator.SimpleAllocator
+        Sound.SC3.Server.Connection
+        Sound.SC3.Server.Monad
+        Sound.SC3.Server.Notification
+        Sound.SC3.Server.Process.Monad
+        Sound.SC3.Server.State
+        Sound.SC3.Server.State.IO
+    Build-Depends:
+        base >= 3 && < 5
+      , bitset >= 1.0
+      , data-accessor
+      , deepseq
+      , failure
+      , hosc >= 0.8
+      , hsc3 >= 0.7
+      , hsc3-process >= 0.5
+      , mtl >= 2
+      , strict-concurrency
+      , transformers
+    Include-Dirs:
+        include
+    Ghc-Options:
+        -W
+
+Source-Repository head
+  Type:             git
+  Location:         git://github.com/kaoskorobase/hsc3-server.git

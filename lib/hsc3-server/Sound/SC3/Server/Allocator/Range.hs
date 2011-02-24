@@ -19,7 +19,7 @@ import Control.DeepSeq (NFData(..))
 import Prelude hiding (null)
 
 -- |Model intervals [a, b[
-data Range a = Range {-# UNPACK #-} !a {-# UNPACK #-} !a deriving (Eq, Show)
+data Range a = Range !a !a deriving (Eq, Show)
 
 instance NFData a => NFData (Range a) where
     rnf (Range x1 x2) = rnf x1 `seq` rnf x2 `seq` ()
