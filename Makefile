@@ -19,10 +19,6 @@ upstream: upstream-cabal-macosx upstream-data-accessor-mtl2 upstream-persistent
 lib/mescaline-database:
 	cd $@ && $(CABAL) install
 
-.PHONY: lib/hsc3-server
-lib/hsc3-server:
-	cd $@ && $(CABAL) install
-
 MESCALINE_CONFIGURE_ARGS = \
 	--extra-include-dir=$(SC_DIR)/include/common \
 	--extra-include-dir=$(SC_DIR)/include/plugin_interface \
