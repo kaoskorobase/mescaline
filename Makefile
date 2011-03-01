@@ -47,7 +47,7 @@ mescaline-tools-configure:
 mescaline-tools-install: mescaline-database-install
 	cd tools && $(CABAL) install
 
-.PHONY: mescaline-app mescaline-app-clean mescaline-app-configure mescaline-app-install
+.PHONY: mescaline-app mescaline-app-clean mescaline-app-configure mescaline-app-install mescaline-app-dmg
 mescaline-app:
 	cd app && $(CABAL) build
 mescaline-app-clean:
@@ -56,6 +56,28 @@ mescaline-app-configure:
 	cd app && $(CABAL) configure
 mescaline-app-install: mescaline-install
 	cd app && $(CABAL) install
+# mescaline-app-dmg: mescaline-app-install
+# 	version = `grep '^version:' mescaline.cabal`.split[1]
+# 	osx_version = `sw_vers`.split("\n").collect { |x| x.split(":\t") }.find { |x| x[0] == "ProductVersion" }[1].sub(/\.[0-9]+$/, "")
+# 
+# 	src = "./dist/build/Mescaline.app"
+# 	dst = "./dist/Mescaline-#{version}-#{osx_version}.dmg"
+# 	icon = "app/Mescaline.icns"
+# 
+# 	volname = "Mescaline-#{version}"
+# 	system("./tools/pkg-dmg --verbosity 0 --source \"#{src}\" --target \"#{dst}\" --sourcefile --volname Mescaline --icon \"#{icon}\" --symlink /Applications:/Applications")
 
 .PHONY: clean
 clean: mescaline-database-clean mescaline-clean mescaline-tools-clean mescaline-app-clean
+
+HADDOCK_BASE_DOC = "http://www.haskell.org/ghc/docs/6.12.2/html/libraries/base-4.2.0.1/"
+
+.PHONY: haddock
+haddock:
+	cd lib/mescaline && $(CABAL) haddock --hyperlink-source --html-location=#{base_doc}
+	rsync -av lib/mescaline/dist/doc n222@null2.net:html/sk/sites/mescaline.globero.es/
+
+.PHONY: logo
+logo:
+	inkscape doc/logo/mescaline_layers.svg --export-png=doc/logo/mescaline_layers.png
+	makeicns -in doc/logo/mescaline_layers.png -out app/mescaline.icns
