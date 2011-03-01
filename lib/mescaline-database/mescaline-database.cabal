@@ -41,7 +41,7 @@ library
       , persistent-sqlite >= 0.5
       , process >= 1.0
       , regex-compat >= 0.92
-      , SHA2 >= 0.2.3
+      , SHA2 >= 0.2.5
       , statistics >= 0.8
       , text
       , transformers
