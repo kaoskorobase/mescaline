@@ -13,12 +13,14 @@ Bug-Reports:        https://github.com/kaoskorobase/mescaline/issues
 Cabal-Version:      >= 1.2
 Build-Type:         Simple
 
+Extra-Source-Files:
+    include/Accessor.h
+
 Flag analysis
     Description: Include analysis code
     Default: True
 
 library
-    hs-source-dirs: src
     ghc-options:    -W
     include-dirs:   include
     build-depends:
@@ -64,6 +66,8 @@ library
         Control.Concurrent.MVar.StrictModify
         Control.Concurrent.Process
         Data.KDTree
+        Data.ProbabilisticSuffixTree.Context
+        Data.ProbabilisticSuffixTree
         -- Data.Signal.SF
         -- Data.Signal.SF.Base
         -- Data.Signal.SF.Event
