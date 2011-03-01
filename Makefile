@@ -4,12 +4,10 @@ CABAL = cabal
 all:
 	@echo Please specify a target.
 
-.PHONY: upstream upstream-cabal-macosx upstream-data-accessor-mtl2 upstream-persistent
-upstream: upstream-cabal-macosx upstream-data-accessor-mtl2 upstream-persistent
+.PHONY: upstream upstream-cabal-macosx upstream-persistent
+upstream: upstream-cabal-macosx upstream-persistent
 upstream-cabal-macosx:
 	cd upstream/cabal-macosx && $(CABAL) install
-upstream-data-accessor-mtl2:
-	cd upstream/data-accessor-mtl2 && $(CABAL) install
 upstream-persistent:
 	cd upstream/persistent && $(CABAL) install
 	cd upstream/persistent/backends/sqlite && $(CABAL) install
