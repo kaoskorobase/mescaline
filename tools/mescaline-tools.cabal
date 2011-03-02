@@ -27,7 +27,7 @@ Executable mescaline-analyser
     Build-Depends:
         base >= 4 && < 5
       , aeson
-      , attoparsec
+      , attoparsec >= 0.8
       , bytestring
       , mescaline-database >= 0.0 && < 0.1
       , text
