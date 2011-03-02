@@ -30,8 +30,6 @@ import           Mescaline.Database.Entity as Entity
 import           Mescaline.Database.Vector
 import           Mescaline.Database.Vector as Vector
 import           Database.Persist.Sqlite as DB
--- import qualified Mescaline.Analysis.Meap as Meap
--- import qualified Mescaline.Analysis.SonicAnnotator as SonicAnnotator
 #if USE_ANALYSIS
 import qualified Mescaline.Analysis.Types as Analysis
 import qualified Mescaline.Statistics.PCA as PCA
