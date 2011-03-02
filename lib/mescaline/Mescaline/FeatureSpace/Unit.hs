@@ -11,8 +11,10 @@ module Mescaline.FeatureSpace.Unit (
   , feature
   , value
   -- , withValues
+  , getUnits
 ) where
 
+import           Control.Monad.IO.Class (MonadIO)
 import qualified Data.Map as Map
 import           Data.Int (Int64)
 import           Data.Vector (Vector)
@@ -68,3 +70,11 @@ value i = DB.toVector . DB.featureValue . feature i
 -- {-# INLINE withValues #-}
 -- withValues :: Unit -> [Feature.Value] -> Unit
 -- withValues u vs = Unit (unit u) (V.zipWith Feature.setValue (V.fromList vs) (features u))
+
+getUnits :: (MonadIO m, DB.PersistBackend m) =>
+    String
+ -> [String]
+ -> m [Unit]
+getUnits pattern features = do
+    (sfs, us) <- DB.query pattern features
+    return $ map (\(i, (u, fs)) -> cons sfs i u fs) (Map.toList us)

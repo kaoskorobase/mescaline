@@ -9,7 +9,6 @@ module Mescaline.FeatureSpace.Process (
 import           Control.Concurrent.Process hiding (Handle)
 import qualified Control.Concurrent.Process as Process
 import           Control.Seq
-import qualified Data.Map as Map
 import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Database as DB
 import qualified Mescaline.FeatureSpace.Model as Model
@@ -28,15 +27,6 @@ data Output =
 
 type Handle = Process.Handle Input Output
 
-getUnits :: FilePath
-         -> String
-         -> [String]
-         -> IO [Unit.Unit]
-getUnits dbFile pattern features = do
-    (sfs, us) <- DB.withDatabase dbFile $ DB.query pattern features
-    let us' = map (\(i, (u, fs)) -> Unit.cons sfs i u fs) (Map.toList us)
-    seqList rseq us' `seq` return us'
-
 new :: IO Handle
 new = do
     rgen <- Random.getStdGen
@@ -46,11 +36,12 @@ new = do
             msg <- recv
             f' <- case msg of
                     LoadDatabase path pattern -> do
-                        units <- io $ getUnits path pattern [
-                            "es.globero.mescaline.spectral" ]
+                        units <- io $ DB.withDatabase path
+                                    $ Unit.getUnits pattern [
+                                        "es.globero.mescaline.spectral" ]
                           -- , "com.meapsoft.AvgChunkPower"
                           -- , "com.meapsoft.AvgFreqSimple" ]
-                        let f' = Model.setUnits f units
+                        let f' = Model.setUnits f (seqList rseq units `seq` units)
                         notify $ DatabaseLoaded (Model.units f')
                         return $ f'
                     UpdateRegion r -> do
