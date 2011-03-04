@@ -168,15 +168,17 @@ flag build-app-bundle
 
 executable mescaline
     main-is:            main.hs
-    ghc-options:        -W -threaded
-    ghc-prof-options:   -W -threaded -auto-all
+    ghc-options:        -W -threaded -rtsopts
+    ghc-prof-options:   -W -threaded -auto-all -rtsopts
     build-depends:
         base >= 4 && < 6
       , containers
       , directory
       , hosc
       , hsc3-process >= 0.4
+      , hsc3-server
       , mescaline
+      , mescaline-database
       , mtl >= 2
       , filepath
       , FindBin
@@ -195,3 +197,4 @@ executable mescaline
         Mescaline.FeatureSpace.View
         Mescaline.Pattern.View
         Mescaline.Application.Config.Qt
+        Paths_mescaline_app

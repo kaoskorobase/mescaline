@@ -9,9 +9,10 @@ import           Control.Concurrent.Chan
 import           Control.Concurrent.MVar
 import           Control.Concurrent.Process
 import           Control.Monad
-import           Control.Monad.Trans (MonadIO)
+import           Control.Monad.Trans (MonadIO, liftIO)
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
+import           Mescaline.Application (AppT)
 import qualified Mescaline.Application.Config as Config
 import           Mescaline.FeatureSpace.View (getRegionColors)
 import qualified Mescaline.Pattern.Sequencer as Model
@@ -187,61 +188,62 @@ textChanged process state _ = do
     src <- Qt.toPlainText (editor state) ()
     sendTo process (Process.SetSourceCode src)
 
-new :: Process.Handle -> Qt.QWidget () -> IO (View, Handle Input Output)
+new :: MonadIO m => Process.Handle -> Qt.QWidget () -> AppT m (View, Handle Input Output)
 new process editorWindow = do
     config <- Config.getConfig
 
-    boxSize <- Config.getIO config "Sequencer" "boxSize" :: IO Double
-    boxPadding <- Config.getIO config "Sequencer" "boxPadding" :: IO Double
-    cursorPadding <- Config.getIO config "Sequencer" "cursorPadding" :: IO Double
-    cursorLineWidth <- Config.getIO config "Sequencer" "cursorLineWidth" :: IO Double
-    activeCursorLineWidth <- Config.getIO config "Sequencer" "activeCursorLineWidth" :: IO Double
+    liftIO $ do
+        boxSize <- Config.getIO config "Sequencer" "boxSize" :: IO Double
+        boxPadding <- Config.getIO config "Sequencer" "boxPadding" :: IO Double
+        cursorPadding <- Config.getIO config "Sequencer" "cursorPadding" :: IO Double
+        cursorLineWidth <- Config.getIO config "Sequencer" "cursorLineWidth" :: IO Double
+        activeCursorLineWidth <- Config.getIO config "Sequencer" "activeCursorLineWidth" :: IO Double
     
-    view <- newView
+        view <- newView
     
-    -- Set up text editor
-    editor <- Qt.findChild editorWindow ("<QTextEdit*>", "textEdit") :: IO (Qt.QTextEdit ())
-    fontMetrics <- Qt.qFontMetrics =<< Qt.currentFont editor ()
-    charWidth <- Qt.averageCharWidth fontMetrics ()
-    Qt.setTabStopWidth editor (charWidth * 8)
+        -- Set up text editor
+        editor <- Qt.findChild editorWindow ("<QTextEdit*>", "textEdit") :: IO (Qt.QTextEdit ())
+        fontMetrics <- Qt.qFontMetrics =<< Qt.currentFont editor ()
+        charWidth <- Qt.averageCharWidth fontMetrics ()
+        Qt.setTabStopWidth editor (charWidth * 8)
     
-    model <- query process Process.GetSequencer
+        model <- query process Process.GetSequencer
 
-    let params = Params boxSize boxPadding cursorPadding
-    (fMap, cMap) <- initScene params view model
-                        (\(r, c) _ -> sendTo process $ Process.ModifyCell r c (maybe (Just 1) (const Nothing)))
+        let params = Params boxSize boxPadding cursorPadding
+        (fMap, cMap) <- initScene params view model
+                            (\(r, c) _ -> sendTo process $ Process.ModifyCell r c (maybe (Just 1) (const Nothing)))
 
-    mq <- newChan
-    modelVar <- newMVar Nothing
-    tb             <- Qt.qBrush Qt.eblack
-    fs_pen         <- Qt.qPen (tb, 1::Double, Qt.eSolidLine, Qt.eSquareCap, Qt.eMiterJoin)
-    fs_emptyBrush  <- Qt.qBrush Qt.etransparent
-    fs_filledBrush <- Qt.qBrush Qt.edarkGray
+        mq <- newChan
+        modelVar <- newMVar Nothing
+        tb             <- Qt.qBrush Qt.eblack
+        fs_pen         <- Qt.qPen (tb, 1::Double, Qt.eSolidLine, Qt.eSquareCap, Qt.eMiterJoin)
+        fs_emptyBrush  <- Qt.qBrush Qt.etransparent
+        fs_filledBrush <- Qt.qBrush Qt.edarkGray
     
-    regionBrushes  <- getRegionColors config >>= mapM Qt.qBrush
-    cs_inactive    <- liftM (IntMap.fromList . zip [0..]) $
-        mapM (\b -> Qt.qPen (b, cursorLineWidth, Qt.eSolidLine, Qt.eSquareCap, Qt.eMiterJoin))
-             regionBrushes
-    cs_active      <- liftM (IntMap.fromList . zip [0..]) $
-        mapM (\b -> Qt.qPen (b, activeCursorLineWidth, Qt.eSolidLine, Qt.eSquareCap, Qt.eMiterJoin))
-             regionBrushes
+        regionBrushes  <- getRegionColors config >>= mapM Qt.qBrush
+        cs_inactive    <- liftM (IntMap.fromList . zip [0..]) $
+            mapM (\b -> Qt.qPen (b, cursorLineWidth, Qt.eSolidLine, Qt.eSquareCap, Qt.eMiterJoin))
+                 regionBrushes
+        cs_active      <- liftM (IntMap.fromList . zip [0..]) $
+            mapM (\b -> Qt.qPen (b, activeCursorLineWidth, Qt.eSolidLine, Qt.eSquareCap, Qt.eMiterJoin))
+                 regionBrushes
 
-    let state = State
-                    params
-                    mq
-                    modelVar
-                    fMap cMap
-                    (FieldStyle (fs_pen, fs_emptyBrush) (fs_pen, fs_filledBrush))
-                    (CursorStyle cs_inactive cs_active)
-                    editorWindow
-                    editor
+        let state = State
+                        params
+                        mq
+                        modelVar
+                        fMap cMap
+                        (FieldStyle (fs_pen, fs_emptyBrush) (fs_pen, fs_filledBrush))
+                        (CursorStyle cs_inactive cs_active)
+                        editorWindow
+                        editor
 
-    Qt.connectSlot view "update()" view "update()" $ updateHandler state
-    update view state (Process.Changed 0 Process.Stopped model)
+        Qt.connectSlot view "update()" view "update()" $ updateHandler state
+        update view state (Process.Changed 0 Process.Stopped model)
 
-    uncurry (setPatch True state) =<< query process Process.GetPatch
-    Qt.connectSlot editor "textChanged()" view "textChanged()" $ textChanged process state
+        uncurry (setPatch True state) =<< query process Process.GetPatch
+        Qt.connectSlot editor "textChanged()" view "textChanged()" $ textChanged process state
 
-    handle <- spawn $ updateProcess view state
+        handle <- spawn $ updateProcess view state
 
-    return (view, handle)
+        return (view, handle)

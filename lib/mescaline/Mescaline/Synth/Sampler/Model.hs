@@ -4,6 +4,7 @@
 
 module Mescaline.Synth.Sampler.Model (
     Sampler
+  , Options(..)
   , new
   , free
   , playUnit
@@ -13,6 +14,7 @@ import           Control.Monad.Reader
 import           Data.Accessor
 import           Data.Maybe (mapMaybe)
 import           Mescaline (Duration, Time)
+import           Mescaline.Application (AppT)
 import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Application.Logger as Log
@@ -143,9 +145,8 @@ data Effect = Effect {
 mkFxPath :: String -> FilePath -> FilePath
 mkFxPath name defDir = defDir </> (name ++ ".scsyndef")
 
-newEffect :: Int -> Accessor Synth Double -> String -> Server Effect
-newEffect i acc name = do
-    defDir <- liftIO $ App.getUserDataPath "synthdefs"
+newEffect :: FilePath -> Int -> Accessor Synth Double -> String -> Server Effect
+newEffect defDir i acc name = do
     let path = mkFxPath name defDir
     e <- liftIO $ doesFileExist path
     nid <- if e then liftM Just (S.alloc S.nodeId) else return Nothing
@@ -225,16 +226,17 @@ data Sampler = Sampler {
   , playUnitFunc :: !(Sampler -> Time -> Synth -> Server ())
   }
 
-new :: Server Sampler
-new = do
-    conf <- liftIO Config.getConfig
+data Options = Options {
+    synthdefDir :: FilePath
+  , sendEffect1 :: Maybe String
+  , sendEffect2 :: Maybe String
+  , scheduleCompletionBundles :: Bool
+  } deriving (Eq, Show)
 
-    let b = either (const False) id (Config.get conf "Synth" "scheduleCompletionBundles")
-    liftIO $ Log.noticeM "Synth" $ (if b then "U" else "Not u") ++ "sing completion bundle scheduling."
-
-
-    fx1 <- newEffect 1 P.fxParam1 (either (const "") id (Config.get conf "Synth" "sendEffect1"))
-    fx2 <- newEffect 2 P.fxParam2 (either (const "") id (Config.get conf "Synth" "sendEffect2"))
+new :: Options -> Server Sampler
+new opts = do
+    fx1 <- newEffect (synthdefDir opts) 1 P.fxParam1 (maybe "" id (sendEffect1 opts))
+    fx2 <- newEffect (synthdefDir opts) 2 P.fxParam2 (maybe "" id (sendEffect2 opts))
     let fx = [fx1, fx2]
 
     -- Load synthdefs
@@ -248,7 +250,7 @@ new = do
         replicate nb (BC.allocBytes 1 diskBufferSize)
      ++ replicate nb (BC.allocBytes 2 diskBufferSize)
 
-    return $ Sampler cache fx (if b then playUnit_schedComplBundles else playUnit_noSchedComplBundles)
+    return $ Sampler cache fx (if scheduleCompletionBundles opts then playUnit_schedComplBundles else playUnit_noSchedComplBundles)
 
 free :: Sampler -> Server ()
 free sampler = do

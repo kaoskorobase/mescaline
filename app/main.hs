@@ -7,7 +7,7 @@ import           Control.Concurrent.MVar
 import           Control.Concurrent.Process
 import           Control.Exception
 import           Control.Monad
--- import           Data.Accessor
+import           Control.Monad.Trans (MonadIO, liftIO)
 import           Data.Bits
 import           Data.Char (ord)
 import           Data.Function (fix)
@@ -15,6 +15,7 @@ import qualified Data.List as List
 import           Data.Maybe
 import           Data.Version (showVersion)
 import           Mescaline (Time)
+import           Mescaline.Application (AppT)
 import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Desktop as App
 import qualified Mescaline.Application.Logger as Log
@@ -33,6 +34,7 @@ import qualified Mescaline.Pattern.View as PatternView
 import qualified Mescaline.Synth.OSCServer as OSCServer
 import qualified Mescaline.Synth.Sampler.Process as SynthP
 import           Mescaline.Util (findFiles)
+import qualified Paths_mescaline_app as Paths
 import qualified Sound.OpenSoundControl as OSC
 import qualified Sound.SC3.Server.State as State
 import qualified Sound.SC3.Server.Process as Server
@@ -246,22 +248,23 @@ chanLogger prio fmt chan action =
         (\chan msg -> writeChan chan msg >> action)
         (const (return ()))
 
-createLoggers :: MainWindow -> IO ()
+createLoggers :: MonadIO m => MainWindow -> AppT m ()
 createLoggers logWindow = do
-    textEdit <- Qt.findChild logWindow ("<QTextEdit*>", "textEdit") :: IO (Qt.QTextEdit ())
-    chan <- newChan
-    Qt.connectSlot logWindow "logMessage()" logWindow "logMessage()" $ logMessage chan textEdit
-    let fmt = "[$prio][$loggername] $msg\n"
-        action = Qt.emitSignal logWindow "logMessage()" ()
     components <- Log.getComponents
-    -- FIXME: The log levels have to be initialized first down in main, why?
-    mapM_ (\(logger, prio) -> do
-        Log.updateGlobalLogger
-            logger
-            (Log.setHandlers [chanLogger prio fmt chan action]))
-            components
-    -- Disable stderr logger
-    Log.updateGlobalLogger Log.rootLoggerName (Log.setHandlers ([] :: [Log.GenericHandler ()]))
+    liftIO $ do
+        textEdit <- Qt.findChild logWindow ("<QTextEdit*>", "textEdit") :: IO (Qt.QTextEdit ())
+        chan <- newChan
+        Qt.connectSlot logWindow "logMessage()" logWindow "logMessage()" $ logMessage chan textEdit
+        let fmt = "[$prio][$loggername] $msg\n"
+            action = Qt.emitSignal logWindow "logMessage()" ()
+        -- FIXME: The log levels have to be initialized first down in main, why?
+        mapM_ (\(logger, prio) -> do
+            Log.updateGlobalLogger
+                logger
+                (Log.setHandlers [chanLogger prio fmt chan action]))
+                components
+        -- Disable stderr logger
+        Log.updateGlobalLogger Log.rootLoggerName (Log.setHandlers ([] :: [Log.GenericHandler ()]))
     where
         logMessage :: Chan String -> Qt.QTextEdit () -> MainWindow -> IO ()
         logMessage chan edit _ = do
@@ -279,13 +282,13 @@ clearLog logWindow = do
 -- ====================================================================
 -- Actions
 
-action_about :: Qt.QWidget () -> Qt.QAction () -> IO ()
-action_about mw _ = Qt.qMessageBoxAbout (
+action_about :: App.Version -> Qt.QWidget () -> Qt.QAction () -> IO ()
+action_about version mw _ = Qt.qMessageBoxAbout (
         mw
       , "About Mescaline"
       , unwords [
             "<center><h2>Mescaline</h2></center>"
-          , "<center><h4>Version " ++ showVersion App.version ++ "</h4></center>"
+          , "<center><h4>Version " ++ showVersion version ++ "</h4></center>"
           , "<a href=\"http://mescaline.globero.es\">Mescaline</a>"
           , "is a data-driven sequencer and synthesizer." ] )
 
@@ -374,11 +377,11 @@ action_help_patternRef = action_help_openUrl "http://mescaline.globero.es/doc/ht
 action_help_openExample :: PatternP.Handle -> FilePath -> Qt.QWidget () -> Qt.QAction () -> IO ()
 action_help_openExample process path _ _ = sendTo process (PatternP.LoadPatch path)
 
-main :: IO ()
-main = do
-    mapM_ (\(l,p) -> Log.updateGlobalLogger l (Log.setLevel p)) =<< Log.getComponents
+appMain :: AppT IO ()
+appMain = do
+    mapM_ (\(l,p) -> liftIO $ Log.updateGlobalLogger l (Log.setLevel p)) =<< Log.getComponents
 
-    app <- Qt.qApplication  ()
+    app <- liftIO $ Qt.qApplication  ()
 
     -- Parse arguments
     args <- App.getArgs
@@ -389,9 +392,9 @@ main = do
                     (_:p:_) -> p
                     _       -> ".*"
 
-    mainWindow <- loadUI =<< App.getResourcePath "mescaline.ui"
-    editorWindow <- loadUI =<< App.getResourcePath "editor.ui"
-    logWindow <- loadUI =<< App.getResourcePath "messages.ui"
+    mainWindow <- liftIO . loadUI =<< App.getResourcePath "mescaline.ui"
+    editorWindow <- liftIO . loadUI =<< App.getResourcePath "editor.ui"
+    logWindow <- liftIO . loadUI =<< App.getResourcePath "messages.ui"
     createLoggers logWindow
 
     -- Qt.setHandler mainWindow "keyPressEvent(QKeyEvent*)" $ windowKeyPressEvent
@@ -400,128 +403,137 @@ main = do
     (synthP, synthQuit) <- SynthP.new
 
     -- Feature space process
-    fspaceP <- FeatureSpaceP.new
+    fspaceP <- liftIO FeatureSpaceP.new
 
     -- Feature space view
     (fspaceView, fspaceViewP) <- FeatureSpaceView.new fspaceP synthP
-    connect Left fspaceP fspaceViewP
-    connect (\x -> case x of
-                SynthP.UnitStarted _ u -> Right $ FeatureSpaceView.HighlightOn u
-                SynthP.UnitStopped _ u -> Right $ FeatureSpaceView.HighlightOff u)
-            synthP fspaceViewP
-    
-    fspace_graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "featureSpaceView")
-    Qt.setScene fspace_graphicsView fspaceView
 
     -- Sequencer process
     defaultPatch <- Patch.defaultPatch
     patternP <- PatternP.new defaultPatch fspaceP
     (patternView, patternViewP) <- PatternView.new patternP (Qt.objectCast editorWindow)
-    patternViewP `listenTo` patternP
 
-    -- Sequencer view
-    seq_graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "sequencerView")
-    Qt.setScene seq_graphicsView patternView
+    examplesDir <- App.getResourcePath "patches/examples"
+    appVersion <- App.version
 
-    -- Database process
-    dbP <- DatabaseP.new
-    connect (\(DatabaseP.Changed path pattern) -> FeatureSpaceP.LoadDatabase path pattern) dbP fspaceP
-    sendTo dbP $ DatabaseP.Load dbFile pattern
-    
-    -- Pattern process
-    patternToFSpaceP <- spawn $ fix $ \loop -> do
-        x <- recv
-        case x of
-            PatternP.Event time event -> do
-                Event.withSynth (return ()) (sendTo synthP . SynthP.PlayUnit time) event
-            _ -> return ()
-        loop
-    patternToFSpaceP `listenTo` patternP
-    fspaceToPatternP <- spawn $ fix $ \loop -> do
-        x <- recv
-        case x of
-            FeatureSpaceP.RegionChanged _ -> do
-                fspace <- query fspaceP FeatureSpaceP.GetModel
-                sendTo patternP $ PatternP.SetFeatureSpace fspace
-            _ -> return ()
-        loop
-    fspaceToPatternP `listenTo` fspaceP
-    
-    -- Pipe feature space view output to synth
-    -- toSynthP <- spawn $ fix $ \loop -> do
-    --     x <- recv
-    --     case x of
-    --         FeatureSpaceP.UnitActivated t u -> io $ writeChan synth_ichan (Left (t, (FeatureSpace.unit u)))
-    --         _                               -> return ()
-    --     loop
-    -- toSynthP `listenTo` fspaceP
+    liftIO $ do
+        connect Left fspaceP fspaceViewP
+        connect (\x -> case x of
+                    SynthP.UnitStarted _ u -> Right $ FeatureSpaceView.HighlightOn u
+                    SynthP.UnitStopped _ u -> Right $ FeatureSpaceView.HighlightOff u)
+                synthP fspaceViewP
 
-    -- Set up actions and menus
-    examplesMenu <- directoryMenu (action_help_openExample patternP) ["msc"] =<< App.getResourcePath "patches/examples"
-    
-    let aboutAction = Action "about" "About Mescaline" "Show about message box" Trigger Nothing action_about
-        osMenu = case App.buildOS of
-                    App.OSX -> Just $ Menu "about" "about.Mescaline" [ aboutAction ]
-                    _       -> Nothing
-        mkHelpMenu actions = case App.buildOS of
-                                App.OSX -> actions
-                                _       -> aboutAction:actions
-        menuDef =
-            maybeToList osMenu
-            ++
-            [ Menu "file" "File"
-              [ Action "openFile" "Open..." "Open file" Trigger (Just "Ctrl+o") (action_file_openFile patternP)
-              , Action "saveFile" "Save" "Save file" Trigger (Just "Ctrl+s") (action_file_saveFile patternP)
-              , Separator
-              , Action "importFile" "Import File..." "Import a file" Trigger (Just "Ctrl+i") (action_file_importFile dbP)
-              , Action "importDirectory" "Import Directory..." "Import a directory" Trigger (Just "Ctrl+Shift+I") (action_file_importDirectory dbP) ]
-            , Menu "sequencer" "Sequencer"
-              [ Action "play" "Play" "Start or pause the sequencer" Checkable (Just "SPACE") (action_pattern_playPause patternP)
-              , Action "reset" "Reset" "Reset the sequencer" Trigger (Just "Ctrl+RETURN") (action_pattern_reset patternP)
-              , Action "run" "Run Patch" "Run the current patch" Trigger (Just "Ctrl+r") (action_pattern_run patternP)
-              , Menu "mute" "Mute"
-                (flip map [0..7] $ \i -> Action ("mute" ++ show i)
-                                                ("Mute track " ++ show (i + 1))
-                                                "" Checkable (Just ("Ctrl+" ++ show (i + 1)))
-                                                (action_pattern_mute i patternP)) ]
-            , Menu "featureSpace" "FeatureSpace"
-              [ Menu "zoom" "Zoom"
-                [ Action "zoomIn" "Zoom In" "Zoom into feature space" Trigger (Just "Ctrl++") (action_featureSpace_zoom_zoomIn fspace_graphicsView)
-                , Action "zoomOut" "Zoom Out" "Zoom out of feature space" Trigger (Just "Ctrl+-") (action_featureSpace_zoom_zoomOut fspace_graphicsView)
-                , Action "reset" "Reset" "Reset feature space zoom" Trigger (Just "Ctrl+0") (action_featureSpace_zoom_reset fspace_graphicsView) ] ]
-            , Menu "window" "Window"
-              [ Action "closeWindow" "Close" "Close window" Trigger (Just "Ctrl+w") action_closeActiveWindow
-              , Separator
-              , Action "mainWindow" "Main" "Show main window" Trigger (Just "Ctrl+Shift+w") (action_showWindow mainWindow)
-              , Action "editorWindow" "Editor" "Show editor window" Trigger (Just "Ctrl+Shift+e") (action_showWindow editorWindow)
-              , Separator
-              , Action "logWindow" "Messages" "Show message window" Trigger (Just "Ctrl+Shift+m") (action_showWindow logWindow)
-              , Action "clearLog" "Clear Messages" "Clear message window" Trigger (Just "Ctrl+Shift+c") (const (const (clearLog logWindow))) ]
-            , Menu "help" "Help" $ mkHelpMenu
-              [ Action "help" "Mescaline Help" "Open Mescaline manual in browser" Trigger Nothing action_help_manual
-              , Action "help_patternRef" "Pattern Reference" "Open pattern reference in browser" Trigger Nothing action_help_patternRef
-              , Separator
-              , Menu "help_examples" "Examples" examplesMenu
-              ]
-            ]
+        fspace_graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "featureSpaceView")
+        Qt.setScene fspace_graphicsView fspaceView
 
-    actions <- defineWindowMenu menuDef (Qt.objectCast mainWindow)
-    trigger "/featureSpace/zoom/reset" actions
-    defineWindowMenu menuDef (Qt.objectCast editorWindow)
-    defineWindowMenu menuDef (Qt.objectCast logWindow)
+        patternViewP `listenTo` patternP
 
-    -- OSC server process
-    oscServer <- OSCServer.new 2010 synthP fspaceP
+        -- Sequencer view
+        seq_graphicsView <- Qt.findChild mainWindow ("<QGraphicsView*>", "sequencerView")
+        Qt.setScene seq_graphicsView patternView
 
-    -- Start the application
-    Qt.qshow mainWindow ()
-    Qt.activateWindow mainWindow ()
+        -- Database process
+        dbP <- DatabaseP.new
+        connect (\(DatabaseP.Changed path pattern) -> FeatureSpaceP.LoadDatabase path pattern) dbP fspaceP
+        sendTo dbP $ DatabaseP.Load dbFile pattern
 
-    ok <- Qt.qApplicationExec ()
-    
-    -- Signal synth thread and wait for it to exit.
-    -- Otherwise stale scsynth processes will be lingering around.
-    synthQuit
+        -- Pattern process
+        patternToFSpaceP <- spawn $ fix $ \loop -> do
+            x <- recv
+            case x of
+                PatternP.Event time event -> do
+                    Event.withSynth (return ()) (sendTo synthP . SynthP.PlayUnit time) event
+                _ -> return ()
+            loop
+        patternToFSpaceP `listenTo` patternP
+        fspaceToPatternP <- spawn $ fix $ \loop -> do
+            x <- recv
+            case x of
+                FeatureSpaceP.RegionChanged _ -> do
+                    fspace <- query fspaceP FeatureSpaceP.GetModel
+                    sendTo patternP $ PatternP.SetFeatureSpace fspace
+                _ -> return ()
+            loop
+        fspaceToPatternP `listenTo` fspaceP
 
-    putStrLn "Bye sucker."
-    Qt.returnGC
+        -- Pipe feature space view output to synth
+        -- toSynthP <- spawn $ fix $ \loop -> do
+        --     x <- recv
+        --     case x of
+        --         FeatureSpaceP.UnitActivated t u -> io $ writeChan synth_ichan (Left (t, (FeatureSpace.unit u)))
+        --         _                               -> return ()
+        --     loop
+        -- toSynthP `listenTo` fspaceP
+
+        -- Set up actions and menus
+        examplesMenu <- directoryMenu (action_help_openExample patternP) ["msc"] examplesDir
+
+        let aboutAction = Action "about" "About Mescaline" "Show about message box" Trigger Nothing (action_about appVersion)
+            osMenu = case App.buildOS of
+                        App.OSX -> Just $ Menu "about" "about.Mescaline" [ aboutAction ]
+                        _       -> Nothing
+            mkHelpMenu actions = case App.buildOS of
+                                    App.OSX -> actions
+                                    _       -> aboutAction:actions
+            menuDef =
+                maybeToList osMenu
+                ++
+                [ Menu "file" "File"
+                  [ Action "openFile" "Open..." "Open file" Trigger (Just "Ctrl+o") (action_file_openFile patternP)
+                  , Action "saveFile" "Save" "Save file" Trigger (Just "Ctrl+s") (action_file_saveFile patternP)
+                  , Separator
+                  , Action "importFile" "Import File..." "Import a file" Trigger (Just "Ctrl+i") (action_file_importFile dbP)
+                  , Action "importDirectory" "Import Directory..." "Import a directory" Trigger (Just "Ctrl+Shift+I") (action_file_importDirectory dbP) ]
+                , Menu "sequencer" "Sequencer"
+                  [ Action "play" "Play" "Start or pause the sequencer" Checkable (Just "SPACE") (action_pattern_playPause patternP)
+                  , Action "reset" "Reset" "Reset the sequencer" Trigger (Just "Ctrl+RETURN") (action_pattern_reset patternP)
+                  , Action "run" "Run Patch" "Run the current patch" Trigger (Just "Ctrl+r") (action_pattern_run patternP)
+                  , Menu "mute" "Mute"
+                    (flip map [0..7] $ \i -> Action ("mute" ++ show i)
+                                                    ("Mute track " ++ show (i + 1))
+                                                    "" Checkable (Just ("Ctrl+" ++ show (i + 1)))
+                                                    (action_pattern_mute i patternP)) ]
+                , Menu "featureSpace" "FeatureSpace"
+                  [ Menu "zoom" "Zoom"
+                    [ Action "zoomIn" "Zoom In" "Zoom into feature space" Trigger (Just "Ctrl++") (action_featureSpace_zoom_zoomIn fspace_graphicsView)
+                    , Action "zoomOut" "Zoom Out" "Zoom out of feature space" Trigger (Just "Ctrl+-") (action_featureSpace_zoom_zoomOut fspace_graphicsView)
+                    , Action "reset" "Reset" "Reset feature space zoom" Trigger (Just "Ctrl+0") (action_featureSpace_zoom_reset fspace_graphicsView) ] ]
+                , Menu "window" "Window"
+                  [ Action "closeWindow" "Close" "Close window" Trigger (Just "Ctrl+w") action_closeActiveWindow
+                  , Separator
+                  , Action "mainWindow" "Main" "Show main window" Trigger (Just "Ctrl+Shift+w") (action_showWindow mainWindow)
+                  , Action "editorWindow" "Editor" "Show editor window" Trigger (Just "Ctrl+Shift+e") (action_showWindow editorWindow)
+                  , Separator
+                  , Action "logWindow" "Messages" "Show message window" Trigger (Just "Ctrl+Shift+m") (action_showWindow logWindow)
+                  , Action "clearLog" "Clear Messages" "Clear message window" Trigger (Just "Ctrl+Shift+c") (const (const (clearLog logWindow))) ]
+                , Menu "help" "Help" $ mkHelpMenu
+                  [ Action "help" "Mescaline Help" "Open Mescaline manual in browser" Trigger Nothing action_help_manual
+                  , Action "help_patternRef" "Pattern Reference" "Open pattern reference in browser" Trigger Nothing action_help_patternRef
+                  , Separator
+                  , Menu "help_examples" "Examples" examplesMenu
+                  ]
+                ]
+
+        actions <- defineWindowMenu menuDef (Qt.objectCast mainWindow)
+        trigger "/featureSpace/zoom/reset" actions
+        defineWindowMenu menuDef (Qt.objectCast editorWindow)
+        defineWindowMenu menuDef (Qt.objectCast logWindow)
+
+        -- OSC server process
+        oscServer <- OSCServer.new 2010 synthP fspaceP
+
+        -- Start the application
+        Qt.qshow mainWindow ()
+        Qt.activateWindow mainWindow ()
+
+        ok <- Qt.qApplicationExec ()
+
+        -- Signal synth thread and wait for it to exit.
+        -- Otherwise stale scsynth processes will be lingering around.
+        synthQuit
+
+        putStrLn "Bye sucker."
+        Qt.returnGC
+
+main :: IO ()
+main = App.runAppT appMain =<< App.mkApp "Mescaline" Paths.version Paths.getBinDir Paths.getDataDir

@@ -51,6 +51,7 @@ library
       , hsc3-server >= 0.0
       , mescaline-database >= 0.0 && < 0.1
       , MonadCatchIO-mtl >= 0.3
+      , monad-peel
       , MonadRandom >= 0.1
       , mtl >= 2
       , parallel >= 3

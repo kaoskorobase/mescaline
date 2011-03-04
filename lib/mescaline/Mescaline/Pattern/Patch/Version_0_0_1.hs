@@ -7,10 +7,13 @@ module Mescaline.Pattern.Patch.Version_0_0_1 (
 ) where
 
 import           Control.Arrow
-import           Control.Exception
+import           Control.Exception.Peel (Exception, SomeException, catch, throw)
+import           Control.Monad.IO.Peel (MonadPeelIO)
+import           Control.Monad.Trans (MonadIO, liftIO)
 import qualified Data.List as List
 import           Data.Typeable (Typeable)
 import qualified Data.Vector.Generic as V
+import           Mescaline.Application (AppT)
 import qualified Mescaline.Pattern.Patch as P
 import qualified Mescaline.Pattern.Sequencer as S
 import qualified Mescaline.FeatureSpace.Model as FS
@@ -47,7 +50,7 @@ fileFromPatch p = File {
   , sequencer = sequencerFromPatch (P.sequencer p)
   , regions = map regionFromPatch (P.regions p) }
 
-fileToPatch :: File -> IO P.Patch
+fileToPatch :: MonadIO m => File -> AppT m P.Patch
 fileToPatch (File c s rs) = P.new c (sequencerToPatch s) (map regionToPatch rs)
 
 data LoadError = LoadError String
@@ -58,8 +61,8 @@ instance Show LoadError where
 
 instance Exception LoadError
 
-load :: FilePath -> IO P.Patch
-load path = catch (readFile path >>= return . read >>= fileToPatch)
+load :: MonadPeelIO m => FilePath -> AppT m P.Patch
+load path = catch (liftIO (readFile path) >>= return . read >>= fileToPatch)
                 (\(e :: SomeException) -> throw $ LoadError "Parse error")
 
 store :: FilePath -> P.Patch -> IO ()

@@ -22,6 +22,7 @@ import           Data.Int (Int32, Int64)
 import           Data.IntMap (IntMap)
 import qualified Data.IntMap as IMap
 import qualified Data.Vector.Generic as V
+import           Mescaline.Application (AppT)
 import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Application.Config.Qt as Config
 -- import qualified Mescaline.Data.Unique as Unique
@@ -341,45 +342,47 @@ hashInt64 = fromIntegral
 -- hashUnique :: Unique.Id -> Int32
 -- hashUnique = Hash.hashString . Unique.toString
 
-newState :: Process.Handle -> Synth.Handle -> IO State
+newState :: MonadIO m => Process.Handle -> Synth.Handle -> AppT m State
 newState fspace synth = do
     config <- Config.getConfig
 
-    ug <- newMVar Nothing
-    us <- newMVar =<< Hash.new (==) hashInt64
+    liftIO $ do
+        ug <- newMVar Nothing
+        us <- newMVar =<< Hash.new (==) hashInt64
 
-    hl <- Config.getIO config "FeatureSpace" "highlightUnits" :: IO Bool
-    hlState <-
-        if hl
-            then do
-                hls     <- newMVar =<< Hash.new (==) hashInt64
-                hlColor <- Config.getColor config "FeatureSpace" "highlightColor"
-                hlBrush <- Qt.qBrush hlColor
-                hlPen   <- Qt.qPen (hlBrush, 0::Double)
-                return $ Just $ HighlightState hlPen hls
-            else return Nothing
+        hl <- Config.getIO config "FeatureSpace" "highlightUnits"
+        hlState <-
+            if hl
+                then do
+                    hls     <- newMVar =<< Hash.new (==) hashInt64
+                    hlColor <- Config.getColor config "FeatureSpace" "highlightColor"
+                    hlBrush <- Qt.qBrush hlColor
+                    hlPen   <- Qt.qPen (hlBrush, 0::Double)
+                    return $ Just $ HighlightState hlPen hls
+                else return Nothing
 
-    regionBrushes <- getRegionColors config >>= mapM Qt.qBrush
+        regionBrushes <- getRegionColors config >>= mapM Qt.qBrush
 
-    rs <- newMVar =<< Hash.new (==) Hash.hashInt
-    pu <- newMVar False
-    gc <- newChan
+        rs <- newMVar =<< Hash.new (==) Hash.hashInt
+        pu <- newMVar False
+        gc <- newChan
     
-    return $ State fspace synth ug us hlState (IMap.fromList (zip [0..] regionBrushes)) rs pu gc
+        return $ State fspace synth ug us hlState (IMap.fromList (zip [0..] regionBrushes)) rs pu gc
 
-new :: Process.Handle -> Synth.Handle -> IO (FeatureSpaceView, Handle Input Output)
+new :: MonadIO m => Process.Handle -> Synth.Handle -> AppT m (FeatureSpaceView, Handle Input Output)
 new fspace synth = do
     state <- newState fspace synth
     
-    view <- featureSpaceView_
-    Qt.setItemIndexMethod view Qt.eNoIndex
-    Qt.setHandler view "keyPressEvent(QKeyEvent*)"   $ sceneKeyPressEvent state
-    Qt.setHandler view "keyReleaseEvent(QKeyEvent*)" $ sceneKeyReleaseEvent state
-    Qt.connectSlot view "update()" view "update()"   $ update (guiChan state)
+    liftIO $ do
+        view <- featureSpaceView_
+        Qt.setItemIndexMethod view Qt.eNoIndex
+        Qt.setHandler view "keyPressEvent(QKeyEvent*)"   $ sceneKeyPressEvent state
+        Qt.setHandler view "keyReleaseEvent(QKeyEvent*)" $ sceneKeyReleaseEvent state
+        Qt.connectSlot view "update()" view "update()"   $ update (guiChan state)
 
-    model <- query fspace Process.GetModel
-    mapM_ (addRegion view state) (Model.regions model)
+        model <- query fspace Process.GetModel
+        mapM_ (addRegion view state) (Model.regions model)
 
-    handle <- spawn $ process view state
+        handle <- spawn $ process view state
 
-    return (view, handle)
+        return (view, handle)

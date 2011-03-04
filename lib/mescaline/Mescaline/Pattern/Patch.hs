@@ -16,7 +16,9 @@ module Mescaline.Pattern.Patch (
 ) where
 
 import           Control.Exception
+import           Control.Monad.Trans (MonadIO, liftIO)
 import           Data.Typeable
+import           Mescaline.Application (AppT)
 import qualified Mescaline.Application as App
 import           Mescaline.FeatureSpace.Model (Region, defaultRegions)
 import           Mescaline.Pattern
@@ -41,16 +43,16 @@ data Patch = Patch {
 cons :: String -> SyntaxTree -> Sequencer -> [Region] -> Patch
 cons = Patch
 
-new :: String -> Sequencer -> [Region] -> IO Patch
+new :: MonadIO m => String -> Sequencer -> [Region] -> AppT m Patch
 new src s rs = do
     res <- Interp.eval src
     case res of
         Left e -> throw (Comp.CompileError e)
         Right ast -> return $ cons src ast s rs
 
-defaultPatch :: IO Patch
+defaultPatch :: MonadIO m => AppT m Patch
 defaultPatch = do
-    src <- App.getResourcePath "patches/default.hs" >>= readFile
+    src <- App.getResourcePath "patches/default.hs" >>= liftIO . readFile
     new src (Sequencer.empty n n) rs
     where
         rs = defaultRegions
@@ -72,7 +74,7 @@ modifySequencer f p = p { sequencer = f (sequencer p) }
 setSourceCode :: String -> Patch -> Patch
 setSourceCode src patch = patch { sourceCode = src }
 
-evalSourceCode :: Patch -> IO (Either String Patch)
+evalSourceCode :: MonadIO m => Patch -> AppT m (Either String Patch)
 evalSourceCode patch = do
     res <- Interp.eval (sourceCode patch)
     case res of

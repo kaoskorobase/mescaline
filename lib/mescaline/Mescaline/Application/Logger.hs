@@ -7,7 +7,9 @@ module Mescaline.Application.Logger (
 ) where
 
 import           Control.Monad.Error
+import           Control.Monad.Trans (MonadIO)
 import           Data.Char (toUpper)
+import           Mescaline.Application (AppT)
 import qualified Mescaline.Application.Config as Config
 import           Mescaline.Util (readMaybe)
 import           System.Log.Formatter
@@ -40,11 +42,11 @@ componentMap =
     , ("Synth"        , "logLevel") ]
 
 -- | Initialize logger priorities.
-getComponents :: IO [(String, Priority)]
+getComponents :: MonadIO m => AppT m [(String, Priority)]
 getComponents = do
     conf <- Config.getConfig
     return $ map (\(logger, var) -> (logger, getLogLevel conf logger var))
                  componentMap
 
-initialize :: IO ()
-initialize = mapM_ (\(l,p) -> updateGlobalLogger l (setLevel p)) =<< getComponents
+initialize :: MonadIO m => AppT m ()
+initialize = mapM_ (\(l,p) -> liftIO $ updateGlobalLogger l (setLevel p)) =<< getComponents

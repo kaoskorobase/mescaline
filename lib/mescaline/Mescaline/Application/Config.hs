@@ -10,6 +10,7 @@ module Mescaline.Application.Config (
 
 import           Control.Exception
 import           Control.Monad
+import           Control.Monad.Trans (MonadIO, liftIO)
 import           Data.ConfigFile
 import           Data.Typeable
 import           Mescaline.Application
@@ -46,8 +47,8 @@ readConfigFile cp path = do
                 Left e    -> throw (ConfigParserError e)
         else return cp
 
-getConfig :: IO ConfigParser
+getConfig :: MonadIO m => AppT m ConfigParser
 getConfig = do
     defaultFile <- getResourcePath "config"
     userFile    <- getUserDataPath "config"
-    foldM readConfigFile defaultConfig [defaultFile, userFile]
+    liftIO $ foldM readConfigFile defaultConfig [defaultFile, userFile]

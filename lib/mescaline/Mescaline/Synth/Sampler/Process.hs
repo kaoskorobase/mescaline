@@ -16,6 +16,7 @@ import           Control.Monad.Error
 import           Data.Accessor
 import qualified Data.List as L
 import           Mescaline (Time)
+import           Mescaline.Application (AppT)
 import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Application.Logger as Log
@@ -43,7 +44,7 @@ data Output =
 
 type Handle = Process.Handle Input Output
 
-getEnginePaths :: IO (FilePath, Maybe [FilePath])
+getEnginePaths :: MonadIO m => AppT m (FilePath, Maybe [FilePath])
 getEnginePaths = do
     exe <- App.getResourceExecutable "usr/local/bin/scsynth"
     case exe of
@@ -69,14 +70,14 @@ getEngine internal =
                 splg = "/" ++ plgBase
             rplg <- App.getResourcePath plgBase
             let plg = [rplg, splg]
-            Log.infoM "Synth" $ "Using internal server with plugin path `" ++ L.intercalate ":" plg ++ "'"
+            liftIO $ Log.infoM "Synth" $ "Using internal server with plugin path `" ++ L.intercalate ":" plg ++ "'"
             return $ ServerM.withInternal
                         serverOptions { Server.ugenPluginPath = Just plg }
                         rtOptions
                         outputHandler
         else do
             (scsynth, plg) <- getEnginePaths
-            Log.infoM "Synth" $ "Using local server `" ++ scsynth ++ "'"
+            liftIO $ Log.infoM "Synth" $ "Using local server `" ++ scsynth ++ "'"
                               ++ maybe "" (\p -> " with plugins path `" ++ L.intercalate ":" p ++ "'") plg
             return $ ServerM.withSynth
                         Server.openUDP
@@ -99,25 +100,32 @@ getPrintLevel conf section option = do
         "all"  -> return AllPrinter
         _      -> throwError (Config.ParseError $ "Invalid OSC print level " ++ s, "")
 
-new :: IO (Handle, IO ())
+new :: AppT IO (Handle, IO ())
 new = do
     conf <- Config.getConfig
 
-    -- Get the engine function depending on config file variable
-    engine <- getEngine (either (const True) id (Config.get conf "Synth" "useInternalServer"))
+    defDir <- App.getUserDataPath "synthdefs"
 
     let printLevel = either (const NoPrinter) id (getPrintLevel conf "Synth" "dumpOSC")
         initBundle = OSC.Bundle OSC.immediately [dumpOSC printLevel]
+        fx1 = either (const Nothing) Just (Config.get conf "Synth" "sendEffect1")
+        fx2 = either (const Nothing) Just (Config.get conf "Synth" "sendEffect2")
+        schedCompBdls = either (const False) id (Config.get conf "Synth" "scheduleCompletionBundles")
+        useIntServ = either (const True) id (Config.get conf "Synth" "useInternalServer")
+        modelOpts = Model.Options defDir fx1 fx2 schedCompBdls
 
-    chan <- newChan
-    quit <- newEmptyMVar
+    liftIO $ Log.noticeM "Synth" $ (if schedCompBdls then "U" else "Not u") ++ "sing completion bundle scheduling."
+
+    engine <- getEngine useIntServ
+    chan <- liftIO $ newChan
+    quit <- liftIO $ newEmptyMVar
     h <- spawn $ process chan
-    _ <- forkIO $ runSynth engine initBundle h chan quit
+    _ <- liftIO $ forkIO $ runSynth engine initBundle modelOpts h chan quit
 
     return (h, sendTo h Quit >> readMVar quit)
     where
-        runSynth engine initBundle h chan quit = do
-            e <- try $ engine (S.async initBundle >> Model.new >>= loop h chan)
+        runSynth engine initBundle modelOpts h chan quit = do
+            e <- try $ engine (S.async initBundle >> Model.new modelOpts >>= loop h chan)
             case e of
                 Left exc -> writeChan chan $ EngineException_ exc
                 _ -> return ()

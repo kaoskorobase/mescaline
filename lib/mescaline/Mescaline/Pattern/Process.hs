@@ -12,15 +12,18 @@ module Mescaline.Pattern.Process (
 import           Control.Concurrent
 import           Control.Concurrent.Process hiding (Handle)
 import qualified Control.Concurrent.Process as Process
-import           Control.Exception
+import           Control.Exception.Peel
 import           Control.Monad
-import           Control.Monad.Trans (MonadIO)
+import           Control.Monad.IO.Peel (MonadPeelIO)
+import           Control.Monad.Reader (ask)
+import           Control.Monad.Trans (MonadIO, liftIO)
 import           Data.Accessor
 import qualified Data.BitSet as BitSet
 import           Data.Maybe (fromJust)
 import           Mescaline (Time)
-import qualified Mescaline.Application.Logger as Log
+import           Mescaline.Application (AppT, runAppT)
 import qualified Mescaline.Application.Config as Config
+import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.FeatureSpace.Process as FeatureSpaceP
 import           Mescaline.Pattern.Environment (Environment)
@@ -137,12 +140,12 @@ startPlayerThread handle pattern envir time = spawn $ playerProcess handle envir
 stopPlayerThread :: PlayerHandle -> IO ()
 stopPlayerThread = kill
 
-initPatch :: Handle -> FeatureSpaceP.Handle -> State -> IO ()
+initPatch :: MonadIO m => Handle -> FeatureSpaceP.Handle -> State -> AppT m ()
 initPatch h fspaceP state = do
     mapM_ (sendTo fspaceP . FeatureSpaceP.UpdateRegion) (Patch.regions (patch state))
 
     -- If specified in the config file, fill the whole sequencer in order to facilitate debugging.
-    fill <- fmap (\conf -> either (const False) id $ Config.get conf "Sequencer" "debugFill") Config.getConfig
+    fill <- liftM (\conf -> either (const False) id $ Config.get conf "Sequencer" "debugFill") Config.getConfig
     when fill $ do
         forM_ [0..Sequencer.rows (Patch.sequencer (patch state))]$ \r ->
             forM_ [0..Sequencer.cols (Patch.sequencer (patch state))] $ \c ->
@@ -150,11 +153,11 @@ initPatch h fspaceP state = do
 
     notifyListeners h (PatchChanged (patch state) (patchFilePath state))
 
-new :: Patch.Patch -> FeatureSpaceP.Handle -> IO Handle
+new :: MonadPeelIO m => Patch.Patch -> FeatureSpaceP.Handle -> AppT m Handle
 new patch0 fspaceP = do
-    time <- io Time.utcr
+    time <- liftIO Time.utcr
     let state = State time patch0 Nothing Nothing BitSet.empty
-    h <- spawn (loop state)
+    h <- liftIO . spawn . loop state =<< ask
     initPatch h fspaceP state
     return h
     where
@@ -165,7 +168,7 @@ new patch0 fspaceP = do
                 Running -> do
                     sendTo (fromJust (playerThread state)) (Environment.sequencer ^: update)
                     return Nothing
-        loop !state = do
+        loop !state app = do
             x <- recv
             state' <-
                 case x of
@@ -237,28 +240,30 @@ new patch0 fspaceP = do
                         return Nothing
                     LoadPatch path -> do
                         h <- self
-                        io $ do { patch' <- Patch.load path
-                                ; let state' = state { patch = patch'
-                                                     , patchFilePath = Just path }
-                                ; initPatch h fspaceP state'
-                                ; notifyListeners h (PatchLoaded patch' path)
-                                ; return $ Just state' }
-                                `catches`
-                                    [ Handler (\(e :: Patch.LoadError)   -> Log.errorM logger (show e) >> return Nothing)
-                                    , Handler (\(e :: Comp.CompileError) -> Log.errorM logger (show e) >> return Nothing) ]
+                        flip runAppT app $
+                            do { patch' <- Patch.load path
+                               ; let state' = state { patch = patch'
+                                                    , patchFilePath = Just path }
+                               ; initPatch h fspaceP state'
+                               ; notifyListeners h (PatchLoaded patch' path)
+                               ; return $ Just state' }
+                               `catches`
+                                    [ Handler (\(e :: Patch.LoadError)   -> liftIO $ Log.errorM logger (show e) >> return Nothing)
+                                    , Handler (\(e :: Comp.CompileError) -> liftIO $ Log.errorM logger (show e) >> return Nothing) ]
                     StorePatch path -> do
                         regions <- liftM FeatureSpace.regions $ query fspaceP FeatureSpaceP.GetModel
                         let patch' = Patch.setRegions regions (patch state)
                         h <- self
-                        io $ do { Patch.store path patch'
-                                 ; notifyListeners h (PatchStored patch' path) }
-                                `catch`
-                                (\(e :: IOException) -> Log.errorM logger (show e))
+                        liftIO $
+                            do { Patch.store path patch'
+                               ; notifyListeners h (PatchStored patch' path) }
+                               `catch`
+                               (\(e :: IOException) -> Log.errorM logger (show e))
                         return $ Just state { patch = patch', patchFilePath = Just path }
                     SetSourceCode src -> do
                         return $ Just state { patch = Patch.setSourceCode src (patch state) }
                     RunPatch -> do
-                        res <- io $ Patch.evalSourceCode (patch state)
+                        res <- flip runAppT app $ Patch.evalSourceCode (patch state)
                         case res of
                             Left e -> do
                                 io $ Log.errorM logger e
@@ -283,6 +288,6 @@ new patch0 fspaceP = do
             case state' of
                 Just state' -> do
                     notify $ Changed (time state') (transport state') (Patch.sequencer (patch state'))
-                    loop state'
+                    loop state' app
                 Nothing ->
-                    loop state
+                    loop state app
