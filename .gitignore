@@ -1,7 +1,10 @@
-/dist
+dist/
 /resources/hugs/bin/runhugs
 /supercollider
 *.hi
+*.mode1v3
 *.o
+*.pbxuser
 *.prof
+*.pyc
 *.tix

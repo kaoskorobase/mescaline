@@ -15,7 +15,8 @@ import           Database.Persist.Sqlite
 import qualified GHC.Conc as GHC
 -- import qualified Mescaline.Application.Logger as Log
 import           Mescaline.Analysis.Types
-import qualified Mescaline.Analysis.SonicAnnotator as SonicAnnotator
+-- import qualified Mescaline.Analysis.SonicAnnotator as SonicAnnotator
+import qualified Mescaline.Analysis.Server as Analysis
 import qualified Mescaline.Database as DB
 import           Mescaline.Util (findFiles)
 
@@ -96,4 +97,4 @@ importPaths a np dbFile ps = DB.withDatabase dbFile $ do
 
 -- | Import a file or directory into the database using the default analyser.
 importPathsDefault :: Maybe Int -> FilePath -> [FilePath] -> IO ()
-importPathsDefault = importPaths SonicAnnotator.analyser
+importPathsDefault = importPaths (Analysis.analyser "sk@xdv.org" "blahblah")

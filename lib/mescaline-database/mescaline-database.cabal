@@ -21,13 +21,15 @@ library
     ghc-options:    -W
     build-depends:
         base >= 4 && < 5
-      , aeson
+      , aeson >= 0.2
+      , attoparsec
       , binary
       , bytestring
       , bytestring-lexing >= 0.2
       , Cabal >= 1.6
       , containers
       , Control-Engine >= 1.0
+      , curl
       -- , delimited-text >= 0.2.1
       , directory
       , enumerator >= 0.4
@@ -68,6 +70,7 @@ library
             -- Mescaline.Analysis.Meap.Feature
             -- Mescaline.Analysis.Meap.Process
             -- Mescaline.Analysis.Meap.Segmenter
+            Mescaline.Analysis.Server
             Mescaline.Analysis.SonicAnnotator
             Mescaline.Analysis.Types
             Mescaline.Statistics.PCA

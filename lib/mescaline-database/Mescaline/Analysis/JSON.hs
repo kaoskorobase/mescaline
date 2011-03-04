@@ -9,22 +9,23 @@ import qualified Mescaline.Database.Hash as Hash
 
 instance ToJSON SoundFile where
     toJSON x = object [
-        -- "path" .= "foo"
-        "hash"        .= Text.pack (Hash.toString (hash x))
+        "hash"        .= Hash.toString (hash x)
       , "numChannels" .= numChannels x
       , "sampleRate"  .= sampleRate x
       , "frames"      .= frames x
       ]
 
+v .% s = (v .: s) <|> fail ("Couldn't access " ++ (Text.unpack s))
+
 instance FromJSON SoundFile where
-    fromJSON (Object v) =
-        SoundFile <$>
-            (Text.unpack <$> v .: "url") <*>
-            ((Hash.fromString . Text.unpack) <$> v .: "hashvalue") <*>
-            v .: "channels" <*>
-            v .: "sampleRate" <*>
-            v .: "frames"
-    fromJSON _ = empty
+    parseJSON (Object v) =
+        SoundFile
+            <$> v .% "url"
+            <*> (Hash.fromString <$> v .% "hashvalue")
+            <*> v .% "channels"
+            <*> v .% "sampleRate"
+            <*> v .% "frames"
+    parseJSON _ = fail "SoundFile"
 
 instance ToJSON Unit where
     toJSON x = object [
@@ -33,22 +34,22 @@ instance ToJSON Unit where
       ]
 
 instance FromJSON Unit where
-    fromJSON (Object v) = Unit <$>
-                            v .: "onset" <*>
-                            v .: "duration"
-    fromJSON _          = empty
+    parseJSON (Object v) = Unit
+                            <$> v .: "onset"
+                            <*> v .: "duration"
+    parseJSON _          = fail "Unit"
 
 instance ToJSON Descriptor where
     toJSON x = object [
-        "name"   .= Text.pack (name x)
+        "name"   .= name x
       , "degree" .= degree x
       ]
 
 instance FromJSON Descriptor where
-    fromJSON (Object v) = Descriptor <$>
-                            (Text.unpack <$> v .: "name") <*>
-                            v .: "degree"
-    fromJSON _          = empty
+    parseJSON (Object v) = Descriptor
+                            <$> v .% "name"
+                            <*> v .% "degree"
+    parseJSON _          = fail "Descriptor"
 
 instance ToJSON Feature where
     toJSON x = object [
@@ -57,34 +58,29 @@ instance ToJSON Feature where
       ]
 
 instance FromJSON Feature where
-    fromJSON o@(Object v) = Feature <$>
-                                fromJSON o <*>
-                                v .: "value"
-    fromJSON _          = empty
-
-newtype UnitFeaturePair = UFP { unUFP :: (Unit, [Feature]) }
-
-instance ToJSON UnitFeaturePair where
-    toJSON (UFP (u, fs)) = object [ "unit" .= u, "features" .= fs ]
-        
-instance FromJSON UnitFeaturePair where
-    fromJSON o@(Object v) = UFP <$> ((,) <$> fromJSON o <*> v .: "features")
-    fromJSON _ = empty
+    parseJSON o@(Object v) = Feature
+                                <$> parseJSON o
+                                <*> v .% "value"
+    parseJSON _          = fail "Feature"
 
 instance ToJSON Analysis where
     toJSON x = object [
         "soundFile" .= soundFile x
-      , "units"     .= map UFP (units x)
+      , "units"     .= map mkPair (units x)
       ]
-      -- where
-      --     mkPair (u, fs) = object [ "unit" .= u, "features" .= fs ]
-
-newtype WrappedAnalysis = WrappedAnalysis { unWrapAnalysis :: Analysis }
-
-instance FromJSON WrappedAnalysis where
-    fromJSON o@(Object v) = WrappedAnalysis <$> (Analysis <$> fromJSON o <*> (map unUFP <$> v .: "units"))
-    fromJSON _ = empty
+      where
+          mkPair (u, fs) = object [ "unit" .= u, "features" .= fs ]
 
 instance FromJSON Analysis where
-    fromJSON (Object v) = unWrapAnalysis <$> v .: "soundfile"
-    fromJSON _ = empty
+    parseJSON (Object o) = do
+		sf <- parseJSON =<< o .% "soundfile"
+		o' <- o .% "soundfile"
+		us <- mapM mkPair =<< (o' .% "units")
+		return $ Analysis sf us
+		where
+			mkPair o@(Object v) = do
+				u <- parseJSON o
+				fs <- v .% "features"
+				return (u, fs)
+			mkPair _ = fail "mkPair"
+    parseJSON _ = fail "Analysis"
