@@ -25,7 +25,7 @@ library
     include-dirs:   include
     build-depends:
         base >= 4 && < 5
-      , aeson
+      , aeson >= 0.2
       , attoparsec
       , bitset >= 1.0
       , array >= 0.2
@@ -80,6 +80,7 @@ library
         Mescaline
         Mescaline.Application
         Mescaline.Application.Config
+        Mescaline.Application.Config.Type
         Mescaline.Application.Desktop
         Mescaline.Application.Logger
         Mescaline.Data.ByteString
