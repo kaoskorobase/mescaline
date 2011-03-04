@@ -1,4 +1,4 @@
 #!/bin/bash
 
-args="-XScopedTypeVariables"
-ghci $args -Iinclude -isrc -idist/build/autogen -hide-package monads-fd -hide-package monads-tf "$@"
+args="-XScopedTypeVariables -XOverloadedStrings"
+ghci $args -Iinclude -ilib/mescaline -idist/build/autogen "$@"
