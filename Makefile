@@ -67,6 +67,17 @@ mescaline-app-install: mescaline-install
 # 	volname = "Mescaline-#{version}"
 # 	system("./tools/pkg-dmg --verbosity 0 --source \"#{src}\" --target \"#{dst}\" --sourcefile --volname Mescaline --icon \"#{icon}\" --symlink /Applications:/Applications")
 
+MESCALINE_STS = tools/sts
+.PHONY: mescaline-sts mescaline-sts-clean mescaline-sts-configure mescaline-sts-install
+mescaline-sts:
+	cd $(MESCALINE_STS) && $(CABAL) build
+mescaline-sts-clean:
+	cd $(MESCALINE_STS) && $(CABAL) clean
+mescaline-sts-configure:
+	cd $(MESCALINE_STS) && $(CABAL) configure
+mescaline-sts-install: mescaline-install
+	cd $(MESCALINE_STS) && $(CABAL) install
+
 .PHONY: clean
 clean: mescaline-database-clean mescaline-clean mescaline-tools-clean mescaline-app-clean
 
