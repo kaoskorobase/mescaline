@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import database as db
 import matplotlib
 # matplotlib.use('MacOSX')
@@ -15,9 +17,9 @@ sm = db.get_source_file_map(conn)
 dm = db.get_descriptor_map(conn)
 us = db.get_units(conn, sm.values())
 fm = db.get_features(conn, [dm[MFCC_DESCRIPTOR]], us)
-conn.close()
 
 fs = list(fm[k][0] for k in sorted(fm.keys()))
+print len(fs)
 
 data = np.array(map(db.Feature.value, fs))
 print data.shape
@@ -44,8 +46,26 @@ print link.shape
 dendro = scipy.cluster.hierarchy.dendrogram(link, p = 10, truncate_mode = 'lastp')
 # print dendro
 
-print scipy.cluster.hierarchy.inconsistent(link)
+# print scipy.cluster.hierarchy.inconsistent(link)
 # tree = scipy.cluster.hierarchy.to_tree(link)
 # print tree
 
-pylab.show()
+def mk_feature(u, d, nc, c):
+    return db.Feature(None, u, d, np.array([c]))
+
+for nc in [1, 2, 3, 4, 5, 6, 7, 8]:
+    clust = scipy.cluster.hierarchy.fcluster(link, nc, criterion='maxclust').tolist()
+    # print clust
+    units = map(db.Feature.unit, fs)
+    desc = db.get_descriptor(conn, "es.globero.mescaline.cluster_%d" % (nc,), 1, True)
+    db.delete_feature(conn, desc)
+    clust_fs = map(lambda xs: mk_feature(xs[0], desc, nc, xs[1]), zip(units, clust))
+    db.insert_features(conn, clust_fs)
+    conn.commit()
+    clust_fs_2 = map(lambda l: l[0], db.get_features(conn, [desc], units).values())
+    if not (map(lambda f: f.value().tolist(), clust_fs) == map(lambda f: f.value().tolist(), clust_fs_2)):
+        raise RuntimeError("DB value doesn't match computed value")
+
+conn.close()
+
+# pylab.show()

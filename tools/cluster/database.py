@@ -50,6 +50,9 @@ class Descriptor:
     def name(self): return self.__name
     def degree(self): return self.__degree
 
+    def to_sql_row(self):
+        return (self.id(), self.name(), self.degree())
+
     def __repr__(self):
         return str(self.__class__) + str((self.id(), self.name(), self.degree()))
 
@@ -72,7 +75,7 @@ class Feature:
 
     def to_sql_row(self):
         b = struct.pack(">i" + ("d" * self.value().size), self.value().size, *self.value().tolist())
-        return (self.unit().id(), self.descriptor().id(), buffer(b))
+        return (self.id(), self.unit().id(), self.descriptor().id(), buffer(b))
 
     def __repr__(self):
         return str(self.__class__) + str((self.id(), self.unit(), self.descriptor(), self.value()))
@@ -84,20 +87,21 @@ def get_descriptor_map(c):
         dm[str(d.name())] = d
     return dm
 
-def get_descriptor(c, name, degree):
+def get_descriptor(c, name, degree, delete=False):
     ds = get_descriptor_map(c)
     if ds.has_key(name):
         d = ds[name]
         if d.degree() != degree:
-            raise RuntimeError("Descriptor '" + name + "' degree mismatch: expected " + str(d.degree()) + ", got " + str(degree))
+            if delete:
+                c.execute('delete from Descriptor where id = ?', (d.id()))
+                c.commit()
+            else:
+                raise RuntimeError("Descriptor '" + name + "' degree mismatch: expected " + str(d.degree()) + ", got " + str(degree))
         else:
             return d
-    cursor = c.cursor()
-    cursor.execute('insert into Descriptor values (null, ?, ?)', (name, degree))
-    id = cursor.lastrowid
-    cursor.close()
+    c.execute('insert into Descriptor values (?, ?, ?)', Descriptor(None, name, degree).to_sql_row())
     c.commit()
-    return Descriptor(id, name, degree)
+    return Descriptor(*list(c.execute('select * from Descriptor where name = ?', (name,)))[0])
 
 def get_source_file_map(c, pattern='*'):
     return dict(itertools.ifilter( lambda t: fnmatch.fnmatch(t[1].url(), pattern)
@@ -122,7 +126,7 @@ def delete_feature(c, descriptor):
     c.execute('delete from Feature where descriptor = ?', (descriptor.id(),))
 
 def insert_features(c, features):
-    c.executemany('insert into Feature(unit,descriptor,value) values (?, ?, ?)', itertools.imap(Feature.to_sql_row, features))
+    c.executemany('insert into Feature values (?, ?, ?, ?)', itertools.imap(Feature.to_sql_row, features))
     c.commit()
 
 if __name__ == "__main__":
@@ -144,6 +148,6 @@ if __name__ == "__main__":
     u = list(us)[0]
     delete_feature(conn, d)
     v = np.array([1, 2])
-    insert_features(conn, [Feature(-1, u, d, v)])
+    insert_features(conn, [Feature(None, u, d, v)])
     print get_features(conn, [d], [u])
     conn.close()
