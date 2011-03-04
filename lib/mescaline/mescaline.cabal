@@ -25,6 +25,8 @@ library
     include-dirs:   include
     build-depends:
         base >= 4 && < 5
+      , aeson
+      , attoparsec
       , bitset >= 1.0
       , array >= 0.2
       -- , arrows
@@ -38,6 +40,7 @@ library
       , data-ivar >= 0.30
       , deepseq >= 1.1
       , directory
+      , dlist
       , failure
       , filepath
       , FindBin >= 0.0
@@ -58,6 +61,7 @@ library
       , persistent >= 0.5
       , process >= 1.0
       , random >= 1.0
+      , text
       , transformers
       -- , uuid >= 1.0
       , vector >= 0.5
@@ -66,6 +70,7 @@ library
         Control.Concurrent.Chan.Chunked
         Control.Concurrent.MVar.StrictModify
         Control.Concurrent.Process
+        Data.Aeson.Config
         Data.KDTree
         Data.ProbabilisticSuffixTree.Context
         Data.ProbabilisticSuffixTree
