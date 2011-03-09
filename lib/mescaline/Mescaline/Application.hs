@@ -63,7 +63,7 @@ runAppT (AppT r) = runReaderT r
 
 -- | The name of this application.
 name :: Monad m => AppT m String
-name = return "Mescaline"
+name = asks _name
 
 -- | The version of this application.
 version :: Monad m => AppT m Version
