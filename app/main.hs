@@ -250,21 +250,21 @@ chanLogger prio fmt chan action =
 
 createLoggers :: MonadIO m => MainWindow -> AppT m ()
 createLoggers logWindow = do
-    components <- Log.getComponents
-    liftIO $ do
+    -- components <- Log.getComponents
+    logger <- liftIO $ do
         textEdit <- Qt.findChild logWindow ("<QTextEdit*>", "textEdit") :: IO (Qt.QTextEdit ())
         chan <- newChan
         Qt.connectSlot logWindow "logMessage()" logWindow "logMessage()" $ logMessage chan textEdit
         let fmt = "[$prio][$loggername] $msg\n"
             action = Qt.emitSignal logWindow "logMessage()" ()
         -- FIXME: The log levels have to be initialized first down in main, why?
-        mapM_ (\(logger, prio) -> do
-            Log.updateGlobalLogger
-                logger
-                (Log.setHandlers [chanLogger prio fmt chan action]))
-                components
-        -- Disable stderr logger
-        Log.updateGlobalLogger Log.rootLoggerName (Log.setHandlers ([] :: [Log.GenericHandler ()]))
+        -- mapM_ (\(logger, prio) -> do
+        --     Log.updateGlobalLogger
+        --         logger
+        --         (Log.setHandlers [chanLogger prio fmt chan action]))
+        --         components
+        return $ chanLogger Log.DEBUG fmt chan action
+    App.updateLogger (Log.setHandlers [logger]) ""
     where
         logMessage :: Chan String -> Qt.QTextEdit () -> MainWindow -> IO ()
         logMessage chan edit _ = do
@@ -379,7 +379,7 @@ action_help_openExample process path _ _ = sendTo process (PatternP.LoadPatch pa
 
 appMain :: AppT IO ()
 appMain = do
-    mapM_ (\(l,p) -> liftIO $ Log.updateGlobalLogger l (Log.setLevel p)) =<< Log.getComponents
+    -- mapM_ (\(l,p) -> liftIO $ Log.updateGlobalLogger l (Log.setLevel p)) =<< Log.getComponents
 
     app <- liftIO $ Qt.qApplication  ()
 
@@ -395,7 +395,7 @@ appMain = do
     mainWindow <- liftIO . loadUI =<< App.getResourcePath "mescaline.ui"
     editorWindow <- liftIO . loadUI =<< App.getResourcePath "editor.ui"
     logWindow <- liftIO . loadUI =<< App.getResourcePath "messages.ui"
-    createLoggers logWindow
+    -- createLoggers logWindow
 
     -- Qt.setHandler mainWindow "keyPressEvent(QKeyEvent*)" $ windowKeyPressEvent
 
@@ -536,4 +536,4 @@ appMain = do
         Qt.returnGC
 
 main :: IO ()
-main = App.runAppT appMain =<< App.mkApp "Mescaline" Paths.version Paths.getBinDir Paths.getDataDir
+main = App.runAppT appMain =<< App.mkApp "Mescaline" Paths.version Paths.getBinDir Paths.getDataDir App.defaultConfigFiles

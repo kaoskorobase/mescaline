@@ -16,7 +16,6 @@ module Mescaline.Synth.BufferCache.Server (
 import           Control.Concurrent.MVar
 import           Control.Monad (forM, forM_)
 import qualified Data.Set as Set
-import qualified Mescaline.Application.Logger as Log
 import           Mescaline.Synth.BufferCache (Alloc, Buffer, uid, numChannels, numFrames, allocBytes, allocFrames)
 import qualified Mescaline.Synth.BufferCache as BC
 import           Sound.OpenSoundControl (OSC)
@@ -55,7 +54,6 @@ allocBuffer completion bc alloc = do
             Nothing -> do
                 -- Allocate buffer id
                 bid <- S.alloc S.bufferId
-                S.liftIO $ Log.infoM "BufferCache" $ "cache miss, allocating new buffer " ++ show bid
                 let buf = BC.fromAlloc bid alloc
                     msg = maybe b_alloc (($) b_alloc') (completion buf)
                 -- Allocate buffer

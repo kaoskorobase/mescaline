@@ -23,7 +23,7 @@ import           Data.IntMap (IntMap)
 import qualified Data.IntMap as IMap
 import qualified Data.Vector.Generic as V
 import           Mescaline.Application (AppT)
-import qualified Mescaline.Application.Config as Config
+import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Config.Qt as Config
 -- import qualified Mescaline.Data.Unique as Unique
 import qualified Mescaline.Database.Entity as DB
@@ -332,8 +332,8 @@ defer view state action = io $ do
     writeChan (guiChan state) action
     Qt.emitSignal view "update()" ()
 
-getRegionColors :: Config.ConfigParser -> IO [Qt.QColor ()]
-getRegionColors config = mapM (\i -> Config.getColor config "FeatureSpace" ("regionColor" ++ show i)) [1..n]
+getRegionColors :: MonadIO m => AppT m [Qt.QColor ()]
+getRegionColors = mapM (\i -> Config.getColor "FeatureSpace" ("regionColor" ++ show i) "white") [1..n]
     where n = length Model.defaultRegions
 
 hashInt64 :: Int64 -> Int32
@@ -344,24 +344,24 @@ hashInt64 = fromIntegral
 
 newState :: MonadIO m => Process.Handle -> Synth.Handle -> AppT m State
 newState fspace synth = do
-    config <- Config.getConfig
+    hl <- App.config "FeatureSpace" "highlightUnits" True
+    hlColor <- Config.getColor "FeatureSpace" "highlightColor" "black"
+    regionColors <- getRegionColors
 
     liftIO $ do
         ug <- newMVar Nothing
         us <- newMVar =<< Hash.new (==) hashInt64
 
-        hl <- Config.getIO config "FeatureSpace" "highlightUnits"
         hlState <-
             if hl
                 then do
                     hls     <- newMVar =<< Hash.new (==) hashInt64
-                    hlColor <- Config.getColor config "FeatureSpace" "highlightColor"
                     hlBrush <- Qt.qBrush hlColor
                     hlPen   <- Qt.qPen (hlBrush, 0::Double)
                     return $ Just $ HighlightState hlPen hls
                 else return Nothing
 
-        regionBrushes <- getRegionColors config >>= mapM Qt.qBrush
+        regionBrushes <- mapM Qt.qBrush regionColors
 
         rs <- newMVar =<< Hash.new (==) Hash.hashInt
         pu <- newMVar False

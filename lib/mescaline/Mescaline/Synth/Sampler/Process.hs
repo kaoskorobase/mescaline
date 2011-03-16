@@ -19,7 +19,6 @@ import           Mescaline (Time)
 import           Mescaline.Application (AppT)
 import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Config as Config
-import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.FeatureSpace.Unit as Unit
 import           Mescaline.Pattern.Event (Synth)
 import qualified Mescaline.Pattern.Event as Event
@@ -29,6 +28,7 @@ import           Sound.SC3 (dumpOSC, PrintLevel(..))
 import qualified Sound.SC3.Server.Process as Server
 import qualified Sound.SC3.Server.Process.Monad as ServerM
 import           Sound.SC3.Server.Monad as S
+import qualified System.Log.Logger as Log
 
 data Input =
     Reset
@@ -63,6 +63,8 @@ getEnginePaths = do
             plg <- App.getResourcePath "usr/local/lib/supercollider/plugins"
             return (exe', Just [plg])
 
+logger = "Mescaline.Synth"
+
 getEngine internal =
     if internal
         then do
@@ -70,14 +72,14 @@ getEngine internal =
                 splg = "/" ++ plgBase
             rplg <- App.getResourcePath plgBase
             let plg = [rplg, splg]
-            liftIO $ Log.infoM "Synth" $ "Using internal server with plugin path `" ++ L.intercalate ":" plg ++ "'"
+            liftIO $ Log.infoM logger $ "Using internal server with plugin path `" ++ L.intercalate ":" plg ++ "'"
             return $ ServerM.withInternal
                         serverOptions { Server.ugenPluginPath = Just plg }
                         rtOptions
                         outputHandler
         else do
             (scsynth, plg) <- getEnginePaths
-            liftIO $ Log.infoM "Synth" $ "Using local server `" ++ scsynth ++ "'"
+            liftIO $ Log.infoM logger $ "Using local server `" ++ scsynth ++ "'"
                               ++ maybe "" (\p -> " with plugins path `" ++ L.intercalate ":" p ++ "'") plg
             return $ ServerM.withSynth
                         Server.openUDP
@@ -88,33 +90,32 @@ getEngine internal =
     where
         serverOptions = Server.defaultServerOptions { Server.loadSynthDefs = False }
         rtOptions = Server.defaultRTOptions
-        outputHandler = Server.OutputHandler (Log.noticeM "Synth") (Log.errorM "Synth")
+        outputHandler = Server.OutputHandler (Log.noticeM logger) (Log.errorM logger)
 
-getPrintLevel :: MonadError Config.CPError m => Config.ConfigParser -> Config.SectionSpec -> Config.OptionSpec -> m PrintLevel
-getPrintLevel conf section option = do
-    s <- Config.get conf section option
+getPrintLevel :: MonadIO m => AppT m PrintLevel
+getPrintLevel = do
+    s <- App.config "Synth" "dumpOSC" "none"
     case s of
         "none" -> return NoPrinter
         "hex"  -> return HexPrinter
         "text" -> return TextPrinter
         "all"  -> return AllPrinter
-        _      -> throwError (Config.ParseError $ "Invalid OSC print level " ++ s, "")
+        _      -> return NoPrinter
 
 new :: AppT IO (Handle, IO ())
 new = do
-    conf <- Config.getConfig
-
     defDir <- App.getUserDataPath "synthdefs"
 
-    let printLevel = either (const NoPrinter) id (getPrintLevel conf "Synth" "dumpOSC")
-        initBundle = OSC.Bundle OSC.immediately [dumpOSC printLevel]
-        fx1 = either (const Nothing) Just (Config.get conf "Synth" "sendEffect1")
-        fx2 = either (const Nothing) Just (Config.get conf "Synth" "sendEffect2")
-        schedCompBdls = either (const False) id (Config.get conf "Synth" "scheduleCompletionBundles")
-        useIntServ = either (const True) id (Config.get conf "Synth" "useInternalServer")
+    printLevel <- getPrintLevel
+    fx1 <- App.config "Synth" "sendEffect1" Nothing
+    fx2 <- App.config "Synth" "sendEffect2" Nothing
+    schedCompBdls <- App.config "Synth" "scheduleCompletionBundles" True
+    useIntServ <- App.config "Synth" "useInternalServer" True
+
+    let initBundle = OSC.Bundle OSC.immediately [dumpOSC printLevel]
         modelOpts = Model.Options defDir fx1 fx2 schedCompBdls
 
-    liftIO $ Log.noticeM "Synth" $ (if schedCompBdls then "U" else "Not u") ++ "sing completion bundle scheduling."
+    liftIO $ Log.noticeM logger $ (if schedCompBdls then "U" else "Not u") ++ "sing completion bundle scheduling."
 
     engine <- getEngine useIntServ
     chan <- liftIO $ newChan
@@ -150,9 +151,9 @@ new = do
                     _ <- fork $ do
                         let u = s ^. Event.unit
                         io $ notifyListeners h $ UnitStarted t u
-                        io $ Log.debugM "Synth" $ "PlayUnit: " ++ show (t, s)
+                        io $ Log.debugM logger $ "PlayUnit: " ++ show (t, s)
                         Model.playUnit sampler t s
-                        io $ Log.debugM "Synth" $ "StopUnit: " ++ show (t, s)
+                        io $ Log.debugM logger $ "StopUnit: " ++ show (t, s)
                         io $ notifyListeners h $ UnitStopped t u
                     loop h chan sampler
                 _ -> loop h chan sampler

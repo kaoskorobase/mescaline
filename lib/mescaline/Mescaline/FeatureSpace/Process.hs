@@ -46,7 +46,6 @@ new = do
                         return $ f'
                     UpdateRegion r -> do
                         notify $ RegionChanged r
-                        io $ Log.debugM "FeatureSpace" $ "UpdateRegion: " ++ show r
                         return $ Model.updateRegion r f
                     -- ActivateRegion t i -> do
                     --     let (u, f') = Model.activateRegion i f
