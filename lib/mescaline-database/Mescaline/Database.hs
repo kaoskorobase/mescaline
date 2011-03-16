@@ -16,11 +16,13 @@ module Mescaline.Database (
 
 import           Control.Arrow (first)
 import           Control.Monad as M
-import           Control.Monad.Trans (MonadIO, lift, liftIO)
+import           Control.Monad.IO.Peel (MonadPeelIO)
+import           Control.Monad.Trans (MonadIO, lift)
 import qualified Data.Vector.Generic as V
 import           Database.Persist.Sqlite
 import           Data.Enumerator (($$))
 import qualified Data.Enumerator as E
+import qualified Data.Enumerator.List as EL
 import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Vector.Storable as SV
@@ -35,18 +37,17 @@ import qualified Mescaline.Analysis.Types as Analysis
 import qualified Mescaline.Statistics.PCA as PCA
 import           Numeric.LinearAlgebra as H
 #endif
-import           System.IO
 import           Text.Regex
 import           Prelude hiding (and)
 
-withDatabase :: String -> SqlPersist IO a -> IO a
+withDatabase :: MonadPeelIO m => String -> SqlPersist m a -> m a
 withDatabase path action = withSqliteConn path (runSqlConn (runMigration Entity.migrateAll >> action))
 
 entityMapI :: (Monad m, Ord (Key v), PersistEntity v) => E.Iteratee (Key v, v) m (Map.Map (Key v) v)
 entityMapI = go Map.empty
     where
         go xs = do
-            m <- E.head
+            m <- EL.head
             case m of
                 Nothing -> return xs
                 Just (k, v) -> go (Map.insert k v xs)
@@ -80,7 +81,7 @@ featuresI :: Monad m => E.Iteratee (FeatureId, Feature) m (Map.Map DescriptorId 
 featuresI = go Map.empty
     where
         go fs = do
-            m <- E.head
+            m <- EL.head
             case m of
                 Nothing -> return fs
                 Just (_, f) -> go (Map.insert (featureDescriptor f) f fs)
@@ -89,7 +90,7 @@ unitsI :: PersistBackend m => [DescriptorId] -> Map.Map UnitId (Unit, [Feature])
 unitsI features = go
     where
         go us = do
-            m <- E.head
+            m <- EL.head
             case m of
                 Nothing -> return us
                 Just (ui, u) -> do
@@ -103,7 +104,7 @@ sourceFileI pattern features = go Map.empty Map.empty
         regex = mkRegex pattern
         isMatch = maybe False (const True) . matchRegex regex . sourceFileUrl
         go sfs us = do
-            m <- E.head
+            m <- EL.head
             case m of
                 Nothing -> return (sfs, us)
                 Just (sfi, sf) ->

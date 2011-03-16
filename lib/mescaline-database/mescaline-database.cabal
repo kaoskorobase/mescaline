@@ -38,6 +38,7 @@ library
       -- , hmeap >= 0.8
       , hosc >= 0.8
       , hsndfile >= 0.4
+      , monad-peel
       , mtl >= 2
       , persistent >= 0.5
       , persistent-sqlite >= 0.5

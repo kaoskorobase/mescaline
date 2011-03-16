@@ -5,26 +5,16 @@
 
 module Mescaline.Database.Entity where
 
+import           Control.Monad.IO.Peel (MonadPeelIO)
+import           Data.Either
 import           Data.Int (Int64)
 import           Data.Map (Map)
-import qualified Data.Vector.Storable as SV
 import qualified Database.Persist as DB
-import qualified Database.Persist.GenericSql as DB
--- import           Database.Persist.Quasi
--- import qualified Database.Persist.TH as DB
-import qualified Mescaline.Database.Hash as Hash
-import           Mescaline.Database.Vector (Vector, GVector)
+import           Database.Persist.Base
+import           Database.Persist.GenericSql
+import           Mescaline.Database.Vector (GVector)
 import qualified Mescaline.Database.Vector as Vector
-
-import Data.Either
-import Database.Persist.Base
--- import Database.Persist.TH
--- import Control.Monad.Invert
-import Data.Int
-import Database.Persist.GenericSql
 import qualified Mescaline.Database.Hash as Hash
-import qualified Mescaline.Database.Vector as Vector
-
 
 -- DB.share2 DB.mkPersist (DB.mkMigrate "migrateAll") [persist|
 -- SourceFile
@@ -318,7 +308,7 @@ instance Database.Persist.Base.PersistEntity Feature where
 
 -- migrateAll :: forall m . Control.Monad.Invert.MonadInvertIO m =>
 --                          Database.Persist.GenericSql.Migration (Database.Persist.GenericSql.SqlPersist m)
-migrateAll :: Database.Persist.GenericSql.Migration (Database.Persist.GenericSql.SqlPersist IO)
+migrateAll :: MonadPeelIO m => Database.Persist.GenericSql.Migration (Database.Persist.GenericSql.SqlPersist m)
 migrateAll = do Database.Persist.GenericSql.migrate (undefined :: SourceFile)
                 Database.Persist.GenericSql.migrate (undefined :: Unit)
                 Database.Persist.GenericSql.migrate (undefined :: Descriptor)
