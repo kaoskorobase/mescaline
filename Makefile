@@ -78,6 +78,9 @@ mescaline-sts-configure:
 mescaline-sts-install: mescaline-install
 	cd $(MESCALINE_STS) && $(CABAL) install
 
+.PHONY: install
+install: mescaline-tools-install mescaline-app-install mescaline-sts-install
+
 .PHONY: clean
 clean: mescaline-database-clean mescaline-clean mescaline-tools-clean mescaline-app-clean
 
