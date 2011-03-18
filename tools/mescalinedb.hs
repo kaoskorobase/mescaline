@@ -1,4 +1,7 @@
+import qualified Data.List as List
 import qualified Data.Map as Map
+import           Data.Ord (comparing)
+import qualified Data.Vector.Generic as V
 import qualified Mescaline.Analysis as Analysis
 import qualified Mescaline.Database as DB
 import           System.Environment (getArgs)
@@ -17,12 +20,24 @@ cmd_import dbFile paths = do
 
 cmd_query :: FilePath -> String -> [String] -> IO ()
 cmd_query dbFile pattern features = do
-    (sfs, us) <- DB.withDatabase dbFile $ DB.query pattern features
+    (_, us) <- DB.withDatabase dbFile $ DB.query pattern features
     -- case units of
     --     Left e -> fail e
     --     Right (us, _) -> let ls = map (\(u, fs) -> Unique.toString (Unit.id u) : map show (concatMap (V.toList.Feature.value) fs)) us
     --                      in putStr $ unlines (map unwords ls)
     mapM_ print (Map.toList us)
+
+cmd_dump :: FilePath -> String -> [String] -> IO ()
+cmd_dump dbFile pattern features = do
+    (_, unitMap) <- DB.withDatabase dbFile $ DB.query pattern features
+    let units = List.sortBy (comparing fst) (Map.assocs unitMap)
+    mapM_ (uncurry dump) units
+    where
+        dump uid (u, fs) =
+            putStrLn
+                $ List.intercalate ","
+                $ [show (fromIntegral uid :: Int), show (DB.unitOnset u), show (DB.unitDuration u)]
+                    ++ concatMap (map show.V.toList.DB.toVector.DB.featureValue) fs
 
 cmd_insert :: FilePath -> String -> Int -> FilePath -> IO ()
 cmd_insert _ _ _ _ = return ()
@@ -68,6 +83,10 @@ main = do
                     case args of
                         (dbFile:[]) -> cmd_delete dbFile
                         _ -> putStrLn $ usage "delete DBFILE"
+                "dump" -> do
+                    case args of
+                        (dbFile:pattern:features) -> cmd_dump dbFile pattern features
+                        _ -> putStrLn $ usage "dump DBFILE PATTERN FEATURE..."
                 "import" -> do
                     case args of
                         (dbFile:paths) -> cmd_import dbFile paths
@@ -87,4 +106,4 @@ main = do
                 _ -> putStrLn cmdUsage
         _ -> putStrLn cmdUsage
     where
-        cmdUsage = usage "{delete,import,insert,query} ARGS..."
+        cmdUsage = usage "{delete,dump,import,insert,query,transform} ARGS..."

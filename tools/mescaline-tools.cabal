@@ -31,4 +31,5 @@ Executable mescaline-analyser
       , bytestring
       , mescaline-database >= 0.0 && < 0.1
       , text
+      , vector
     Ghc-Options:        -W -threaded -funbox-strict-fields
