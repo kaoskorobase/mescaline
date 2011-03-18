@@ -9,6 +9,7 @@ module Mescaline.Database.Hash (
 ) where
 
 import           Data.Binary (Binary(..))
+import           Control.DeepSeq (NFData(..))
 import           Control.Monad
 import           Data.Char
 import qualified Data.ByteString as B
@@ -21,6 +22,9 @@ newtype Hash = Hash B.ByteString deriving (Eq, Ord, Read, Show)
 
 -- instance Show Hash where
 --     show h = "fromString " ++ show (toString h)
+
+instance NFData Hash where
+    rnf (Hash bs) = bs `seq` ()
 
 instance Binary Hash where
     get = liftM Hash get

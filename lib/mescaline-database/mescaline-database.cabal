@@ -30,6 +30,7 @@ library
       , containers
       , Control-Engine >= 1.0
       , curl
+      , deepseq
       -- , delimited-text >= 0.2.1
       , directory
       , enumerator >= 0.4
