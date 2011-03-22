@@ -20,6 +20,7 @@ import           Control.Monad.Trans (MonadIO, liftIO)
 import           Data.Accessor
 import qualified Data.BitSet as BitSet
 import           Data.Maybe (fromJust)
+import qualified Data.Vector.Generic as V
 import           Mescaline (Time)
 import           Mescaline.Application (AppT, runAppT)
 import qualified Mescaline.Application as App
@@ -253,7 +254,7 @@ new patch0 fspaceP = do
                                     , Handler (\(e :: Comp.CompileError) -> liftIO $ Log.errorM logger (show e) >> return Nothing) ]
                     StorePatch path -> do
                         regions <- liftM FeatureSpace.regions $ query fspaceP FeatureSpaceP.GetModel
-                        let patch' = Patch.setRegions regions (patch state)
+                        let patch' = Patch.setRegions (V.toList regions) (patch state)
                         h <- self
                         liftIO $
                             do { Patch.store path patch'

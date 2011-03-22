@@ -381,7 +381,7 @@ new fspace synth = do
         Qt.connectSlot view "update()" view "update()"   $ update (guiChan state)
 
         model <- query fspace Process.GetModel
-        mapM_ (addRegion view state) (Model.regions model)
+        mapM_ (addRegion view state) (V.toList (Model.regions model))
 
         handle <- spawn $ process view state
 

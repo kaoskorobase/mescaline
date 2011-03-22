@@ -13,7 +13,6 @@ import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Database as DB
 import qualified Mescaline.FeatureSpace.Model as Model
 import qualified Mescaline.FeatureSpace.Unit as Unit
-import qualified System.Random as Random
 
 data Input =
     LoadDatabase    FilePath String
