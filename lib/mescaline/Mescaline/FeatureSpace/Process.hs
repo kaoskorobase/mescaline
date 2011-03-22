@@ -29,8 +29,7 @@ type Handle = Process.Handle Input Output
 
 new :: IO Handle
 new = do
-    rgen <- Random.getStdGen
-    spawn $ loop (Model.fromList rgen [])
+    spawn $ loop Model.empty
     where
         loop !f = do
             msg <- recv

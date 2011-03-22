@@ -16,13 +16,12 @@ module Mescaline.FeatureSpace.Model (
   , units
   , setUnits
   , fromList
+  , empty
   , numRegions
   , regions
   , updateRegion
   , lookupRegion
   , regionUnits
-  , activateRegion
-  , activateRegions
   , closest2D
 ) where
 
@@ -59,7 +58,6 @@ center2D = pair . center
 
 data FeatureSpace = FeatureSpace { 
     unitSet     :: !UnitSet
-  , randomGen   :: Random.StdGen
   , regionMap   :: IntMap Region
   , cachedUnits :: IntMap [Unit]
   }
@@ -108,8 +106,11 @@ setUnits :: FeatureSpace -> [Unit.Unit] -> FeatureSpace
 setUnits fs us = List.foldl' (flip updateRegion) fs' (regions fs')
     where fs' = fs { unitSet = KDTree.fromList (map (\u -> (Unit.value 0 u, u)) us) }
 
-fromList :: Random.StdGen -> [Unit.Unit] -> FeatureSpace
-fromList g = setUnits (FeatureSpace KDTree.empty g (defaultRegionMap defaultNumRegions) IntMap.empty)
+fromList :: [Unit.Unit] -> FeatureSpace
+fromList = setUnits (FeatureSpace KDTree.empty (defaultRegionMap defaultNumRegions) IntMap.empty)
+
+empty :: FeatureSpace
+empty = fromList []
 
 numRegions :: FeatureSpace -> Int
 numRegions = IntMap.size . regionMap
@@ -134,20 +135,6 @@ getRegionUnits :: Region -> FeatureSpace -> [Unit]
 getRegionUnits r f =
     map (snd.fst) $
         KDTree.withinRadius KDTree.sqrEuclidianDistance (center r) (radius r) (unitSet f)
-
--- Return the next random unit from region i and an updated FeatureSpace.
-activateRegion :: RegionId -> FeatureSpace -> (Maybe Unit, FeatureSpace)
-activateRegion i f = (u, f { randomGen = g' })
-    where
-        us      = regionUnits i f
-        (j, g') = Random.randomR (0, length us - 1) (randomGen f)
-        u       = if null us then Nothing else Just (us !! j)
-
-filterMaybe :: [Maybe a] -> [a]
-filterMaybe l = [ x | Just x <- l ]
-
-activateRegions :: [RegionId] -> FeatureSpace -> ([Unit], FeatureSpace)
-activateRegions is f = first filterMaybe $ State.runState (sequence (map (State.state . activateRegion) is)) f
 
 -- | Return the closest unit to a point in feature space.
 closest2D :: (Double, Double) -> FeatureSpace -> Maybe (Unit, Double)
