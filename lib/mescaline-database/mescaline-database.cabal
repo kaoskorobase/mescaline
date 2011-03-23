@@ -36,7 +36,7 @@ library
       , enumerator >= 0.4
       , filepath
       , fingertree
-      -- , hmeap >= 0.8
+      , hmeap >= 0.10
       , hosc >= 0.8
       , hsndfile >= 0.4
       , monad-peel
@@ -66,12 +66,12 @@ library
         exposed-modules:
             Mescaline.Analysis
             Mescaline.Analysis.JSON
-            -- Mescaline.Analysis.Meap
-            -- Mescaline.Analysis.Meap.Chain
-            -- Mescaline.Analysis.Meap.Extractor
-            -- Mescaline.Analysis.Meap.Feature
-            -- Mescaline.Analysis.Meap.Process
-            -- Mescaline.Analysis.Meap.Segmenter
+            Mescaline.Analysis.Meap
+            Mescaline.Analysis.Meap.Chain
+            Mescaline.Analysis.Meap.Extractor
+            Mescaline.Analysis.Meap.Feature
+            Mescaline.Analysis.Meap.Process
+            Mescaline.Analysis.Meap.Segmenter
             Mescaline.Analysis.Server
             Mescaline.Analysis.SonicAnnotator
             Mescaline.Analysis.Types

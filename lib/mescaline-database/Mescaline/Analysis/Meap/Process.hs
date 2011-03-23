@@ -1,25 +1,19 @@
 module Mescaline.Analysis.Meap.Process (
     OutputHandler(..)
   , defaultOutputHandler
+  , ClassPath
+  , makeClassPath
   , runMeap
 ) where
 
 import           Control.Concurrent
 import           Control.Monad
 import           Data.List (intercalate)
-import qualified Mescaline.Application as App
+-- import qualified Mescaline.Application as App
 import           Mescaline.Util (findFiles, withTempFile)
 import           System.Exit
 import           System.IO
 import           System.Process
-
-getJava :: IO String
-getJava = return "java" -- get from config file
-
-getClassPath :: IO [FilePath]
-getClassPath = do
-    libDir <- App.getResourcePath "meap/2.0"
-    findFiles ["jar"] [libDir]
 
 -- | Handle output of @Meap@ processes.
 data OutputHandler = OutputHandler {
@@ -34,15 +28,22 @@ defaultOutputHandler = OutputHandler {
   , onPutError  = hPutStrLn stderr
   }
 
-runMeap :: OutputHandler -> String -> [String] -> IO ExitCode
-runMeap handler mainClass args = do
+type ClassPath = [FilePath]
+
+getJava :: IO String
+getJava = return "java" -- get from config file
+
+makeClassPath :: FilePath -> IO ClassPath
+makeClassPath libDir = findFiles ["jar"] [libDir]
+
+runMeap :: ClassPath -> OutputHandler -> String -> [String] -> IO ExitCode
+runMeap classPath handler mainClass args = do
     java <- getJava
-    classPath <- getClassPath
     let args' = [ "-mx1000m",
                   "-cp",
                   intercalate ":" classPath,
                   mainClass ] ++ args
-    -- print args'
+    print args'
     (hIn, hOut, hErr, hProc) <- runInteractiveProcess java args' Nothing Nothing
     hClose hIn
     _ <- forkIO $ pipeOutput (onPutString handler) hOut
