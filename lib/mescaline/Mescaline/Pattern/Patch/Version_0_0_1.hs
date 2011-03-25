@@ -35,7 +35,7 @@ regionFromPatch :: FS.Region -> Region
 regionFromPatch r = Region (FS.regionId r) (V.toList (FS.center r)) (FS.radius r)
 
 regionToPatch :: Region -> FS.Region
-regionToPatch (Region i c r) = FS.mkRegion i (V.fromList c) r
+regionToPatch (Region i c r) = FS.mkRegion i (c !! 0, c !! 1) r
 
 sequencerFromPatch :: S.Sequencer -> Sequencer
 sequencerFromPatch s = Sequencer (S.rows s) (S.cols s) (S.assocs s) (map (\(i, c) -> (i, (S.row c, S.column c))) (S.cursors s))

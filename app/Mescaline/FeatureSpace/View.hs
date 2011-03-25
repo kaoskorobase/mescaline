@@ -25,15 +25,11 @@ import qualified Data.Vector.Generic as V
 import           Mescaline.Application (AppT)
 import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Config.Qt as Config
--- import qualified Mescaline.Data.Unique as Unique
-import qualified Mescaline.Database.Entity as DB
 import qualified Mescaline.FeatureSpace.Model as Model
 import qualified Mescaline.FeatureSpace.Unit as Unit
 import qualified Mescaline.FeatureSpace.Process as Process
 import qualified Mescaline.Pattern.Event as Synth
 import qualified Mescaline.Synth.Sampler.Process as Synth
-import           System.FilePath
-import           Text.Printf (printf)
 
 import qualified Qtc.Classes.Gui                    as Qt
 import qualified Qtc.Classes.Gui_h                  as Qt
@@ -83,7 +79,7 @@ highlightRadius :: Double
 highlightRadius = 2 * unitRadius
 
 sceneKeyPressEvent :: State -> FeatureSpaceView -> Qt.QKeyEvent () -> IO ()
-sceneKeyPressEvent state view evt = do
+sceneKeyPressEvent state _ evt = do
     key <- Qt.key evt ()
     if key == Qt.qEnum_toInt Qt.eKey_Alt
         then do
@@ -92,7 +88,7 @@ sceneKeyPressEvent state view evt = do
         else return ()
 
 sceneKeyReleaseEvent :: State -> FeatureSpaceView -> Qt.QKeyEvent () -> IO ()
-sceneKeyReleaseEvent state view evt = do
+sceneKeyReleaseEvent state _ evt = do
     key <- Qt.key evt ()
     if key == Qt.qEnum_toInt Qt.eKey_Alt
         then do
@@ -160,7 +156,7 @@ regionMouseMoveHandler fspace region item evt = do
                 iy = ey + dy
             Qt.IRect _ _ d _ <- Qt.qboundingRect item ()
             -- putStrLn $ "Region " ++ show (regionId region) ++ " pos=" ++ show pos
-            sendTo fspace $ Process.UpdateRegion $ Model.mkRegion (regionId region) (V.fromList [ix, iy]) (d/2)
+            sendTo fspace $ Process.UpdateRegion $ Model.mkRegion (regionId region) (ix, iy) (d/2)
             -- Qt.setPos item pos
             return ()
         RegionResize y0 -> do
@@ -171,7 +167,7 @@ regionMouseMoveHandler fspace region item evt = do
             -- putStrLn $ "Region " ++ show (regionId region) ++ " radius=" ++ show r'
             -- onChanged $ Update $ Model.updateRegionById (regionId region) (\r -> r { Model.radius = r' })
             Qt.IPoint ix iy <- Qt.scenePos item ()
-            sendTo fspace $ Process.UpdateRegion $ Model.mkRegion (regionId region) (V.fromList [ix, iy]) r'
+            sendTo fspace $ Process.UpdateRegion $ Model.mkRegion (regionId region) (ix, iy) r'
             -- Qt.qsetRect item (Qt.IRect (-r') (-r') d' d')
             _ <- swapMVar (regionState region) (RegionResize ey)
             return ()
@@ -381,7 +377,7 @@ new fspace synth = do
         Qt.connectSlot view "update()" view "update()"   $ update (guiChan state)
 
         model <- query fspace Process.GetModel
-        mapM_ (addRegion view state) (V.toList (Model.regions model))
+        mapM_ (addRegion view state) (Model.regions model)
 
         handle <- spawn $ process view state
 
