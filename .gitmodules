@@ -4,3 +4,6 @@
 [submodule "upstream/cabal-macosx"]
 	path = upstream/cabal-macosx
 	url = git://github.com/kaoskorobase/cabal-macosx.git
+[submodule "external-libraries"]
+	path = external-libraries
+	url = http://git.k-hornz.de/repositories/mescaline-external-libraries.git
