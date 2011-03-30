@@ -28,6 +28,7 @@ import           Sound.SC3 (dumpOSC, PrintLevel(..))
 import qualified Sound.SC3.Server.Process as Server
 import qualified Sound.SC3.Server.Process.Monad as ServerM
 import           Sound.SC3.Server.Monad as S
+import           System.IO (hPutStrLn, stderr, stdout)
 import qualified System.Log.Logger as Log
 
 data Input =
@@ -90,7 +91,8 @@ getEngine internal =
     where
         serverOptions = Server.defaultServerOptions { Server.loadSynthDefs = False }
         rtOptions = Server.defaultRTOptions
-        outputHandler = Server.OutputHandler (Log.noticeM logger) (Log.errorM logger)
+        -- outputHandler = Server.OutputHandler (Log.noticeM logger) (Log.errorM logger)
+        outputHandler = Server.OutputHandler (hPutStrLn stdout) (hPutStrLn stderr)
 
 getPrintLevel :: MonadIO m => AppT m PrintLevel
 getPrintLevel = do
