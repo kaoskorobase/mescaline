@@ -7,8 +7,6 @@ module Mescaline.Hugs (
 ) where
 
 import           Data.List (intercalate)
--- import qualified Mescaline.Application as App
-import qualified Mescaline.Application.Logger as Log
 import           Mescaline.Util (readMaybe, withTempFile)
 import           System.Exit (ExitCode(..))
 import           System.IO
@@ -46,7 +44,6 @@ modToString (Module m (Hiding xs)) = "import " ++ m ++ " hiding (" ++ intercalat
 
 run :: FilePath -> [Option] -> [Module] -> String -> IO (Either String String)
 run runhugs opts mods src = withTempFile "Mescaline.Hugs.run.XXXX.hs" $ \f h -> do
-    Log.debugM "Hugs" src'
     hPutStr h src' >> hClose h
     (e, sout, serr) <- readProcessWithExitCode runhugs (map optionToString opts ++ [f]) ""
     case e of
@@ -65,7 +62,6 @@ eval exe opts mods src = do
     case res of
         Left e -> return $ Left e
         Right s -> do
-            Log.debugM "Hugs" s
             case readMaybe s of
                 Nothing -> return $ Left ("Read error: " ++ s)
                 Just a  -> return $ Right a

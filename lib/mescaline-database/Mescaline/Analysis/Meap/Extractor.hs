@@ -4,11 +4,12 @@ module Mescaline.Analysis.Meap.Extractor (
   , run
 ) where
 
-import Mescaline.Analysis.Meap.Process (OutputHandler, defaultOutputHandler, runMeap)
+import Mescaline.Analysis.Meap.Process (ClassPath, OutputHandler, defaultOutputHandler, runMeap)
 import System.Exit (ExitCode)
 
 data Options = Options {
-    outputHandler :: OutputHandler
+    classPath     :: ClassPath
+  , outputHandler :: OutputHandler
   , windowSize    :: Int
   , hopSize       :: Int
   , features      :: [String]
@@ -16,14 +17,15 @@ data Options = Options {
 
 defaultOptions :: Options
 defaultOptions = Options {
-    outputHandler = defaultOutputHandler
+    classPath     = []
+  , outputHandler = defaultOutputHandler
   , windowSize    = 2048
   , hopSize       = 512
   , features      = []
   }
 
 run :: Options -> FilePath -> FilePath -> IO ExitCode
-run opts infile outfile = runMeap (outputHandler opts) "com.meapsoft.FeatExtractor" olist
+run opts infile outfile = runMeap (classPath opts) (outputHandler opts) "com.meapsoft.FeatExtractor" olist
     where
         olist = [
             "-o", outfile,

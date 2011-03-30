@@ -23,6 +23,7 @@ print len(fs)
 
 data = np.array(map(db.Feature.value, fs))
 print data.shape
+data = np.array(map(lambda f: f.value()[1:13], fs))
 
 dist = scipy.spatial.distance.pdist(data)
 print dist.shape

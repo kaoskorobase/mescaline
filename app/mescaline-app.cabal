@@ -185,6 +185,7 @@ executable mescaline
       , qt >= 1.1
       , random
       , regex-compat
+      , transformers
       , vector
     if os(darwin)
         build-depends:

@@ -13,7 +13,6 @@ import qualified Mescaline.Application.Logger as Log
 import qualified Mescaline.Database as DB
 import qualified Mescaline.FeatureSpace.Model as Model
 import qualified Mescaline.FeatureSpace.Unit as Unit
-import qualified System.Random as Random
 
 data Input =
     LoadDatabase    FilePath String
@@ -29,8 +28,7 @@ type Handle = Process.Handle Input Output
 
 new :: IO Handle
 new = do
-    rgen <- Random.getStdGen
-    spawn $ loop (Model.fromList rgen [])
+    spawn $ loop Model.empty
     where
         loop !f = do
             msg <- recv
@@ -46,7 +44,6 @@ new = do
                         return $ f'
                     UpdateRegion r -> do
                         notify $ RegionChanged r
-                        io $ Log.debugM "FeatureSpace" $ "UpdateRegion: " ++ show r
                         return $ Model.updateRegion r f
                     -- ActivateRegion t i -> do
                     --     let (u, f') = Model.activateRegion i f

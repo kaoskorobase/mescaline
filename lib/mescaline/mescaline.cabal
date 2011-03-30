@@ -57,6 +57,7 @@ library
       , monad-peel
       , MonadRandom >= 0.1
       , mtl >= 2
+      , old-time
       , parallel >= 3
       , persistent >= 0.5
       , process >= 1.0

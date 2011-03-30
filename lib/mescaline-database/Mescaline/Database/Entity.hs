@@ -5,26 +5,17 @@
 
 module Mescaline.Database.Entity where
 
+import           Control.DeepSeq (NFData(..))
+import           Control.Monad.IO.Peel (MonadPeelIO)
+import           Data.Either
 import           Data.Int (Int64)
 import           Data.Map (Map)
-import qualified Data.Vector.Storable as SV
 import qualified Database.Persist as DB
-import qualified Database.Persist.GenericSql as DB
--- import           Database.Persist.Quasi
--- import qualified Database.Persist.TH as DB
-import qualified Mescaline.Database.Hash as Hash
-import           Mescaline.Database.Vector (Vector, GVector)
+import           Database.Persist.Base
+import           Database.Persist.GenericSql
+import           Mescaline.Database.Vector (GVector)
 import qualified Mescaline.Database.Vector as Vector
-
-import Data.Either
-import Database.Persist.Base
--- import Database.Persist.TH
--- import Control.Monad.Invert
-import Data.Int
-import Database.Persist.GenericSql
 import qualified Mescaline.Database.Hash as Hash
-import qualified Mescaline.Database.Vector as Vector
-
 
 -- DB.share2 DB.mkPersist (DB.mkMigrate "migrateAll") [persist|
 -- SourceFile
@@ -74,6 +65,14 @@ type SourceFileMap = Map (DB.Key SourceFile) SourceFile
 --     UniqueFeature unit descriptor
 -- |]
 
+apE :: Either x (y -> z) -> Either x y -> Either x z
+apE (Left x) _ = Left x
+apE _ (Left x) = Left x
+apE (Right f) (Right y) = Right $ f y
+
+degenerate :: a
+degenerate = error "Degenerate case, should never happen"
+
 data SourceFile = SourceFile {
     sourceFileUrl :: FilePath,
     sourceFileHash :: Hash.Hash,
@@ -84,18 +83,13 @@ data SourceFile = SourceFile {
 
 type SourceFileId = Database.Persist.Base.Key SourceFile
 
-apE :: Either x (y -> z) -> Either x y -> Either x z
-apE (Left x) _ = Left x
-apE _ (Left x) = Left x
-apE (Right f) (Right y) = Right $ f y
-
-degenerate :: a
-degenerate = error "Degenerate case, should never happen"
+instance NFData SourceFile where
+    rnf (SourceFile x1 x2 x3 x4 x5) = rnf x1 `seq` rnf x2 `seq` rnf x3 `seq` rnf x4 `seq` rnf x5 `seq` ()
 
 instance Database.Persist.Base.PersistEntity SourceFile where
     newtype Database.Persist.Base.Key SourceFile
             = SourceFileId Data.Int.Int64
-              deriving (Show, Read, Num, Integral, Enum, Eq, Ord, Real, Database.Persist.Base.PersistField {- , Web.Routes.Quasi.Classes.SinglePiece -})
+              deriving (Show, Read, Num, Integral, Enum, Eq, Ord, Real, NFData, Database.Persist.Base.PersistField {- , Web.Routes.Quasi.Classes.SinglePiece -})
     data Database.Persist.Base.Filter SourceFile
             = SourceFileUrlEq FilePath | SourceFileHashEq Hash.Hash
               deriving (Show, Read, Eq)
@@ -159,10 +153,13 @@ data Unit = Unit {
 
 type UnitId = Database.Persist.Base.Key Unit
 
+instance NFData Unit where
+    rnf (Unit x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3 `seq` ()
+
 instance Database.Persist.Base.PersistEntity Unit where
     newtype Database.Persist.Base.Key Unit
             = UnitId Data.Int.Int64
-              deriving (Show, Read, Num, Integral, Enum, Eq, Ord, Real, Database.Persist.Base.PersistField {- , Web.Routes.Quasi.Classes.SinglePiece -})
+              deriving (Show, Read, Num, Integral, Enum, Eq, Ord, Real, NFData, Database.Persist.Base.PersistField {- , Web.Routes.Quasi.Classes.SinglePiece -})
     data Database.Persist.Base.Filter Unit
             = UnitSourceFileEq SourceFileId
               deriving (Show, Read, Eq)
@@ -208,10 +205,13 @@ data Descriptor = Descriptor {
 
 type DescriptorId = Database.Persist.Base.Key Descriptor
 
+instance NFData Descriptor where
+    rnf (Descriptor x1 x2) = rnf x1 `seq` rnf x2 `seq` ()
+
 instance Database.Persist.Base.PersistEntity Descriptor where
     newtype Database.Persist.Base.Key Descriptor
             = DescriptorId Data.Int.Int64
-              deriving (Show, Read, Num, Integral, Enum, Eq, Ord, Real, Database.Persist.Base.PersistField {- , Web.Routes.Quasi.Classes.SinglePiece -})
+              deriving (Show, Read, Num, Integral, Enum, Eq, Ord, Real, NFData, Database.Persist.Base.PersistField {- , Web.Routes.Quasi.Classes.SinglePiece -})
     data Database.Persist.Base.Filter Descriptor
             = DescriptorNameEq String
               deriving (Show, Read, Eq)
@@ -261,10 +261,13 @@ featureVectorValue = Vector.toVector . featureValue
 
 type FeatureId = Database.Persist.Base.Key Feature
 
+instance NFData Feature where
+    rnf (Feature x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3 `seq` ()
+
 instance Database.Persist.Base.PersistEntity Feature where
     newtype Database.Persist.Base.Key Feature
             = FeatureId Data.Int.Int64
-              deriving (Show, Read, Num, Integral, Enum, Eq, Ord, Real, Database.Persist.Base.PersistField {- , Web.Routes.Quasi.Classes.SinglePiece -})
+              deriving (Show, Read, Num, Integral, Enum, Eq, Ord, Real, NFData, Database.Persist.Base.PersistField {- , Web.Routes.Quasi.Classes.SinglePiece -})
     data Database.Persist.Base.Filter Feature
             = FeatureUnitEq UnitId | FeatureDescriptorEq DescriptorId
               deriving (Show, Read, Eq)
@@ -318,7 +321,7 @@ instance Database.Persist.Base.PersistEntity Feature where
 
 -- migrateAll :: forall m . Control.Monad.Invert.MonadInvertIO m =>
 --                          Database.Persist.GenericSql.Migration (Database.Persist.GenericSql.SqlPersist m)
-migrateAll :: Database.Persist.GenericSql.Migration (Database.Persist.GenericSql.SqlPersist IO)
+migrateAll :: MonadPeelIO m => Database.Persist.GenericSql.Migration (Database.Persist.GenericSql.SqlPersist m)
 migrateAll = do Database.Persist.GenericSql.migrate (undefined :: SourceFile)
                 Database.Persist.GenericSql.migrate (undefined :: Unit)
                 Database.Persist.GenericSql.migrate (undefined :: Descriptor)

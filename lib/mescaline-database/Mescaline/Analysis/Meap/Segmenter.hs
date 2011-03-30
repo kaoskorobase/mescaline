@@ -5,13 +5,14 @@ module Mescaline.Analysis.Meap.Segmenter (
   , run
 ) where
 
-import Mescaline.Analysis.Meap.Process   (OutputHandler, defaultOutputHandler, runMeap)
-import System.Exit              (ExitCode)
+import Mescaline.Analysis.Meap.Process (ClassPath, OutputHandler, defaultOutputHandler, runMeap)
+import System.Exit (ExitCode)
 
 data Segmentation = Onset | Beat
 
 data Options = Options {
-    outputHandler   :: OutputHandler
+    classPath       :: ClassPath
+  , outputHandler   :: OutputHandler
   , tempoScale      :: Double
   , smoothingWindow :: Double
   , segmentation    :: Segmentation
@@ -20,7 +21,8 @@ data Options = Options {
 
 defaultOptions :: Options
 defaultOptions = Options {
-    outputHandler   = defaultOutputHandler
+    classPath       = []
+  , outputHandler   = defaultOutputHandler
   , tempoScale      = 1
   , smoothingWindow = 0.1
   , segmentation    = Onset
@@ -28,7 +30,7 @@ defaultOptions = Options {
 }
 
 run :: Options -> FilePath -> FilePath -> IO ExitCode
-run opts infile outfile = runMeap (outputHandler opts) "com.meapsoft.Segmenter" olist
+run opts infile outfile = runMeap (classPath opts) (outputHandler opts) "com.meapsoft.Segmenter" olist
     where
         olist = [
             "-o", outfile,

@@ -5,8 +5,8 @@ module Mescaline.Analysis.Meap.Chain (
 ) where
 
 import qualified Mescaline.Analysis.Meap.Extractor as Extractor
-import           Mescaline.Analysis.Meap.Process (withTempFile)
 import qualified Mescaline.Analysis.Meap.Segmenter as Segmenter
+import           Mescaline.Util (withTempFile)
 import           Sound.Analysis.Meapsoft (MEAP)
 import qualified Sound.Analysis.Meapsoft as Meap
 import           System.Exit (ExitCode(..))

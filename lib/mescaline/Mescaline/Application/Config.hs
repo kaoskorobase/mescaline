@@ -1,36 +1,33 @@
 {-# LANGUAGE DeriveDataTypeable
+           , FlexibleContexts
            , ScopedTypeVariables #-}
 module Mescaline.Application.Config (
     module Data.ConfigFile
-  , ConfigParserError(..)
-  , getIO
-  , getIODefault
-  , getConfig
+  , defaultConfig
+  , readConfigFiles
 ) where
 
 import           Control.Exception
+import           Control.Failure
 import           Control.Monad
-import           Control.Monad.Trans (MonadIO, liftIO)
+import           Control.Monad.Error (throwError)
 import           Data.ConfigFile
 import           Data.Typeable
-import           Mescaline.Application
 import           System.Directory
 import           System.FilePath
 import           Prelude hiding (catch)
 
-data ConfigParserError = ConfigParserError { cpError :: CPError } deriving (Show, Typeable)
+instance Get_C a => Get_C (Maybe a) where
+    get config section option =
+        case get config section option of
+            Left (NoSection _, _) -> return Nothing
+            Left (NoOption _, _)  -> return Nothing
+            Left e -> throwError e
+            Right a -> return (Just a)
 
-instance Exception ConfigParserError
-
-getIO :: Get_C a => ConfigParser -> SectionSpec -> OptionSpec -> IO a
-getIO config section option = do
-    case get config section option of
-        Left e  -> throw (ConfigParserError e)
-        Right a -> return a
-
-getIODefault :: Get_C a => a -> ConfigParser -> SectionSpec -> OptionSpec -> IO a
-getIODefault a0 config section option = catch (getIO config section option)
-                                              (\(_ :: ConfigParserError) -> return a0)
+data ConfigParseError = ConfigParseError String
+                            deriving (Eq, Show, Typeable)
+instance Exception ConfigParseError
 
 defaultConfig :: ConfigParser
 defaultConfig = emptyCP { optionxform = id
@@ -44,11 +41,8 @@ readConfigFile cp path = do
             result <- readfile cp path
             case result of
                 Right cp' -> return cp'
-                Left e    -> throw (ConfigParserError e)
+                Left (e, _) -> failure (ConfigParseError (show e))
         else return cp
 
-getConfig :: MonadIO m => AppT m ConfigParser
-getConfig = do
-    defaultFile <- getResourcePath "config"
-    userFile    <- getUserDataPath "config"
-    liftIO $ foldM readConfigFile defaultConfig [defaultFile, userFile]
+readConfigFiles :: ConfigParser -> [FilePath] -> IO ConfigParser
+readConfigFiles = foldM readConfigFile

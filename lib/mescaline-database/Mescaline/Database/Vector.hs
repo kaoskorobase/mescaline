@@ -8,6 +8,7 @@ module Mescaline.Database.Vector (
   , toList
 ) where
 
+import           Control.DeepSeq (NFData(..))
 import           Database.Persist.Sqlite
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as B
@@ -33,6 +34,9 @@ instance Read Vector where
                 xs <- readListPrec
                 return $ Vector (V.fromList xs)
             _ -> pfail
+
+instance NFData Vector where
+    rnf (Vector x1) = x1 `seq` ()
 
 instance PersistField Vector where
     toPersistValue (Vector v) = toPersistValue $

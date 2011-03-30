@@ -30,14 +30,16 @@ library
       , containers
       , Control-Engine >= 1.0
       , curl
+      , deepseq
       -- , delimited-text >= 0.2.1
       , directory
       , enumerator >= 0.4
       , filepath
       , fingertree
-      -- , hmeap >= 0.8
+      , hmeap >= 0.10
       , hosc >= 0.8
       , hsndfile >= 0.4
+      , monad-peel
       , mtl >= 2
       , persistent >= 0.5
       , persistent-sqlite >= 0.5
@@ -64,12 +66,12 @@ library
         exposed-modules:
             Mescaline.Analysis
             Mescaline.Analysis.JSON
-            -- Mescaline.Analysis.Meap
-            -- Mescaline.Analysis.Meap.Chain
-            -- Mescaline.Analysis.Meap.Extractor
-            -- Mescaline.Analysis.Meap.Feature
-            -- Mescaline.Analysis.Meap.Process
-            -- Mescaline.Analysis.Meap.Segmenter
+            Mescaline.Analysis.Meap
+            Mescaline.Analysis.Meap.Chain
+            Mescaline.Analysis.Meap.Extractor
+            Mescaline.Analysis.Meap.Feature
+            Mescaline.Analysis.Meap.Process
+            Mescaline.Analysis.Meap.Segmenter
             Mescaline.Analysis.Server
             Mescaline.Analysis.SonicAnnotator
             Mescaline.Analysis.Types

@@ -13,7 +13,7 @@ import           Control.Monad.Trans (MonadIO, liftIO)
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import           Mescaline.Application (AppT)
-import qualified Mescaline.Application.Config as Config
+import qualified Mescaline.Application as App
 import           Mescaline.FeatureSpace.View (getRegionColors)
 import qualified Mescaline.Pattern.Sequencer as Model
 import qualified Mescaline.Pattern.Process as Process
@@ -190,14 +190,14 @@ textChanged process state _ = do
 
 new :: MonadIO m => Process.Handle -> Qt.QWidget () -> AppT m (View, Handle Input Output)
 new process editorWindow = do
-    config <- Config.getConfig
+    boxSize               <- App.config "Sequencer" "boxSize" (16::Double)
+    boxPadding            <- App.config "Sequencer" "boxPadding" (2::Double)
+    cursorPadding         <- App.config "Sequencer" "cursorPadding" (0::Double)
+    cursorLineWidth       <- App.config "Sequencer" "cursorLineWidth" (2::Double)
+    activeCursorLineWidth <- App.config "Sequencer" "activeCursorLineWidth" (4::Double)
+    regionColors          <- getRegionColors
 
     liftIO $ do
-        boxSize <- Config.getIO config "Sequencer" "boxSize" :: IO Double
-        boxPadding <- Config.getIO config "Sequencer" "boxPadding" :: IO Double
-        cursorPadding <- Config.getIO config "Sequencer" "cursorPadding" :: IO Double
-        cursorLineWidth <- Config.getIO config "Sequencer" "cursorLineWidth" :: IO Double
-        activeCursorLineWidth <- Config.getIO config "Sequencer" "activeCursorLineWidth" :: IO Double
     
         view <- newView
     
@@ -220,7 +220,7 @@ new process editorWindow = do
         fs_emptyBrush  <- Qt.qBrush Qt.etransparent
         fs_filledBrush <- Qt.qBrush Qt.edarkGray
     
-        regionBrushes  <- getRegionColors config >>= mapM Qt.qBrush
+        regionBrushes  <- mapM Qt.qBrush regionColors
         cs_inactive    <- liftM (IntMap.fromList . zip [0..]) $
             mapM (\b -> Qt.qPen (b, cursorLineWidth, Qt.eSolidLine, Qt.eSquareCap, Qt.eMiterJoin))
                  regionBrushes

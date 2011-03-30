@@ -5,10 +5,10 @@ module Mescaline.Analysis.Meap (
 
 import           Control.Arrow (first)
 import           Mescaline.Analysis.Types
-import qualified Mescaline.Application.Logger as Log
+-- import qualified Mescaline.Application.Logger as Log
 import           Mescaline.Analysis.Meap.Chain as Chain
 import qualified Mescaline.Analysis.Meap.Extractor as Extractor
-import           Mescaline.Analysis.Meap.Process (OutputHandler(..))
+import           Mescaline.Analysis.Meap.Process (ClassPath, defaultOutputHandler, makeClassPath)
 import qualified Mescaline.Analysis.Meap.Segmenter as Segmenter
 import qualified Sound.Analysis.Meapsoft as Meap
 
@@ -16,7 +16,7 @@ meapFeaturePrefix :: String
 meapFeaturePrefix = "com.meapsoft."
 
 meapFeatures :: [(String, Int)]
-meapFeatures = map (first (meapFeaturePrefix++)) [
+meapFeatures = [
   --   ( "AvgChroma"         , 12  )
   -- , ( "AvgChromaScalar"   , 1   )
     ( "AvgChunkPower"     , 1   )
@@ -34,21 +34,24 @@ meapFeatures = map (first (meapFeaturePrefix++)) [
   -- , ( "SpectralStability" , 1   )
   ]
 
-meapOptions :: Chain.Options
-meapOptions =
+meapOptions :: ClassPath -> Chain.Options
+meapOptions classPath =
     Chain.defaultOptions {
         segmenter = Segmenter.defaultOptions {
-            Segmenter.outputHandler = outputHandler
+            Segmenter.classPath = classPath
+          , Segmenter.outputHandler = outputHandler
           , Segmenter.segmentation = Segmenter.Onset
           , Segmenter.smoothingWindow = 0.01
         }
       , extractor = Extractor.defaultOptions {
-            Extractor.outputHandler = outputHandler
+            Extractor.classPath = classPath
+          , Extractor.outputHandler = outputHandler
           , Extractor.windowSize = 1024
           , Extractor.hopSize = 512
           , Extractor.features  = map fst meapFeatures } }
     where
-        outputHandler = OutputHandler (Log.noticeM "Database") (Log.errorM "Database")
+        -- outputHandler = OutputHandler (Log.noticeM "Database") (Log.errorM "Database")
+        outputHandler = defaultOutputHandler
 
 convUnit :: (Double, Double) -> Unit
 convUnit = uncurry Unit
@@ -71,20 +74,19 @@ convMeap meap = zip us (map (\v -> map (flip convFeature v) fs) (meapFrames meap
         fs = Meap.features meap
         us = map convUnit (Meap.segments_l meap)
 
-data Meap = Meap
+data Meap = Meap FilePath
 
-analyser :: Meap
+analyser :: FilePath -> Meap
 analyser = Meap
 
 instance Analyser Meap where    
     -- | List of audio file extensions Meap can handle at the moment.
     fileExtensions = const ["aif", "aiff", "wav"]
-    analyse _ path = do
+    analyse (Meap libDir) path = do
         putStrLn "Meap analysis ..."
-        r <- Chain.run meapOptions path
+        r <- flip Chain.run path . meapOptions =<< makeClassPath libDir
         case r of
             Left e -> fail e
             Right meap -> do
                 let a = convMeap meap
-                print a
                 newAnalysis path a

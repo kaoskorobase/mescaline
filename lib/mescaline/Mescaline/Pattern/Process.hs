@@ -22,8 +22,7 @@ import qualified Data.BitSet as BitSet
 import           Data.Maybe (fromJust)
 import           Mescaline (Time)
 import           Mescaline.Application (AppT, runAppT)
-import qualified Mescaline.Application.Config as Config
-import qualified Mescaline.Application.Logger as Log
+import qualified Mescaline.Application as App
 import qualified Mescaline.FeatureSpace.Model as FeatureSpace
 import qualified Mescaline.FeatureSpace.Process as FeatureSpaceP
 import           Mescaline.Pattern.Environment (Environment)
@@ -40,6 +39,7 @@ import qualified Mescaline.Pattern.Patch as Patch
 import qualified Mescaline.Pattern.Patch.Version_0_0_1 as Patch
 import           Prelude hiding (catch)
 import qualified Sound.OpenSoundControl.Time as Time
+import qualified System.Log.Logger as Log
 
 data TransportChange = Start | Pause | Reset deriving (Eq, Show)
 
@@ -90,7 +90,7 @@ type EnvironmentUpdate = Environment -> Environment
 type PlayerHandle = Process.Handle EnvironmentUpdate ()
 
 logger :: String
-logger = "Sequencer"
+logger = "Mescaline.Sequencer"
 
 applyUpdates :: MonadIO m => Environment -> ReceiverT EnvironmentUpdate () m (Environment, Bool)
 applyUpdates a = loop (a, False)
@@ -145,7 +145,7 @@ initPatch h fspaceP state = do
     mapM_ (sendTo fspaceP . FeatureSpaceP.UpdateRegion) (Patch.regions (patch state))
 
     -- If specified in the config file, fill the whole sequencer in order to facilitate debugging.
-    fill <- liftM (\conf -> either (const False) id $ Config.get conf "Sequencer" "debugFill") Config.getConfig
+    fill <- App.config "Sequencer" "debugFill" False
     when fill $ do
         forM_ [0..Sequencer.rows (Patch.sequencer (patch state))]$ \r ->
             forM_ [0..Sequencer.cols (Patch.sequencer (patch state))] $ \c ->
