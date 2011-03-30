@@ -3,20 +3,35 @@ import qualified Data.Map as Map
 import           Data.Ord (comparing)
 import qualified Data.Vector.Generic as V
 import qualified Mescaline.Analysis as Analysis
+import qualified Mescaline.Analysis.Meap as Meap
+import qualified Mescaline.Analysis.SonicAnnotator as SonicAnnotator
 import qualified Mescaline.Database as DB
 import           System.Environment (getArgs)
 import           System.IO
 import           Prelude hiding (and)
 
+data Analyser a = Analyser {
+    analyser :: a
+  , mfccFeatureName :: String
+}
+
+-- sonicAnnotator 
+-- analyser = SonicAnnotator.analyser
+-- mfccFeatureName = "http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-mfcc"
+
+-- defaultAnalyser :: Analyser
+-- defaultAnalyser = Analyser SonicAnnotator.analyser "http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-mfcc"
+defaultAnalyser = Analyser (Meap.analyser "resources/meap/2.0") "com.meapsoft.AvgMFCC"
+
 -- | Analyse a directory recursively, writing the results to a database.
 cmd_import :: FilePath -> [FilePath] -> IO ()
 cmd_import dbFile paths = do
-    Analysis.importPathsDefault Nothing dbFile paths
+    Analysis.importPaths (analyser defaultAnalyser) Nothing dbFile paths
     DB.withDatabase dbFile $
         DB.transformFeature
             (DB.PCA 2)
             "es.globero.mescaline.spectral"
-            ["http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-mfcc"]
+            [mfccFeatureName defaultAnalyser]
 
 cmd_query :: FilePath -> String -> [String] -> IO ()
 cmd_query dbFile pattern features = do
