@@ -14,20 +14,24 @@ import           Control.Concurrent.Process hiding (Handle)
 import qualified Control.Concurrent.Process as Process
 import           Control.Exception.Peel
 import           Control.Monad
-import           Control.Monad.IO.Peel (MonadPeelIO)
 import           Control.Monad.Reader (ask)
 import           Control.Monad.Trans (MonadIO, liftIO)
+import           Control.Seq
 import           Data.Accessor
 import qualified Data.BitSet as BitSet
 import           Data.Maybe (fromJust)
 import           Mescaline (Time)
 import           Mescaline.Application (AppT, runAppT)
 import qualified Mescaline.Application as App
+import qualified Mescaline.Application.Logger as Log
+import qualified Mescaline.Data.PriorityQueue as PQ
+import qualified Mescaline.Database as DB
 import qualified Mescaline.FeatureSpace.Model as FeatureSpace
-import qualified Mescaline.FeatureSpace.Process as FeatureSpaceP
+-- import qualified Mescaline.FeatureSpace.Process as FeatureSpaceP
+import qualified Mescaline.FeatureSpace.Unit as Unit
 import           Mescaline.Pattern.Environment (Environment)
 import qualified Mescaline.Pattern.Environment as Environment
-import           Mescaline.Pattern.Event (Event)
+import           Mescaline.Pattern.Event (Event, UI(..))
 import qualified Mescaline.Pattern.Event as Event
 import qualified Mescaline.Pattern.Compiler as Comp
 import           Mescaline.Pattern.Sequencer (Sequencer)
@@ -50,7 +54,11 @@ data Input =
   | ClearAll
   | Transport       TransportChange
   | GetSequencer    (Query Sequencer)
+  -- FeatureSpace
+  | LoadDatabase    FilePath String
+  | GetFeatureSpace (Query FeatureSpace.FeatureSpace)
   | SetFeatureSpace FeatureSpace.FeatureSpace
+  | UpdateRegion    FeatureSpace.Region
   -- Patch access
   | GetPatch        (Query (Patch, Maybe FilePath))
   | LoadPatch       FilePath
@@ -60,8 +68,7 @@ data Input =
   -- Muting
   | Mute            Int Bool
   -- Internal messages
-  | Event_          Time Event.Event
-  | Environment_    Environment
+  | Event_          Int Time Event.Event
 
 data Output =
     Changed      Time TransportState Sequencer.Sequencer
@@ -69,6 +76,9 @@ data Output =
   | PatchChanged Patch.Patch (Maybe FilePath)
   | PatchLoaded  Patch.Patch FilePath
   | PatchStored  Patch.Patch FilePath
+  -- FeatureSpace
+  | DatabaseLoaded  [Unit.Unit]
+  | RegionChanged   FeatureSpace.Region
 
 type Handle = Process.Handle Input Output
 
@@ -80,6 +90,7 @@ data State = State {
   , patchFilePath :: Maybe FilePath
   , playerThread  :: Maybe PlayerHandle
   , mutedTracks   :: BitSet.BitSet Int
+  , featureSpace  :: FeatureSpace.FeatureSpace
   }
 
 transport :: State -> TransportState
@@ -87,7 +98,7 @@ transport = maybe Stopped (const Running) . playerThread
 
 type EnvironmentUpdate = Environment -> Environment
 -- type Player = Model.Player Environment Model.Event
-type PlayerHandle = Process.Handle EnvironmentUpdate ()
+type PlayerHandle = Process.Handle Environment ()
 
 logger :: String
 logger = "Mescaline.Sequencer"
@@ -101,6 +112,15 @@ applyUpdates a = loop (a, False)
                 Nothing -> return (a, b)
                 Just f  -> let a' = f a in a' `seq` loop (a', True)
 
+getEnvironment :: MonadIO m => Environment -> ReceiverT Environment () m Environment
+getEnvironment = loop
+    where
+        loop a = do
+            x <- poll
+            case x of
+                Nothing -> return a
+                Just a' -> loop a'
+
 -- | Log trace messages as a side effect and return the new environment.
 logEnv :: MonadIO m => Environment -> m (Environment)
 logEnv e = do
@@ -108,41 +128,71 @@ logEnv e = do
     _ <- io $ forkIO $ mapM_ (Log.noticeM logger) ms
     return e'
 
-playerProcess :: MonadIO m => Handle -> Environment -> Pattern Event -> Time -> ReceiverT EnvironmentUpdate () m ()
-playerProcess handle = loop
-    where
-        loop !_envir !pattern !time = do
-            (envir, _) <- applyUpdates _envir
-            case Model.step envir pattern of
-                Model.Done envir' -> do
-                    _ <- logEnv envir'
-                    io $ Log.debugM logger "playerProcess: Model.Done"
-                    return ()
-                Model.Result !envir' !event !pattern' -> do
-                    sendTo handle $ Event_ time event
-                    envir'' <- logEnv envir'
-                    io $ Log.debugM logger $ "Event: " ++ show event
-                    -- let (row, col) = Model.cursorPosition (event ^. Model.cursor)
-                    --     cursor = Sequencer.Cursor row col
-                    --     envir'' = Environment.sequencer ^: Sequencer.modifyCursor (const cursor) (Model.cursorId (event ^. Model.cursor)) $ envir'
-                    let dt = event ^. Event.delta
-                    if dt > 0
-                        then do
-                            sendTo handle $ Environment_ envir''
-                            let time' = time + dt
-                            io $ Time.pauseThreadUntil time'
-                            loop envir'' pattern' time'
-                        else loop envir'' pattern' time
+type TaggedEvent = (Event, Int)
 
-startPlayerThread :: Handle -> Pattern Event -> Environment -> Time -> IO PlayerHandle
-startPlayerThread handle pattern envir time = spawn $ playerProcess handle envir pattern time
+type Schedule = (Int, Pattern Event)
+
+step :: Time -> PQ.PriorityQueue Time Schedule -> ([(Int, Event)], PQ.PriorityQueue Time Schedule)
+step = undefined
+
+step1 :: Time -> Environment -> Maybe (Time, Pattern Event) -> ([(Time, Event)], Maybe (Time, Pattern Event))
+step1 tickTime env pattern = loop pattern []
+    where
+        loop pattern events =
+            case pattern of
+                Nothing -> (events, Nothing)
+                Just (time, pattern) ->
+                    if time > tickTime
+                        then (events, Just (time, pattern))
+                        else case Model.step env pattern of
+                                Model.Done _ -> (events, Nothing)
+                                Model.Result _ event pattern' ->
+                                    let time' = time + event ^. Event.delta
+                                    in loop (Just (time', pattern')) ((time, event):events)
+
+playerProcess :: MonadIO m => Time -> Handle -> Environment -> [(Int, Maybe (Time, Pattern Event))] -> Time -> ReceiverT Environment () m ()
+playerProcess dt handle = loop
+    where
+        loop envir patterns tickTime = do
+            envir' <- getEnvironment envir
+            let (es, patterns') = unzip $ map (\(r, p) -> let e = setVal Environment.region r envir'
+                                                              (es, p') = step1 tickTime e p
+                                                          in ((r, es), (r, p')))
+                                              patterns
+            mapM_ (\(r, es) -> mapM_ (\(t, e) -> sendTo handle $ Event_ r t e) es) es
+            let tickTime' = tickTime + dt
+            liftIO $ Time.pauseThreadUntil tickTime'
+            loop envir' patterns' tickTime'
+            -- case Model.step envir' pattern of
+            --     Model.Done _ -> do
+            --         -- _ <- logEnv envir'
+            --         -- io $ Log.debugM logger "playerProcess: Model.Done"
+            --         return ()
+            --     Model.Result _ !(event, region) !pattern' -> do
+            --         sendTo handle $ Event_ region time event
+            --         -- envir'' <- logEnv envir'
+            --         io $ Log.debugM logger $ "Event: " ++ show event
+            --         -- let (row, col) = Model.cursorPosition (event ^. Model.cursor)
+            --         --     cursor = Sequencer.Cursor row col
+            --         --     envir'' = Environment.sequencer ^: Sequencer.modifyCursor (const cursor) (Model.cursorId (event ^. Model.cursor)) $ envir'
+            --         let dt = event ^. Event.delta
+            --         if dt > 0
+            --             then do
+            --                 -- sendTo handle $ Environment_ envir''
+            --                 let time' = time + dt
+            --                 io $ Time.pauseThreadUntil time'
+            --                 loop envir' pattern' time'
+            --             else loop envir' pattern' time
+
+startPlayerThread :: Time -> Handle -> Environment -> [(Int, Maybe (Time, Pattern Event))] -> Time -> IO PlayerHandle
+startPlayerThread dt handle envir patterns time = spawn $ playerProcess dt handle envir patterns time
 
 stopPlayerThread :: PlayerHandle -> IO ()
 stopPlayerThread = kill
 
-initPatch :: MonadIO m => Handle -> FeatureSpaceP.Handle -> State -> AppT m ()
-initPatch h fspaceP state = do
-    mapM_ (sendTo fspaceP . FeatureSpaceP.UpdateRegion) (Patch.regions (patch state))
+initPatch :: MonadIO m => Handle -> State -> AppT m ()
+initPatch h state = do
+    mapM_ (sendTo h . UpdateRegion) (Patch.regions (patch state))
 
     -- If specified in the config file, fill the whole sequencer in order to facilitate debugging.
     fill <- App.config "Sequencer" "debugFill" False
@@ -153,14 +203,21 @@ initPatch h fspaceP state = do
 
     notifyListeners h (PatchChanged (patch state) (patchFilePath state))
 
-new :: MonadPeelIO m => Patch.Patch -> FeatureSpaceP.Handle -> AppT m Handle
-new patch0 fspaceP = do
+new :: MonadIO m => Patch.Patch -> AppT m Handle
+new patch0 = do
     time <- liftIO Time.utcr
-    let state = State time patch0 Nothing Nothing BitSet.empty
+    let state = State time patch0 Nothing Nothing BitSet.empty FeatureSpace.empty
     h <- liftIO . spawn . loop state =<< ask
-    initPatch h fspaceP state
+    initPatch h state
     return h
     where
+        -- updateSequencer state update = do
+        --     case transport state of
+        --         Stopped ->
+        --             return $ Just $ state { patch = Patch.modifySequencer update (patch state) }
+        --         Running -> do
+        --             sendTo (fromJust (playerThread state)) (Environment.sequencer ^: update)
+        --             return Nothing
         updateSequencer state update = do
             case transport state of
                 Stopped ->
@@ -187,18 +244,19 @@ new patch0 fspaceP = do
                                     Start -> do
                                         proc <- self
                                         time <- io Time.utcr
-                                        fspace <- query fspaceP FeatureSpaceP.GetModel
                                         case Patch.pattern (patch state) of
                                             Left e -> do
                                                 io $ Log.errorM logger (show e)
                                                 return Nothing
                                             Right (pattern, bindings) -> do
                                                 let env = Environment.mkEnvironment
-                                                            0
+                                                            0 0
                                                             bindings
-                                                            fspace
+                                                            (featureSpace state)
                                                             (Patch.sequencer (patch state))
-                                                tid  <- io $ startPlayerThread proc pattern env time
+                                                    patterns = map (\r -> (r, Just (time, pattern)))
+                                                                   (FeatureSpace.regions (featureSpace state))
+                                                tid  <- io $ startPlayerThread 0.001 proc env patterns time
                                                 return $ Just $ state { time = time
                                                                       , playerThread = Just tid }
                                     Pause -> return Nothing
@@ -213,7 +271,6 @@ new patch0 fspaceP = do
                                         maybe (return ()) (io . stopPlayerThread) (playerThread state)
                                         proc <- self
                                         time <- io Time.utcr
-                                        fspace <- query fspaceP FeatureSpaceP.GetModel
                                         case Patch.pattern (patch state) of
                                             Left e -> do
                                                 io $ Log.errorM logger (show e)
@@ -221,20 +278,37 @@ new patch0 fspaceP = do
                                             Right (pattern, bindings) -> do
                                                 let patch' = Patch.modifySequencer Sequencer.resetCursors (patch state)
                                                     env = Environment.mkEnvironment
-                                                            0
+                                                            0 0
                                                             bindings
-                                                            fspace
+                                                            (featureSpace state)
                                                             (Patch.sequencer patch')
-                                                tid <- io $ startPlayerThread proc pattern env time
+                                                    patterns = map (\r -> (r, Just (time, pattern)))
+                                                                   (FeatureSpace.regions (featureSpace state))
+                                                tid  <- io $ startPlayerThread 0.001 proc env patterns time
                                                 return $ Just $ state { time = time
                                                                       , patch = patch'
                                                                       , playerThread = Just tid }
                     GetSequencer query -> do
                         answer query $ Patch.sequencer (patch state)
                         return Nothing
-                    SetFeatureSpace fspace -> do
-                        maybe (return ()) (\h -> sendTo h (setVal Environment.featureSpace fspace)) (playerThread state)
+                    LoadDatabase path pattern -> do
+                        units <- io $ DB.withDatabase path
+                                    $ Unit.getUnits pattern [
+                                        "es.globero.mescaline.spectral" ]
+                          -- , "com.meapsoft.AvgChunkPower"
+                          -- , "com.meapsoft.AvgFreqSimple" ]
+                        let f' = FeatureSpace.setUnits (featureSpace state) (seqList rseq units `seq` units)
+                        notify $ DatabaseLoaded (FeatureSpace.units f')
+                        return $ Just state { featureSpace = f' }
+                    GetFeatureSpace q -> do
+                        answer q (featureSpace state)
                         return Nothing
+                    SetFeatureSpace fspace -> do
+                        -- maybe (return ()) (\h -> sendTo h (setVal Environment.featureSpace fspace)) (playerThread state)
+                        return $ Just state { featureSpace = fspace }
+                    UpdateRegion r -> do
+                        notify $ RegionChanged r
+                        return $ Just state { featureSpace = FeatureSpace.updateRegion r (featureSpace state) }
                     GetPatch query -> do
                         answer query (patch state, patchFilePath state)
                         return Nothing
@@ -244,15 +318,15 @@ new patch0 fspaceP = do
                             do { patch' <- Patch.load path
                                ; let state' = state { patch = patch'
                                                     , patchFilePath = Just path }
-                               ; initPatch h fspaceP state'
+                               ; initPatch h state'
                                ; notifyListeners h (PatchLoaded patch' path)
                                ; return $ Just state' }
                                `catches`
                                     [ Handler (\(e :: Patch.LoadError)   -> liftIO $ Log.errorM logger (show e) >> return Nothing)
                                     , Handler (\(e :: Comp.CompileError) -> liftIO $ Log.errorM logger (show e) >> return Nothing) ]
                     StorePatch path -> do
-                        regions <- liftM FeatureSpace.regions $ query fspaceP FeatureSpaceP.GetModel
-                        let patch' = Patch.setRegions regions (patch state)
+                        let regions = FeatureSpace.regions (featureSpace state)
+                            patch' = Patch.setRegions regions (patch state)
                         h <- self
                         liftIO $
                             do { Patch.store path patch'
@@ -276,15 +350,16 @@ new patch0 fspaceP = do
                     Mute track b ->
                         return $ Just state { mutedTracks = (if b then BitSet.insert else BitSet.delete)
                                                                 track (mutedTracks state) }
-                    Event_ time event ->
+                    Event_ region time event ->
                         case transport state of
                             Running -> do
-                                unless (BitSet.member (event ^. Event.cursor) (mutedTracks state))
+                                -- FIXME: Associate event streams with region id
+                                unless False {- (BitSet.member (event ^. Event.cursor) (mutedTracks state)) -}
                                        (notify $ Event time event)
                                 return Nothing
                             _ -> error "This shouldn't happen: Received an Event_ message but player thread not running"
-                    Environment_ envir ->
-                        return $ Just state { patch = Patch.modifySequencer (const (envir ^. Environment.sequencer)) (patch state) }
+                    -- Environment_ envir ->
+                    --     return $ Just state { patch = Patch.modifySequencer (const (envir ^. Environment.sequencer)) (patch state) }
             case state' of
                 Just state' -> do
                     notify $ Changed (time state') (transport state') (Patch.sequencer (patch state'))

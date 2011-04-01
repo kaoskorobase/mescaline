@@ -103,7 +103,7 @@ data Limit =
 
 -- | Construct an infinite constant value scalar pattern.
 value :: Double -> Pattern Scalar
-value = AST . return . S_value
+value = liftAST0 . S_value
 
 -- | Bind the current value of a pattern to a function argument.
 --
@@ -132,7 +132,7 @@ par a = AST $ liftM E_par (mapM unAST a)
 
 -- | Map a unary function to a scalar.
 map :: UnaryFunc -> Pattern Scalar -> Pattern Scalar
-map = liftAST . S_map
+map = liftAST1 . S_map
 
 -- | Combine two scalars with a binary function.
 zip :: BinaryFunc -> Pattern Scalar -> Pattern Scalar -> Pattern Scalar
@@ -178,13 +178,13 @@ limit l = liftAST3 (S_limit l)
 
 -- | Return a rest of the specified duration.
 rest :: Double -> Pattern Event
-rest = AST . return . E_rest
+rest = liftAST0 . E_rest
 
 -- | Return the value of an event field.
 --
 -- @get Duration e@
 get :: Field -> Pattern Event -> Pattern Scalar
-get = liftAST . S_get
+get = liftAST1 . S_get
 
 -- | Set the value of an event field
 --
@@ -204,7 +204,7 @@ filter = liftAST2 E_filter
 --
 -- @takeDur 2.125 e@
 takeDur :: Double -> Pattern Event -> Pattern Event
-takeDur = liftAST . E_takeDur
+takeDur = liftAST1 . E_takeDur
 
 -- *Coordinates
 
@@ -212,7 +212,7 @@ takeDur = liftAST . E_takeDur
 --
 -- @coord 0.5 (rand 0.4 0.6)@
 coord :: Pattern Scalar -> Pattern Scalar -> Pattern Coord
-coord     = liftAST2 C_coord
+coord = liftAST2 C_coord
 
 -- | Construct a coordinate pattern from a center coordinate, a radius and an angle in radians.
 --
@@ -222,21 +222,21 @@ polar = liftAST3 C_polar
 
 -- | Retrieve the x value from a coordinate.
 x :: Pattern Coord -> Pattern Scalar
-x = liftAST S_x
+x = liftAST1 S_x
 
 -- | Retrieve the y value from a coordinate.
 y :: Pattern Coord -> Pattern Scalar
-y = liftAST S_y
+y = liftAST1 S_y
 
 -- *Regions
 
 -- | Return the center of the specified feature space region.
-center :: Int -> Pattern Coord
-center = liftAST C_center . fromIntegral
+center :: Pattern Coord
+center = liftAST0 C_center
 
 -- | Return the radius of the specified feature space region.
-radius :: Int -> Pattern Scalar
-radius = liftAST S_radius . fromIntegral
+radius :: Pattern Scalar
+radius = liftAST0 S_radius
 
 -- | Select the unit closest to a given coordinate.
 --
@@ -249,8 +249,8 @@ radius = liftAST S_radius . fromIntegral
 -- * @radius@ Radius to restrict the search; if the found unit is outside the given radius around the coordinate, a rest is generated.
 --
 -- * @coord@ Coordinate for nearest neighbor search.
-closest :: Int -> Pattern Scalar -> Pattern Scalar -> Pattern Coord -> Pattern Event
-closest i = liftAST3 (E_closest i)
+closest :: Pattern Scalar -> Pattern Scalar -> Pattern Coord -> Pattern Event
+closest = liftAST3 E_closest
 
 -- | Select a unit from a region according to the iterator.
 --
@@ -261,8 +261,8 @@ closest i = liftAST3 (E_closest i)
 -- * @defaultDelta@ Default delta time in case the region is empty.
 --
 -- * @iterator@ Scalar pattern in the range [0;1[ that selects a unit from the region.
-region :: Int -> Pattern Scalar -> Pattern Scalar -> Pattern Event
-region i = liftAST2 (E_region i)
+region :: Pattern Scalar -> Pattern Scalar -> Pattern Event
+region = liftAST2 E_region
 
 -- * Cursor
 
@@ -379,8 +379,11 @@ newHash = do
 -- | A Patch is an event pattern.
 type Patch = Pattern Event
 
-liftAST :: (a -> r) -> Pattern a -> Pattern r
-liftAST f = AST . liftM f . unAST
+liftAST0 :: a -> Pattern a
+liftAST0 = AST . return
+
+liftAST1 :: (a -> r) -> Pattern a -> Pattern r
+liftAST1 f = AST . liftM f . unAST
 
 liftAST2 :: (a1 -> a2 -> r) -> Pattern a1 -> Pattern a2 -> Pattern r
 liftAST2 f a b = AST $ liftM2 f (unAST a) (unAST b)
@@ -566,7 +569,7 @@ data Scalar =
   | S_x Coord
   | S_y Coord
   -- Regions
-  | S_radius Scalar
+  | S_radius
   -- Randomness
   | S_rand Scalar Scalar
   | S_exprand Scalar Scalar
@@ -591,7 +594,7 @@ data Coord =
   | C_stream StreamFunc Coord
   | C_list Enumerator Scalar [Coord]
   -- Regions
-  | C_center Scalar
+  | C_center
   -- Debugging
   | C_trace Coord
   deriving (Eq, Read, Show)
@@ -622,8 +625,8 @@ data Event =
   -- Filters
   | E_filter Boolean Event
   -- Generators
-  | E_closest Int Scalar Scalar Coord
-  | E_region Int Scalar Scalar
+  | E_closest Scalar Scalar Coord
+  | E_region Scalar Scalar
   -- Cursor
   | E_step Scalar Scalar Event
   -- Debugging

@@ -110,11 +110,12 @@ getRegion = pzipWith (\fs i -> let r = truncate i
                                in forceMaybe ("Invalid region " ++ show r) (FeatureSpace.lookupRegion r fs))
                      (askA Environment.featureSpace)
 
-center :: Pattern Double -> Pattern (Double, Double)
-center = fmap FeatureSpace.center2D . getRegion
+-- FIXME: Get region from environment
+center :: Pattern (Double, Double)
+center = fmap FeatureSpace.center2D $ getRegion (pure 0)
 
-radius :: Pattern Double -> Pattern Double
-radius = fmap FeatureSpace.radius . getRegion
+radius :: Pattern Double
+radius = fmap FeatureSpace.radius $ getRegion (pure 0)
 
 coord :: Pattern Double -> Pattern Double -> Pattern (Double, Double)
 coord = pzip
@@ -123,15 +124,15 @@ polar :: Pattern (Double, Double) -> Pattern Double -> Pattern Double -> Pattern
 polar = pzipWith3 f
     where f (x, y) mag phi = let c = C.mkPolar mag phi in (x + C.realPart c, y + C.imagPart c)
 
-closest :: Event.Cursor -> Pattern Double -> Pattern Double -> Pattern (Double, Double) -> Pattern Event
-closest c = pzipWith4 f (askA Environment.featureSpace)
+closest :: Pattern Double -> Pattern Double -> Pattern (Double, Double) -> Pattern Event
+closest = pzipWith4 f (askA Environment.featureSpace)
     where
         f fs dt r (x, y) =
-            let rest = Event.rest c dt
+            let rest = Event.rest dt
             in case FeatureSpace.closest2D (x, y) fs of
                 Nothing -> rest
                 Just (u, d) -> if d <= r
-                               then Event.synthEvent c u
+                               then Event.synthEvent u
                                else rest
 
 filterE :: Pattern Bool -> Pattern Event -> Pattern Event
@@ -158,20 +159,23 @@ takeDur dur pattern = punfoldr f (0, pattern)
 regionUnits :: Pattern Int -> Pattern [FeatureSpace.Unit]
 regionUnits i = pzipWith (FeatureSpace.regionUnits) i (askA (Environment.featureSpace))
 
-region :: Event.Cursor -> Pattern Double -> Pattern Double -> Pattern Event
-region c dt it = pzipWith3 f dt it (regionUnits (pure c))
+-- FIXME: Get region from environment
+region :: Pattern Double -> Pattern Double -> Pattern Event
+region dt it = pzipWith3 f dt it (regionUnits (pure 0))
     where
-        f dt _ [] = Event.rest c dt
+        f dt _ [] = Event.rest dt
         f _ i us  = let n = length us
                         j = max 0 $ min (n-1) $ truncate (i * fromIntegral n)
-                    in Event.synthEvent c (us !! j)
+                    in Event.synthEvent (us !! j)
         -- Event.synth ^: (fmap Event.defaultSynth u <*) $ e
 
 data CursorBehavior = WrapCursor | MirrorCursor
 
+-- FIXME: Get region from environment
 step :: Pattern Double -> Pattern Double -> Pattern Event -> Pattern Event
-step rowInc colInc e = M.join (pzipWith3 f (fmap (getVal Event.cursor) e) rowInc colInc) *> e
+step rowInc colInc e = M.join (pzipWith3 f (fmap (const c) e) rowInc colInc) *> e
     where
+        c = 0
         f i ri ci =
             Accessor.modify
                 Environment.sequencer $

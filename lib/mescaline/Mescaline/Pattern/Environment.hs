@@ -5,6 +5,7 @@
 module Mescaline.Pattern.Environment (
     Environment
   , mkEnvironment
+  , region
   , bindings
   , featureSpace
   , sequencer
@@ -19,7 +20,8 @@ import qualified Mescaline.FeatureSpace.Model as FeatureSpace
 import qualified System.Random as Random
 
 data Environment = Environment {
-    _randomGen    :: !Random.StdGen
+    _region       :: Int
+  , _randomGen    :: !Random.StdGen
   , _messages     :: [String]
   , _bindings     :: Bindings Environment
   , _featureSpace :: !FeatureSpace.FeatureSpace
@@ -32,9 +34,10 @@ instance Random.RandomGen Environment where
     split e = let (g, g') = Random.split (_randomGen e)
               in (e { _randomGen = g }, e { _randomGen = g' })
 
-mkEnvironment :: Int -> Bindings Environment -> FeatureSpace.FeatureSpace -> Sequencer.Sequencer -> Environment
-mkEnvironment seed = Environment (Random.mkStdGen seed) []
+mkEnvironment :: Int -> Int -> Bindings Environment -> FeatureSpace.FeatureSpace -> Sequencer.Sequencer -> Environment
+mkEnvironment seed region = Environment region (Random.mkStdGen seed) []
 
+ACCESSOR(region,       _region,       Environment, Int)
 ACCESSOR(bindings,     _bindings,     Environment, Bindings Environment)
 ACCESSOR(featureSpace, _featureSpace, Environment, FeatureSpace.FeatureSpace)
 ACCESSOR(sequencer,    _sequencer,    Environment, Sequencer.Sequencer)

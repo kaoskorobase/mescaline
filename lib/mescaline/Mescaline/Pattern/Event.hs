@@ -4,16 +4,15 @@
 
 module Mescaline.Pattern.Event (
     Event
-  , Cursor
   , rest
   , synthEvent
   , delta
-  , cursor
   , synth
   , isRest
   , withSynth
   , Synth
   , defaultSynth
+  , UI(..)
   , unit
   , offset
   , duration
@@ -35,6 +34,7 @@ import           Mescaline.Time (Duration)
 import qualified Mescaline.Time as Time
 import           Mescaline.FeatureSpace.Model ()
 import qualified Mescaline.FeatureSpace.Unit as Unit
+import           Mescaline.Pattern.Sequencer (Sequencer)
 
 data Synth = Synth {
     _unit         :: Unit.Unit
@@ -87,39 +87,29 @@ ACCESSOR(fxParam1,      _fxParam1,      Synth, Double)
 ACCESSOR(fxParam2,      _fxParam2,      Synth, Double)
 ACCESSOR(latency,       _latency,       Synth, Double)
 
--- data Cursor =
---     NoCursor
---   | Cursor {
---         cursorId       :: Int
---       , cursorPosition :: (Int,Int)
---       , cursorValue    :: Double
---       }
---     deriving (Eq, Read, Show)
-
-type Cursor = Int
+data UI =
+    SequencerUI Sequencer
+    deriving (Eq, Show)
 
 data Event =
     Event {
         _delta      :: Duration
-      , _cursor     :: Cursor
       , _synth      :: Maybe Synth
+      , _ui         :: [UI]
       }
     deriving (Eq, Show)
 
 ACCESSOR(delta,  _delta,  Event, Double)
-ACCESSOR(cursor, _cursor, Event, Cursor)
 ACCESSOR(synth,  _synth,  Event, Maybe Synth)
 
-rest :: Cursor -> Duration -> Event
-rest c d = Event d c Nothing
+rest :: Duration -> Event
+rest d = Event d Nothing []
 
-synthEvent :: Cursor -> Unit.Unit -> Event
-synthEvent c u = Event d c (Just (defaultSynth u))
-    where d = Unit.duration u
+synthEvent :: Unit.Unit -> Event
+synthEvent u = Event (Unit.duration u) (Just (defaultSynth u)) []
 
 isRest :: Event -> Bool
-isRest (Event _ _ Nothing) = True
-isRest _                   = False
+isRest e = _synth e == Nothing
 
 withSynth :: a -> (Synth -> a) -> Event -> a
 withSynth a0 f e = case _synth e of

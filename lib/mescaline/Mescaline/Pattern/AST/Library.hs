@@ -255,19 +255,19 @@ max = liftAST2 (S_zip F_max)
 
 -- | Truncate scalar towards -Infinity.
 truncateP :: Pattern Scalar -> Pattern Scalar
-truncateP = liftAST (S_map F_truncate)
+truncateP = liftAST1 (S_map F_truncate)
 
 -- | Round scalar to the closest integer.
 roundP :: Pattern Scalar -> Pattern Scalar
-roundP = liftAST (S_map F_round)
+roundP = liftAST1 (S_map F_round)
 
 -- | Return the next integer bigger than a scalar.
 ceilingP :: Pattern Scalar -> Pattern Scalar
-ceilingP = liftAST (S_map F_ceiling)
+ceilingP = liftAST1 (S_map F_ceiling)
 
 -- | Truncate scalar towards zero.
 floorP :: Pattern Scalar -> Pattern Scalar
-floorP = liftAST (S_map F_floor)
+floorP = liftAST1 (S_map F_floor)
 
 -- | Constrain a scalar to the interval [min,max].
 --

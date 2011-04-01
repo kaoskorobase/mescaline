@@ -23,7 +23,8 @@ import qualified Mescaline.FeatureSpace.Unit as Unit
 import qualified Mescaline.Pattern.AST as AST
 import           Mescaline.Pattern hiding (step)
 import qualified Mescaline.Pattern.Binding as B
-import           Mescaline.Pattern.Environment as Env
+import           Mescaline.Pattern.Environment (Environment)
+import qualified Mescaline.Pattern.Environment as Env
 import           Mescaline.Pattern.Event
 import           Mescaline.Pattern.Library
 import qualified Mescaline.Pattern.Sequencer as Seq
@@ -126,14 +127,18 @@ synthAccessor a0 acc = accessor (maybe a0 (getVal acc) . getVal synth)
 
 field :: AST.Field -> Accessor (Environment, Event) Double
 field AST.Delta = delta . second
-field AST.Cursor = accessor (fromIntegral . getVal (cursor . second))
+-- FIXME: Get these from the environment
+field AST.Cursor = accessor (fromIntegral . getVal (Env.region . first))
                             (const id)
 field AST.CursorValue = accessor (maybe 0 id . f) (const id)
     where
-        f (env, evt) = do
-            let s = env ^. sequencer
-            c <- Seq.getCursor (evt ^. cursor) s
+        f (env, _) = do
+            let s = env ^. Env.sequencer
+                i = env ^. Env.region
+            c <- Seq.getCursor i s
             Seq.lookupAtCursor c s
+-- field AST.Cursor = accessor (const 0) (const id)
+-- field AST.CursorValue = accessor (const 0) (const id)
 field AST.Offset = synthAccessor 0 offset . second
 field AST.Duration = synthAccessor 0 duration . second
 field AST.Level = synthAccessor 1 sustainLevel . second
@@ -218,12 +223,12 @@ compileC (AST.C_stream f a)   = liftM (streamPattern f) (compileC a)
 compileC (AST.C_list e a b)   = liftM2 (listPattern e) (compileS a) (mapM compileC b)
 compileC (AST.C_coord a b)    = liftM2 coord (compileS a) (compileS b)
 compileC (AST.C_polar a b c)  = liftM3 polar (compileC a) (compileS b) (compileS c)
-compileC (AST.C_center a)     = liftM center (compileS a)
+compileC (AST.C_center)       = return center
 compileC (AST.C_trace a)      = liftM (ptraceEnv "") (compileC a)
 
 -- | Compile an event expression to an event pattern.
 compileE :: AST.Event -> C (Pattern Event)
-compileE (AST.E_rest d)          = return (pure (rest 0 d))
+compileE (AST.E_rest d)          = return (pure (rest d))
 compileE (AST.E_binding h)       = compileBinding B.event h
 compileE (AST.E_bind_B h a b)    = compileBind compileB compileE B.boolean h a b
 compileE (AST.E_bind_C h a b)    = compileBind compileC compileE B.coord   h a b
@@ -235,8 +240,8 @@ compileE (AST.E_par a)           = liftM ppar (mapM compileE a)
 compileE (AST.E_takeDur d a)     = liftM (takeDur d) (compileE a)
 compileE (AST.E_set f a b)       = liftM (fmap snd) $ liftM2 (pzipWith (setVal (field f))) (compileS a) (fmap (pzip ask) (compileE b))
 compileE (AST.E_filter a b)      = liftM2 filterE (compileB a) (compileE b)
-compileE (AST.E_closest i a b c) = liftM3 (closest i) (compileS a) (compileS b) (compileC c)
-compileE (AST.E_region i a b)    = liftM2 (region i) (compileS a) (compileS b)
+compileE (AST.E_closest a b c)   = liftM3 closest (compileS a) (compileS b) (compileC c)
+compileE (AST.E_region a b)      = liftM2 region (compileS a) (compileS b)
 compileE (AST.E_step a b c)      = liftM3 step (compileS a) (compileS b) (compileE c)
 compileE (AST.E_trace a)         = liftM (ptraceEnv "") (compileE a)
 
@@ -256,7 +261,7 @@ compileS (AST.S_zip f a b)       = liftM2 (pzipWith (binFunc f)) (compileS a) (c
 compileS (AST.S_limit f a b c)   = liftM3 (pzipWith3 (limit f)) (compileS a) (compileS b) (compileS c)
 compileS (AST.S_x a)             = liftM (fmap fst) (compileC a)
 compileS (AST.S_y a)             = liftM (fmap snd) (compileC a)
-compileS (AST.S_radius a)        = liftM radius (compileS a)
+compileS (AST.S_radius)          = return radius
 compileS (AST.S_rand a b)        = liftM2 prrand_ (compileS a) (compileS b)
 compileS (AST.S_exprand a b)     = liftM2 pexprand_ (compileS a) (compileS b)
 compileS (AST.S_gaussian a b)    = liftM2 pgaussian_ (compileS a) (compileS b)

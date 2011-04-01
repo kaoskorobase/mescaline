@@ -27,7 +27,7 @@ import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Config.Qt as Config
 import qualified Mescaline.FeatureSpace.Model as Model
 import qualified Mescaline.FeatureSpace.Unit as Unit
-import qualified Mescaline.FeatureSpace.Process as Process
+import qualified Mescaline.Pattern.Process as Process
 import qualified Mescaline.Pattern.Event as Synth
 import qualified Mescaline.Synth.Sampler.Process as Synth
 
@@ -318,6 +318,7 @@ process view state = do
                                             -- Decrease highlight count
                                             Hash.update hls uid (UnitHighlight item (i-1))
                                             return ()
+        _ -> return ()
     process view state
 
 update :: Chan (IO ()) -> FeatureSpaceView -> IO ()
@@ -376,7 +377,7 @@ new fspace synth = do
         Qt.setHandler view "keyReleaseEvent(QKeyEvent*)" $ sceneKeyReleaseEvent state
         Qt.connectSlot view "update()" view "update()"   $ update (guiChan state)
 
-        model <- query fspace Process.GetModel
+        model <- query fspace Process.GetFeatureSpace
         mapM_ (addRegion view state) (Model.regions model)
 
         handle <- spawn $ process view state

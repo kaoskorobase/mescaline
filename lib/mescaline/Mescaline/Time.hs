@@ -6,7 +6,10 @@ module Mescaline.Time (
   , ToRest(..)
 ) where
 
+import Control.Category ((.))
 import Data.Accessor
+import Data.Accessor.Tuple
+import Prelude hiding ((.))
 
 type Time     = Double -- ^ Absolute or relative time stamp
 type Duration = Double -- ^ Difference of times
@@ -27,3 +30,9 @@ data Timed a = Timed Time a
 
 instance HasTime (Timed a) where
     time = accessor (\(Timed t _) -> t) (\t' (Timed _ a) -> Timed t' a)
+
+instance HasTime a => HasTime (a, b) where
+    time = time . first
+
+instance HasDelta a => HasDelta (a, b) where
+    delta = delta . first

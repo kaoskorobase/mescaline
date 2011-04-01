@@ -23,7 +23,6 @@ import qualified Mescaline.Database as DB
 import qualified Mescaline.Database.Process as DatabaseP
 import qualified Mescaline.Pattern.Sequencer as Sequencer
 import qualified Mescaline.FeatureSpace.Model as FeatureSpace
-import qualified Mescaline.FeatureSpace.Process as FeatureSpaceP
 import qualified Mescaline.FeatureSpace.View as FeatureSpaceView
 import qualified Mescaline.Pattern as Pattern
 import qualified Mescaline.Pattern.Environment as Pattern
@@ -402,22 +401,19 @@ appMain = do
     -- Synth process
     (synthP, synthQuit) <- SynthP.new
 
-    -- Feature space process
-    fspaceP <- liftIO FeatureSpaceP.new
+    -- Sequencer process
+    let defaultPatch = Patch.defaultPatchEmbedded
+    patternP <- PatternP.new defaultPatch
+    (patternView, patternViewP) <- PatternView.new patternP (Qt.objectCast editorWindow)
 
     -- Feature space view
-    (fspaceView, fspaceViewP) <- FeatureSpaceView.new fspaceP synthP
-
-    -- Sequencer process
-    defaultPatch <- Patch.defaultPatch
-    patternP <- PatternP.new defaultPatch fspaceP
-    (patternView, patternViewP) <- PatternView.new patternP (Qt.objectCast editorWindow)
+    (fspaceView, fspaceViewP) <- FeatureSpaceView.new patternP synthP
 
     examplesDir <- App.getResourcePath "patches/examples"
     appVersion <- App.version
 
     liftIO $ do
-        connect Left fspaceP fspaceViewP
+        connect Left patternP fspaceViewP
         connect (\x -> case x of
                     SynthP.UnitStarted _ u -> Right $ FeatureSpaceView.HighlightOn u
                     SynthP.UnitStopped _ u -> Right $ FeatureSpaceView.HighlightOff u)
@@ -434,27 +430,28 @@ appMain = do
 
         -- Database process
         dbP <- DatabaseP.new
-        connect (\(DatabaseP.Changed path pattern) -> FeatureSpaceP.LoadDatabase path pattern) dbP fspaceP
+        connect (\(DatabaseP.Changed path pattern) -> PatternP.LoadDatabase path pattern) dbP patternP
         sendTo dbP $ DatabaseP.Load dbFile pattern
 
         -- Pattern process
-        patternToFSpaceP <- spawn $ fix $ \loop -> do
+        patternToSynthP <- spawn $ fix $ \loop -> do
             x <- recv
             case x of
                 PatternP.Event time event -> do
                     Event.withSynth (return ()) (sendTo synthP . SynthP.PlayUnit time) event
                 _ -> return ()
             loop
-        patternToFSpaceP `listenTo` patternP
-        fspaceToPatternP <- spawn $ fix $ \loop -> do
-            x <- recv
-            case x of
-                FeatureSpaceP.RegionChanged _ -> do
-                    fspace <- query fspaceP FeatureSpaceP.GetModel
-                    sendTo patternP $ PatternP.SetFeatureSpace fspace
-                _ -> return ()
-            loop
-        fspaceToPatternP `listenTo` fspaceP
+        patternToSynthP `listenTo` patternP
+        
+        -- fspaceToPatternP <- spawn $ fix $ \loop -> do
+        --     x <- recv
+        --     case x of
+        --          PatternP.RegionChanged _ -> do
+        --             fspace <- query fspaceP FeatureSpaceP.GetModel
+        --             sendTo patternP $ PatternP.SetFeatureSpace fspace
+        --         _ -> return ()
+        --     loop
+        -- fspaceToPatternP `listenTo` fspaceP
 
         -- Pipe feature space view output to synth
         -- toSynthP <- spawn $ fix $ \loop -> do
@@ -520,7 +517,7 @@ appMain = do
         defineWindowMenu menuDef (Qt.objectCast logWindow)
 
         -- OSC server process
-        oscServer <- OSCServer.new 2010 synthP fspaceP
+        -- oscServer <- OSCServer.new 2010 synthP fspaceP
 
         -- Start the application
         Qt.qshow mainWindow ()
