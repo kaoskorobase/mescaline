@@ -6,7 +6,7 @@
 module Mescaline.Database.Entity where
 
 import           Control.DeepSeq (NFData(..))
-import           Control.Monad.IO.Peel (MonadPeelIO)
+import           Control.Monad.IO.Control (MonadControlIO)
 import           Data.Either
 import           Data.Int (Int64)
 import           Data.Map (Map)
@@ -321,7 +321,7 @@ instance Database.Persist.Base.PersistEntity Feature where
 
 -- migrateAll :: forall m . Control.Monad.Invert.MonadInvertIO m =>
 --                          Database.Persist.GenericSql.Migration (Database.Persist.GenericSql.SqlPersist m)
-migrateAll :: MonadPeelIO m => Database.Persist.GenericSql.Migration (Database.Persist.GenericSql.SqlPersist m)
+migrateAll :: MonadControlIO m => Database.Persist.GenericSql.Migration (Database.Persist.GenericSql.SqlPersist m)
 migrateAll = do Database.Persist.GenericSql.migrate (undefined :: SourceFile)
                 Database.Persist.GenericSql.migrate (undefined :: Unit)
                 Database.Persist.GenericSql.migrate (undefined :: Descriptor)

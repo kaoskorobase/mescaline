@@ -16,7 +16,7 @@ module Mescaline.Database (
 
 import           Control.Arrow (first)
 import           Control.Monad as M
-import           Control.Monad.IO.Peel (MonadPeelIO)
+import           Control.Monad.IO.Control (MonadControlIO)
 import           Control.Monad.Trans (MonadIO, lift)
 import qualified Data.Vector.Generic as V
 import           Database.Persist.Sqlite
@@ -40,7 +40,7 @@ import           Numeric.LinearAlgebra as H
 import           Text.Regex
 import           Prelude hiding (and)
 
-withDatabase :: MonadPeelIO m => String -> SqlPersist m a -> m a
+withDatabase :: MonadControlIO m => String -> SqlPersist m a -> m a
 withDatabase path action = withSqliteConn path (runSqlConn (runMigration Entity.migrateAll >> action))
 
 entityMapI :: (Monad m, Ord (Key v), PersistEntity v) => E.Iteratee (Key v, v) m (Map.Map (Key v) v)
