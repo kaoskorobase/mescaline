@@ -20,6 +20,8 @@ import           Control.Seq
 import           Data.Accessor
 import qualified Data.BitSet as BitSet
 import           Data.Maybe (fromJust)
+import           Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 import           Mescaline (Time)
 import           Mescaline.Application (AppT, runAppT)
 import qualified Mescaline.Application as App
@@ -112,14 +114,23 @@ applyUpdates a = loop (a, False)
                 Nothing -> return (a, b)
                 Just f  -> let a' = f a in a' `seq` loop (a', True)
 
-getEnvironment :: MonadIO m => Environment -> ReceiverT Environment () m Environment
-getEnvironment = loop
+get :: a -> ReceiverT a b m a
+get = loop
     where
         loop a = do
             x <- poll
             case x of
                 Nothing -> return a
                 Just a' -> loop a'
+
+polldl' :: (a -> b -> a) -> a -> ReceiverT b i m a
+polldl' f = loop
+    where
+        loop a = do
+            x <- poll
+            case x of
+                Nothing -> a
+                Just b -> let a' = f a b in a' `seq` loop a'
 
 -- | Log trace messages as a side effect and return the new environment.
 logEnv :: MonadIO m => Environment -> m (Environment)
@@ -132,37 +143,55 @@ type TaggedEvent = (Event, Int)
 
 type Schedule = (Int, Pattern Event)
 
-step :: Time -> PQ.PriorityQueue Time Schedule -> ([(Int, Event)], PQ.PriorityQueue Time Schedule)
-step = undefined
+data Player = Player {
+    player_environment :: Environment
+  , player_schedule :: Maybe (Time, Pattern)
+  }
 
-step1 :: Time -> Environment -> Maybe (Time, Pattern Event) -> ([(Time, Event)], Maybe (Time, Pattern Event))
-step1 tickTime env pattern = loop pattern []
+stepPlayer :: Time -> Player -> ([(Time, Event)], Player)
+stepPlayer tickTime player =
+    let (es, sched) = loop (player_environment player) [] (player_schedule player)
+    in (es, player { player_schedule = sched })
     where
-        loop pattern events =
-            case pattern of
+        loop envir events sched =
+            case sched of
                 Nothing -> (events, Nothing)
                 Just (time, pattern) ->
                     if time > tickTime
                         then (events, Just (time, pattern))
-                        else case Model.step env pattern of
+                        else case Model.step envir pattern of
                                 Model.Done _ -> (events, Nothing)
                                 Model.Result _ event pattern' ->
                                     let time' = time + event ^. Event.delta
-                                    in loop (Just (time', pattern')) ((time, event):events)
+                                    in loop ((time, event):events) (Just (time', pattern'))
 
-playerProcess :: MonadIO m => Time -> Handle -> Environment -> [(Int, Maybe (Time, Pattern Event))] -> Time -> ReceiverT Environment () m ()
+data PlayerCommand =
+    Quit
+  | SetFeatureSpace FeatureSpace
+  | SetSequencer Sequencer
+
+playerProcess :: MonadIO m => Duration -> Handle -> IntMap Player -> Time -> ReceiverT PlayerCommand () m ()
 playerProcess dt handle = loop
     where
-        loop envir patterns tickTime = do
-            envir' <- getEnvironment envir
-            let (es, patterns') = unzip $ map (\(r, p) -> let e = setVal Environment.region r envir'
-                                                              (es, p') = step1 tickTime e p
-                                                          in ((r, es), (r, p')))
-                                              patterns
+        loop players tickTime = do
+            (q, fs, sq) <- polldl' (\(a, b, c) x -> case x of
+                                        Quit -> (True, b, c)
+                                        SetFeatureSpace b' -> (a, b', c)
+                                        SeqSequencer c' -> (a, b, c'))
+                                   (False, Nothing, Nothing)
+            if q
+                then return ()
+                else do
+                    let players' = fmap (\p -> maybe p (\x -> p { player_environment = setVal Environment.featureSpace (player_environment p) x }) fs)
+                                 $ fmap (\p -> maybe p (\x -> p { player_environment = setVal Environment.sequencer    (player_environment p) x }) sq)
+                                 $ players
+                        result = fmap (stepPlayer tickTime) players'
+                        es = concatMap fst (IntMap.elems result)
+                        players'' = fmap snd result
             mapM_ (\(r, es) -> mapM_ (\(t, e) -> sendTo handle $ Event_ r t e) es) es
             let tickTime' = tickTime + dt
             liftIO $ Time.pauseThreadUntil tickTime'
-            loop envir' patterns' tickTime'
+            loop players'' tickTime'
             -- case Model.step envir' pattern of
             --     Model.Done _ -> do
             --         -- _ <- logEnv envir'
@@ -184,8 +213,8 @@ playerProcess dt handle = loop
             --                 loop envir' pattern' time'
             --             else loop envir' pattern' time
 
-startPlayerThread :: Time -> Handle -> Environment -> [(Int, Maybe (Time, Pattern Event))] -> Time -> IO PlayerHandle
-startPlayerThread dt handle envir patterns time = spawn $ playerProcess dt handle envir patterns time
+startPlayerThread :: Duration -> Handle -> IntMap Players -> Time -> IO PlayerHandle
+startPlayerThread dt handle players time = spawn $ playerProcess dt handle players time
 
 stopPlayerThread :: PlayerHandle -> IO ()
 stopPlayerThread = kill
