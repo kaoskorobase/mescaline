@@ -10,7 +10,8 @@ import scipy.cluster.hierarchy
 import sqlite3
 import sys
 
-MFCC_DESCRIPTOR = 'http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-mfcc'
+# MFCC_DESCRIPTOR = 'http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-mfcc'
+MFCC_DESCRIPTOR = 'com.meapsoft.AvgMFCC'
 
 conn = sqlite3.connect(sys.argv[1])
 sm = db.get_source_file_map(conn)
@@ -21,9 +22,8 @@ fm = db.get_features(conn, [dm[MFCC_DESCRIPTOR]], us)
 fs = list(fm[k][0] for k in sorted(fm.keys()))
 print len(fs)
 
-data = np.array(map(db.Feature.value, fs))
-print data.shape
-data = np.array(map(lambda f: f.value()[1:13], fs))
+data = np.array(map(lambda f: f.value(), fs))
+print data
 
 dist = scipy.spatial.distance.pdist(data)
 print dist.shape
@@ -31,20 +31,7 @@ print dist.shape
 link = scipy.cluster.hierarchy.linkage(dist)
 print link.shape
 
-# class myplot(object):
-#     def __init__(self, filename):
-#         self._filename = filename
-# 
-#     def resetFileName(self, fileName):
-#         self._filename = fileName
-# 
-#     def __call__(self):
-#         matplotlib.pylab.savefig(self._filename)
-# 
-# plotfunction = myplot("foo.pdf")
-# matplotlib.pylab.draw_if_interactive = plotfunction
-
-dendro = scipy.cluster.hierarchy.dendrogram(link, p = 10, truncate_mode = 'lastp')
+dendro = scipy.cluster.hierarchy.dendrogram(link, p = 50, truncate_mode = 'lastp')
 # print dendro
 
 # print scipy.cluster.hierarchy.inconsistent(link)
@@ -54,9 +41,9 @@ dendro = scipy.cluster.hierarchy.dendrogram(link, p = 10, truncate_mode = 'lastp
 def mk_feature(u, d, nc, c):
     return db.Feature(None, u, d, np.array([c]))
 
-for nc in [1, 2, 3, 4, 5, 6, 7, 8]:
+for nc in range(1,9):
     clust = scipy.cluster.hierarchy.fcluster(link, nc, criterion='maxclust').tolist()
-    # print clust
+    print clust
     units = map(db.Feature.unit, fs)
     desc = db.get_descriptor(conn, "es.globero.mescaline.cluster_%d" % (nc,), 1, True)
     db.delete_feature(conn, desc)
@@ -69,4 +56,4 @@ for nc in [1, 2, 3, 4, 5, 6, 7, 8]:
 
 conn.close()
 
-# pylab.show()
+pylab.show()
