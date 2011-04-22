@@ -98,4 +98,5 @@ importPaths a np dbFile ps = DB.withDatabase dbFile $ do
 -- | Import a file or directory into the database using the default analyser.
 importPathsDefault :: Maybe Int -> FilePath -> [FilePath] -> IO ()
 -- importPathsDefault = importPaths (Server.analyser "sk@xdv.org" "blahblah")
+-- importPathsDefault = importPaths (Analysis.analyser "schtief" "blahblah")
 importPathsDefault = importPaths SonicAnnotator.analyser
