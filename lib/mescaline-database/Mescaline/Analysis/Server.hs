@@ -30,10 +30,12 @@ uploadFile user pwd path = withCurlDo $ do
                   []
                   Nothing]
     case respCurlCode r of
-        CurlOK -> case P.parse A.json (respBody r) of
-                    P.Done _ value -> return $ Right value
-                    P.Fail _ _ e -> return $ Left e
-                    _ -> return $ Left "EOF while parsing JSON"
+        CurlOK -> do
+            B.putStrLn (respBody r)
+            case P.parse A.json (respBody r) of
+                P.Done _ value -> return $ Right value
+                P.Fail _ _ e -> return $ Left e
+                _ -> return $ Left "EOF while parsing JSON"
         c -> return $ Left (show c)
 
 data Analyser = Analyser String String
