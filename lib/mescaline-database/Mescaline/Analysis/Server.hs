@@ -22,7 +22,7 @@ curlMultiPostWithResponse s os ps = initialize >>= \ h -> do
 uploadFile :: String -> String -> FilePath -> IO (Either String A.Value)
 uploadFile user pwd path = withCurlDo $ do
     r <- curlMultiPostWithResponse
-        "http://mesc.puesnada.es/files"
+        "http://api.puesnada.es/api/files"
         [CurlUserPwd (user ++ ":" ++ pwd)]
         [HttpPost "upload[file]"
                   Nothing
