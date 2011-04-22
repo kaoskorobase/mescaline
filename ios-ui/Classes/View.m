@@ -76,6 +76,35 @@
 
 }
 
+static float points [][2] = {
+	{0.9649 , 0.6787},
+	{0.1576 , 0.7577},
+	{0.9706 , 0.7431},
+	{0.9572 , 0.3922},
+	{0.4854 , 0.6555},
+	{0.8003 , 0.1712},
+	{0.1419 , 0.7060},
+	{0.4218 , 0.0318},
+	{0.9157 , 0.2769},
+	{0.7922 , 0.0462},
+	{0.9595 , 0.0971},
+	{0.6557 , 0.8235},
+	{0.0357 , 0.6948},
+	{0.8491 , 0.3171},
+	{0.9340 , 0.9502}};
+
+static float regions [][2] = {
+	{0.6843 , 0.5320},
+	{0.2295 , 0.8974}};
+
+static float colors [][3] = {
+	{ 1, 0, 0},
+	{ 0, 1, 0},
+	{ 0, 0, 1},
+	{ 0, 1, 1},
+	{ 1, 0, 1},
+	{ 1, 1, 0}};
+
 - (void)redraw:(cairo_t*)cr inRect:(CGRect)rect
 {
 	CGRect bounds = [self bounds];
@@ -87,13 +116,21 @@
 	
 	//---------- Drawing stuff (put your code in here)   -------------------------------
 	// Draw a radial gradient (copied and pasted, more or less, from   http://cairographics.org/samples/gradient.html)
-	cairo_scale(cr, width, height);
-	cairo_pattern_t* grad2 = cairo_pattern_create_radial(0.45, 0.4, 0.1, 0.4, 0.4, 0.5);
-	cairo_pattern_add_color_stop_rgba(grad2, 0, 1,0,0, 1);
-	cairo_pattern_add_color_stop_rgba(grad2, 1, 0,1,0, 1);
-	cairo_set_source(cr, grad2);
-	cairo_arc(cr, 0.5, 0.5, 0.3, 0, 2 * M_PI);
-	cairo_fill(cr);
+	
+	for (int i = 0; i < 15; i++){
+		cairo_arc(cr, points[i][0]*width, points[i][1]*height, 5, 0, 2 * M_PI);
+		cairo_set_source_rgba(cr, 0, 0, 0, 1);
+		cairo_stroke(cr);
+	}
+	
+	for (int i = 0; i < 2; i++){
+		cairo_arc(cr, regions[i][0]*height, regions[i][1]*width, 30, 0, 2 * M_PI);
+		cairo_set_source_rgba(cr, colors[i][0], colors[i][1], colors[i][2], .5);
+		cairo_fill_preserve(cr);
+		cairo_set_source_rgba(cr, 0, 0, 0, 1);
+		cairo_stroke(cr);
+	}
+	
 	//--------------------------------------------------------------------------------
 	
 	// Finally, paint the temporary surface we made

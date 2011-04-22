@@ -231,7 +231,7 @@
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../external-libraries/platform/ios/4.2/include";
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../external-libraries/platform/ios/4.2/lib";
 				PREBINDING = NO;
-				SDKROOT = iphoneos;
+				SDKROOT = iphonesimulator4.1;
 				TARGETED_DEVICE_FAMILY = 2;
 			};
 			name = Debug;
