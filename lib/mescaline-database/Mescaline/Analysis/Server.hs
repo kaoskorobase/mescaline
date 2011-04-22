@@ -53,6 +53,6 @@ instance Analysis.Analyser Analyser where
 					A.Error e -> fail e
 					A.Success a -> return a
 	fileExtensions _ = [
-	    "aif", "aiff", "au", "avi", "avr", "caf", "htk", "iff", "m4a", "m4b", "m4p", "m4v", "mat", "mov", "mp3", 
+	    "aif", "aiff", "au", "avi", "avr", "caf", "flac", "htk", "iff", "m4a", "m4b", "m4p", "m4v", "mat", "mov", "mp3", 
 	    "mp4", "ogg", "paf", "pvf", "raw", "sd2", "sds", "sf", "voc", "w64", "wav", "xi" ]
 	
