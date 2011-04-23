@@ -27,7 +27,7 @@ import qualified Sound.OpenSoundControl as OSC
 import           Sound.SC3 (dumpOSC, PrintLevel(..))
 import qualified Sound.SC3.Server.Process as Server
 import qualified Sound.SC3.Server.Process.Monad as ServerM
-import           Sound.SC3.Server.Monad as S
+import qualified Sound.SC3.Server.Monad as S
 import           System.IO (hPutStrLn, stderr, stdout)
 import qualified System.Log.Logger as Log
 
@@ -83,10 +83,9 @@ getEngine internal =
             liftIO $ Log.infoM logger $ "Using local server `" ++ scsynth ++ "'"
                               ++ maybe "" (\p -> " with plugins path `" ++ L.intercalate ":" p ++ "'") plg
             return $ ServerM.withSynth
-                        Server.openUDP
                         serverOptions { Server.serverProgram = scsynth
                                       , Server.ugenPluginPath = plg }
-                        rtOptions { Server.udpPortNumber = 2278 }
+                        rtOptions { Server.networkPort = Server.UDPPort 2278 }
                         outputHandler
     where
         serverOptions = Server.defaultServerOptions { Server.loadSynthDefs = False }
@@ -128,7 +127,7 @@ new = do
     return (h, sendTo h Quit >> readMVar quit)
     where
         runSynth engine initBundle modelOpts h chan quit = do
-            e <- try $ engine (S.async initBundle >> Model.new modelOpts >>= loop h chan)
+            e <- try $ engine (S.send initBundle >> Model.new modelOpts >>= loop h chan)
             case e of
                 Left exc -> writeChan chan $ EngineException_ exc
                 _ -> return ()
@@ -140,7 +139,7 @@ new = do
                 EngineException_ exc -> notify $ EngineException exc
                 msg -> io $ writeChan chan msg
             process chan
-        loop :: Handle -> Chan Input -> Model.Sampler -> Server ()
+        loop :: Handle -> Chan Input -> Model.Sampler -> S.Server ()
         loop h chan sampler = do
             x <- io $ readChan chan
             case x of
@@ -150,7 +149,7 @@ new = do
                     Model.free sampler
                     loop h chan sampler
                 PlayUnit t s -> do
-                    _ <- fork $ do
+                    _ <- S.fork $ do
                         let u = s ^. Event.unit
                         io $ notifyListeners h $ UnitStarted t u
                         io $ Log.debugM logger $ "PlayUnit: " ++ show (t, s)
