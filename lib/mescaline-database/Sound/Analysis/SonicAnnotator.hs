@@ -20,8 +20,11 @@ import qualified Data.Enumerator.IO as E
 import qualified Data.List as L
 import qualified Data.Map as Map
 import           Data.Ord
+import           Data.Text.Lazy (Text, toStrict, unpack)
+import qualified Data.Text as T
 import           Data.Typeable (Typeable)
 import qualified Data.Vector.Unboxed as V
+import           Data.XML.Types (Event)
 -- import           Mescaline.Analysis.Types
 import qualified Sound.Analysis.Segmentation as S
 import qualified Sound.File.Sndfile as SF
@@ -31,8 +34,6 @@ import           System.FilePath
 import qualified System.IO as IO
 import           System.Process
 import           Text.XML.Enumerator.Parse hiding (parseFile)
-import           Data.Text.Lazy (Text, toStrict, unpack)
-import qualified Data.Text as T
 
 data Exception =
     ParseError String
@@ -62,25 +63,25 @@ parseValue = do
 parseVector :: P.Parser [Double]
 parseVector = parseValue `P.sepBy` (P.many1 (P.char ' '))
 
-parse :: (Monad m) => P.Parser a -> Text -> E.Iteratee a1 m a
+parse :: (Monad m) => P.Parser a -> T.Text -> E.Iteratee a1 m a
 parse p t = do
-    let e = P.eitherResult $ flip P.feed T.empty $ P.parse p $ toStrict t
+    let e = P.eitherResult $ flip P.feed T.empty $ P.parse p t
     case e of
         Left err -> E.throwError (ParseError err)
         Right x -> return x
 
-parseFeature :: E.Iteratee SEvent IO (Maybe Feature)
-parseFeature = tag'' "feature" $ do
-    name <- force "name required" $ tag'' "name" $ liftM unpack content'
-    timeStamp <- force "timestamp required" $ tag'' "timestamp" $ parse parseTimeStamp =<< content'
-    values <- tag'' "values" $ do
-        t <- content
+parseFeature :: E.Iteratee Event IO (Maybe Feature)
+parseFeature = tagNoAttr "feature" $ do
+    name <- force "name required" $ tagNoAttr "name" $ liftM T.unpack content
+    timeStamp <- force "timestamp required" $ tagNoAttr "timestamp" $ parse parseTimeStamp =<< content
+    values <- tagNoAttr "values" $ do
+        t <- contentMaybe
         case t of
             Nothing -> return []
             Just t -> parse parseVector t
     return $ Feature name timeStamp values
 
-parseFeatureMap :: E.Iteratee SEvent IO (Map.Map String [Feature])
+parseFeatureMap :: E.Iteratee Event IO (Map.Map String [Feature])
 parseFeatureMap = loop Map.empty
     where
         loop fs = do
@@ -89,11 +90,14 @@ parseFeatureMap = loop Map.empty
                 Nothing -> return fs
                 Just f -> loop $ Map.insertWith' (++) (name f) [f] fs
 
-parseHandle :: Integer -> IO.Handle -> (Text -> Maybe Text) -> E.Iteratee SEvent IO a -> IO (Either E.SomeException a)
-parseHandle bs h re p =
+parseHandle :: Integer
+            -> IO.Handle
+            -> DecodeEntities
+            -> E.Iteratee Event IO a
+            -> IO (Either E.SomeException a)
+parseHandle bs h de p =
     E.run $ E.enumHandle bs h $$ E.joinI
-          $ parseBytes        $$ E.joinI
-          $ simplify re       $$ p
+          $ parseBytes de     $$ p
 
 type Analysis = Map.Map String (S.Segmentation Double (Maybe [Double]))
 
@@ -107,7 +111,7 @@ analyse transforms file = do
             Nothing
     out <- newEmptyMVar
     err <- newEmptyMVar
-    forkIO $ parseHandle 4096 hOut (const Nothing) parseFeatureMap >>= putMVar out
+    forkIO $ parseHandle 4096 hOut decodeEntities parseFeatureMap >>= putMVar out
     forkIO $ IO.hGetContents hErr >>= putMVar err
     exit <- waitForProcess h
     case exit of
