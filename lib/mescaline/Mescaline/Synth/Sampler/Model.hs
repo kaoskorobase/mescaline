@@ -27,10 +27,9 @@ import qualified Mescaline.Pattern.Event as P
 import           Sound.OpenSoundControl (OSC(..))
 import qualified Sound.OpenSoundControl as OSC
 import           Sound.SC3 hiding (Output, free, gate, sync)
-import           Sound.SC3.Lang.Collection
+import           Sound.SC3.Lang.Collection.SequenceableCollection
 import           Sound.SC3.Server.Command.Completion
-import           Sound.SC3.Server.Monad (BusId, NodeId, Server)
-import           Sound.SC3.Server.Monad (syncWith)
+import           Sound.SC3.Server.Monad (BusId, NodeId, Server, waitFor)
 import qualified Sound.SC3.Server.Monad as S
 import           Sound.SC3.Server.Notification (n_end)
 import           System.Directory
@@ -149,7 +148,7 @@ newEffect :: FilePath -> Int -> Accessor Synth Double -> String -> Server Effect
 newEffect defDir i acc name = do
     let path = mkFxPath name defDir
     e <- liftIO $ doesFileExist path
-    nid <- if e then liftM Just (S.alloc S.nodeId) else return Nothing
+    nid <- if e then liftM Just (S.alloc S.nodeIdAllocator) else return Nothing
     -- FIXME: Bus hardcoded for now, because allocRange is not implemented yet
     -- bus <- S.alloc (S.busId AR)
     let bus = fromIntegral (100 + i*2)
@@ -205,7 +204,7 @@ stopVoice voice time synth =
 
 allocVoice :: BufferCache -> Unit.Unit -> (Voice -> Maybe OSC) -> Server Voice
 allocVoice cache unit completion = do
-    nid <- S.alloc S.nodeId
+    nid <- S.alloc S.nodeIdAllocator
     buf <- BC.allocBuffer
             (completion . Voice nid)
             cache
@@ -216,7 +215,7 @@ allocVoice cache unit completion = do
 
 freeVoice :: BufferCache -> Voice -> Server ()
 freeVoice cache voice = do
-    S.free S.nodeId (voiceId voice)
+    S.free S.nodeIdAllocator (voiceId voice)
     S.sync $ b_close (fromIntegral (BC.uid (buffer voice)))
     BC.freeBuffer cache (buffer voice)
 
@@ -254,7 +253,7 @@ new opts = do
 
 free :: Sampler -> Server ()
 free sampler = do
-    S.async $ g_freeAll [0]
+    S.send $ g_freeAll [0]
     BC.release (bufferCache sampler)
 
 playUnit :: Sampler -> Time -> Synth -> Server ()
@@ -268,9 +267,9 @@ playUnit_noSchedComplBundles sampler time synth = do
                (fromIntegral (BC.uid (buffer voice)))
                (DB.sourceFileUrl sourceFile)
                (truncate (DB.sourceFileSampleRate sourceFile * onset bounds))
-               (-1) 0 1
+               (-1) 0 True
     startVoice voice time synth bounds (effects sampler)
-        `syncWith` n_end (voiceId voice)
+        `waitFor` n_end (voiceId voice)
     freeVoice cache voice
     return ()
     where
@@ -287,8 +286,8 @@ playUnit_schedComplBundles sampler time synth = do
         (fromIntegral (BC.uid (buffer voice)))
         (DB.sourceFileUrl sourceFile)
         (truncate (DB.sourceFileSampleRate sourceFile * onset bounds))
-        (-1) 0 1
-        `syncWith` n_end (voiceId voice)
+        (-1) 0 True
+        `waitFor` n_end (voiceId voice)
     freeVoice cache voice
     return ()
     where

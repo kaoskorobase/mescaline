@@ -29,7 +29,7 @@ type BufferCache = MVar BC.BufferCache
 new :: [Alloc] -> Server BufferCache
 new allocs = do
     buffers <- forM allocs $ \a -> do
-        bid <- S.alloc S.bufferId
+        bid <- S.alloc S.bufferIdAllocator
         let buf = BC.fromAlloc bid a
         S.sync $ b_alloc (fromIntegral bid)
                          (BC.numFrames buf)
@@ -42,7 +42,7 @@ release bc = do
     cache <- S.liftIO $ takeMVar bc
     forM_ (Set.elems (BC.usedBuffers cache)
         ++ Set.elems (BC.freeBuffers cache)) $ \b -> do
-            S.free S.bufferId (BC.uid b)
+            S.free S.bufferIdAllocator (BC.uid b)
             S.sync $ b_free (fromIntegral (BC.uid b))
     S.liftIO $ putMVar bc BC.empty
 
@@ -53,7 +53,7 @@ allocBuffer completion bc alloc = do
         case BC.allocBuffer cache alloc of
             Nothing -> do
                 -- Allocate buffer id
-                bid <- S.alloc S.bufferId
+                bid <- S.alloc S.bufferIdAllocator
                 let buf = BC.fromAlloc bid alloc
                     msg = maybe b_alloc (($) b_alloc') (completion buf)
                 -- Allocate buffer
@@ -63,7 +63,7 @@ allocBuffer completion bc alloc = do
                 -- Insert into used
                 return (BC.insertBuffer cache buf, buf)
             Just (cache', buf) -> do
-                maybe (return ()) S.async (completion buf)
+                maybe (return ()) S.send (completion buf)
                 return (cache', buf)
     cache' `seq` S.liftIO $ putMVar bc cache'
     return buf
