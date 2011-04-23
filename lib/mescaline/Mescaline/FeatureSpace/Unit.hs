@@ -16,7 +16,6 @@ module Mescaline.FeatureSpace.Unit (
 
 import           Control.Monad.IO.Class (MonadIO)
 import qualified Data.Map as Map
-import           Data.Int (Int64)
 import           Data.Vector (Vector)
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Storable as SV
