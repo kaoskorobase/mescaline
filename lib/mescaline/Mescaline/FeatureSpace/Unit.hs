@@ -27,7 +27,7 @@ import           Prelude hiding (id)
 
 data Unit = Unit {
     sourceFile :: !DB.SourceFile
-  , id         :: !Int64
+  , id         :: !DB.UnitId
   , unit       :: !DB.Unit
   , features   :: !(Vector DB.Feature)
   } deriving (Show)
@@ -37,7 +37,7 @@ instance Eq (Unit) where
     (==) a b = id a == id b
 
 cons :: DB.SourceFileMap -> DB.UnitId -> DB.Unit -> [DB.Feature] -> Unit
-cons sfs i u fs = Unit sf (DB.fromPersistKey i) u (V.fromList fs)
+cons sfs i u fs = Unit sf i u (V.fromList fs)
     where Just sf = Map.lookup (DB.unitSourceFile u) sfs
 
 -- {-# INLINE id #-}
