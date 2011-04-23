@@ -25,6 +25,7 @@ import qualified Data.Enumerator as E
 import qualified Data.Enumerator.List as EL
 import qualified Data.List as L
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 import qualified Data.Vector.Storable as SV
 -- import qualified Mescaline.Database as DB
 import           Mescaline.Database.Entity
@@ -40,8 +41,8 @@ import           Numeric.LinearAlgebra as H
 import           Text.Regex
 import           Prelude hiding (and)
 
-withDatabase :: MonadControlIO m => String -> SqlPersist m a -> m a
-withDatabase path action = withSqliteConn path (runSqlConn (runMigration Entity.migrateAll >> action))
+withDatabase :: MonadControlIO m => FilePath -> SqlPersist m a -> m a
+withDatabase path action = withSqliteConn (Text.pack path) (runSqlConn (runMigration Entity.migrateAll >> action))
 
 entityMapI :: (Monad m, Ord (Key v), PersistEntity v) => E.Iteratee (Key v, v) m (Map.Map (Key v) v)
 entityMapI = go Map.empty
@@ -53,7 +54,7 @@ entityMapI = go Map.empty
                 Just (k, v) -> go (Map.insert k v xs)
 
 descriptorMap :: PersistBackend m => m (Map.Map DescriptorId Descriptor)
-descriptorMap = E.run_ $ select [] [] 0 0 $$ entityMapI
+descriptorMap = E.run_ $ selectEnum [] [] 0 0 $$ entityMapI
 
 getDescriptor :: PersistBackend m => String -> Int -> m DescriptorId
 getDescriptor name degree = do
@@ -94,7 +95,7 @@ unitsI features = go
             case m of
                 Nothing -> return us
                 Just (ui, u) -> do
-                    fm <- lift (E.run_ $ select [FeatureUnitEq ui] [] 0 0 $$ featuresI)
+                    fm <- lift (E.run_ $ selectEnum [FeatureUnitEq ui] [] 0 0 $$ featuresI)
                     let fs = [ x | Just x <- map (flip Map.lookup fm) features ]
                     go (Map.insert ui (u, fs) us)
 
@@ -111,7 +112,7 @@ sourceFileI pattern features = go Map.empty Map.empty
                     if isMatch sf
                         then do
                             let sfs' = Map.insert sfi sf sfs
-                            us' <- lift (E.run_ $ select [UnitSourceFileEq sfi] [] 0 0 $$ unitsI features us)
+                            us' <- lift (E.run_ $ selectEnum [UnitSourceFileEq sfi] [] 0 0 $$ unitsI features us)
                             go sfs' us'
                         else go sfs us
 
@@ -119,7 +120,7 @@ query :: (MonadIO m, PersistBackend m) => String -> [String] -> m (SourceFileMap
 query pattern features = do
     -- liftIO $ putStrLn "query: begin"
     ds <- mapM getDescriptorId features
-    r <- E.run_ $ select [] [] 0 0 $$ sourceFileI pattern ds
+    r <- E.run_ $ selectEnum [] [] 0 0 $$ sourceFileI pattern ds
     -- liftIO $ putStrLn "query: done"
     return r
 

@@ -73,6 +73,11 @@ apE (Right f) (Right y) = Right $ f y
 degenerate :: a
 degenerate = error "Degenerate case, should never happen"
 
+forcePersistValue v =
+    case fromPersistValue v of
+        Left e -> error e
+        Right a -> a
+
 data SourceFile = SourceFile {
     sourceFileUrl :: FilePath,
     sourceFileHash :: Hash.Hash,
@@ -123,9 +128,8 @@ instance Database.Persist.Base.PersistEntity SourceFile where
                        x_9] = ((((Right SourceFile `apE` Database.Persist.Base.fromPersistValue x_5) `apE` Database.Persist.Base.fromPersistValue x_6) `apE` Database.Persist.Base.fromPersistValue x_7) `apE` Database.Persist.Base.fromPersistValue x_8) `apE` Database.Persist.Base.fromPersistValue x_9
     fromPersistValues _ = Left "Invalid fromPersistValues input"
     halfDefined = SourceFile undefined undefined undefined undefined undefined
-    toPersistKey = fromIntegral
-    fromPersistKey = fromIntegral
-    showPersistKey = show
+    toPersistKey = SourceFileId . forcePersistValue
+    fromPersistKey (SourceFileId k) = toPersistValue k
     persistOrderToFieldName _ = degenerate
     persistOrderToOrder _ = degenerate
     persistUpdateToFieldName _ = degenerate
@@ -184,9 +188,8 @@ instance Database.Persist.Base.PersistEntity Unit where
                        x_23] = ((Right Unit `apE` Database.Persist.Base.fromPersistValue x_21) `apE` Database.Persist.Base.fromPersistValue x_22) `apE` Database.Persist.Base.fromPersistValue x_23
     fromPersistValues _ = Left "Invalid fromPersistValues input"
     halfDefined = Unit undefined undefined undefined
-    toPersistKey = fromIntegral
-    fromPersistKey = fromIntegral
-    showPersistKey = show
+    toPersistKey = UnitId . forcePersistValue
+    fromPersistKey (UnitId k) = toPersistValue k
     persistOrderToFieldName _ = degenerate
     persistOrderToOrder _ = degenerate
     persistUpdateToFieldName _ = degenerate
@@ -234,9 +237,8 @@ instance Database.Persist.Base.PersistEntity Descriptor where
                        x_31] = (Right Descriptor `apE` Database.Persist.Base.fromPersistValue x_30) `apE` Database.Persist.Base.fromPersistValue x_31
     fromPersistValues _ = Left "Invalid fromPersistValues input"
     halfDefined = Descriptor undefined undefined
-    toPersistKey = fromIntegral
-    fromPersistKey = fromIntegral
-    showPersistKey = show
+    toPersistKey = DescriptorId . forcePersistValue
+    fromPersistKey (DescriptorId k) = toPersistValue k
     persistOrderToFieldName _ = degenerate
     persistOrderToOrder _ = degenerate
     persistUpdateToFieldName _ = degenerate
@@ -296,9 +298,8 @@ instance Database.Persist.Base.PersistEntity Feature where
                        x_41] = ((Right Feature `apE` Database.Persist.Base.fromPersistValue x_39) `apE` Database.Persist.Base.fromPersistValue x_40) `apE` Database.Persist.Base.fromPersistValue x_41
     fromPersistValues _ = Data.Either.Left "Invalid fromPersistValues input"
     halfDefined = Feature undefined undefined undefined
-    toPersistKey = fromIntegral
-    fromPersistKey = fromIntegral
-    showPersistKey = show
+    toPersistKey = FeatureId . forcePersistValue
+    fromPersistKey (FeatureId k) = toPersistValue k
     persistOrderToFieldName (FeatureUnitAsc {}) = "unit"
     persistOrderToOrder (FeatureUnitAsc {}) = Database.Persist.Base.Asc
     persistUpdateToFieldName _ = degenerate
