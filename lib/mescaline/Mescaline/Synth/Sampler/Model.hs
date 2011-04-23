@@ -27,7 +27,7 @@ import qualified Mescaline.Pattern.Event as P
 import           Sound.OpenSoundControl (OSC(..))
 import qualified Sound.OpenSoundControl as OSC
 import           Sound.SC3 hiding (Output, free, gate, sync)
-import           Sound.SC3.Lang.Collection
+import           Sound.SC3.Lang.Collection.SequenceableCollection
 import           Sound.SC3.Server.Command.Completion
 import           Sound.SC3.Server.Monad (BusId, NodeId, Server)
 import           Sound.SC3.Server.Monad (syncWith)

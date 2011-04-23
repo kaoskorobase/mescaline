@@ -49,7 +49,7 @@ library
       , hosc >= 0.8
       , hslogger >= 1.1
       , hsc3 >= 0.8
-      , hsc3-lang >= 0.8
+      , hsc3-lang >= 0.9
       , hsc3-process >= 0.4
       , hsc3-server >= 0.1
       , mescaline-database >= 0.0 && < 0.1
