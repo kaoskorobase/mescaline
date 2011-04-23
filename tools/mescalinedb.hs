@@ -20,8 +20,8 @@ data Analyser a = Analyser {
 -- mfccFeatureName = "http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-mfcc"
 
 -- defaultAnalyser :: Analyser
--- defaultAnalyser = Analyser SonicAnnotator.analyser "http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-mfcc"
-defaultAnalyser = Analyser (Meap.analyser "resources/meap/2.0") "com.meapsoft.AvgMFCC"
+defaultAnalyser = Analyser SonicAnnotator.analyser "http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-mfcc"
+-- defaultAnalyser = Analyser (Meap.analyser "resources/meap/2.0") "com.meapsoft.AvgMFCC"
 
 -- | Analyse a directory recursively, writing the results to a database.
 cmd_import :: FilePath -> [FilePath] -> IO ()
