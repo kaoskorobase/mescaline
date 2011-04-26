@@ -18,6 +18,7 @@
 		53FEACD81343BA9600EDEC95 /* View.m in Sources */ = {isa = PBXBuildFile; fileRef = 53FEACD71343BA9600EDEC95 /* View.m */; };
 		53FEAD281343C0FD00EDEC95 /* libpixman-1.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 53FEACC01343B9BC00EDEC95 /* libpixman-1.a */; };
 		53FEADD41343C14C00EDEC95 /* libcairo.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 53FEACBE1343B9BC00EDEC95 /* libcairo.a */; };
+		998C9FED1367639500537739 /* fake_model.m in Sources */ = {isa = PBXBuildFile; fileRef = 998C9FEC1367639500537739 /* fake_model.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -36,8 +37,10 @@
 		53FEACBE1343B9BC00EDEC95 /* libcairo.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libcairo.a; path = "../external-libraries/platform/ios/4.2/lib/libcairo.a"; sourceTree = SOURCE_ROOT; };
 		53FEACC01343B9BC00EDEC95 /* libpixman-1.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libpixman-1.a"; path = "../external-libraries/platform/ios/4.2/lib/libpixman-1.a"; sourceTree = SOURCE_ROOT; };
 		53FEACD61343BA9600EDEC95 /* View.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = View.h; sourceTree = "<group>"; };
-		53FEACD71343BA9600EDEC95 /* View.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = View.m; sourceTree = "<group>"; };
+		53FEACD71343BA9600EDEC95 /* View.m */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.objcpp; fileEncoding = 4; path = View.m; sourceTree = "<group>"; };
 		8D1107310486CEB800E47090 /* Mescaline-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "Mescaline-Info.plist"; plistStructureDefinitionIdentifier = "com.apple.xcode.plist.structure-definition.iphone.info-plist"; sourceTree = "<group>"; };
+		998C9FEB1367639500537739 /* fake_model.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fake_model.h; sourceTree = "<group>"; };
+		998C9FEC1367639500537739 /* fake_model.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = fake_model.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,6 +68,8 @@
 				28D7ACF70DDB3853001CB0EB /* MescalineViewController.m */,
 				53FEACD61343BA9600EDEC95 /* View.h */,
 				53FEACD71343BA9600EDEC95 /* View.m */,
+				998C9FEB1367639500537739 /* fake_model.h */,
+				998C9FEC1367639500537739 /* fake_model.m */,
 			);
 			path = Classes;
 			sourceTree = "<group>";
@@ -185,6 +190,7 @@
 				1D3623260D0F684500981E51 /* MescalineAppDelegate.m in Sources */,
 				28D7ACF80DDB3853001CB0EB /* MescalineViewController.m in Sources */,
 				53FEACD81343BA9600EDEC95 /* View.m in Sources */,
+				998C9FED1367639500537739 /* fake_model.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

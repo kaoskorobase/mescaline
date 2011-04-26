@@ -9,7 +9,7 @@
 #import "MescalineViewController.h"
 
 @implementation MescalineViewController
-
+//@synthesize startPoint;
 
 /*
 // The designated initializer. Override to perform setup that is required before the view is loaded.
@@ -57,6 +57,28 @@
 
 - (void)dealloc {
     [super dealloc];
+}
+
+- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event{
+	NSUInteger numTaps = [[touches anyObject] tapCount];
+	NSUInteger numTouches = [touches count];
+	
+	UITouch *touch = [touches anyObject];
+	CGPoint startPoint = [touch locationInView:self.view];
+	
+	NSLog(@"%f", startPoint.x);
+	NSLog(@"%f", startPoint.y);
+}
+
+- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event{
+	
+	UITouch *touch = [touches anyObject];
+	CGPoint currentPosition = [touch locationInView:self.view];
+	
+	NSLog(@"%f", currentPosition.x);
+	NSLog(@"%f", currentPosition.y);
+	
+	
 }
 
 @end

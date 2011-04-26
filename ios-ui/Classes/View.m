@@ -10,6 +10,7 @@
 
 #include <cairo/cairo.h>
 #include <cairo/cairo-quartz.h>
+#include <vector>
 
 #ifndef CAIRO_HAS_QUARTZ_SURFACE
 #  error Need to build Cairo with Quartz support (version 1.4.0 or higher)
@@ -76,26 +77,6 @@
 
 }
 
-static float points [][2] = {
-	{0.9649 , 0.6787},
-	{0.1576 , 0.7577},
-	{0.9706 , 0.7431},
-	{0.9572 , 0.3922},
-	{0.4854 , 0.6555},
-	{0.8003 , 0.1712},
-	{0.1419 , 0.7060},
-	{0.4218 , 0.0318},
-	{0.9157 , 0.2769},
-	{0.7922 , 0.0462},
-	{0.9595 , 0.0971},
-	{0.6557 , 0.8235},
-	{0.0357 , 0.6948},
-	{0.8491 , 0.3171},
-	{0.9340 , 0.9502}};
-
-static float regions [][2] = {
-	{0.6843 , 0.5320},
-	{0.2295 , 0.8974}};
 
 static float colors [][3] = {
 	{ 1, 0, 0},
@@ -105,31 +86,178 @@ static float colors [][3] = {
 	{ 1, 0, 1},
 	{ 1, 1, 0}};
 
-- (void)redraw:(cairo_t*)cr inRect:(CGRect)rect
+
+namespace Mescaline
 {
-	CGRect bounds = [self bounds];
+class Point
+{
+public:
+	Point(float x, float y)
+		: m_x(x), m_y(y)
+	{ }
+
+	float x() const { return m_x; }
+	float y() const { return m_y; }
+
+private:
+	float m_x;
+	float m_y;
+};
+	
+class Region
+{
+public:
+	Region(float x, float y, float size)
+	: m_x(x), m_y(y), m_size(size)
+	{ }
+	
+	float x() const { return m_x; }
+	float y() const { return m_y; }
+	float size() const { return m_size; }
+	
+private:
+	float m_x;
+	float m_y;
+	float m_size;
+};
+	
+};
+
+typedef std::vector<Mescaline::Point> PointList;
+typedef std::vector<Mescaline::Region> RegionList;
+
+
+PointList makePoints(int r)
+{	
+	
+	PointList ps;
+	for (int i=0; i < r; i++) {
+
+		float x = rand()/(float)RAND_MAX;
+		float y = rand()/(float)RAND_MAX;
+		ps.push_back(Mescaline::Point(x, y));
+	}
+	
+	return ps;
+}
+
+
+RegionList makeRegions(int r)
+{	
+	
+	RegionList ps;
+	for (int i=0; i < r; i++) {
+		float x = rand()/(float)RAND_MAX;
+		float y = rand()/(float)RAND_MAX;
+		float rad = rand()/(float)RAND_MAX;
+		ps.push_back(Mescaline::Region(x,y,rad+100));
+	}
+
+	return ps;
+}
+
+void drawFeatureSpace(const PointList& points_array, int active, float alpha, cairo_t* cr, CGRect bounds)
+{
+	
 	int width = bounds.size.width;
 	int height = bounds.size.height;
 
+	int size = 5;
+	
+	for (int i = 0; i < points_array.size(); i++){
+		cairo_arc(cr, points_array[i].x()*width, points_array[i].y()*height, size, 0, 2 * M_PI);
+		cairo_set_source_rgba(cr, 0, 0, 0, alpha);
+		
+		if (i != active) cairo_fill_preserve(cr);
+		
+		cairo_stroke(cr);
+	}
+}
+
+void drawRegions(const RegionList& regions_array, float alpha, cairo_t* cr, CGRect bounds)
+{
+	
+	int width = bounds.size.width;
+	int height = bounds.size.height;
+	
+	for (int i = 0; i < regions_array.size(); i++){
+		cairo_arc(cr, regions_array[i].x()*height, regions_array[i].y()*width, regions_array[i].size(), 0, 2 * M_PI);
+		cairo_set_source_rgba(cr, colors[i][0], colors[i][1], colors[i][2], alpha);
+		cairo_fill_preserve(cr);
+		//cairo_set_source_rgba(cr, 0, 0, 0, alpha);
+		cairo_stroke(cr);
+	}
+}
+
+
+void drawSequencer(float size, float alpha, cairo_t* cr, CGRect bounds)
+{
+	
+	int width = bounds.size.width;
+	int height = bounds.size.height;
+
+	int numRows = 8;
+	
+	int ref; 
+	if (width < height) ref = width;
+	else ref = height;
+	
+	int a = ref*size;
+	
+	int offset = a % numRows;
+	a = a - offset;
+	
+	int x = width/2 - a/2;
+	int y = height/2 - a/2;
+	
+	//the outer rectangle
+	//cairo_rectangle(cr, x, y, a, a);
+	//cairo_set_source_rgba(cr, 0, 0, 0, alpha);
+	//cairo_stroke(cr);
+	
+	
+	int y_start = y;
+	int b = a/numRows;
+	
+	for (int i = 0; i<numRows; i++){
+		int x_start = x;
+		for (int j = 0; j < numRows; j++){
+		
+			cairo_rectangle(cr, x_start, y_start, b, b);
+			cairo_set_source_rgba(cr, 0, 0, 0, alpha);
+			cairo_stroke(cr);
+			x_start += b;
+		}
+		y_start += b;
+	}
+	
+	
+}
+
+
+- (void)redraw:(cairo_t*)cr inRect:(CGRect)rect
+{
+	srand(time(0));
+	
+	CGRect bounds = [self bounds];
+
+	float alpha_featureSpace = 0.3;
+	float alpha_sequencer = 1;
+	
 	// Cairo-Quartz fallback surfaces don't work properly, so we need to   create a temp. surface like this:
 	cairo_push_group(cr);
 	
 	//---------- Drawing stuff (put your code in here)   -------------------------------
 	// Draw a radial gradient (copied and pasted, more or less, from   http://cairographics.org/samples/gradient.html)
 	
-	for (int i = 0; i < 15; i++){
-		cairo_arc(cr, points[i][0]*width, points[i][1]*height, 5, 0, 2 * M_PI);
-		cairo_set_source_rgba(cr, 0, 0, 0, 1);
-		cairo_stroke(cr);
-	}
+	int numPoints = 15;
+	int active = rand()%numPoints;
 	
-	for (int i = 0; i < 2; i++){
-		cairo_arc(cr, regions[i][0]*height, regions[i][1]*width, 30, 0, 2 * M_PI);
-		cairo_set_source_rgba(cr, colors[i][0], colors[i][1], colors[i][2], .5);
-		cairo_fill_preserve(cr);
-		cairo_set_source_rgba(cr, 0, 0, 0, 1);
-		cairo_stroke(cr);
-	}
+	int numRegions = 2;
+	
+	drawFeatureSpace(makePoints(numPoints), active, alpha_featureSpace, cr, bounds);
+	drawRegions(makeRegions(numRegions),alpha_featureSpace-.2, cr, bounds);
+	drawSequencer(0.8, alpha_sequencer, cr, bounds);
 	
 	//--------------------------------------------------------------------------------
 	
