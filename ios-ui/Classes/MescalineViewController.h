@@ -7,9 +7,9 @@
 //
 
 #import <UIKit/UIKit.h>
-
-@interface MescalineViewController : UIViewController {
-
+#import "FakeModel.h"
+@interface MescalineViewController : UIViewController {	
+	FakeModel *fmodel;
 }
 
 @end
