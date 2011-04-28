@@ -18,6 +18,15 @@
 
 @implementation View
 
+- (FakeModel *)fmodel
+{
+	if (!fmodel) {
+		fmodel = [[FakeModel alloc] init];
+	}
+	return fmodel;
+}
+//@synthesize hixihaxi;
+
 //- (BOOL)isOpaque
 //{
 //	return NO;
@@ -44,7 +53,7 @@
 	// Make the CGContext coordinate system sane, as expected by Cairo
 	CGContextTranslateCTM (ctx, 0.0, height);
 	CGContextScaleCTM (ctx, 1.0, -1.0);
-	
+
 	// Create the Cairo surface and context
 	m_cairoSurface = cairo_quartz_surface_create_for_cg_context(ctx, width, height);
 	m_cairoContext = cairo_create(m_cairoSurface);	
@@ -87,44 +96,6 @@ static float colors [][3] = {
 	{ 1, 1, 0}};
 
 
-namespace Mescaline
-{
-class Point
-{
-public:
-	Point(float x, float y)
-		: m_x(x), m_y(y)
-	{ }
-
-	float x() const { return m_x; }
-	float y() const { return m_y; }
-
-private:
-	float m_x;
-	float m_y;
-};
-	
-class Region
-{
-public:
-	Region(float x, float y, float size)
-	: m_x(x), m_y(y), m_size(size)
-	{ }
-	
-	float x() const { return m_x; }
-	float y() const { return m_y; }
-	float size() const { return m_size; }
-	
-private:
-	float m_x;
-	float m_y;
-	float m_size;
-};
-	
-};
-
-typedef std::vector<Mescaline::Point> PointList;
-typedef std::vector<Mescaline::Region> RegionList;
 
 
 PointList makePoints(int r)
@@ -137,7 +108,6 @@ PointList makePoints(int r)
 		float y = rand()/(float)RAND_MAX;
 		ps.push_back(Mescaline::Point(x, y));
 	}
-	
 	return ps;
 }
 
@@ -145,15 +115,15 @@ PointList makePoints(int r)
 RegionList makeRegions(int r)
 {	
 	
-	RegionList ps;
+	RegionList rs;
 	for (int i=0; i < r; i++) {
 		float x = rand()/(float)RAND_MAX;
 		float y = rand()/(float)RAND_MAX;
 		float rad = rand()/(float)RAND_MAX;
-		ps.push_back(Mescaline::Region(x,y,rad+100));
+		rs.push_back(Mescaline::Region(x,y,rad+100));
 	}
 
-	return ps;
+	return rs;
 }
 
 void drawFeatureSpace(const PointList& points_array, int active, float alpha, cairo_t* cr, CGRect bounds)
@@ -167,9 +137,7 @@ void drawFeatureSpace(const PointList& points_array, int active, float alpha, ca
 	for (int i = 0; i < points_array.size(); i++){
 		cairo_arc(cr, points_array[i].x()*width, points_array[i].y()*height, size, 0, 2 * M_PI);
 		cairo_set_source_rgba(cr, 0, 0, 0, alpha);
-		
 		if (i != active) cairo_fill_preserve(cr);
-		
 		cairo_stroke(cr);
 	}
 }
@@ -241,7 +209,7 @@ void drawSequencer(float size, float alpha, cairo_t* cr, CGRect bounds)
 	
 	CGRect bounds = [self bounds];
 
-	float alpha_featureSpace = 0.3;
+	float alpha_featureSpace = 0.7;
 	float alpha_sequencer = 1;
 	
 	// Cairo-Quartz fallback surfaces don't work properly, so we need to   create a temp. surface like this:
@@ -253,105 +221,61 @@ void drawSequencer(float size, float alpha, cairo_t* cr, CGRect bounds)
 	int numPoints = 15;
 	int active = rand()%numPoints;
 	
-	int numRegions = 2;
-	
-	drawFeatureSpace(makePoints(numPoints), active, alpha_featureSpace, cr, bounds);
-	drawRegions(makeRegions(numRegions),alpha_featureSpace-.2, cr, bounds);
+	int numRegions = 1;
+	ps = makePoints(numPoints);
+	rs = makeRegions(numRegions);
+	drawFeatureSpace(ps, active, alpha_featureSpace, cr, bounds);
+	drawRegions(rs,alpha_featureSpace-.2, cr, bounds);
 	drawSequencer(0.8, alpha_sequencer, cr, bounds);
-	
+	//[hixihaxi addObject:PointList makePoints(3)];
+
 	//--------------------------------------------------------------------------------
 	
 	// Finally, paint the temporary surface we made
 	cairo_pop_group_to_source(cr);
 	cairo_paint(cr);	
 }
+- (void)checkIfOverRegion:(CGPoint)currentPosition
+{
+	
+	CGRect bounds = [self bounds];
+	int width = bounds.size.width;
+	int height = bounds.size.height;
+	
+	for (int i = 0; i < rs.size(); i++){
+		double dist = sqrt((rs[i].x()*height - currentPosition.x) * (rs[i].x()*height - currentPosition.x) + (rs[i].y()*width - currentPosition.y) * (rs[i].y()*width - currentPosition.y));
+		if (dist<=rs[i].size()) {
+			NSLog(@"over circle");
+			//return YES;
+		} else {
+			NSLog(@"%s\t%f","NOT over circle",dist);
+			//return NO;
+		}
+		NSLog(@"%f",rs[i].y());
+	}
+}
+
+- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event{
+	NSUInteger numTaps = [[touches anyObject] tapCount];
+	NSUInteger numTouches = [touches count];
+	
+	UITouch *touch = [touches anyObject];
+	CGPoint startPoint = [touch locationInView:self];
+	
+	[self checkIfOverRegion:(startPoint)];
+	//	NSLog(@"%f", startPoint.x);
+	//	NSLog(@"%f", startPoint.y);
+}
+
+- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event{
+	
+	UITouch *touch = [touches anyObject];
+	CGPoint currentPosition = [touch locationInView:self];
+	CGPoint myPos = [[self fmodel] setPosition:currentPosition];
+	//NSLog(@"%f", myPos.x);
+	//	NSLog(@"%f", currentPosition.y);
+	
+	
+}
 @end 
 
-//@implementation View
-//
-//
-//- (id)initWithFrame:(CGRect)frame {
-//    
-//    self = [super initWithFrame:frame];
-//    if (self) {
-//        // Initialization code.
-//    }
-//    return self;
-//}
-//
-///*
-//// Only override drawRect: if you perform custom drawing.
-//// An empty implementation adversely affects performance during animation.
-//- (void)drawRect:(CGRect)rect {
-//    // Drawing code.
-//}
-//*/
-//
-//- (void)dealloc {
-//    [super dealloc];
-//}
-//
-//
-//@end
-
-//@implementation View
-////START:code.drawing.path
-//- (CGMutablePathRef) triangle {
-//    CGMutablePathRef path = CGPathCreateMutable();
-//    CGPathMoveToPoint(path, NULL, 0,-173);
-//    CGPathAddLineToPoint(path, NULL, 200,173);
-//    CGPathAddLineToPoint(path, NULL,-200,173);
-//    CGPathCloseSubpath(path);
-//    return path;
-//}
-////END:code.drawing.path
-////START:code.drawing.fill
-//- (void) fill: (CGMutablePathRef) path 
-//    withColor:(UIColor *) color
-//    inContext: (CGContextRef) ctx  {
-//    CGContextSetFillColorWithColor(ctx, color.CGColor);
-//    CGContextAddPath(ctx, path);
-//    CGContextFillPath(ctx);    
-//}
-//- (void) stroke:(CGMutablePathRef) path
-//      withColor:(UIColor *) color
-//          width:(CGFloat) width
-//      inContext:(CGContextRef) ctx {
-//    CGContextSetStrokeColorWithColor(ctx, color.CGColor);
-//    CGContextSetLineWidth(ctx, width);
-//    CGContextAddPath(ctx, path);
-//    CGContextStrokePath(ctx);
-//}
-////END:code.drawing.fill
-////START:code.drawing.center
-//-(void) centerContext:(CGContextRef) ctx {
-//    CGPoint center = [self convertPoint:self.center fromView:nil];
-//    CGContextSaveGState(ctx);
-//    CGContextTranslateCTM(ctx, center.x, center.y);       
-//}
-//-(void) restoreContext:(CGContextRef) ctx {
-//    CGContextRestoreGState(ctx);
-//}
-////END:code.drawing.center
-////START:code.drawing.draw
-//- (void)drawRect:(CGRect)rect {
-//    CGMutablePathRef triangle  = [self triangle];
-//    CGContextRef ctx = UIGraphicsGetCurrentContext();
-//    [self centerContext:ctx];
-//    [self fill:triangle 
-//     withColor:[UIColor yellowColor] 
-//     inContext:ctx];
-//    [self stroke:triangle 
-//       withColor:[UIColor blackColor] 
-//           width:20.0 
-//       inContext:ctx];
-//    [self restoreContext:ctx];
-//    CGPathRelease(triangle);
-//}
-////END:code.drawing.draw
-//- (void)dealloc {
-//    [super dealloc];
-//}
-//
-//
-//@end

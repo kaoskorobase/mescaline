@@ -10,6 +10,14 @@
 
 @implementation MescalineViewController
 
+//- (FakeModel *)fmodel
+//{
+//	if (!fmodel) {
+//		fmodel = [[FakeModel alloc] init];
+//	}
+//	return fmodel;
+//}
+
 /*
 // The designated initializer. Override to perform setup that is required before the view is loaded.
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil {
@@ -57,27 +65,32 @@
 - (void)dealloc {
     [super dealloc];
 }
-
-- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event{
-	NSUInteger numTaps = [[touches anyObject] tapCount];
-	NSUInteger numTouches = [touches count];
-	
-	UITouch *touch = [touches anyObject];
-	CGPoint startPoint = [touch locationInView:self.view];
-	
-	NSLog(@"%f", startPoint.x);
-	NSLog(@"%f", startPoint.y);
-}
-
-- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event{
-	
-	UITouch *touch = [touches anyObject];
-	CGPoint currentPosition = [touch locationInView:self.view];
-	
-	NSLog(@"%f", currentPosition.x);
-	NSLog(@"%f", currentPosition.y);
-	
-	
-}
+//
+//- (void)checkIfOverRegion:(CGPoint)currentPosition
+//{
+//	NSLog(@"test");
+//}
+//
+//- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event{
+//	NSUInteger numTaps = [[touches anyObject] tapCount];
+//	NSUInteger numTouches = [touches count];
+//	
+//	UITouch *touch = [touches anyObject];
+//	CGPoint startPoint = [touch locationInView:self.view];
+//	[self checkIfOverRegion:(startPoint)];
+////	NSLog(@"%f", startPoint.x);
+////	NSLog(@"%f", startPoint.y);
+//}
+//
+//- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event{
+//	
+//	UITouch *touch = [touches anyObject];
+//	CGPoint currentPosition = [touch locationInView:self.view];
+//	CGPoint myPos = [[self fmodel] setPosition:currentPosition];
+//	//NSLog(@"%f", myPos.x);
+////	NSLog(@"%f", currentPosition.y);
+//	
+//	
+//}
 
 @end
