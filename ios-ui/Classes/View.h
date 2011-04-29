@@ -55,8 +55,9 @@ typedef std::vector<Mescaline::Region> RegionList;
 	cairo_t* m_cairoContext;
 	FakeModel *fmodel;
 @private
-	RegionList rs;
-	PointList ps;
+//	RegionList rs;
+//	PointList ps;
+	BOOL drag;
 
 }
 
