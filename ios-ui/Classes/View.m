@@ -96,6 +96,14 @@ static float colors [][3] = {
 
 
 
+int numPoints = 15;
+int active = rand()%numPoints;
+
+int numRegions = 6;
+
+typedef std::vector<int> int_vec_t;
+std::vector<int> myRegions(numRegions); 
+
 
 PointList makePoints(int r)
 {	
@@ -120,21 +128,17 @@ RegionList makeRegions(int r)
 		float x = rand()/(float)RAND_MAX;
 		float y = rand()/(float)RAND_MAX;
 		float rad = rand()/(float)RAND_MAX;
-		//rs.push_back(Mescaline::Region(x,y,rad+100));
-		rs.push_back(Mescaline::Region(0.3,0.23,100));
+		rs.push_back(Mescaline::Region(x,y,rad+100));
+		//rs.push_back(Mescaline::Region(0.3,0.23,100));
+		myRegions[i] = 0;
+
 	}
 
 	return rs;
 }
 
-int numPoints = 15;
-int active = rand()%numPoints;
-
-int numRegions = 1;
 static PointList ps = makePoints(numPoints);
 static RegionList rs = makeRegions(numRegions);
-
-
 
 
 void drawFeatureSpace(const PointList& points_array, int active, float alpha, cairo_t* cr, CGRect bounds)
@@ -226,8 +230,6 @@ void drawSequencer(float size, float alpha, cairo_t* cr, CGRect bounds)
 	
 	// Cairo-Quartz fallback surfaces don't work properly, so we need to   create a temp. surface like this:
 	cairo_push_group(cr);
-	
-	
 //	int numPoints = 15;
 //	int active = rand()%numPoints;
 //	
@@ -247,19 +249,23 @@ void drawSequencer(float size, float alpha, cairo_t* cr, CGRect bounds)
 	CGRect bounds = [self bounds];
 	int width = bounds.size.width;
 	int height = bounds.size.height;
-	
+	BOOL ret;
 	for (int i = 0; i < rs.size(); i++){
 		double dist = sqrt(pow((rs[i].x()*height - currentPosition.x),2)  + pow((rs[i].y()*width - currentPosition.y),2));
 		if (dist<=rs[i].size()) {
 			NSLog(@"%s\t%f\t%f","over circle",rs[i].x()*height,currentPosition.x);
-			return YES;
+			ret = YES;
+			myRegions.at(i) = 1;
+			break;
 		} else {
-			NSLog(@"%s\t%f","NOT over circle",dist);
-			return NO;
+			NSLog(@"%s\t%d\t%f","NOT over circle number:",i,dist);
+			myRegions.at(i) = 0;
+			ret = NO;
 		}
 		NSLog(@"%s\t%f\t%f\t%f\t%f","cx, mx, cy, my",rs[i].x()*height, currentPosition.x, rs[i].y()*width, currentPosition.y);	
 		NSLog(@"%s\t%f\t%f\t%f\t%f","cx, mx, cy, my",rs[i].x()*height, currentPosition.x, rs[i].y()*width, currentPosition.y);	
 	}
+	return ret;
 }
 
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event{
@@ -271,6 +277,7 @@ void drawSequencer(float size, float alpha, cairo_t* cr, CGRect bounds)
 //	[self checkIfOverRegion:(startPoint)];
 	if ([self checkIfOverRegion:(startPoint)]){
 		NSLog(@"i start drawing");
+
 		drag = YES;
 	} else {
 		drag = NO;
@@ -279,17 +286,22 @@ void drawSequencer(float size, float alpha, cairo_t* cr, CGRect bounds)
 	//	NSLog(@"%f", startPoint.x);
 	//	NSLog(@"%f", startPoint.y);
 }
-
+- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event{
+	for(int i=0;i<rs.size();i++){
+		myRegions.at(i) = 0;
+	}
+}
 - (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event{
-	
 	UITouch *touch = [touches anyObject];
 	CGPoint currentPosition = [touch locationInView:self];
 	if (drag) {
-
-		// NSLog(@"drawing");
-		
-		CGPoint myPos = [[self fmodel] setPosition:currentPosition];
-		rs[0] = Mescaline::Region(myPos.x/self.frame.size.height,myPos.y/self.frame.size.width,100);
+		// get the position from the model
+		for(int i=0;i<rs.size();i++){
+			if(myRegions.at(i) == 1){
+				CGPoint myPos = [[self fmodel] setPosition:currentPosition];
+				rs[i] = Mescaline::Region(myPos.x/self.frame.size.height,myPos.y/self.frame.size.width,100);
+			}
+		}
 		[self setNeedsDisplay];
 
 	}
