@@ -1,0 +1,346 @@
+TMescaline
+v7
+r0
+t323213343.563692
+cCheck dependencies
+cProcessInfoPlistFile /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/Info.plist Mescaline-Info.plist
+cCompileXIB /Users/z/mescaline/ios-ui/MainWindow.xib
+cCompileXIB /Users/z/mescaline/ios-ui/MescalineViewController.xib
+cProcessPCH /var/folders/US/USxbxA0wEDSLXGUXCBCD0k+++TM/-Caches-/com.apple.Xcode.502/SharedPrecompiledHeaders/Mescaline_Prefix-bmurvtnifnjruvbaqzmmvdlupvff/Mescaline_Prefix.pch.gch Mescaline_Prefix.pch normal i386 objective-c com.apple.compilers.gcc.4_2
+cCompileC build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/main.o /Users/z/mescaline/ios-ui/main.m normal i386 objective-c com.apple.compilers.gcc.4_2
+cCompileC build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/MescalineAppDelegate.o /Users/z/mescaline/ios-ui/Classes/MescalineAppDelegate.m normal i386 objective-c com.apple.compilers.gcc.4_2
+cCompileC build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/MescalineViewController.o /Users/z/mescaline/ios-ui/Classes/MescalineViewController.m normal i386 objective-c com.apple.compilers.gcc.4_2
+cCompileC build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/View.o /Users/z/mescaline/ios-ui/Classes/View.m normal i386 objective-c com.apple.compilers.gcc.4_2
+cLd /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/Mescaline normal i386
+cGenerateDSYMFile /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app.dSYM /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/Mescaline
+cTouch /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app
+
+N/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk
+c000000004D3742630000000000000110
+t1295467107
+s272
+
+N/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk/System/Library/Frameworks/ApplicationServices.framework/Headers/ApplicationServices.h
+c00000000448600480000000000000556
+t1149632584
+s1366
+
+N/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics
+c000000004C5A4DB60000000000295900
+t1280986550
+s2709760
+
+N/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk/System/Library/Frameworks/CoreGraphics.framework/Headers/CoreGraphics.h
+c000000004C5A4CD800000000000004FE
+t1280986328
+s1278
+
+N/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk/System/Library/Frameworks/Foundation.framework/Foundation
+c000000004C5A4DB0000000000029D580
+t1280986544
+s2741632
+
+N/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk/System/Library/Frameworks/Foundation.framework/Headers/Foundation.h
+c000000004C5A4DA10000000000001466
+t1280986529
+s5222
+
+N/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk/System/Library/Frameworks/UIKit.framework/Headers/UIKit.h
+c000000004C6241ED00000000000009CD
+t1281507821
+s2509
+
+N/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk/System/Library/Frameworks/UIKit.framework/UIKit
+c000000004C6242840000000001E228C0
+t1281507972
+s31598784
+
+N/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk/usr/include/TargetConditionals.h
+c000000004C57A03900000000000031E9
+t1280811065
+s12777
+
+N/Users/z/mescaline/external-libraries/platform/ios/4.2/include/cairo/cairo-deprecated.h
+c000000004D939FFF00000000000021FA
+t1301520383
+s8698
+
+N/Users/z/mescaline/external-libraries/platform/ios/4.2/include/cairo/cairo-features.h
+c000000004D939FFF0000000000000321
+t1301520383
+s801
+
+N/Users/z/mescaline/external-libraries/platform/ios/4.2/include/cairo/cairo-quartz.h
+c000000004D939FFF0000000000000B28
+t1301520383
+s2856
+i"cairo.h"
+i<CoreGraphics/CoreGraphics.h>
+i<TargetConditionals.h>
+i<ApplicationServices/ApplicationServices.h>
+
+N/Users/z/mescaline/external-libraries/platform/ios/4.2/include/cairo/cairo-version.h
+c000000004D939FFF0000000000000094
+t1301520383
+s148
+
+N/Users/z/mescaline/external-libraries/platform/ios/4.2/include/cairo/cairo.h
+c000000004D939FFF0000000000016BCE
+t1301520383
+s93134
+i"cairo-version.h"
+i"cairo-features.h"
+i"cairo-deprecated.h"
+
+N/Users/z/mescaline/ios-ui/../external-libraries/platform/ios/4.2/lib/libcairo.a
+c000000004D939FFF0000000000335D5C
+t1301520383
+s3366236
+
+N/Users/z/mescaline/ios-ui/../external-libraries/platform/ios/4.2/lib/libpixman-1.a
+c000000004D939FFF00000000001D53FC
+t1301520383
+s1922044
+
+N/Users/z/mescaline/ios-ui/Classes/MescalineAppDelegate.h
+c000000004D939FC400000000000001EE
+t1301520324
+s494
+i<UIKit/UIKit.h>
+
+N/Users/z/mescaline/ios-ui/Classes/MescalineAppDelegate.m
+c000000004D939FC400000000000007C1
+t1301520324
+s1985
+i"MescalineAppDelegate.h"
+i"MescalineViewController.h"
+
+N/Users/z/mescaline/ios-ui/Classes/MescalineViewController.h
+c000000004D939FC400000000000000F7
+t1301520324
+s247
+i<UIKit/UIKit.h>
+
+N/Users/z/mescaline/ios-ui/Classes/MescalineViewController.m
+c000000004D939FC40000000000000563
+t1301520324
+s1379
+i"MescalineViewController.h"
+
+N/Users/z/mescaline/ios-ui/Classes/View.h
+c000000004D939FC400000000000001A6
+t1301520324
+s422
+i<UIKit/UIKit.h>
+i<cairo/cairo.h>
+
+N/Users/z/mescaline/ios-ui/Classes/View.m
+c000000004D939FC40000000000001353
+t1301520324
+s4947
+i"View.h"
+i<cairo/cairo.h>
+i<cairo/cairo-quartz.h>
+
+N/Users/z/mescaline/ios-ui/MainWindow.xib
+c000000004D939FC40000000000004D1D
+t1301520324
+s19741
+
+N/Users/z/mescaline/ios-ui/MescalineViewController.xib
+c000000004D939FC40000000000003CA9
+t1301520324
+s15529
+
+N/Users/z/mescaline/ios-ui/Mescaline_Prefix.pch
+c000000004D939FC400000000000000BB
+t1301520324
+s187
+i<Foundation/Foundation.h>
+i<UIKit/UIKit.h>
+
+N/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app
+t1301520543
+s238
+
+N/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app.dSYM
+t1301520543
+s102
+
+N/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/Info.plist
+t1301520539
+s806
+
+N/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/MainWindow.nib
+t1301520540
+s1686
+
+N/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/Mescaline
+t1301520543
+s1093240
+
+N/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/MescalineViewController.nib
+t1301520540
+s1301
+
+N/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/PkgInfo
+t1301520539
+s8
+
+N/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/Mescaline.LinkFileList
+c000000004D93A09B00000000000001E7
+t1301520539
+s487
+
+N/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/MescalineAppDelegate.o
+t1301520542
+s47100
+
+N/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/MescalineViewController.o
+t1301520542
+s35008
+
+N/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/View.o
+t1301520542
+s39896
+
+N/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/main.o
+t1301520542
+s6276
+
+N/Users/z/mescaline/ios-ui/main.m
+c000000004D939FC4000000000000016E
+t1301520324
+s366
+i<UIKit/UIKit.h>
+
+N/var/folders/US/USxbxA0wEDSLXGUXCBCD0k+++TM/-Caches-/com.apple.Xcode.502/SharedPrecompiledHeaders/Mescaline_Prefix-bmurvtnifnjruvbaqzmmvdlupvff/Mescaline_Prefix.pch.gch
+t1301520542
+s15211536
+
+NMescaline-Info.plist
+c000000004D939FC400000000000004D6
+t1301520324
+s1238
+
+CCheck dependencies
+r0
+lSLF07#2@18"Check dependencies323213339#323213339#0(0"0(0#1#0"3343187568374212096#0"0#
+
+CCompileC build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/MescalineAppDelegate.o /Users/z/mescaline/ios-ui/Classes/MescalineAppDelegate.m normal i386 objective-c com.apple.compilers.gcc.4_2
+s323213342.565034
+e323213342.838011
+r1
+xCompileC
+xbuild/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/MescalineAppDelegate.o
+x/Users/z/mescaline/ios-ui/Classes/MescalineAppDelegate.m
+xnormal
+xi386
+xobjective-c
+xcom.apple.compilers.gcc.4_2
+lSLF07#2@64"Compile /Users/z/mescaline/ios-ui/Classes/MescalineAppDelegate.m323213342#323213342#0(0"0(0#0#56"/Users/z/mescaline/ios-ui/Classes/MescalineAppDelegate.m8605638720#2297"    cd /Users/z/mescaline/ios-ui    setenv LANG en_US.US-ASCII    setenv PATH "/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin:/Developer/usr/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334@global/bin:/Users/z/.rvm/rubies/ruby-1.8.7-p334/bin:/Users/z/.rvm/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/X11/bin:/usr/X11R6/lib:/usr/X11R6/include/X11:/Users/z/bin:/Users/z/.cabal/bin:/Library/Ruby/Gems/1.8/gems::/Users/z/ec2/ec2-api-tools/bin:/Users/z/ec2/IAMCli-1.1.0/bin:/Users/z/ec2/ElasticLoadBalancing/bin"    /Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin/gcc-4.2 -x objective-c -arch i386 -fmessage-length=0 -pipe -std=c99 -Wno-trigraphs -fpascal-strings -fasm-blocks -O0 -Wreturn-type -Wunused-variable -isysroot /Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk -fexceptions -fvisibility=hidden -mmacosx-version-min=10.6 -gdwarf-2 -fobjc-abi-version=2 -fobjc-legacy-dispatch -D__IPHONE_OS_VERSION_MIN_REQUIRED=40100 -iquote /Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-generated-files.hmap -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-own-target-headers.hmap -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-all-target-headers.hmap -iquote /Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-project-headers.hmap -F/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator -I/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/include -I/Users/z/mescaline/ios-ui/../external-libraries/platform/ios/4.2/include -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/DerivedSources/i386 -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/DerivedSources -include /var/folders/US/USxbxA0wEDSLXGUXCBCD0k+++TM/-Caches-/com.apple.Xcode.502/SharedPrecompiledHeaders/Mescaline_Prefix-bmurvtnifnjruvbaqzmmvdlupvff/Mescaline_Prefix.pch -c /Users/z/mescaline/ios-ui/Classes/MescalineAppDelegate.m -o /Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/MescalineAppDelegate.o0#
+
+CCompileC build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/MescalineViewController.o /Users/z/mescaline/ios-ui/Classes/MescalineViewController.m normal i386 objective-c com.apple.compilers.gcc.4_2
+s323213342.817944
+e323213342.899929
+r1
+xCompileC
+xbuild/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/MescalineViewController.o
+x/Users/z/mescaline/ios-ui/Classes/MescalineViewController.m
+xnormal
+xi386
+xobjective-c
+xcom.apple.compilers.gcc.4_2
+lSLF07#2@67"Compile /Users/z/mescaline/ios-ui/Classes/MescalineViewController.m323213342#323213342#0(0"0(0#0#59"/Users/z/mescaline/ios-ui/Classes/MescalineViewController.m8602950912#2303"    cd /Users/z/mescaline/ios-ui    setenv LANG en_US.US-ASCII    setenv PATH "/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin:/Developer/usr/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334@global/bin:/Users/z/.rvm/rubies/ruby-1.8.7-p334/bin:/Users/z/.rvm/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/X11/bin:/usr/X11R6/lib:/usr/X11R6/include/X11:/Users/z/bin:/Users/z/.cabal/bin:/Library/Ruby/Gems/1.8/gems::/Users/z/ec2/ec2-api-tools/bin:/Users/z/ec2/IAMCli-1.1.0/bin:/Users/z/ec2/ElasticLoadBalancing/bin"    /Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin/gcc-4.2 -x objective-c -arch i386 -fmessage-length=0 -pipe -std=c99 -Wno-trigraphs -fpascal-strings -fasm-blocks -O0 -Wreturn-type -Wunused-variable -isysroot /Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk -fexceptions -fvisibility=hidden -mmacosx-version-min=10.6 -gdwarf-2 -fobjc-abi-version=2 -fobjc-legacy-dispatch -D__IPHONE_OS_VERSION_MIN_REQUIRED=40100 -iquote /Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-generated-files.hmap -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-own-target-headers.hmap -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-all-target-headers.hmap -iquote /Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-project-headers.hmap -F/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator -I/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/include -I/Users/z/mescaline/ios-ui/../external-libraries/platform/ios/4.2/include -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/DerivedSources/i386 -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/DerivedSources -include /var/folders/US/USxbxA0wEDSLXGUXCBCD0k+++TM/-Caches-/com.apple.Xcode.502/SharedPrecompiledHeaders/Mescaline_Prefix-bmurvtnifnjruvbaqzmmvdlupvff/Mescaline_Prefix.pch -c /Users/z/mescaline/ios-ui/Classes/MescalineViewController.m -o /Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/MescalineViewController.o0#
+
+CCompileC build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/View.o /Users/z/mescaline/ios-ui/Classes/View.m normal i386 objective-c com.apple.compilers.gcc.4_2
+s323213342.838113
+e323213342.923687
+r1
+xCompileC
+xbuild/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/View.o
+x/Users/z/mescaline/ios-ui/Classes/View.m
+xnormal
+xi386
+xobjective-c
+xcom.apple.compilers.gcc.4_2
+lSLF07#2@48"Compile /Users/z/mescaline/ios-ui/Classes/View.m323213342#323213342#0(0"0(0#0#40"/Users/z/mescaline/ios-ui/Classes/View.m8605096256#2265"    cd /Users/z/mescaline/ios-ui    setenv LANG en_US.US-ASCII    setenv PATH "/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin:/Developer/usr/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334@global/bin:/Users/z/.rvm/rubies/ruby-1.8.7-p334/bin:/Users/z/.rvm/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/X11/bin:/usr/X11R6/lib:/usr/X11R6/include/X11:/Users/z/bin:/Users/z/.cabal/bin:/Library/Ruby/Gems/1.8/gems::/Users/z/ec2/ec2-api-tools/bin:/Users/z/ec2/IAMCli-1.1.0/bin:/Users/z/ec2/ElasticLoadBalancing/bin"    /Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin/gcc-4.2 -x objective-c -arch i386 -fmessage-length=0 -pipe -std=c99 -Wno-trigraphs -fpascal-strings -fasm-blocks -O0 -Wreturn-type -Wunused-variable -isysroot /Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk -fexceptions -fvisibility=hidden -mmacosx-version-min=10.6 -gdwarf-2 -fobjc-abi-version=2 -fobjc-legacy-dispatch -D__IPHONE_OS_VERSION_MIN_REQUIRED=40100 -iquote /Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-generated-files.hmap -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-own-target-headers.hmap -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-all-target-headers.hmap -iquote /Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-project-headers.hmap -F/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator -I/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/include -I/Users/z/mescaline/ios-ui/../external-libraries/platform/ios/4.2/include -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/DerivedSources/i386 -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/DerivedSources -include /var/folders/US/USxbxA0wEDSLXGUXCBCD0k+++TM/-Caches-/com.apple.Xcode.502/SharedPrecompiledHeaders/Mescaline_Prefix-bmurvtnifnjruvbaqzmmvdlupvff/Mescaline_Prefix.pch -c /Users/z/mescaline/ios-ui/Classes/View.m -o /Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/View.o0#
+
+CCompileC build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/main.o /Users/z/mescaline/ios-ui/main.m normal i386 objective-c com.apple.compilers.gcc.4_2
+s323213342.563754
+e323213342.817850
+r1
+xCompileC
+xbuild/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/main.o
+x/Users/z/mescaline/ios-ui/main.m
+xnormal
+xi386
+xobjective-c
+xcom.apple.compilers.gcc.4_2
+lSLF07#2@40"Compile /Users/z/mescaline/ios-ui/main.m323213342#323213342#0(0"0(0#0#32"/Users/z/mescaline/ios-ui/main.m8603068000#2257"    cd /Users/z/mescaline/ios-ui    setenv LANG en_US.US-ASCII    setenv PATH "/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin:/Developer/usr/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334@global/bin:/Users/z/.rvm/rubies/ruby-1.8.7-p334/bin:/Users/z/.rvm/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/X11/bin:/usr/X11R6/lib:/usr/X11R6/include/X11:/Users/z/bin:/Users/z/.cabal/bin:/Library/Ruby/Gems/1.8/gems::/Users/z/ec2/ec2-api-tools/bin:/Users/z/ec2/IAMCli-1.1.0/bin:/Users/z/ec2/ElasticLoadBalancing/bin"    /Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin/gcc-4.2 -x objective-c -arch i386 -fmessage-length=0 -pipe -std=c99 -Wno-trigraphs -fpascal-strings -fasm-blocks -O0 -Wreturn-type -Wunused-variable -isysroot /Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk -fexceptions -fvisibility=hidden -mmacosx-version-min=10.6 -gdwarf-2 -fobjc-abi-version=2 -fobjc-legacy-dispatch -D__IPHONE_OS_VERSION_MIN_REQUIRED=40100 -iquote /Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-generated-files.hmap -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-own-target-headers.hmap -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-all-target-headers.hmap -iquote /Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-project-headers.hmap -F/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator -I/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/include -I/Users/z/mescaline/ios-ui/../external-libraries/platform/ios/4.2/include -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/DerivedSources/i386 -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/DerivedSources -include /var/folders/US/USxbxA0wEDSLXGUXCBCD0k+++TM/-Caches-/com.apple.Xcode.502/SharedPrecompiledHeaders/Mescaline_Prefix-bmurvtnifnjruvbaqzmmvdlupvff/Mescaline_Prefix.pch -c /Users/z/mescaline/ios-ui/main.m -o /Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/main.o0#
+
+CCompileXIB /Users/z/mescaline/ios-ui/MainWindow.xib
+s323213339.877924
+e323213340.455647
+r1
+xCompileXIB
+x/Users/z/mescaline/ios-ui/MainWindow.xib
+lSLF07#2@25"CompileXIB MainWindow.xib323213339#323213340#0(0"0(0#0#40"/Users/z/mescaline/ios-ui/MainWindow.xib8605304192#904"    cd /Users/z/mescaline/ios-ui    setenv IBC_MINIMUM_COMPATIBILITY_VERSION 4.1    setenv PATH "/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin:/Developer/usr/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334@global/bin:/Users/z/.rvm/rubies/ruby-1.8.7-p334/bin:/Users/z/.rvm/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/X11/bin:/usr/X11R6/lib:/usr/X11R6/include/X11:/Users/z/bin:/Users/z/.cabal/bin:/Library/Ruby/Gems/1.8/gems::/Users/z/ec2/ec2-api-tools/bin:/Users/z/ec2/IAMCli-1.1.0/bin:/Users/z/ec2/ElasticLoadBalancing/bin"    /Developer/usr/bin/ibtool --errors --warnings --notices --output-format human-readable-text --compile /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/MainWindow.nib /Users/z/mescaline/ios-ui/MainWindow.xib --sdk /Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk0#
+
+CCompileXIB /Users/z/mescaline/ios-ui/MescalineViewController.xib
+s323213339.913501
+e323213340.465112
+r1
+xCompileXIB
+x/Users/z/mescaline/ios-ui/MescalineViewController.xib
+lSLF07#2@38"CompileXIB MescalineViewController.xib323213339#323213340#0(0"0(0#0#53"/Users/z/mescaline/ios-ui/MescalineViewController.xib8605223776#930"    cd /Users/z/mescaline/ios-ui    setenv IBC_MINIMUM_COMPATIBILITY_VERSION 4.1    setenv PATH "/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin:/Developer/usr/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334@global/bin:/Users/z/.rvm/rubies/ruby-1.8.7-p334/bin:/Users/z/.rvm/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/X11/bin:/usr/X11R6/lib:/usr/X11R6/include/X11:/Users/z/bin:/Users/z/.cabal/bin:/Library/Ruby/Gems/1.8/gems::/Users/z/ec2/ec2-api-tools/bin:/Users/z/ec2/IAMCli-1.1.0/bin:/Users/z/ec2/ElasticLoadBalancing/bin"    /Developer/usr/bin/ibtool --errors --warnings --notices --output-format human-readable-text --compile /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/MescalineViewController.nib /Users/z/mescaline/ios-ui/MescalineViewController.xib --sdk /Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk0#
+
+CGenerateDSYMFile /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app.dSYM /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/Mescaline
+s323213343.458034
+e323213343.560407
+r1
+xGenerateDSYMFile
+x/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app.dSYM
+x/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/Mescaline
+lSLF07#2@115"GenerateDSYMFile build/Debug-iphonesimulator/Mescaline.app.dSYM build/Debug-iphonesimulator/Mescaline.app/Mescaline323213343#323213343#0(0"0(0#0#77"/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/Mescaline8604920352#721"    cd /Users/z/mescaline/ios-ui    setenv PATH "/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin:/Developer/usr/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334@global/bin:/Users/z/.rvm/rubies/ruby-1.8.7-p334/bin:/Users/z/.rvm/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/X11/bin:/usr/X11R6/lib:/usr/X11R6/include/X11:/Users/z/bin:/Users/z/.cabal/bin:/Library/Ruby/Gems/1.8/gems::/Users/z/ec2/ec2-api-tools/bin:/Users/z/ec2/IAMCli-1.1.0/bin:/Users/z/ec2/ElasticLoadBalancing/bin"    /Developer/usr/bin/dsymutil /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/Mescaline -o /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app.dSYM0#
+
+CLd /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/Mescaline normal i386
+s323213342.923779
+e323213343.457942
+r1
+xLd
+x/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/Mescaline
+xnormal
+xi386
+lSLF07#2@82"Link /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/Mescaline323213342#323213343#0(0"0(0#0#0"8601899296#1306"    cd /Users/z/mescaline/ios-ui    setenv MACOSX_DEPLOYMENT_TARGET 10.6    setenv PATH "/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin:/Developer/usr/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334@global/bin:/Users/z/.rvm/rubies/ruby-1.8.7-p334/bin:/Users/z/.rvm/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/X11/bin:/usr/X11R6/lib:/usr/X11R6/include/X11:/Users/z/bin:/Users/z/.cabal/bin:/Library/Ruby/Gems/1.8/gems::/Users/z/ec2/ec2-api-tools/bin:/Users/z/ec2/IAMCli-1.1.0/bin:/Users/z/ec2/ElasticLoadBalancing/bin"    /Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin/gcc-4.2 -arch i386 -isysroot /Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk -L/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator -L/Users/z/mescaline/ios-ui/../external-libraries/platform/ios/4.2/lib -F/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator -filelist /Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Objects-normal/i386/Mescaline.LinkFileList -mmacosx-version-min=10.6 -Xlinker -objc_abi_version -Xlinker 2 -framework Foundation -framework UIKit -framework CoreGraphics -lpixman-1 -lcairo -o /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/Mescaline0#
+
+CProcessInfoPlistFile /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/Info.plist Mescaline-Info.plist
+s323213339.832088
+e323213339.877841
+r1
+xProcessInfoPlistFile
+x/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/Info.plist
+xMescaline-Info.plist
+lSLF07#2@28"Process Mescaline-Info.plist323213339#323213339#0(0"0(0#0#46"/Users/z/mescaline/ios-ui/Mescaline-Info.plist21673775077654640#817"    cd /Users/z/mescaline/ios-ui    setenv PATH "/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin:/Developer/usr/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334@global/bin:/Users/z/.rvm/rubies/ruby-1.8.7-p334/bin:/Users/z/.rvm/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/X11/bin:/usr/X11R6/lib:/usr/X11R6/include/X11:/Users/z/bin:/Users/z/.cabal/bin:/Library/Ruby/Gems/1.8/gems::/Users/z/ec2/ec2-api-tools/bin:/Users/z/ec2/IAMCli-1.1.0/bin:/Users/z/ec2/ElasticLoadBalancing/bin"    builtin-infoPlistUtility Mescaline-Info.plist -genpkginfo /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/PkgInfo -expandbuildsettings -format binary -platform iphonesimulator -o /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app/Info.plist0#
+
+CProcessPCH /var/folders/US/USxbxA0wEDSLXGUXCBCD0k+++TM/-Caches-/com.apple.Xcode.502/SharedPrecompiledHeaders/Mescaline_Prefix-bmurvtnifnjruvbaqzmmvdlupvff/Mescaline_Prefix.pch.gch Mescaline_Prefix.pch normal i386 objective-c com.apple.compilers.gcc.4_2
+s323213340.465257
+e323213342.563565
+r1
+xProcessPCH
+x/var/folders/US/USxbxA0wEDSLXGUXCBCD0k+++TM/-Caches-/com.apple.Xcode.502/SharedPrecompiledHeaders/Mescaline_Prefix-bmurvtnifnjruvbaqzmmvdlupvff/Mescaline_Prefix.pch.gch
+xMescaline_Prefix.pch
+xnormal
+xi386
+xobjective-c
+xcom.apple.compilers.gcc.4_2
+lSLF07#2@31"Precompile Mescaline_Prefix.pch323213340#323213342#0(0"0(0#0#46"/Users/z/mescaline/ios-ui/Mescaline_Prefix.pch8602734720#2160"    cd /Users/z/mescaline/ios-ui    setenv LANG en_US.US-ASCII    setenv PATH "/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin:/Developer/usr/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334@global/bin:/Users/z/.rvm/rubies/ruby-1.8.7-p334/bin:/Users/z/.rvm/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/X11/bin:/usr/X11R6/lib:/usr/X11R6/include/X11:/Users/z/bin:/Users/z/.cabal/bin:/Library/Ruby/Gems/1.8/gems::/Users/z/ec2/ec2-api-tools/bin:/Users/z/ec2/IAMCli-1.1.0/bin:/Users/z/ec2/ElasticLoadBalancing/bin"    /Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin/gcc-4.2 -x objective-c-header -arch i386 -fmessage-length=0 -pipe -std=c99 -Wno-trigraphs -fpascal-strings -fasm-blocks -O0 -Wreturn-type -Wunused-variable -isysroot /Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk -fexceptions -fvisibility=hidden -mmacosx-version-min=10.6 -gdwarf-2 -fobjc-abi-version=2 -fobjc-legacy-dispatch -D__IPHONE_OS_VERSION_MIN_REQUIRED=40100 -iquote /Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-generated-files.hmap -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-own-target-headers.hmap -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-all-target-headers.hmap -iquote /Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/Mescaline-project-headers.hmap -F/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator -I/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/include -I/Users/z/mescaline/ios-ui/../external-libraries/platform/ios/4.2/include -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/DerivedSources/i386 -I/Users/z/mescaline/ios-ui/build/Mescaline.build/Debug-iphonesimulator/Mescaline.build/DerivedSources -c /Users/z/mescaline/ios-ui/Mescaline_Prefix.pch -o /var/folders/US/USxbxA0wEDSLXGUXCBCD0k+++TM/-Caches-/com.apple.Xcode.502/SharedPrecompiledHeaders/Mescaline_Prefix-bmurvtnifnjruvbaqzmmvdlupvff/Mescaline_Prefix.pch.gch0#
+
+CTouch /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app
+s323213343.560621
+e323213343.563636
+r1
+xTouch
+x/Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app
+lSLF07#2@73"Touch /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app323213343#323213343#0(0"0(0#0#0"8605391264#625"    cd /Users/z/mescaline/ios-ui    setenv PATH "/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/bin:/Developer/usr/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334/bin:/Users/z/.rvm/gems/ruby-1.8.7-p334@global/bin:/Users/z/.rvm/rubies/ruby-1.8.7-p334/bin:/Users/z/.rvm/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/X11/bin:/usr/X11R6/lib:/usr/X11R6/include/X11:/Users/z/bin:/Users/z/.cabal/bin:/Library/Ruby/Gems/1.8/gems::/Users/z/ec2/ec2-api-tools/bin:/Users/z/ec2/IAMCli-1.1.0/bin:/Users/z/ec2/ElasticLoadBalancing/bin"    /usr/bin/touch -c /Users/z/mescaline/ios-ui/build/Debug-iphonesimulator/Mescaline.app0#
+
