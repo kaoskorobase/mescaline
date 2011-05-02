@@ -67,6 +67,7 @@ typedef std::vector<Mescaline::Region> RegionList;
 - (void)destroyCairo;
 - (cairo_t*)getCairoContext;
 - (void)redraw:(cairo_t*)cr inRect:(CGRect)rect;
+- (void)updateLabelsFromTouches:(NSSet *)touches;
 
 
 
