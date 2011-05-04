@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		19138F1F136EFF330067C45E /* libsqlite3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 19138F1E136EFF330067C45E /* libsqlite3.dylib */; };
+		19138F21136EFF970067C45E /* libsqlite3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 19138F20136EFF970067C45E /* libsqlite3.dylib */; };
+		19138F25136F0C760067C45E /* data.db in Resources */ = {isa = PBXBuildFile; fileRef = 19138F24136F0C760067C45E /* data.db */; };
 		1D3623260D0F684500981E51 /* MescalineAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 1D3623250D0F684500981E51 /* MescalineAppDelegate.m */; };
 		1D60589B0D05DD56006BFB54 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 29B97316FDCFA39411CA2CEA /* main.m */; };
 		1D60589F0D05DD5A006BFB54 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1D30AB110D05D00D00671497 /* Foundation.framework */; };
@@ -22,6 +25,10 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		19138F1E136EFF330067C45E /* libsqlite3.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libsqlite3.dylib; path = Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk/usr/lib/libsqlite3.dylib; sourceTree = DEVELOPER_DIR; };
+		19138F20136EFF970067C45E /* libsqlite3.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libsqlite3.dylib; path = Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk/usr/lib/libsqlite3.dylib; sourceTree = DEVELOPER_DIR; };
+		19138F24136F0C760067C45E /* data.db */ = {isa = PBXFileReference; lastKnownFileType = file; path = data.db; sourceTree = "<group>"; };
+		19138F26136F68700067C45E /* blob.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = blob.h; sourceTree = "<group>"; };
 		1D30AB110D05D00D00671497 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		1D3623240D0F684500981E51 /* MescalineAppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MescalineAppDelegate.h; sourceTree = "<group>"; };
 		1D3623250D0F684500981E51 /* MescalineAppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MescalineAppDelegate.m; sourceTree = "<group>"; };
@@ -53,6 +60,8 @@
 				288765A50DF7441C002DB57D /* CoreGraphics.framework in Frameworks */,
 				53FEAD281343C0FD00EDEC95 /* libpixman-1.a in Frameworks */,
 				53FEADD41343C14C00EDEC95 /* libcairo.a in Frameworks */,
+				19138F1F136EFF330067C45E /* libsqlite3.dylib in Frameworks */,
+				19138F21136EFF970067C45E /* libsqlite3.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -70,6 +79,7 @@
 				53FEACD71343BA9600EDEC95 /* View.m */,
 				998C9FEB1367639500537739 /* FakeModel.h */,
 				998C9FEC1367639500537739 /* FakeModel.m */,
+				19138F26136F68700067C45E /* blob.h */,
 			);
 			path = Classes;
 			sourceTree = "<group>";
@@ -85,6 +95,7 @@
 		29B97314FDCFA39411CA2CEA /* CustomTemplate */ = {
 			isa = PBXGroup;
 			children = (
+				19138F1E136EFF330067C45E /* libsqlite3.dylib */,
 				080E96DDFE201D6D7F000001 /* Classes */,
 				29B97315FDCFA39411CA2CEA /* Other Sources */,
 				29B97317FDCFA39411CA2CEA /* Resources */,
@@ -106,6 +117,8 @@
 		29B97317FDCFA39411CA2CEA /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				19138F24136F0C760067C45E /* data.db */,
+				19138F20136EFF970067C45E /* libsqlite3.dylib */,
 				2899E5210DE3E06400AC0155 /* MescalineViewController.xib */,
 				28AD733E0D9D9553002E5188 /* MainWindow.xib */,
 				8D1107310486CEB800E47090 /* Mescaline-Info.plist */,
@@ -176,6 +189,7 @@
 			files = (
 				28AD733F0D9D9553002E5188 /* MainWindow.xib in Resources */,
 				2899E5220DE3E06400AC0155 /* MescalineViewController.xib in Resources */,
+				19138F25136F0C760067C45E /* data.db in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -207,7 +221,11 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = Mescaline_Prefix.pch;
 				INFOPLIST_FILE = "Mescaline-Info.plist";
-				LIBRARY_SEARCH_PATHS = "$(inherited)";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"$(DEVELOPER_DIR)/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator3.2.sdk/usr/lib/sqlite3\"",
+					"\"$(DEVELOPER_DIR)/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk/usr/lib\"",
+				);
 				PRODUCT_NAME = Mescaline;
 			};
 			name = Debug;
@@ -220,7 +238,11 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = Mescaline_Prefix.pch;
 				INFOPLIST_FILE = "Mescaline-Info.plist";
-				LIBRARY_SEARCH_PATHS = "$(inherited)";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"$(DEVELOPER_DIR)/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator3.2.sdk/usr/lib/sqlite3\"",
+					"\"$(DEVELOPER_DIR)/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk/usr/lib\"",
+				);
 				PRODUCT_NAME = Mescaline;
 				VALIDATE_PRODUCT = YES;
 			};

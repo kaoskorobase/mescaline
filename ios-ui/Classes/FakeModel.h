@@ -8,11 +8,15 @@
 
 #import <Foundation/Foundation.h>
 
+#import <UIKit/UIKit.h>
+#import "/usr/include/sqlite3.h"
+#define kFilename    @"data.db"
 
 @interface FakeModel : NSObject {
+    sqlite3    *database;
 
 }
-
+- (NSString *)dataFilePath;
 - (CGPoint)setPosition:(CGPoint)currentPosition;
-
+//- (PointList *)makePoints;
 @end

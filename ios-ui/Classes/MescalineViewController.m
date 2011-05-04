@@ -36,12 +36,12 @@
 */
 
 
-/*
 // Implement viewDidLoad to do additional setup after loading the view, typically from a nib.
 - (void)viewDidLoad {
+// NSLog(@"%i", [self.view test]);
+//    [self.view makePoints:20];
     [super viewDidLoad];
-}
-*/
+ }
 
 
 // Override to allow orientations other than the default portrait orientation.

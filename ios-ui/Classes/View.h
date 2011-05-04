@@ -10,6 +10,7 @@
 #include <cairo/cairo.h>
 #import "FakeModel.h"
 #include <vector>
+
 namespace Mescaline
 {
 	class Point
@@ -61,14 +62,12 @@ typedef std::vector<Mescaline::Region> RegionList;
 
 }
 
-//@property (nonatomic, retain) NSMutableArray  *hixihaxi;
+//@property PointList ps;
 
 - (void)initCairo:(CGContextRef)ctx;
 - (void)destroyCairo;
 - (cairo_t*)getCairoContext;
 - (void)redraw:(cairo_t*)cr inRect:(CGRect)rect;
-- (void)updateLabelsFromTouches:(NSSet *)touches;
-
 
 
 @end

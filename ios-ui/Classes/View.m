@@ -18,6 +18,7 @@
 
 @implementation View
 
+
 - (FakeModel *)fmodel
 {
 	if (!fmodel) {
@@ -26,10 +27,7 @@
 	return fmodel;
 }
 
-//- (BOOL)isOpaque
-//{
-//	return NO;
-//}
+
 
 - (id)initWithFrame:(CGRect)frame
 {
@@ -55,8 +53,8 @@
 
 	// Create the Cairo surface and context
 	m_cairoSurface = cairo_quartz_surface_create_for_cg_context(ctx, width, height);
-	m_cairoContext = cairo_create(m_cairoSurface);	
-}
+    m_cairoContext = cairo_create(m_cairoSurface);	
+    [[self fmodel] getData];}
 
 - (void)destroyCairo
 {
@@ -83,6 +81,7 @@
 {
 	[self redraw: [self getCairoContext] inRect:rect];
 }
+
 
 
 static float colors [][3] = {
@@ -137,6 +136,7 @@ RegionList makeRegions(int r)
 	return rs;
 }
 
+//PointList ps = [[self fmodel] makePoints];
 PointList ps = makePoints(numPoints);
 RegionList rs = makeRegions(numRegions);
 
@@ -285,31 +285,31 @@ void drawSequencer(float size, float alpha, cairo_t* cr, CGRect bounds)
 		myRegions.at(i) = 0;
 	}
 }
-//- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event{
-//	UITouch *touch = [touches anyObject];
-//	CGPoint currentPosition = [touch locationInView:self];
-//	if (drag) {		
-//		for(int i=0;i<rs.size();i++){			
-//			if(myRegions.at(i) == 1){
-//				//NSLog(@"%d",myRegions.at(i));
-//				// get the position from the model
-//				CGPoint myPos = [[self fmodel] setPosition:currentPosition];
-//				// set region position
-//				rs.at(i) = Mescaline::Region(myPos.x/self.frame.size.height,myPos.y/self.frame.size.width,40);
-//				//NSLog(@"setting new position data");
-//			} else {
-//				//NSLog(@"%d",myRegions.at(i));
-//			}
-//
-//		}
-//		[self setNeedsDisplay];
-//
-//	}
-//	
-//	//NSLog(@"%f", myPos.x);
-//	//	NSLog(@"%f", currentPosition.y);
-//	
-//	
-//}
+- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event{
+	UITouch *touch = [touches anyObject];
+	CGPoint currentPosition = [touch locationInView:self];
+	if (drag) {		
+		for(int i=0;i<rs.size();i++){			
+			if(myRegions.at(i) == 1){
+				//NSLog(@"%d",myRegions.at(i));
+				// get the position from the model
+				CGPoint myPos = [[self fmodel] setPosition:currentPosition];
+				// set region position
+				rs.at(i) = Mescaline::Region(myPos.x/self.frame.size.height,myPos.y/self.frame.size.width,40);
+				//NSLog(@"setting new position data");
+			} else {
+				//NSLog(@"%d",myRegions.at(i));
+			}
+
+		}
+		[self setNeedsDisplay];
+
+	}
+	
+	//NSLog(@"%f", myPos.x);
+	//	NSLog(@"%f", currentPosition.y);
+	
+	
+}
 @end 
 
