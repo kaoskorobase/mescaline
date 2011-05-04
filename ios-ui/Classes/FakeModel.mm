@@ -17,6 +17,40 @@
 }
 
 
+int numRegions = 6;
+
+
+-(RegionList)getRegionList:(int)numRegions
+{	
+	
+	RegionList rs;
+	for (int i=0; i < numRegions; i++) {
+		float x = rand()/(float)RAND_MAX;
+		float y = rand()/(float)RAND_MAX;
+		float rad = rand()/(float)RAND_MAX;
+		rs.push_back(Mescaline::Region(x,y,(rad*100)+20));
+		
+	}
+	return rs;
+}
+
+
+
+- (PointList)getPointList:(int)numPoints
+{	
+	
+	PointList ps;
+	for (int i=0; i < numPoints; i++) {
+		
+		float x = rand()/(float)RAND_MAX;
+		float y = rand()/(float)RAND_MAX;
+		
+		ps.push_back(Mescaline::Point(x, y));
+	}
+	return ps;
+}
+
+
 - (NSArray *)getData {
     
     if (sqlite3_open([[self dataFilePath] UTF8String], &database)

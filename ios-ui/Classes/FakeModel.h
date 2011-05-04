@@ -15,9 +15,13 @@
 
 @interface FakeModel : NSObject {
     sqlite3    *database;
-
+@private
+	int numRegions; 
 }
+@property int numRegions;
 - (NSString *)dataFilePath;
 - (CGPoint)setPosition:(CGPoint)currentPosition;
-//- (PointList *)makePoints;
+- (RegionList *)getRegionList;
+- (PointList *)getPointList;
+
 @end

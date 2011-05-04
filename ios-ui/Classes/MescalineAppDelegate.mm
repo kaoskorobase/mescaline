@@ -19,11 +19,12 @@
 #pragma mark Application lifecycle
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {    
+
+	fmodel = [[FakeModel alloc] init];
     
     // Override point for customization after app launch. 
     [self.window addSubview:viewController.view];
     [self.window makeKeyAndVisible];
-
 	return YES;
 }
 
