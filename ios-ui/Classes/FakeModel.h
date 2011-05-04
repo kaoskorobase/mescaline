@@ -11,6 +11,7 @@
 #import <UIKit/UIKit.h>
 #import "/usr/include/sqlite3.h"
 #define kFilename    @"data.db"
+#include "GlobalTypes.h"
 
 @interface FakeModel : NSObject {
     sqlite3    *database;

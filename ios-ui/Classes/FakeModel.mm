@@ -32,7 +32,7 @@
                            -1, &statement, nil) == SQLITE_OK) {
         while (sqlite3_step(statement) == SQLITE_ROW) {
 
-            int64_t *row = sqlite3_column_int64(statement, 0);
+            sqlite3_int64 row = sqlite3_column_int64(statement, 0);
             //int *rowData = sqlite3_column_text(statement, 2);
             char *rowData = (char *)sqlite3_column_text(statement, 1);
             NSString *aUrl = [NSString stringWithUTF8String:(char *)sqlite3_column_text(statement, 1)];
