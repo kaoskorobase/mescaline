@@ -7,10 +7,11 @@
 //
 
 #import <UIKit/UIKit.h>
-#import "FakeModel.h"
-@interface MescalineViewController : UIViewController {	
-	FakeModel *fmodel;
-}
+#include <vector>
 
+@interface MescalineViewController : UIViewController {	
+
+	std::vector<int> regionsArray;
+}
 @end
 

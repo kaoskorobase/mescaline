@@ -11,12 +11,17 @@
 #import <UIKit/UIKit.h>
 #import "/usr/include/sqlite3.h"
 #define kFilename    @"data.db"
+#include "GlobalTypes.h"
 
 @interface FakeModel : NSObject {
     sqlite3    *database;
-
+@private
+	int numRegions; 
 }
+@property int numRegions;
 - (NSString *)dataFilePath;
 - (CGPoint)setPosition:(CGPoint)currentPosition;
-//- (PointList *)makePoints;
+- (RegionList *)getRegionList;
+- (PointList *)getPointList;
+
 @end
