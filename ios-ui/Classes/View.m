@@ -11,6 +11,7 @@
 #include <cairo/cairo.h>
 #include <cairo/cairo-quartz.h>
 #include <vector>
+#include "GlobalTypes.h"
 
 #ifndef CAIRO_HAS_QUARTZ_SURFACE
 #  error Need to build Cairo with Quartz support (version 1.4.0 or higher)
@@ -18,16 +19,7 @@
 
 @implementation View
 
-
-- (FakeModel *)fmodel
-{
-	if (!fmodel) {
-		fmodel = [[FakeModel alloc] init];
-	}
-	return fmodel;
-}
-
-
+@synthesize ctx;
 
 - (id)initWithFrame:(CGRect)frame
 {
@@ -46,15 +38,17 @@
 	CGRect bounds = [self bounds];
 	int width = bounds.size.width;
 	int height = bounds.size.height;
-
+    self.ctx = UIGraphicsGetCurrentContext();
 	// Make the CGContext coordinate system sane, as expected by Cairo
-	CGContextTranslateCTM (ctx, 0.0, height);
-	CGContextScaleCTM (ctx, 1.0, -1.0);
+	CGContextTranslateCTM (self.ctx, 0.0, height);
+	CGContextScaleCTM (self.ctx, 1.0, -1.0);
+  
 
 	// Create the Cairo surface and context
-	m_cairoSurface = cairo_quartz_surface_create_for_cg_context(ctx, width, height);
+	m_cairoSurface = cairo_quartz_surface_create_for_cg_context(self.ctx, width, height);
     m_cairoContext = cairo_create(m_cairoSurface);	
-    [[self fmodel] getData];}
+
+}
 
 - (void)destroyCairo
 {
@@ -70,16 +64,19 @@
 
 - (cairo_t*)getCairoContext
 {
-	CGContextRef ctx = UIGraphicsGetCurrentContext();
-	if ((m_cairoSurface == NULL) || (ctx !=  cairo_quartz_surface_get_cg_context(m_cairoSurface))) {
-		[self initCairo:ctx];
+//	CGContextRef ctx = UIGraphicsGetCurrentContext();
+//    NSLog(@"%@",self.ctx);
+
+	if ((m_cairoSurface == NULL) || (self.ctx !=  cairo_quartz_surface_get_cg_context(m_cairoSurface))) {
+        NSLog(@"initialize cairo");
+		[self initCairo:self.ctx];
 	}
 	return m_cairoContext;
 }
 
 - (void)drawRect:(CGRect)rect
 {
-	[self redraw: [self getCairoContext] inRect:rect];
+//	[self redraw: [self getCairoContext]];
 }
 
 
@@ -91,17 +88,6 @@ static float colors [][3] = {
 	{ 0, 1, 1},
 	{ 1, 0, 1},
 	{ 1, 1, 0}};
-
-
-
-
-
-
-
-//int_vec_t myRegions.assign(numRegions,0);
-
-
-
 
 
 
@@ -135,9 +121,10 @@ void drawRegions(const RegionList& regions_array, float alpha, cairo_t* cr, CGRe
 }
 
 
-void drawSequencer(float size, float alpha, cairo_t* cr, CGRect bounds)
+- (void)drawSequencer 
 {
-	
+    //NSLog(@"%@",self);
+    CGRect bounds = [self bounds];
 	int width = bounds.size.width;
 	int height = bounds.size.height;
 
@@ -147,7 +134,7 @@ void drawSequencer(float size, float alpha, cairo_t* cr, CGRect bounds)
 	if (width < height) ref = width;
 	else ref = height;
 	
-	int a = ref*size;
+	int a = ref*0.7;
 	
 	int offset = a % numRows;
 	a = a - offset;
@@ -167,10 +154,9 @@ void drawSequencer(float size, float alpha, cairo_t* cr, CGRect bounds)
 	for (int i = 0; i<numRows; i++){
 		int x_start = x;
 		for (int j = 0; j < numRows; j++){
-		
-			cairo_rectangle(cr, x_start, y_start, b, b);
-			cairo_set_source_rgba(cr, 0, 0, 0, alpha);
-			cairo_stroke(cr);
+			cairo_rectangle([self getCairoContext], x_start, y_start, b, b);
+			cairo_set_source_rgba([self getCairoContext], 0, 0, 0, 1.0);
+			cairo_stroke([self getCairoContext]);
 			x_start += b;
 		}
 		y_start += b;
@@ -179,21 +165,24 @@ void drawSequencer(float size, float alpha, cairo_t* cr, CGRect bounds)
 	
 }
 
-
-- (void)redraw:(cairo_t*)cr inRect:(CGRect)rect
+- (void)redraw:(cairo_t*)cr :(RegionList)rs
 {
-	
 	CGRect bounds = [self bounds];
 	float alpha_featureSpace = 0.7;
-	float alpha_sequencer = 1;
+	//float alpha_sequencer = 1;
 	// Cairo-Quartz fallback surfaces don't work properly, so we need to   create a temp. surface like this:
 	cairo_push_group(cr);
-	drawFeatureSpace(ps, active, alpha_featureSpace, cr, bounds);
+//	drawFeatureSpace(ps, active, alpha_featureSpace, cr, bounds);
 	drawRegions(rs,alpha_featureSpace-.2, cr, bounds);
-	drawSequencer(0.8, alpha_sequencer, cr, bounds);
+    [self drawSequencer];
 	cairo_pop_group_to_source(cr);
+    NSLog(@"will now paint");
 	cairo_paint(cr);	
 
+}
+
+- (void)test{
+    NSLog(@"test");
 }
 
 @end 

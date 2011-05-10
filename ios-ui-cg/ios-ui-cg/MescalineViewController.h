@@ -7,15 +7,15 @@
 //
 
 #import <UIKit/UIKit.h>
-#include <vector>
-#include "GlobalTypes.h"
+#import "FeatureSpace.h"
 
-@interface MescalineViewController : UIViewController {	
+@interface MescalineViewController : UIViewController <FeatureSpaceDelegate>
+{	
 	BOOL drag;
-	std::vector<int> regionsArray;
+    FeatureSpace *fSpace;
 }
 
--(RegionList)getRegionList;
+@property (retain) IBOutlet FeatureSpace *fSpace;
 
 
 @end

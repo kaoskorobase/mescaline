@@ -8,10 +8,9 @@
 
 #import <Foundation/Foundation.h>
 
-#import <UIKit/UIKit.h>
 #import "/usr/include/sqlite3.h"
 #define kFilename    @"data.db"
-#include "GlobalTypes.h"
+
 
 @interface FakeModel : NSObject {
     sqlite3    *database;
@@ -22,10 +21,10 @@
 
 +(FakeModel*)sharedManager;
 
-- (NSString *)dataFilePath;
 - (CGPoint)setPosition:(CGPoint)currentPosition;
-- (RegionList)getRegionList;
-- (PointList)getPointList:(int)numPoints;
+- (NSArray *)getRegionList;
+- (NSArray *)getPointList;
+- (void)getData;
 - (int)numRegions;
 
 @end

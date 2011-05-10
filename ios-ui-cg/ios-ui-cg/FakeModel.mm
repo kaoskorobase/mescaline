@@ -7,7 +7,7 @@
 //
 
 #import "FakeModel.h"
-#include "GlobalTypes.h"
+#import "GlobalTypes.h"
 
 static FakeModel* sharedManager = nil;
 
@@ -36,6 +36,7 @@ static FakeModel* sharedManager = nil;
 
 -(id)init {
     self = [super init];
+    
     return self;
 }
 
@@ -54,51 +55,55 @@ static FakeModel* sharedManager = nil;
 
 //int numRegions = 6;
 
+- (NSArray *)getRegionList
+{
+    
+    NSMutableArray* result = [[[NSMutableArray alloc] init] autorelease];
+      
+    for (int i = 0; i < 6; ++i) {
+        float xvalue = arc4random()%250;
+        float yvalue = arc4random()%250;
+         NSValue* point = [NSValue valueWithCGPoint:CGPointMake(xvalue,yvalue)];
+         [result addObject:point];
+    }
+        
+    return result;
+ 
 
--(RegionList)getRegionList
-{	
-	int nr = [self numRegions];
-	RegionList rs;
-	for (int i=0; i < nr; i++) {
-		float x = rand()/(float)RAND_MAX;
-		float y = rand()/(float)RAND_MAX;
-		float rad = rand()/(float)RAND_MAX;
-		rs.push_back(Mescaline::Region(x,y,(rad*100)+20));
-		
-	}
-	return rs;
 }
+    
+- (NSArray *)getPointList
+{
+    NSMutableArray* result = [[[NSMutableArray alloc] init] autorelease];
+    
+    for (int i = 0; i < 292; ++i) {
+        float xvalue = arc4random()%250;
+        float yvalue = arc4random()%250;
+        NSValue* point = [NSValue valueWithCGPoint:CGPointMake(xvalue,yvalue)];
+        [result addObject:point];
+    }
+    
+    return result;
+    
 
-
-
-- (PointList)getPointList:(int)numPoints
-{	
-	
-	PointList ps;
-	for (int i=0; i < numPoints; i++) {
-		
-		float x = rand()/(float)RAND_MAX;
-		float y = rand()/(float)RAND_MAX;
-		
-		ps.push_back(Mescaline::Point(x, y));
-	}
-	return ps;
 }
-
 
 - (void)getData {
-    
+
     if (sqlite3_open([[self dataFilePath] UTF8String], &database)
         != SQLITE_OK) {
         sqlite3_close(database);
         NSAssert(0, @"Failed to open database");
+        NSLog(@"Failed to open database");
+
     }
     NSString *query = @"SELECT sf.id, sf.url, u.id as uid, f.value FROM (SourceFile sf  join Unit u on u.sourceFile=sf.id)  join Feature f on u.id = f.unit where f.descriptor =3";
     sqlite3_stmt *statement;
-//    PointList ps;
 
     if (sqlite3_prepare_v2( database, [query UTF8String],
                            -1, &statement, nil) == SQLITE_OK) {
+        NSLog(@"database query fired");
+
         while (sqlite3_step(statement) == SQLITE_ROW) {
 
             //sqlite3_int64 row = sqlite3_column_int64(statement, 0);
@@ -108,7 +113,7 @@ static FakeModel* sharedManager = nil;
             //NSLog(@"s id = %i", row);
             //float x = rand()/(float)RAND_MAX;
             //float y = rand()/(float)RAND_MAX;
-            
+            NSLog(@"database record fetched");
   //          ps.push_back(Mescaline::Point(x, y));
 
            

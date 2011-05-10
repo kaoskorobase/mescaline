@@ -16,19 +16,17 @@
 	cairo_surface_t* m_cairoSurface;
 	cairo_t* m_cairoContext;
 	FakeModel *fmodel;
-@private
-//	RegionList rs;
-//	PointList ps;
-	BOOL drag;
-
 }
 
 //@property PointList ps;
+@property CGContextRef ctx;
 
 - (void)initCairo:(CGContextRef)ctx;
 - (void)destroyCairo;
 - (cairo_t*)getCairoContext;
-- (void)redraw:(cairo_t*)cr inRect:(CGRect)rect;
+- (void)redraw:(cairo_t*)cr :(RegionList)rs;
+- (void)drawSequencer;
+- (void)test;
 
 
 @end

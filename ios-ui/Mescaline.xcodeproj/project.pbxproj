@@ -10,6 +10,7 @@
 		19138F1F136EFF330067C45E /* libsqlite3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 19138F1E136EFF330067C45E /* libsqlite3.dylib */; };
 		19138F21136EFF970067C45E /* libsqlite3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 19138F20136EFF970067C45E /* libsqlite3.dylib */; };
 		19138F25136F0C760067C45E /* data.db in Resources */ = {isa = PBXBuildFile; fileRef = 19138F24136F0C760067C45E /* data.db */; };
+		1929DCF2137816530075A2F2 /* CGView.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1929DCF1137816530075A2F2 /* CGView.mm */; };
 		1D3623260D0F684500981E51 /* MescalineAppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1D3623250D0F684500981E51 /* MescalineAppDelegate.mm */; };
 		1D60589B0D05DD56006BFB54 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 29B97316FDCFA39411CA2CEA /* main.m */; };
 		1D60589F0D05DD5A006BFB54 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1D30AB110D05D00D00671497 /* Foundation.framework */; };
@@ -29,6 +30,8 @@
 		19138F20136EFF970067C45E /* libsqlite3.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libsqlite3.dylib; path = Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.1.sdk/usr/lib/libsqlite3.dylib; sourceTree = DEVELOPER_DIR; };
 		19138F24136F0C760067C45E /* data.db */ = {isa = PBXFileReference; lastKnownFileType = file; path = data.db; sourceTree = "<group>"; };
 		19138F26136F68700067C45E /* blob.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = blob.h; sourceTree = "<group>"; };
+		1929DCF0137816530075A2F2 /* CGView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CGView.h; sourceTree = "<group>"; };
+		1929DCF1137816530075A2F2 /* CGView.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = CGView.mm; sourceTree = "<group>"; };
 		1D30AB110D05D00D00671497 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		1D3623240D0F684500981E51 /* MescalineAppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MescalineAppDelegate.h; sourceTree = "<group>"; };
 		1D3623250D0F684500981E51 /* MescalineAppDelegate.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = MescalineAppDelegate.mm; sourceTree = "<group>"; };
@@ -76,6 +79,8 @@
 				1D3623250D0F684500981E51 /* MescalineAppDelegate.mm */,
 				28D7ACF60DDB3853001CB0EB /* MescalineViewController.h */,
 				28D7ACF70DDB3853001CB0EB /* MescalineViewController.mm */,
+				1929DCF0137816530075A2F2 /* CGView.h */,
+				1929DCF1137816530075A2F2 /* CGView.mm */,
 				53FEACD61343BA9600EDEC95 /* View.h */,
 				53FEACD71343BA9600EDEC95 /* View.m */,
 				998C9FEB1367639500537739 /* FakeModel.h */,
@@ -207,6 +212,7 @@
 				28D7ACF80DDB3853001CB0EB /* MescalineViewController.mm in Sources */,
 				53FEACD81343BA9600EDEC95 /* View.m in Sources */,
 				998C9FED1367639500537739 /* FakeModel.mm in Sources */,
+				1929DCF2137816530075A2F2 /* CGView.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

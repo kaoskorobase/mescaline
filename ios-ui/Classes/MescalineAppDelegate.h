@@ -7,21 +7,20 @@
 //
 
 #import <UIKit/UIKit.h>
-#import "FakeModel.h"
 
 @class MescalineViewController;
 
 @interface MescalineAppDelegate : NSObject <UIApplicationDelegate> {
     UIWindow *window;
     MescalineViewController *viewController;
-	FakeModel *fmodel;
+
 }
 
 
 @property (nonatomic, retain) IBOutlet UIWindow *window;
 @property (nonatomic, retain) IBOutlet MescalineViewController *viewController;
 
--(FakeModel *)model;
+
 
 @end
 
