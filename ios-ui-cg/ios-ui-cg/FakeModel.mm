@@ -57,29 +57,36 @@ static FakeModel* sharedManager = nil;
 
 - (NSArray *)getRegionList
 {
-    
+    #define ARC4RANDOM_MAX 0x100000000LL
+
     NSMutableArray* result = [[[NSMutableArray alloc] init] autorelease];
       
     for (int i = 0; i < 6; ++i) {
-        float xvalue = arc4random()%250;
-        float yvalue = arc4random()%250;
-         NSValue* point = [NSValue valueWithCGPoint:CGPointMake(xvalue,yvalue)];
-         [result addObject:point];
+        float xvalue = floorf(((double)arc4random() / ARC4RANDOM_MAX) * 100.0f) / 100;
+        float yvalue = floorf(((double)arc4random() / ARC4RANDOM_MAX) * 100.0f) / 100;
+        CGPoint p = {xvalue,yvalue};
+        NSValue* point = [NSValue valueWithCGPoint:p];
+        [result addObject:point];
     }
         
     return result;
  
 
 }
+
+
     
 - (NSArray *)getPointList
 {
+    #define ARC4RANDOM_MAX 0x100000000LL
+
     NSMutableArray* result = [[[NSMutableArray alloc] init] autorelease];
     
     for (int i = 0; i < 292; ++i) {
-        float xvalue = arc4random()%250;
-        float yvalue = arc4random()%250;
-        NSValue* point = [NSValue valueWithCGPoint:CGPointMake(xvalue,yvalue)];
+        float xvalue = floorf(((double)arc4random() / ARC4RANDOM_MAX) * 100.0f) / 100;
+        float yvalue = floorf(((double)arc4random() / ARC4RANDOM_MAX) * 100.0f) / 100;
+        CGPoint p = {xvalue,yvalue};
+        NSValue* point = [NSValue valueWithCGPoint:p];
         [result addObject:point];
     }
     

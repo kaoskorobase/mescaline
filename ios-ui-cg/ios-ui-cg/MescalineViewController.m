@@ -27,13 +27,13 @@
 - (NSArray *)getPoints:(FeatureSpace *)requestor
 {
     FakeModel* model =  [FakeModel sharedManager];
-    NSLog(@"%@",[model getPointList]);
+//    NSLog(@"%@",[model getPointList]);
     return [model getPointList];
 }
 - (NSArray *)getRegions:(FeatureSpace *)requestor
 {
     FakeModel* model =  [FakeModel sharedManager];
-    NSLog(@"%@",[model getRegionList]);
+//    NSLog(@"%@",[model getRegionList]);
     return [model getRegionList];
 }
 
