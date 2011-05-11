@@ -27,8 +27,16 @@
 }
 - (void)drawUnitatPoint:(CGPoint)p withRadius:(CGFloat)radius inContext:(CGContextRef)context
 {
+    
     UIGraphicsPushContext(context);
     CGContextBeginPath(context);
+    
+    // Define colors
+    CGColorRef red = [[UIColor redColor] CGColor];
+    CGColorRef blue = [[UIColor blueColor] CGColor];
+    CGColorRef green = [[UIColor greenColor] CGColor];
+    CGColorRef yellow = [[UIColor yellowColor] CGColor];
+    
     CGContextAddArc(context, p.x * self.bounds.size.width, p.y * self.bounds.size.height, radius, 0, 2*M_PI, YES);
     CGContextStrokePath(context);
     UIGraphicsPopContext();
