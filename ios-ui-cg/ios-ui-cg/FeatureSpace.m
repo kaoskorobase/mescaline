@@ -7,8 +7,7 @@
 //
 
 #import "FeatureSpace.h"
-#import "GlobalTypes.h"
-
+#import "Region.h"
 
 
 @implementation FeatureSpace
@@ -30,38 +29,64 @@
     
     UIGraphicsPushContext(context);
     CGContextBeginPath(context);
+
     
-    // Define colors
-    CGColorRef red = [[UIColor redColor] CGColor];
-    CGColorRef blue = [[UIColor blueColor] CGColor];
-    CGColorRef green = [[UIColor greenColor] CGColor];
-    CGColorRef yellow = [[UIColor yellowColor] CGColor];
+    
+    //    // Define colors
+//    CGColorRef red = [[UIColor redColor] CGColor];
+//    CGColorRef blue = [[UIColor blueColor] CGColor];
+//    CGColorRef green = [[UIColor greenColor] CGColor];
+//    CGColorRef yellow = [[UIColor yellowColor] CGColor];
     
     CGContextAddArc(context, p.x * self.bounds.size.width, p.y * self.bounds.size.height, radius, 0, 2*M_PI, YES);
     CGContextStrokePath(context);
     UIGraphicsPopContext();
 }
 
+
+- (void)drawRegionatPoint:(CGPoint)p withRadius:(CGFloat)radius inContext:(CGContextRef)context
+{
+    
+    UIGraphicsPushContext(context);
+    CGContextBeginPath(context);
+    
+    
+    
+    //    // Define colors
+    CGColorRef red = [[UIColor redColor] CGColor];
+        CGColorRef blue = [[UIColor blueColor] CGColor];
+        CGColorRef green = [[UIColor greenColor] CGColor];
+        CGColorRef yellow = [[UIColor yellowColor] CGColor];
+    //CGContextSetRGBFillColor(context, 0.2, 0.5, 1.0, 1);
+    CGContextSetFillColorWithColor(context,green);
+    CGContextAddArc(context, p.x * self.bounds.size.width, p.y * self.bounds.size.height, radius, 0, 2*M_PI, YES);
+    //CGContextStrokePath(context);
+    CGContextFillPath(context);
+    CGContextStrokePath(context);
+    UIGraphicsPopContext();
+}
+
+
 - (void)drawRegions:(NSArray *)regionlist inContext:(CGContextRef)context
 {
     NSArray *regions = [self.delegate getRegions:self];
     NSEnumerator *e = [regions objectEnumerator];
-    id object;
+    Region * object;
     while ((object = [e nextObject])) {
-        CGPoint p = [object CGPointValue];
-        [self drawUnitatPoint:p withRadius:70.5 inContext:context];
+        CGPoint p = [object.location CGPointValue];
+        [self drawRegionatPoint:p withRadius:object.rad inContext:context];
     }
-}
+}   
 
 - (void)drawPoints:(NSArray *)pointlist inContext:(CGContextRef)context
 {
     NSArray *points = [self.delegate getPoints:self];
     
     NSEnumerator *e = [points objectEnumerator];
-    id object;
+    Region * object;
     while ((object = [e nextObject])) {
-        CGPoint p = [object CGPointValue];
-        [self drawUnitatPoint:p withRadius:3.5 inContext:context];
+        CGPoint p = [object.location CGPointValue];
+        [self drawUnitatPoint:p withRadius:object.rad inContext:context];
     }
 }
 

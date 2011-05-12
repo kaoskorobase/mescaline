@@ -7,7 +7,7 @@
 //
 
 #import "FakeModel.h"
-#import "GlobalTypes.h"
+#import "Region.h"
 
 static FakeModel* sharedManager = nil;
 
@@ -65,8 +65,13 @@ static FakeModel* sharedManager = nil;
         float xvalue = floorf(((double)arc4random() / ARC4RANDOM_MAX) * 100.0f) / 100;
         float yvalue = floorf(((double)arc4random() / ARC4RANDOM_MAX) * 100.0f) / 100;
         CGPoint p = {xvalue,yvalue};
+        
         NSValue* point = [NSValue valueWithCGPoint:p];
-        [result addObject:point];
+        Region *r = [[Region new] autorelease];
+        r.rad=80.0;
+        r.location = point;
+
+        [result addObject:r];
     }
         
     return result;
@@ -87,12 +92,12 @@ static FakeModel* sharedManager = nil;
         float yvalue = floorf(((double)arc4random() / ARC4RANDOM_MAX) * 100.0f) / 100;
         CGPoint p = {xvalue,yvalue};
         NSValue* point = [NSValue valueWithCGPoint:p];
-        [result addObject:point];
+        Region *r = [[Region new] autorelease];
+        r.rad=4.0;
+        r.location = point;
+        [result addObject:r];
     }
-    
     return result;
-    
-
 }
 
 - (void)getData {
