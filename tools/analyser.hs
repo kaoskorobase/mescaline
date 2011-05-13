@@ -8,7 +8,7 @@ import qualified Data.ByteString.Lazy as B
 import qualified Data.Text as Text
 import           Mescaline.Analysis (analyse)
 import           Mescaline.Analysis.JSON ()
-import           Mescaline.Analysis.SonicAnnotator (analyser)
+import           Mescaline.Analysis.SonicAnnotator (defaultAnalyser)
 import           System.Environment (getArgs)
 import           System.Exit (ExitCode(..), exitWith)
 
@@ -26,7 +26,7 @@ analyseit b = do
         A.Done _ value -> do
             case fromJSON value of
                 J.Error e -> return $ mkError $ "Invalid input: " ++ e
-                J.Success params -> E.catch (J.toJSON `fmap` analyse analyser (path params))
+                J.Success params -> E.catch (J.toJSON `fmap` analyse defaultAnalyser (path params))
                                         $ \(e :: SomeException) -> return $ mkError (show e)
 
 main :: IO ()

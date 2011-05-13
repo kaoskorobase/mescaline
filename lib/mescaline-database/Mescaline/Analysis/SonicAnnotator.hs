@@ -1,6 +1,8 @@
 module Mescaline.Analysis.SonicAnnotator (
     SonicAnnotator
+  , Segmentation(..)
   , analyser
+  , defaultAnalyser
 ) where
 
 import           Control.Concurrent
@@ -108,17 +110,28 @@ transposeFeatures = map (\xs -> (fst (head xs), map snd xs)) . List.transpose
 -- computeMeans :: S.Segmentation Double (Maybe (V.Vector Double)) -> S.Segmentation Double Double
 -- computeMeans =
 
-data SonicAnnotator = SonicAnnotator
+data Segmentation =
+    None
+  | Fixed { windowSize :: Double }
+  | Onset { threshold :: Double }
 
-analyser :: SonicAnnotator
+data SonicAnnotator = SonicAnnotator Segmentation
+
+analyser :: Segmentation -> SonicAnnotator
 analyser = SonicAnnotator
 
+defaultAnalyser :: SonicAnnotator
+defaultAnalyser = analyser (Onset { threshold = 0.5 })
+
 instance Analyser SonicAnnotator where
-    analyse _ file = do
+    analyse (SonicAnnotator segType) file = do
         analysis <- SA.analyse "features.n3" file
+        sf <- newSoundFile file
         -- print $ S.labels $ fmap (length . fromJust) (fromJust (Map.lookup "Coefficients" analysis))
-        let Just segmentation = Map.lookup "Note Onsets" analysis
-            features = map (extractFeature analysis segmentation) transforms
+        let seg = case segType of
+                    Fixed w -> S.fromEvents 0 $ map (\t -> (t, undefined)) $ take (truncate (fileDuration sf / w + 1)) $ iterate (+w) 0
+                    _ -> analysis Map.! "Note Onsets"
+            features = map (extractFeature analysis seg) transforms
         -- fs <- mapM (extractFeatures file seg) transforms
         -- print (length (S.toList segmentation))
         -- print (map length features)
