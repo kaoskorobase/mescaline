@@ -2,6 +2,7 @@
 module Mescaline.Analysis.Types (
     SoundFile(..)
   , fileDuration
+  , newSoundFile
   , Unit(..)
   , getUnit
   , Descriptor(..)
