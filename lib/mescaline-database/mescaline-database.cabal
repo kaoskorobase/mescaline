@@ -26,7 +26,6 @@ library
       , binary
       , bytestring
       , bytestring-lexing >= 0.2
-      , Cabal >= 1.6
       , containers
       , Control-Engine >= 1.0
       , curl
@@ -47,6 +46,7 @@ library
       , regex-compat >= 0.92
       , SHA2 >= 0.2.5
       , statistics >= 0.8
+      , temporary
       , text
       , transformers
       , vector >= 0.5

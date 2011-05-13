@@ -9,10 +9,10 @@ import           Control.Monad.Trans (MonadIO, liftIO)
 import           Data.Enumerator (($$), (>>==))
 import qualified Data.Enumerator as E
 import           Data.Char
-import qualified Distribution.Simple.Utils  as Cabal
 import           System.Directory
 import           System.FilePath
 import			 System.IO (Handle)
+import qualified System.IO.Temp as Temp
 
 readMaybe :: (Read a) => String -> Maybe a
 readMaybe s = case reads s of
@@ -47,4 +47,4 @@ findFiles exts paths = E.run_ (findFilesEnum exts paths $$ E.consume)
 withTempFile :: String -> (FilePath -> Handle -> IO a) -> IO a
 withTempFile s f = do
     tmpDir <- getTemporaryDirectory
-    Cabal.withTempFile tmpDir s f
+    Temp.withTempFile tmpDir s f
