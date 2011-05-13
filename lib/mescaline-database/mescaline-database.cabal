@@ -54,7 +54,6 @@ library
         Mescaline.Database
         Mescaline.Database.Entity
         Mescaline.Database.Hash
-        -- Mescaline.Database.Process
         Mescaline.Database.Vector
         Mescaline.Util
         Sound.File.Sndfile.Util
