@@ -51,7 +51,7 @@ cmd_dump dbFile pattern features = do
         dump uid (u, fs) =
             putStrLn
                 $ List.intercalate ","
-                $ [show (fromIntegral uid :: Int), show (DB.unitOnset u), show (DB.unitDuration u)]
+                $ [show (DB.hashUnitId uid), show (DB.unitOnset u), show (DB.unitDuration u)]
                     ++ concatMap (map show.V.toList.DB.toVector.DB.featureValue) fs
 
 cmd_insert :: FilePath -> String -> Int -> FilePath -> IO ()

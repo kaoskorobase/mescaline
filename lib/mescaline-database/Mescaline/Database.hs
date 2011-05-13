@@ -2,6 +2,7 @@
 module Mescaline.Database (
     module Mescaline.Database.Entity
   , module Mescaline.Database.Vector
+  , hashUnitId
   , withDatabase
   , descriptorMap
   , getDescriptor
@@ -19,10 +20,12 @@ import           Control.Monad as M
 import           Control.Monad.IO.Control (MonadControlIO)
 import           Control.Monad.Trans (MonadIO, lift)
 import qualified Data.Vector.Generic as V
+import           Database.Persist.Base (PersistValue(..))
 import           Database.Persist.Sqlite
 import           Data.Enumerator (($$))
 import qualified Data.Enumerator as E
 import qualified Data.Enumerator.List as EL
+import           Data.Int (Int64)
 import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -40,6 +43,9 @@ import           Numeric.LinearAlgebra as H
 #endif
 import           Text.Regex
 import           Prelude hiding (and)
+
+hashUnitId :: UnitId -> Int64
+hashUnitId u = let PersistInt64 i = DB.toPersistValue u in i
 
 withDatabase :: MonadControlIO m => FilePath -> SqlPersist m a -> m a
 withDatabase path action = withSqliteConn (Text.pack path) (runSqlConn (runMigration Entity.migrateAll >> action))
