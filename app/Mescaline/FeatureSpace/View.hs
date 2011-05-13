@@ -243,7 +243,7 @@ addUnit parent state table unit = do
         readMVar (playUnits state) >>= flip when (sendTo (synth state) $ Synth.PlayUnit (-1) (Synth.defaultSynth unit))
     Qt.setAcceptsHoverEvents item True
 
-    Hash.insert table (Unit.id unit) (Qt.objectCast item)
+    Hash.insert table (fromIntegral (Unit.id unit)) (Qt.objectCast item)
 
 process :: forall o m b .
            (Control.Monad.Trans.MonadIO m) =>

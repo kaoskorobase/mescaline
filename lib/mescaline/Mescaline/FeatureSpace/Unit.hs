@@ -15,18 +15,20 @@ module Mescaline.FeatureSpace.Unit (
 ) where
 
 import           Control.Monad.IO.Class (MonadIO)
+import           Data.Int (Int64)
 import qualified Data.Map as Map
 import           Data.Vector (Vector)
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Storable as SV
 import qualified Database.Persist as DB
+import qualified Database.Persist.Base as DB
 import qualified Mescaline.Database as DB
 import           Mescaline.Time (Duration, Time)
 import           Prelude hiding (id)
 
 data Unit = Unit {
     sourceFile :: !DB.SourceFile
-  , id         :: !DB.UnitId
+  , id         :: !Int64
   , unit       :: !DB.Unit
   , features   :: !(Vector DB.Feature)
   } deriving (Show)
@@ -36,8 +38,10 @@ instance Eq (Unit) where
     (==) a b = id a == id b
 
 cons :: DB.SourceFileMap -> DB.UnitId -> DB.Unit -> [DB.Feature] -> Unit
-cons sfs i u fs = Unit sf i u (V.fromList fs)
-    where Just sf = Map.lookup (DB.unitSourceFile u) sfs
+cons sfs i u fs = Unit sf i' u (V.fromList fs)
+    where
+        DB.PersistInt64 i' = DB.toPersistValue i
+        Just sf = Map.lookup (DB.unitSourceFile u) sfs
 
 -- {-# INLINE id #-}
 -- id :: Unit -> Unique.Id
