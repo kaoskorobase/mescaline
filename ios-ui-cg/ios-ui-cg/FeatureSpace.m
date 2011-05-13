@@ -19,6 +19,12 @@
     self = [super initWithFrame:frame];
     if (self) {
         // Initialization code
+//        CGColorRef red = [[UIColor redColor] CGColor];
+//        CGColorRef blue = [[UIColor blueColor] CGColor];
+//        CGColorRef green = [[UIColor greenColor] CGColor];
+//        CGColorRef yellow = [[UIColor yellowColor] CGColor];
+        //    // Define colors
+
     }
    
     return self;
@@ -44,7 +50,7 @@
 }
 
 
-- (void)drawRegionatPoint:(CGPoint)p withRadius:(CGFloat)radius inContext:(CGContextRef)context
+- (void)drawRegionatPoint:(CGPoint)p withRadius:(CGFloat)radius andColor:(UIColor*)color inContext:(CGContextRef)context
 {
     
     UIGraphicsPushContext(context);
@@ -53,12 +59,12 @@
     
     
     //    // Define colors
-    CGColorRef red = [[UIColor redColor] CGColor];
-        CGColorRef blue = [[UIColor blueColor] CGColor];
-        CGColorRef green = [[UIColor greenColor] CGColor];
-        CGColorRef yellow = [[UIColor yellowColor] CGColor];
+    CGColorRef cr = [color CGColor];
+//        CGColorRef blue = [[UIColor blueColor] CGColor];
+//        CGColorRef green = [[UIColor greenColor] CGColor];
+//        CGColorRef yellow = [[UIColor yellowColor] CGColor];
     //CGContextSetRGBFillColor(context, 0.2, 0.5, 1.0, 1);
-    CGContextSetFillColorWithColor(context,green);
+    CGContextSetFillColorWithColor(context,cr);
     CGContextAddArc(context, p.x * self.bounds.size.width, p.y * self.bounds.size.height, radius, 0, 2*M_PI, YES);
     //CGContextStrokePath(context);
     CGContextFillPath(context);
@@ -74,7 +80,8 @@
     Region * object;
     while ((object = [e nextObject])) {
         CGPoint p = [object.location CGPointValue];
-        [self drawRegionatPoint:p withRadius:object.rad inContext:context];
+        UIColor* color = object.color;
+        [self drawRegionatPoint:p withRadius:object.rad andColor:color inContext:context];
     }
 }   
 

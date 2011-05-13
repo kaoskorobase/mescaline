@@ -40,7 +40,17 @@ static FakeModel* sharedManager = nil;
     return self;
 }
 
-
+- (NSArray*) regionPositions{
+    NSMutableArray* arr;
+    for (int i = 0; i < 6; ++i) {
+        double xvalue = (200 + 100 * cos(M_PI * ((double)i / (double)6)))/300;
+        double yvalue = (200 + 100 * sin(M_PI * ((double)i / (double)6)))/300;
+        CGPoint p = {xvalue,yvalue};
+        NSValue* point = [NSValue valueWithCGPoint:p];
+        [arr addObject:point];
+    }
+    return arr;
+}
 - (int)numRegions{
     return 6;
 }
@@ -60,16 +70,21 @@ static FakeModel* sharedManager = nil;
     #define ARC4RANDOM_MAX 0x100000000LL
 
     NSMutableArray* result = [[[NSMutableArray alloc] init] autorelease];
-      
+    NSArray* colors = [NSArray arrayWithObjects:[UIColor blackColor], [UIColor redColor], [UIColor greenColor],[UIColor yellowColor],[UIColor blueColor],[UIColor grayColor],nil];
+
     for (int i = 0; i < 6; ++i) {
-        float xvalue = floorf(((double)arc4random() / ARC4RANDOM_MAX) * 100.0f) / 100;
-        float yvalue = floorf(((double)arc4random() / ARC4RANDOM_MAX) * 100.0f) / 100;
+        Region *r = [[Region new] autorelease];
+        r.rad=80.0;
+        double xvalue = (200 + r.rad * cos(M_PI * ((double)i / (double)6)))/280;
+        double yvalue = (200 + r.rad * sin(M_PI * ((double)i / (double)6)))/280;
+//        float xvalue = floorf(((double)arc4random() / ARC4RANDOM_MAX) * 100.0f) / 100;
+//        float yvalue = floorf(((double)arc4random() / ARC4RANDOM_MAX) * 100.0f) / 100;
         CGPoint p = {xvalue,yvalue};
         
         NSValue* point = [NSValue valueWithCGPoint:p];
-        Region *r = [[Region new] autorelease];
-        r.rad=80.0;
+
         r.location = point;
+        r.color = [colors objectAtIndex:i];
 
         [result addObject:r];
     }
@@ -86,7 +101,7 @@ static FakeModel* sharedManager = nil;
     #define ARC4RANDOM_MAX 0x100000000LL
 
     NSMutableArray* result = [[[NSMutableArray alloc] init] autorelease];
-    
+
     for (int i = 0; i < 292; ++i) {
         float xvalue = floorf(((double)arc4random() / ARC4RANDOM_MAX) * 100.0f) / 100;
         float yvalue = floorf(((double)arc4random() / ARC4RANDOM_MAX) * 100.0f) / 100;
@@ -95,6 +110,7 @@ static FakeModel* sharedManager = nil;
         Region *r = [[Region new] autorelease];
         r.rad=4.0;
         r.location = point;
+        r.color = [UIColor redColor];
         [result addObject:r];
     }
     return result;

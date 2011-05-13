@@ -13,6 +13,7 @@
 
 @synthesize location;
 @synthesize rad;
+@synthesize color;
 
 - (id)init
 {

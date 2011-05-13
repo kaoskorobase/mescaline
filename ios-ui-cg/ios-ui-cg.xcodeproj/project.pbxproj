@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		192341731379A0CD00A31096 /* MescalineViewController.xib in Resources */ = {isa = PBXBuildFile; fileRef = 192341721379A0CD00A31096 /* MescalineViewController.xib */; };
+		1952BEAE137D344B009C6AF7 /* mesc-bg.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 1952BEAD137D344B009C6AF7 /* mesc-bg.jpg */; };
 		199246DE137C10A400BB6CAE /* Region.m in Sources */ = {isa = PBXBuildFile; fileRef = 199246DD137C10A300BB6CAE /* Region.m */; };
 		19A5088C1379393D0060E5A9 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 19A5088B1379393D0060E5A9 /* UIKit.framework */; };
 		19A5088E1379393D0060E5A9 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 19A5088D1379393D0060E5A9 /* Foundation.framework */; };
@@ -50,6 +51,7 @@
 
 /* Begin PBXFileReference section */
 		192341721379A0CD00A31096 /* MescalineViewController.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = MescalineViewController.xib; sourceTree = "<group>"; };
+		1952BEAD137D344B009C6AF7 /* mesc-bg.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "mesc-bg.jpg"; sourceTree = "<group>"; };
 		199246DC137C10A300BB6CAE /* Region.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Region.h; sourceTree = "<group>"; };
 		199246DD137C10A300BB6CAE /* Region.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Region.m; sourceTree = "<group>"; };
 		19A508871379393D0060E5A9 /* ios-ui-cg.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ios-ui-cg.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -122,7 +124,6 @@
 			children = (
 				19A508F013797B4A0060E5A9 /* libsqlite3.dylib */,
 				19A508ED137974960060E5A9 /* Resources */,
-				19A508CF1379398B0060E5A9 /* Default.png */,
 				19A508931379393D0060E5A9 /* ios-ui-cg */,
 				19A508BC1379393E0060E5A9 /* ios-ui-cgTests */,
 				19A5088A1379393D0060E5A9 /* Frameworks */,
@@ -229,7 +230,9 @@
 		19A508ED137974960060E5A9 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				19A508CF1379398B0060E5A9 /* Default.png */,
 				19A508DD13793FE80060E5A9 /* data.db */,
+				1952BEAD137D344B009C6AF7 /* mesc-bg.jpg */,
 			);
 			name = Resources;
 			sourceTree = "<group>";
@@ -311,6 +314,7 @@
 				19A508D513793B310060E5A9 /* MescalineStartViewController.xib in Resources */,
 				19A508DF13793FE80060E5A9 /* data.db in Resources */,
 				192341731379A0CD00A31096 /* MescalineViewController.xib in Resources */,
+				1952BEAE137D344B009C6AF7 /* mesc-bg.jpg in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -417,7 +421,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "iPhone Developer: wernfried lackner (DRUPDDXMGZ)";
+				"CODE_SIGN_IDENTITY[sdk=*]" = "iPhone Developer";
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = DEBUG;
@@ -426,6 +431,7 @@
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 4.2;
+				PROVISIONING_PROFILE = "9E15211B-DAC6-4B3C-BB3A-D387A5C334FF";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -435,13 +441,16 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "iPhone Developer: wernfried lackner (DRUPDDXMGZ)";
+				"CODE_SIGN_IDENTITY[sdk=*]" = "iPhone Developer: wernfried lackner (DRUPDDXMGZ)";
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_VERSION = com.apple.compilers.llvmgcc42;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 4.2;
 				OTHER_CFLAGS = "-DNS_BLOCK_ASSERTIONS=1";
+				PROVISIONING_PROFILE = "9E15211B-DAC6-4B3C-BB3A-D387A5C334FF";
+				"PROVISIONING_PROFILE[sdk=*]" = "9E15211B-DAC6-4B3C-BB3A-D387A5C334FF";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

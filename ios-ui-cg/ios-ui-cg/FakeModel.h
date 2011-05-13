@@ -14,8 +14,8 @@
 
 @interface FakeModel : NSObject {
     sqlite3    *database;
-//@private
-//	int numRegions; 
+@private
+	NSArray* regionPositions; 
 }
 //@property int numRegions;
 
