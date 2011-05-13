@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables #-}
 module Mescaline.Analysis.Types (
     SoundFile(..)
+  , fileDuration
   , Unit(..)
   , getUnit
   , Descriptor(..)
@@ -37,6 +38,9 @@ data SoundFile = SoundFile {
   , sampleRate    :: Double
   , frames        :: Integer
   } deriving (Eq, Show)
+
+fileDuration :: SoundFile -> Double
+fileDuration f = fromIntegral (frames f) / sampleRate f
 
 -- | Create a new SourceFile from a locally available sound file.
 newSoundFile :: FilePath -> IO SoundFile
