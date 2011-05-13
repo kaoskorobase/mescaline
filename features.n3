@@ -41,7 +41,7 @@
     ] ;
     vamp:parameter_binding [
         vamp:parameter [ vamp:identifier "wantc0" ] ;
-        vamp:value "1"^^xsd:float ;
+        vamp:value "0"^^xsd:float ;
     ] ;
     vamp:output <http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-mfcc_output_coefficients> .
 
