@@ -1,12 +1,12 @@
 {-# LANGUAGE RankNTypes, TypeFamilies, GeneralizedNewtypeDeriving #-}
 module Mescaline.Database.Entity where
-import qualified Control.Applicative
 import qualified Control.Monad.IO.Control
 import qualified Data.Either
 import qualified Data.Int
 import qualified Database.Persist.Base
 import qualified Database.Persist.GenericSql
 import qualified Database.Persist.GenericSql.Raw
+import qualified Database.Persist.TH.Library
 import qualified GHC.Base
 import qualified GHC.Classes
 import qualified GHC.Err
@@ -174,7 +174,7 @@ instance Database.Persist.Base.PersistEntity SourceFile
                              x_6,
                              x_7,
                              x_8,
-                             x_9] = ((((Data.Either.Right SourceFile Control.Applicative.<*> Database.Persist.Base.fromPersistValue x_5) Control.Applicative.<*> Database.Persist.Base.fromPersistValue x_6) Control.Applicative.<*> Database.Persist.Base.fromPersistValue x_7) Control.Applicative.<*> Database.Persist.Base.fromPersistValue x_8) Control.Applicative.<*> Database.Persist.Base.fromPersistValue x_9
+                             x_9] = ((((Data.Either.Right SourceFile `Database.Persist.TH.Library.apE` Database.Persist.Base.fromPersistValue x_5) `Database.Persist.TH.Library.apE` Database.Persist.Base.fromPersistValue x_6) `Database.Persist.TH.Library.apE` Database.Persist.Base.fromPersistValue x_7) `Database.Persist.TH.Library.apE` Database.Persist.Base.fromPersistValue x_8) `Database.Persist.TH.Library.apE` Database.Persist.Base.fromPersistValue x_9
           fromPersistValues _ = Data.Either.Left "Invalid fromPersistValues input"
           halfDefined = SourceFile undefined undefined undefined undefined undefined
           toPersistKey = SourceFileId
@@ -262,7 +262,7 @@ instance Database.Persist.Base.PersistEntity Unit
                                          Database.Persist.Base.SomePersistField x_21]
           fromPersistValues [x_22,
                              x_23,
-                             x_24] = ((Data.Either.Right Unit Control.Applicative.<*> Database.Persist.Base.fromPersistValue x_22) Control.Applicative.<*> Database.Persist.Base.fromPersistValue x_23) Control.Applicative.<*> Database.Persist.Base.fromPersistValue x_24
+                             x_24] = ((Data.Either.Right Unit `Database.Persist.TH.Library.apE` Database.Persist.Base.fromPersistValue x_22) `Database.Persist.TH.Library.apE` Database.Persist.Base.fromPersistValue x_23) `Database.Persist.TH.Library.apE` Database.Persist.Base.fromPersistValue x_24
           fromPersistValues _ = Data.Either.Left "Invalid fromPersistValues input"
           halfDefined = Unit undefined undefined undefined
           toPersistKey = UnitId
@@ -349,7 +349,7 @@ instance Database.Persist.Base.PersistEntity Descriptor
                                       x_31) = [Database.Persist.Base.SomePersistField x_30,
                                                Database.Persist.Base.SomePersistField x_31]
           fromPersistValues [x_32,
-                             x_33] = (Data.Either.Right Descriptor Control.Applicative.<*> Database.Persist.Base.fromPersistValue x_32) Control.Applicative.<*> Database.Persist.Base.fromPersistValue x_33
+                             x_33] = (Data.Either.Right Descriptor `Database.Persist.TH.Library.apE` Database.Persist.Base.fromPersistValue x_32) `Database.Persist.TH.Library.apE` Database.Persist.Base.fromPersistValue x_33
           fromPersistValues _ = Data.Either.Left "Invalid fromPersistValues input"
           halfDefined = Descriptor undefined undefined
           toPersistKey = DescriptorId
@@ -498,7 +498,7 @@ instance Database.Persist.Base.PersistEntity Feature
                                             Database.Persist.Base.SomePersistField x_41]
           fromPersistValues [x_42,
                              x_43,
-                             x_44] = ((Data.Either.Right Feature Control.Applicative.<*> Database.Persist.Base.fromPersistValue x_42) Control.Applicative.<*> Database.Persist.Base.fromPersistValue x_43) Control.Applicative.<*> Database.Persist.Base.fromPersistValue x_44
+                             x_44] = ((Data.Either.Right Feature `Database.Persist.TH.Library.apE` Database.Persist.Base.fromPersistValue x_42) `Database.Persist.TH.Library.apE` Database.Persist.Base.fromPersistValue x_43) `Database.Persist.TH.Library.apE` Database.Persist.Base.fromPersistValue x_44
           fromPersistValues _ = Data.Either.Left "Invalid fromPersistValues input"
           halfDefined = Feature undefined undefined undefined
           toPersistKey = FeatureId
