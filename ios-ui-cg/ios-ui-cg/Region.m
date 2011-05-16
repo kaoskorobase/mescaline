@@ -14,6 +14,7 @@
 @synthesize location;
 @synthesize rad;
 @synthesize color;
+@synthesize touched;
 
 - (id)init
 {

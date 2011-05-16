@@ -8,7 +8,7 @@
 
 #import "MescalineViewController.h"
 #import "FakeModel.h"
-
+#import "Region.h"
 
 @implementation MescalineViewController
 
@@ -44,37 +44,90 @@
 	int height = bounds.size.height;
 	BOOL ret;
     FakeModel* model =  [FakeModel sharedManager];
-	NSArray *regionlist = [model getRegionList];
+	NSArray *regionlist = model.regions;
     NSEnumerator *e = [regionlist objectEnumerator];
-    id object;
+    Region * object;
     while ((object = [e nextObject])) {
-        CGPoint p = [object CGPointValue];
-        double dist = sqrt(pow((p.x*height - currentPosition.x),2)  + pow((p.y*width - currentPosition.y),2));
+        CGPoint p = [object.location CGPointValue];
+        double dist = sqrt(pow((p.x*width - currentPosition.x),2)  + pow((p.y*height - currentPosition.y),2));
+            if (dist<=object.rad) {
+        		NSLog(@"%s\t%f\t%f","over circle, setting region to 1",p.x*height,currentPosition.x);
+                //NSLog(@"over circle");
+                object.touched = YES;
+        			ret = YES;
+        //			regionsArray.at(i) = 1;
+        			break;
+        		} else {
+        			//NSLog(@"%s\t%d\t%f","NOT over circle number:",i,dist);
+        //			regionsArray.at(i) = 0;
+                     NSLog(@"not over circle");
+                    object.touched = NO;
+        			ret = NO;
+         }
 
     }
-
-//	for (int i = 0; i < [regionlist count]; i++){
-//		double dist = sqrt(pow((regionlist[i].x()*height - currentPosition.x),2)  + pow((regionlist[i].y()*width - currentPosition.y),2));
-//		if (dist<=regionlist[i].size()) {
-//			NSLog(@"%s\t%f\t%f","over circle, setting region to 1",regionlist[i].x()*height,currentPosition.x);
-//			ret = YES;
-//			regionsArray.at(i) = 1;
-//			break;
-//		} else {
-//			//NSLog(@"%s\t%d\t%f","NOT over circle number:",i,dist);
-//			regionsArray.at(i) = 0;
-//			ret = NO;
-//		}
-//        
-//	}
-//	return ret;
-    return YES;
+	return ret;
 }
 
 
 
+- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event{
+	//NSUInteger numTaps = [[touches anyObject] tapCount];
+	NSUInteger numTouches = [touches count];
+    //[self updateLabelsFromTouches:touches];
+	
+    //NSLog(@"%s\t%d","number of touches:",numTouches);
+	UITouch *touch = [touches anyObject];
+	CGPoint startPoint = [touch locationInView:self.view];
+	if ([self checkIfOverRegion:(startPoint)]){
+		NSLog(@"i start drawing");
+		drag = YES;
+	} else {
+		drag = NO;
+	}
+    
+	
+}
 
+- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event{
+    FakeModel* model =  [FakeModel sharedManager];
+	NSArray *regionlist = model.regions;
+	UITouch *touch = [touches anyObject];
+    //    id cr = [self.view getCairoContext];
+    CGRect bounds = [self.view bounds];
+	int width = bounds.size.width;
+	int height = bounds.size.height;
+    CGPoint currentPosition = [touch locationInView:self.view];
+    float scaledx = currentPosition.x / width;
+    float scaledy = currentPosition.y / height;
 
+	if (drag) {		
+        NSEnumerator *e = [regionlist objectEnumerator];
+        Region * object;
+        while ((object = [e nextObject])) {
+            if (object.touched){
+                CGPoint p = {scaledx,scaledy};
+                NSValue* point = [NSValue valueWithCGPoint:p];
+                object.location = point;
+            }
+        }
+	    //        NSLog(@"%@",[self.view getCairoContext]);
+        //        [self.view drawSequencer];
+        [self.view setNeedsDisplay];
+	}
+}
+
+- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event{
+    FakeModel* model =  [FakeModel sharedManager];
+    
+	NSArray *regionlist = model.regions;
+
+    NSEnumerator *e = [regionlist objectEnumerator];
+    Region * object;
+    while ((object = [e nextObject])) {
+        object.touched = NO;
+    }
+}
 
 // Override to allow orientations other than the default portrait orientation.
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation {

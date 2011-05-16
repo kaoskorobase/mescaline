@@ -15,10 +15,12 @@
     NSValue* location;
     float rad;
     UIColor* color;
+    BOOL touched;
     
 }
 @property (nonatomic,retain) NSValue* location;
 @property (assign) float rad;
+@property (assign) BOOL touched;
 @property (assign) UIColor* color;
 
 @end
