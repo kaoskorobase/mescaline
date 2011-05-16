@@ -32,7 +32,7 @@
 - (NSArray *)getRegions:(FeatureSpace *)requestor
 {
     FakeModel* model =  [FakeModel sharedManager];
-    return [model getRegionList];
+    return model.regions;
 }
 
 

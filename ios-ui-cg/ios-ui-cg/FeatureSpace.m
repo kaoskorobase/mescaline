@@ -18,12 +18,6 @@
 {
     self = [super initWithFrame:frame];
     if (self) {
-        // Initialization code
-//        CGColorRef red = [[UIColor redColor] CGColor];
-//        CGColorRef blue = [[UIColor blueColor] CGColor];
-//        CGColorRef green = [[UIColor greenColor] CGColor];
-//        CGColorRef yellow = [[UIColor yellowColor] CGColor];
-        //    // Define colors
 
     }
    
@@ -73,15 +67,16 @@
 }
 
 
-- (void)drawRegions:(NSArray *)regionlist inContext:(CGContextRef)context
+- (void)drawRegions:(CGContextRef)context
 {
-    NSArray *regions = [self.delegate getRegions:self];
-    NSEnumerator *e = [regions objectEnumerator];
+    NSArray *reg = [self.delegate getRegions:self];
+    NSEnumerator *e = [reg objectEnumerator];
     Region * object;
     while ((object = [e nextObject])) {
         CGPoint p = [object.location CGPointValue];
         UIColor* color = object.color;
-        [self drawRegionatPoint:p withRadius:object.rad andColor:color inContext:context];
+        float rad = object.rad;
+        [self drawRegionatPoint:p withRadius:rad andColor:color inContext:context];
     }
 }   
 
@@ -103,8 +98,8 @@
 {
     // Drawing code
     CGContextRef context = UIGraphicsGetCurrentContext();
-    [self drawRegions: [self.delegate getRegions:self] inContext:context];
-    [self drawPoints: [self.delegate getPoints:self] inContext:context];
+    [self drawRegions:context];
+//    [self drawPoints: [self.delegate getPoints:self] inContext:context];
 }
 
 

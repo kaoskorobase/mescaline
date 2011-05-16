@@ -14,10 +14,13 @@
 
 @interface FakeModel : NSObject {
     sqlite3    *database;
+@public
+    NSArray *regions; 
 @private
 	NSArray* regionPositions; 
 }
-//@property int numRegions;
+//@property int regions;
+@property (nonatomic, retain) NSArray *regions; 
 
 +(FakeModel*)sharedManager;
 

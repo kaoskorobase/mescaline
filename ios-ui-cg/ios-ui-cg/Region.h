@@ -17,7 +17,7 @@
     UIColor* color;
     
 }
-@property (assign) NSValue* location;
+@property (nonatomic,retain) NSValue* location;
 @property (assign) float rad;
 @property (assign) UIColor* color;
 
