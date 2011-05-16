@@ -12,9 +12,9 @@ module Mescaline.Pattern.Process (
 import           Control.Concurrent
 import           Control.Concurrent.Process hiding (Handle)
 import qualified Control.Concurrent.Process as Process
-import           Control.Exception.Peel
+import           Control.Exception.Control
 import           Control.Monad
-import           Control.Monad.IO.Peel (MonadPeelIO)
+import           Control.Monad.IO.Control (MonadControlIO)
 import           Control.Monad.Reader (ask)
 import           Control.Monad.Trans (MonadIO, liftIO)
 import           Data.Accessor
@@ -153,7 +153,7 @@ initPatch h fspaceP state = do
 
     notifyListeners h (PatchChanged (patch state) (patchFilePath state))
 
-new :: MonadPeelIO m => Patch.Patch -> FeatureSpaceP.Handle -> AppT m Handle
+new :: MonadControlIO m => Patch.Patch -> FeatureSpaceP.Handle -> AppT m Handle
 new patch0 fspaceP = do
     time <- liftIO Time.utcr
     let state = State time patch0 Nothing Nothing BitSet.empty

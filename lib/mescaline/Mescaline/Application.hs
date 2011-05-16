@@ -35,7 +35,7 @@ import           Control.Applicative
 import           Control.Concurrent.MVar
 import           Control.Exception
 import           Control.Monad
-import           Control.Monad.IO.Peel (MonadPeelIO)
+import           Control.Monad.IO.Control (MonadControlIO)
 import           Control.Monad.Reader (MonadReader, ReaderT(..), asks, runReaderT)
 import           Control.Monad.Trans (MonadIO, MonadTrans, liftIO)
 import           Data.ConfigFile (Get_C, ConfigParser)
@@ -76,7 +76,7 @@ data App = App {
   }
 
 newtype AppT m a = AppT (ReaderT App m a)
-    deriving (Applicative, Functor, Monad, MonadReader (App), MonadIO, MonadPeelIO, MonadTrans)
+    deriving (Applicative, Functor, Monad, MonadReader (App), MonadIO, MonadControlIO, MonadTrans)
 
 defaultConfigFileName :: FilePath
 defaultConfigFileName = "config"

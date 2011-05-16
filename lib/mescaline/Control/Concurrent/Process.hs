@@ -30,7 +30,7 @@ import Control.Monad.Reader
 import Control.Monad.State.Class
 import Control.Monad.Writer.Class
 import Control.Monad.Error.Class
-import Control.Monad.IO.Peel (MonadPeelIO)
+import Control.Monad.IO.Control (MonadControlIO)
 import Control.Monad.CatchIO
 import qualified Data.IVar as IVar
 import Data.Monoid
@@ -53,7 +53,7 @@ data Listener i = forall o . Listener (Handle i o)
 -- 
 -- [@a@] the classic monad parameter
 newtype ReceiverT i o m a = RT { internalReader :: ReaderT (Handle i o) m a }
-    deriving (Monad, MonadIO, MonadTrans, MonadCatchIO, MonadPeelIO)
+    deriving (Monad, MonadIO, MonadTrans, MonadCatchIO, MonadControlIO)
 
 -- | /Process/ are receivers that run in the IO Monad
 type Process i o = ReceiverT i o IO

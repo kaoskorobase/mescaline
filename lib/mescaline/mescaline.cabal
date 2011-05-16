@@ -53,8 +53,8 @@ library
       , hsc3-process >= 0.6
       , hsc3-server >= 0.3
       , mescaline-database >= 0.0 && < 0.1
+      , monad-control
       , MonadCatchIO-mtl >= 0.3
-      , monad-peel
       , MonadRandom >= 0.1
       , mtl >= 2
       , old-time

@@ -7,8 +7,8 @@ module Mescaline.Pattern.Patch.Version_0_0_1 (
 ) where
 
 import           Control.Arrow
-import           Control.Exception.Peel (Exception, SomeException, catch, throw)
-import           Control.Monad.IO.Peel (MonadPeelIO)
+import           Control.Exception.Control (Exception, SomeException, catch, throw)
+import           Control.Monad.IO.Control (MonadControlIO)
 import           Control.Monad.Trans (MonadIO, liftIO)
 import qualified Data.List as List
 import           Data.Typeable (Typeable)
@@ -61,7 +61,7 @@ instance Show LoadError where
 
 instance Exception LoadError
 
-load :: MonadPeelIO m => FilePath -> AppT m P.Patch
+load :: MonadControlIO m => FilePath -> AppT m P.Patch
 load path = catch (liftIO (readFile path) >>= return . read >>= fileToPatch)
                 (\(e :: SomeException) -> throw $ LoadError "Parse error")
 
