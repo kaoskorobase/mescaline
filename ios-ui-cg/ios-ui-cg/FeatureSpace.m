@@ -99,7 +99,7 @@
     // Drawing code
     CGContextRef context = UIGraphicsGetCurrentContext();
     [self drawRegions:context];
-//    [self drawPoints: [self.delegate getPoints:self] inContext:context];
+    [self drawPoints: [self.delegate getPoints:self] inContext:context];
 }
 
 
