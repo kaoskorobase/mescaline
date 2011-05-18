@@ -177,21 +177,19 @@ playerProcess dt handle = loop
             (q, fs, sq) <- polldl' (\(a, b, c) x -> case x of
                                         Quit -> (True, b, c)
                                         SetFeatureSpace b' -> (a, b', c)
-                                        SeqSequencer c' -> (a, b, c'))
+                                        SetSequencer c' -> (a, b, c'))
                                    (False, Nothing, Nothing)
-            if q
-                then return ()
-                else do
-                    let players' = fmap (\p -> maybe p (\x -> p { player_environment = setVal Environment.featureSpace (player_environment p) x }) fs)
-                                 $ fmap (\p -> maybe p (\x -> p { player_environment = setVal Environment.sequencer    (player_environment p) x }) sq)
-                                 $ players
-                        result = fmap (stepPlayer tickTime) players'
-                        es = concatMap fst (IntMap.elems result)
-                        players'' = fmap snd result
-            mapM_ (\(r, es) -> mapM_ (\(t, e) -> sendTo handle $ Event_ r t e) es) es
-            let tickTime' = tickTime + dt
-            liftIO $ Time.pauseThreadUntil tickTime'
-            loop players'' tickTime'
+            unless q $ do
+                let players' = fmap (\p -> maybe p (\x -> p { player_environment = setVal Environment.featureSpace (player_environment p) x }) fs)
+                             $ fmap (\p -> maybe p (\x -> p { player_environment = setVal Environment.sequencer    (player_environment p) x }) sq)
+                             $ players
+                    result = fmap (stepPlayer tickTime) players'
+                    es = concatMap fst (IntMap.elems result)
+                    players'' = fmap snd result
+                mapM_ (\(r, es) -> mapM_ (\(t, e) -> sendTo handle $ Event_ r t e) es) es
+                let tickTime' = tickTime + dt
+                liftIO $ Time.pauseThreadUntil tickTime'
+                loop players'' tickTime'
             -- case Model.step envir' pattern of
             --     Model.Done _ -> do
             --         -- _ <- logEnv envir'
