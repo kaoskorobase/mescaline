@@ -7,16 +7,17 @@ def configure(*args)
 end
 
 def build1(configuring, args)
-  package_db_error = false
+  needs_configure = false
   IO.popen("cabal build #{args.join(' ')} 2>&1") do |io|
     io.each do |line|
       puts line
-      if !line.grep(/<command line>: cannot satisfy/).empty?
-        package_db_error = true
+      if !line.grep(/<command line>: cannot satisfy/).empty? \
+				|| !line.grep(/Run the 'configure' command first/).empty?
+        needs_configure = true
       end
     end
   end
-  (configuring && !package_db_error) || ($? == 0)
+  (configuring && !needs_configure) || ($? == 0)
 end
 
 def build(*args)
