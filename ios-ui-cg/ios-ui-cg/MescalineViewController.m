@@ -23,6 +23,7 @@
     self.fSpace.delegate = self;
     UIGestureRecognizer *pinchgr = [[UIPinchGestureRecognizer alloc] initWithTarget:self.fSpace action:@selector(pinch:)];
     [self.fSpace addGestureRecognizer:pinchgr];
+    self.fSpace.scale = 1.0;
     [pinchgr release];
     
 }
