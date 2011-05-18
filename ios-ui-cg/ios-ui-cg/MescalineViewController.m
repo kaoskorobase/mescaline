@@ -21,6 +21,10 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.fSpace.delegate = self;
+    UIGestureRecognizer *pinchgr = [[UIPinchGestureRecognizer alloc] initWithTarget:self.fSpace action:@selector(pinch:)];
+    [self.fSpace addGestureRecognizer:pinchgr];
+    [pinchgr release];
+    
 }
 
 
@@ -34,6 +38,8 @@
     FakeModel* model =  [FakeModel sharedManager];
     return model.regions;
 }
+
+
 
 
 - (BOOL)checkIfOverRegion:(CGPoint)currentPosition
@@ -85,7 +91,7 @@
     }    
 	
 }
-
+//
 - (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event{
     FakeModel* model =  [FakeModel sharedManager];
 	NSArray *regionlist = model.regions;

@@ -13,17 +13,30 @@
 @implementation FeatureSpace
 
 @synthesize delegate;
+@synthesize scale;
+
+- (void)setup
+{
+    self.contentMode = UIViewContentModeRedraw;
+}
 
 - (id)initWithFrame:(CGRect)frame
 {
     self = [super initWithFrame:frame];
     if (self) {
-
+        [self setup];
     }
-   
+    self.scale = 1;
     return self;
 
 }
+
+- (void)awakeFromNib
+{
+    [self setup];
+}
+
+
 - (void)drawUnitatPoint:(CGPoint)p withRadius:(CGFloat)radius inContext:(CGContextRef)context
 {
     
@@ -101,6 +114,27 @@
     [self drawRegions:context];
     [self drawPoints: [self.delegate getPoints:self] inContext:context];
 }
+
+
+- (void)pinch:(UIPinchGestureRecognizer *)gesture
+{
+    if((gesture.state == UIGestureRecognizerStateChanged) ||
+       (gesture.state == UIGestureRecognizerStateEnded)){
+        self.scale *=gesture.scale;
+        NSLog(@"%f", self.scale);
+        CGAffineTransform t = CGAffineTransformMakeScale(gesture.scale, gesture.scale);
+        self.transform = t;
+        //self.contentScaleFactor = gesture.scale;
+        
+        //[self setNeedsDisplay];
+    }
+    if(gesture.state == UIGestureRecognizerStateEnded){
+        gesture.scale = 1;
+
+    }
+    
+}
+
 
 
 

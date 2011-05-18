@@ -17,6 +17,5 @@
 
 @property (retain) IBOutlet FeatureSpace *fSpace;
 
-
 @end
 

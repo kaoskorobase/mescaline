@@ -16,7 +16,9 @@
 
 @interface FeatureSpace : UIView {
     id <FeatureSpaceDelegate> delegate;
+    CGFloat scale;
 }
-
+@property CGFloat scale;
 @property (assign) id <FeatureSpaceDelegate> delegate;
+- (void)pinch:(UIPinchGestureRecognizer *)gesture;
 @end
