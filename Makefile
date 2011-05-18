@@ -1,5 +1,6 @@
 SC_DIR = $(HOME)/dev/supercollider
-CABAL = cabal
+CABAL_ARGS :=
+CABAL = cabal $(CABAL_ARGS)
 
 all:
 	@echo Please specify a target.
