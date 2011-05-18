@@ -20,7 +20,7 @@ Executable mescaline-db
       , containers
       , hmatrix >= 0.11
       , mescaline-database >= 0.0 && < 0.1
-    Ghc-Options:        -W -threaded -funbox-strict-fields
+    Ghc-Options:        -W -threaded -rtsopts -funbox-strict-fields
 
 Executable mescaline-analyser
     main-is: analyser.hs
@@ -32,4 +32,4 @@ Executable mescaline-analyser
       , mescaline-database >= 0.0 && < 0.1
       , text
       , vector
-    Ghc-Options:        -W -threaded -funbox-strict-fields
+    Ghc-Options:        -W -threaded -rtsopts -funbox-strict-fields
