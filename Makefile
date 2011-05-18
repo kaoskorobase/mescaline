@@ -1,9 +1,18 @@
 SC_DIR = $(HOME)/dev/supercollider
-CABAL_ARGS :=
-CABAL = cabal $(CABAL_ARGS)
+ACTION := build
+ARGS :=
+CABAL = ./tools/cabal-build.rb $(ACTION)
 
 all:
 	@echo Please specify a target.
+
+configure:
+	$(eval ACTION := configure)
+clean:
+	$(eval ACTION := clean)
+install:
+	$(eval ACTION := install)
+.PHONY: configure clean install
 
 upstream: upstream-cabal-macosx upstream-persistent
 upstream-cabal-macosx:
@@ -20,14 +29,8 @@ MESCALINE_DATABASE_DEPENDS = $(MESCALINE_DATABASE_ENTITY)
 $(MESCALINE_DATABASE_ENTITY): $(MESCALINE_DATABASE_ENTITY:.hs=Gen.hs)
 	runhaskell $? > $@
 mescaline-database: $(MESCALINE_DATABASE_DEPENDS)
-	cd lib/mescaline-database && $(CABAL) build
-mescaline-database-clean:
-	cd lib/mescaline-database && $(CABAL) clean
-mescaline-database-configure: $(MESCALINE_DATABASE_DEPENDS)
-	cd lib/mescaline-database && $(CABAL) configure
-mescaline-database-install: $(MESCALINE_DATABASE_DEPENDS)
-	cd lib/mescaline-database && $(CABAL) install
-.PHONY: mescaline-database mescaline-database-clean mescaline-database-configure mescaline-database-install
+	$(CABAL) lib/mescaline-database $(ARGS)
+.PHONY: mescaline-database
 
 # mescaline
 MESCALINE_CONFIGURE_ARGS = \
@@ -35,33 +38,15 @@ MESCALINE_CONFIGURE_ARGS = \
 	--extra-include-dir=$(SC_DIR)/include/plugin_interface \
 
 mescaline:
-	cd lib/mescaline && $(CABAL) build
-mescaline-clean:
-	cd lib/mescaline && $(CABAL) clean
-mescaline-configure:
-	cd lib/mescaline && $(CABAL) configure $(MESCALINE_CONFIGURE_ARGS)
-mescaline-install: mescaline-database-install
-	cd lib/mescaline && $(CABAL) install $(MESCALINE_CONFIGURE_ARGS)
-.PHONY: mescaline mescaline-clean mescaline-configure mescaline-install
+	$(CABAL) lib/mescaline $(MESCALINE_CONFIGURE_ARGS) $(ARGS)
+.PHONY: mescaline
 
 mescaline-tools:
-	cd tools && $(CABAL) build
-mescaline-tools-clean:
-	cd tools && $(CABAL) clean
-mescaline-tools-configure:
-	cd tools && $(CABAL) configure
-mescaline-tools-install: mescaline-database-install
-	cd tools && $(CABAL) install
-.PHONY: mescaline-tools mescaline-tools-clean mescaline-tools-configure mescaline-tools-install
+	$(CABAL) tools $(ARGS)
+.PHONY: mescaline-tools
 
 mescaline-app:
-	cd app && $(CABAL) build
-mescaline-app-clean:
-	cd app && $(CABAL) clean
-mescaline-app-configure:
-	cd app && $(CABAL) configure
-mescaline-app-install: mescaline-install
-	cd app && $(CABAL) install
+	$(CABAL) app
 # mescaline-app-dmg: mescaline-app-install
 # 	version = `grep '^version:' mescaline.cabal`.split[1]
 # 	osx_version = `sw_vers`.split("\n").collect { |x| x.split(":\t") }.find { |x| x[0] == "ProductVersion" }[1].sub(/\.[0-9]+$/, "")
@@ -72,24 +57,18 @@ mescaline-app-install: mescaline-install
 # 
 # 	volname = "Mescaline-#{version}"
 # 	system("./tools/pkg-dmg --verbosity 0 --source \"#{src}\" --target \"#{dst}\" --sourcefile --volname Mescaline --icon \"#{icon}\" --symlink /Applications:/Applications")
-.PHONY: mescaline-app mescaline-app-clean mescaline-app-configure mescaline-app-install mescaline-app-dmg
+.PHONY: mescaline-app mescaline-app-dmg
 
 MESCALINE_STS = tools/sts
 mescaline-sts:
-	cd $(MESCALINE_STS) && $(CABAL) build
-mescaline-sts-clean:
-	cd $(MESCALINE_STS) && $(CABAL) clean
-mescaline-sts-configure:
-	cd $(MESCALINE_STS) && $(CABAL) configure
-mescaline-sts-install: mescaline-install
-	cd $(MESCALINE_STS) && $(CABAL) install
-.PHONY: mescaline-sts mescaline-sts-clean mescaline-sts-configure mescaline-sts-install
+	$(CABAL) $(MESCALINE_STS) $(ARGS)
+.PHONY: mescaline-sts
 
-install: mescaline-tools-install mescaline-app-install mescaline-sts-install
-.PHONY: install
+install-all: install mescaline-database mescaline mescaline-tools mescaline-app mescaline-sts
+.PHONY: install-all
 
-clean: mescaline-database-clean mescaline-clean mescaline-tools-clean mescaline-app-clean
-.PHONY: clean
+clean-all: clean mescaline-database mescaline mescaline-tools mescaline-app mescaline-sts
+.PHONY: clean-all
 
 HADDOCK_BASE_DOC = "http://www.haskell.org/ghc/docs/6.12.2/html/libraries/base-4.2.0.1/"
 
