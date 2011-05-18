@@ -12,6 +12,7 @@
 @protocol FeatureSpaceDelegate
 - (NSArray *)getPoints:(FeatureSpace *)requestor;
 - (NSArray *)getRegions:(FeatureSpace *)requestor;
+- (BOOL)checkIfOverRegion:(CGPoint)position;
 @end
 
 @interface FeatureSpace : UIView {

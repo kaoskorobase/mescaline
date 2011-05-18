@@ -16,17 +16,19 @@
     sqlite3    *database;
 @public
     NSArray *regions; 
-@private
-	NSArray* regionPositions; 
+    NSArray *points; 
+//@private
+//	NSArray* regionPositions; 
 }
 //@property int regions;
 @property (nonatomic, retain) NSArray *regions; 
+@property (nonatomic, retain) NSArray *points; 
 
 +(FakeModel*)sharedManager;
 
 - (CGPoint)setPosition:(CGPoint)currentPosition;
-- (NSArray *)getRegionList;
-- (NSArray *)getPointList;
+//- (NSArray *)getRegionList;
+//- (NSArray *)getPointList;
 - (void)getData;
 - (int)numRegions;
 

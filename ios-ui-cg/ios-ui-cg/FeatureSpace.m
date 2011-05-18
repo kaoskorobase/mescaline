@@ -26,7 +26,7 @@
     if (self) {
         [self setup];
     }
-    self.scale = 1;
+    self.scale = 1.0;
     return self;
 
 }
@@ -42,14 +42,6 @@
     
     UIGraphicsPushContext(context);
     CGContextBeginPath(context);
-
-    
-    
-    //    // Define colors
-//    CGColorRef red = [[UIColor redColor] CGColor];
-//    CGColorRef blue = [[UIColor blueColor] CGColor];
-//    CGColorRef green = [[UIColor greenColor] CGColor];
-//    CGColorRef yellow = [[UIColor yellowColor] CGColor];
     
     CGContextAddArc(context, p.x * self.bounds.size.width, p.y * self.bounds.size.height, radius, 0, 2*M_PI, YES);
     CGContextStrokePath(context);
@@ -67,10 +59,6 @@
     
     //    // Define colors
     CGColorRef cr = [color CGColor];
-//        CGColorRef blue = [[UIColor blueColor] CGColor];
-//        CGColorRef green = [[UIColor greenColor] CGColor];
-//        CGColorRef yellow = [[UIColor yellowColor] CGColor];
-    //CGContextSetRGBFillColor(context, 0.2, 0.5, 1.0, 1);
     CGContextSetFillColorWithColor(context,cr);
     CGContextAddArc(context, p.x * self.bounds.size.width, p.y * self.bounds.size.height, radius, 0, 2*M_PI, YES);
     //CGContextStrokePath(context);
@@ -121,9 +109,15 @@
     if((gesture.state == UIGestureRecognizerStateChanged) ||
        (gesture.state == UIGestureRecognizerStateEnded)){
         self.scale *=gesture.scale;
-        NSLog(@"%f", self.scale);
-        CGAffineTransform t = CGAffineTransformMakeScale(gesture.scale, gesture.scale);
-        self.transform = t;
+//        NSLog(@"%f", self.scale);
+        CGPoint p = [gesture locationInView:self];
+        if(![self.delegate checkIfOverRegion:p]){
+            CGAffineTransform t = CGAffineTransformMakeScale(gesture.scale, gesture.scale);
+            self.transform = t;
+            NSLog(@"zooming region");
+        }else{
+            NSLog(@"zooming view");
+        }
         //self.contentScaleFactor = gesture.scale;
         
         //[self setNeedsDisplay];

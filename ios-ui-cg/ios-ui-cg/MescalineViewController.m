@@ -31,7 +31,7 @@
 - (NSArray *)getPoints:(FeatureSpace *)requestor
 {
     FakeModel* model =  [FakeModel sharedManager];
-    return [model getPointList];
+    return model.points;
 }
 - (NSArray *)getRegions:(FeatureSpace *)requestor
 {
@@ -63,7 +63,7 @@
                 ret = YES;
                 break;
             } else {
-                //NSLog(@"%s\t%d\t%f","NOT over circle number:",i,dist);
+                NSLog(@"NOT over circle number:");
                 object.touched = NO;
                 ret = NO;
          }
@@ -75,12 +75,7 @@
 
 
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event{
-	//NSUInteger numTaps = [[touches anyObject] tapCount];
-	//NSUInteger numTouches = [touches count];
-    //[self updateLabelsFromTouches:touches];
 	for (UITouch *touch in touches){
-    //NSLog(@"%s\t%d","number of touches:",numTouches);
-	//UITouch *touch = [touches anyObject];
         CGPoint startPoint = [touch locationInView:self.view];
         if ([self checkIfOverRegion:(startPoint)]){
             NSLog(@"i start drawing");
@@ -91,19 +86,17 @@
     }    
 	
 }
-//
+
 - (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event{
     FakeModel* model =  [FakeModel sharedManager];
 	NSArray *regionlist = model.regions;
-	UITouch *touch = [touches anyObject];
-    //    id cr = [self.view getCairoContext];
     CGRect bounds = [self.view bounds];
 	int width = bounds.size.width;
 	int height = bounds.size.height;
     int cnt=0;
     NSArray * orderedTouches = [touches allObjects];
            
- 
+// 
         if (drag) {		
             NSEnumerator *e = [regionlist objectEnumerator];
             Region * object;

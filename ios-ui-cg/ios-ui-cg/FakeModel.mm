@@ -15,6 +15,7 @@ static FakeModel* sharedManager = nil;
 
 
 @synthesize regions;
+@synthesize points;
 
 + (FakeModel*)sharedManager {
     @synchronized(self) {
@@ -86,38 +87,8 @@ static FakeModel* sharedManager = nil;
 }
 
 
-- (NSArray *)getRegionList
-{
-    #define ARC4RANDOM_MAX 0x100000000LL
-
-    NSMutableArray* result = [[[NSMutableArray alloc] init] autorelease];
-    NSArray* colors = [NSArray arrayWithObjects:[UIColor blackColor], [UIColor redColor], [UIColor greenColor],[UIColor yellowColor],[UIColor blueColor],[UIColor grayColor],nil];
-
-    for (int i = 0; i < 6; ++i) {
-        Region *r = [[Region new] autorelease];
-        r.rad=80.0;
-        double xvalue = (200 + r.rad * cos(M_PI * ((double)i / (double)6)))/280;
-        double yvalue = (200 + r.rad * sin(M_PI * ((double)i / (double)6)))/280;
-//        float xvalue = floorf(((double)arc4random() / ARC4RANDOM_MAX) * 100.0f) / 100;
-//        float yvalue = floorf(((double)arc4random() / ARC4RANDOM_MAX) * 100.0f) / 100;
-        CGPoint p = {xvalue,yvalue};
-        
-        NSValue* point = [NSValue valueWithCGPoint:p];
-
-        r.location = point;
-        r.color = [colors objectAtIndex:i];
-
-        [result addObject:r];
-    }
-        
-    return result;
- 
-
-}
-
-
     
-- (NSArray *)getPointList
+- (NSArray *)defaultPoints
 {
     #define ARC4RANDOM_MAX 0x100000000LL
 
@@ -183,6 +154,7 @@ static FakeModel* sharedManager = nil;
 -(id)init {
     self = [super init];
     self.regions = [self defaultRegions];
+    self.points = [self defaultPoints];
     return self;
 }
 @end
