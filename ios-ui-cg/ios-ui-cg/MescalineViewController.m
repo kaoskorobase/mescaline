@@ -63,7 +63,7 @@
                 ret = YES;
                 break;
             } else {
-                NSLog(@"NOT over circle number:");
+                //NSLog(@"NOT over circle number:");
                 object.touched = NO;
                 ret = NO;
          }
@@ -87,6 +87,22 @@
 	
 }
 
+
+- (void)scaleRegion:(CGFloat)scale
+{
+    FakeModel* model =  [FakeModel sharedManager];
+	NSArray *regionlist = model.regions;
+    NSEnumerator *e = [regionlist objectEnumerator];
+    Region * object;
+    while ((object = [e nextObject])) {
+        if (object.touched){
+            object.rad *= scale;
+        }
+    }
+
+}
+
+
 - (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event{
     FakeModel* model =  [FakeModel sharedManager];
 	NSArray *regionlist = model.regions;
@@ -95,24 +111,22 @@
 	int height = bounds.size.height;
     int cnt=0;
     NSArray * orderedTouches = [touches allObjects];
-           
-// 
-        if (drag) {		
-            NSEnumerator *e = [regionlist objectEnumerator];
-            Region * object;
-            while ((object = [e nextObject])) {
-                if (object.touched){
-                    CGPoint currentPosition = [[orderedTouches objectAtIndex:cnt] locationInView:self.view];                    
-                    float scaledx = currentPosition.x / width;
-                    float scaledy = currentPosition.y / height;
-                    CGPoint p = {scaledx,scaledy};
-                    NSValue* point = [NSValue valueWithCGPoint:p];
-                    object.location = point;
-                    cnt++;
-                }
+    if (drag) {		
+        NSEnumerator *e = [regionlist objectEnumerator];
+        Region * object;
+        while ((object = [e nextObject])) {
+            if (object.touched){
+                CGPoint currentPosition = [[orderedTouches objectAtIndex:cnt] locationInView:self.view];                    
+                float scaledx = currentPosition.x / width;
+                float scaledy = currentPosition.y / height;
+                CGPoint p = {scaledx,scaledy};
+                NSValue* point = [NSValue valueWithCGPoint:p];
+                object.location = point;
+                cnt++;
             }
-            [self.view setNeedsDisplay];
         }
+        [self.view setNeedsDisplay];
+    }
    
 }
 

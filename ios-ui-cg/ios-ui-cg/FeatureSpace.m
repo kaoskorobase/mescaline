@@ -25,9 +25,10 @@
     self = [super initWithFrame:frame];
     if (self) {
         [self setup];
+        self.scale = 1.0;
+
     }
-    self.scale = 1.0;
-    return self;
+        return self;
 
 }
 
@@ -35,6 +36,24 @@
 {
     [self setup];
 }
+
+#define DEFAULT_SCALE 1.0;
+
+//- (void)setScale:(CGFloat)aScale
+//{
+//    if(self.scale <= 0){
+//        self.scale = DEFAULT_SCALE;
+//    } else {
+//    self.scale = aScale;
+//    }
+//    
+//}
+//
+//- (CGFloat)scale
+//{
+//    return self.scale;
+//}
+
 
 
 - (void)drawUnitatPoint:(CGPoint)p withRadius:(CGFloat)radius inContext:(CGContextRef)context
@@ -109,14 +128,21 @@
     if((gesture.state == UIGestureRecognizerStateChanged) ||
        (gesture.state == UIGestureRecognizerStateEnded)){
         self.scale *=gesture.scale;
-//        NSLog(@"%f", self.scale);
+       // NSLog(@"%@", self.scale);
         CGPoint p = [gesture locationInView:self];
-        if(![self.delegate checkIfOverRegion:p]){
+        if([self.delegate checkIfOverRegion:p] == NO){
             CGAffineTransform t = CGAffineTransformMakeScale(gesture.scale, gesture.scale);
             self.transform = t;
-            NSLog(@"zooming region");
+            NSLog(@"zooming View");
         }else{
-            NSLog(@"zooming view");
+            NSLog(@"zooming Region");
+            [self.delegate scaleRegion:gesture.scale];
+
+
+            [self setNeedsDisplay];
+            gesture.scale = 1;
+
+
         }
         //self.contentScaleFactor = gesture.scale;
         

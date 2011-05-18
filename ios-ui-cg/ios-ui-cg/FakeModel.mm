@@ -143,14 +143,6 @@ static FakeModel* sharedManager = nil;
 	//return ps;
 }
 
-
-- (CGPoint)setPosition:(CGPoint)currentPosition
-{
-//	NSLog(@"%f", currentPosition.x);
-//	NSLog(@"%f", currentPosition.y);
-	return currentPosition;
-}
-
 -(id)init {
     self = [super init];
     self.regions = [self defaultRegions];

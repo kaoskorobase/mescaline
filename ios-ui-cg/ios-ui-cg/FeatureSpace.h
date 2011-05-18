@@ -13,6 +13,8 @@
 - (NSArray *)getPoints:(FeatureSpace *)requestor;
 - (NSArray *)getRegions:(FeatureSpace *)requestor;
 - (BOOL)checkIfOverRegion:(CGPoint)position;
+- (void)scaleRegion:(CGFloat)scale;
+
 @end
 
 @interface FeatureSpace : UIView {

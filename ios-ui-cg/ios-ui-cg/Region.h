@@ -13,13 +13,13 @@
 
 @public
     NSValue* location;
-    float rad;
+    CGFloat rad;
     UIColor* color;
     BOOL touched;
     
 }
 @property (nonatomic,retain) NSValue* location;
-@property (assign) float rad;
+@property (assign) CGFloat rad;
 @property (assign) BOOL touched;
 @property (assign) UIColor* color;
 
