@@ -1,4 +1,5 @@
 import           Control.Applicative
+import           Control.Concurrent
 import			 Control.Monad.IO.Class (MonadIO(..))
 import			 Control.Monad.IO.Control (MonadControlIO)
 import qualified Control.Monad.Trans.State as State
@@ -10,29 +11,24 @@ import qualified Mescaline.Pattern.Event as Event
 import qualified Mescaline.Pattern.Sequencer as Sequencer
 import           Mescaline (Time)
 import           Sound.SC3.Server.Monad
-import           Reactive as R
+import           Sound.SC3.Server.Process.Monad
 import           Sound.OpenSoundControl (Datum(..), OSC(..))
 import qualified Sound.OpenSoundControl as OSC
 import qualified Sound.OpenSoundControl.Transport.UDP as OSC
-
-data FeatureSpaceEvent =
-    LoadDatabase FilePath String
-  | UpdateRegion FeatureSpace.Region
-  deriving (Show)
 
 data Sound = Sound {
     region :: FeatureSpace.RegionId
   , sequencer :: Sequencer.Sequencer
   }
 
-data State = State {
-    s_time :: Double
-  , s_featureSpace :: FeatureSpace.FeatureSpace
-  , s_sounds :: [(FeatureSpace.RegionId, Sound)]
-  , s_output :: [Output]
+data RTState = RTState {
+    rt_time :: Double
+  , rt_featureSpace :: FeatureSpace.FeatureSpace
+  , rt_sounds :: [(FeatureSpace.RegionId, Sound)]
+  , rt_output :: [Output]
   }
 
-type Engine a = State.StateT State (ServerT IO) a
+type Engine a = State.StateT RTState (ServerT IO) a
 
 time :: Engine Double
 time = State.gets s_time
@@ -52,37 +48,61 @@ data Output =
 engine :: [Input] -> Engine ()
 engine = undefined
 
-mkFeatureSpace :: MonadControlIO m => FeatureSpace -> Event m FeatureSpaceEvent -> Prepare m (Behavior m FeatureSpace)
-mkFeatureSpace = accumulateM $ \e fs ->
+runEngine :: ([Input] -> Engine ()) -> Double -> MVar [Input] -> RTState -> ServerT IO ()
+runEngine f dt mvar = loop
+    where
+        loop s = do
+            is <- tryTakeMVar
+            s' <- State.execStateT (f (maybe [] reverse is)) s
+            let t' = rt_time s' + dt
+            OSC.pauseThreadUntil t'
+            loop s' { rt_time = t' }
+
+data NRTState = NRTState {
+    nrt_featureSpace :: FeatureSpace
+  }
+
+type Model a = State.StateT NRTState IO a
+
+data NRTEvent =
+    LoadDatabase FilePath String
+  | UpdateRegion FeatureSpace.Region
+  deriving (Show)
+
+model :: NRTEvent -> Model ()
+model e =
     case e of
         LoadDatabase path pattern -> do
             us <- DB.withDatabase path
                     $ Unit.getUnits pattern [
                         "es.globero.mescaline.spectral" ]
-            return $ FeatureSpace.setUnits fs us
+            State.modify (flip FeatureSpace.setUnits us)
         UpdateRegion r ->
-            return $ FeatureSpace.updateRegion r fs
+            State.modify (FeatureSpace.updateRegion r)
 
-serverLoop :: MonadIO m => EventSource m FeatureSpaceEvent -> m ()
+runModel :: (NRTEvent -> Model ()) -> NRTState -> Chan NRTEvent -> MVar Input -> IO ()
+runModel f 
+
+serverLoop :: Chan FeatureSpaceEvent -> IO ()
 serverLoop src = do
-    t <- liftIO $ OSC.udpServer "127.0.0.1" 7800    
+    t <- liftIO $ OSC.udpServer "127.0.0.1" 7800
     loop t src
     where
         loop t src = do
-            msg <- liftIO $ OSC.recv t
+            msg <- OSC.recv t
             let e = case msg of
                         Message "/loadDatabase" [String path, String pattern] ->
                             LoadDatabase path pattern
                         Message "/updateRegion" [Int i, Float x, Float y, Float r] ->
                             UpdateRegion (FeatureSpace.mkRegion i (x,y) r)
             liftIO $ print e
-            fire src e
+            writeChan src e
             loop t src
 
-mkServer :: MonadIO m => Prepare m (Event m FeatureSpaceEvent, Prepare m ())
+mkServer :: Prepare m (Chan FeatureSpaceEvent, IO ())
 mkServer = do
-    src <- newEventSource
-    return (fromEventSource src, serverLoop src)
+    src <- newChan
+    return (src, serverLoop src)
 
 displayFeatureSpace :: FeatureSpace -> IO ()
 displayFeatureSpace fs = print (length $ FeatureSpace.units fs, FeatureSpace.regions fs)
@@ -90,5 +110,7 @@ displayFeatureSpace fs = print (length $ FeatureSpace.units fs, FeatureSpace.reg
 main = do
     putStrLn "Fuck that shit"
     (server, loop) <- mkServer
+    forkIO loop
     reactimate =<< R.map displayFeatureSpace =<< mkFeatureSpace FeatureSpace.empty server
-    loop
+    withDefaultInternal $ do
+        
