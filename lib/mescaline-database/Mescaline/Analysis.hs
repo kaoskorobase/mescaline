@@ -8,9 +8,10 @@ module Mescaline.Analysis (
 import           Control.ThreadPool (threadPoolIO)
 import qualified Control.Concurrent.Chan as Chan
 import           Control.Exception
-import           Control.Monad (when)
+import           Control.Monad (liftM, when)
 import           Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Foldable as Fold
+import qualified Data.Vector.Generic as V
 import           Database.Persist.Sqlite
 import qualified GHC.Conc as GHC
 -- import qualified Mescaline.Application.Logger as Log
@@ -29,8 +30,8 @@ insertSourceFile sf =
                 (sampleRate sf)
                 (fromIntegral (frames sf))
 
-insertDescriptor :: PersistBackend m => Descriptor -> m (DB.DescriptorId)
-insertDescriptor d = DB.getDescriptor (name d) (degree d)
+insertDescriptor :: PersistBackend m => Descriptor -> m DB.DescriptorId
+insertDescriptor d = liftM fst $ DB.getDescriptor (name d) (degree d)
 
 insertFeature :: PersistBackend m => DB.UnitId -> Feature -> m DB.FeatureId
 insertFeature u f = do
@@ -39,7 +40,7 @@ insertFeature u f = do
     di <- case x of
             Just (di, _) -> return di -- TODO: Check degree
             Nothing -> insertDescriptor d
-    insert $ DB.Feature u di (DB.fromList (value f))
+    DB.insertFeature $ DB.Feature u di (V.fromList (value f))
 
 insertUnit :: PersistBackend m => DB.SourceFileId -> Unit -> [Feature] -> m DB.UnitId
 insertUnit sf u fs = do

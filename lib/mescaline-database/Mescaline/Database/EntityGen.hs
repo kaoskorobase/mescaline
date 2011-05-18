@@ -13,25 +13,28 @@ import           Language.Haskell.TH.Syntax
 
 q = share2 mkPersist (mkMigrate "migrateAll") [persist|
 SourceFile
-    url         FilePath Eq
-    hash        Mescaline.Database.Hash.Hash Eq
-    numChannels Int
-    sampleRate  Double
-    frames      Data.Int.Int64
+    url         FilePath Eq Ne
+    hash        Mescaline.Database.Hash.Hash Eq Ne
+    numChannels Int Eq Ne Lt Le Gt Ge In
+    sampleRate  Double Eq Ne Lt Le Gt Ge In
+    frames      Data.Int.Int64 Eq Ne Lt Le Gt Ge
     UniqueSourceFile hash
 Unit
-    sourceFile  SourceFileId Eq
-    onset       Double
-    duration    Double
+    sourceFile  SourceFileId Eq Ne In
+    onset       Double Eq Ne Lt Le Gt Ge Asc Desc
+    duration    Double Eq Ne Lt Le Gt Ge Asc Desc
 Descriptor
-    name        String Eq
-    degree      Int
+    name        String Eq Ne In
+    degree      Int Eq Ne Lt Le Gt Ge In
     UniqueDescriptor name
 Feature
-    unit        UnitId Eq Asc
-    descriptor  DescriptorId Eq
-    value       Mescaline.Database.Vector.Vector
+    unit        UnitId Eq Ne Lt Le Gt Ge In Asc Desc
+    descriptor  DescriptorId Eq Ne In
     UniqueFeature unit descriptor
+Value
+    feature     FeatureId Eq Ne In
+    index       Int Asc
+    value       Double Eq Ne Lt Le Gt Ge
 |]
 
 removeDerivation :: Data a => [String] -> a -> a
@@ -64,6 +67,5 @@ main = do
     runQ q >>= putStrLn
                 . mkModule ["RankNTypes", "TypeFamilies", "GeneralizedNewtypeDeriving"]
                            "Mescaline.Database.Entity"
-                           (unlines [ "import Data.Map (Map)"
-                                    , "type SourceFileMap = Map (Database.Persist.Base.Key SourceFile) SourceFile" ])
+                           []
                 . removeDerivation ["Web.Routes.Quasi.Classes.SinglePiece"]

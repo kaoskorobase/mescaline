@@ -60,7 +60,7 @@ duration :: Unit -> Duration
 duration = DB.unitDuration . unit
 
 featureVectors :: Unit -> Vector (SV.Vector Double)
-featureVectors = V.map (DB.toVector . DB.featureValue) . features
+featureVectors = V.map DB.featureValue . features
 
 {-# INLINE feature #-}
 feature :: Int -> Unit -> DB.Feature
@@ -68,7 +68,7 @@ feature i = flip (V.!) i . features
 
 {-# INLINE value #-}
 value :: Int -> Unit -> SV.Vector Double
-value i = DB.toVector . DB.featureValue . feature i
+value i = DB.featureValue . feature i
 
 -- {-# INLINE withValues #-}
 -- withValues :: Unit -> [Feature.Value] -> Unit

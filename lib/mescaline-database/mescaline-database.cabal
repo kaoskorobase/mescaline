@@ -18,7 +18,8 @@ Flag analysis
     Default: True
 
 library
-    ghc-options:    -W
+    Ghc-Options: -W
+    Ghc-Prof-Options: -W -auto-all
     build-depends:
         base >= 4 && < 5
       , aeson >= 0.2
@@ -36,7 +37,6 @@ library
       , filepath
       , fingertree
       , hmeap >= 0.10
-      , hosc >= 0.8
       , hsndfile >= 0.4
       , monad-control
       , mtl >= 2
@@ -54,7 +54,7 @@ library
         Mescaline.Database
         Mescaline.Database.Entity
         Mescaline.Database.Hash
-        Mescaline.Database.Vector
+        -- Mescaline.Database.Vector
         Mescaline.Util
         Sound.File.Sndfile.Util
     if flag(analysis)

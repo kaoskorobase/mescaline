@@ -53,7 +53,7 @@ cmd_dump dbFile pattern features = do
             putStrLn
                 $ List.intercalate ","
                 $ [show (DB.hashUnitId uid), show (DB.unitOnset u), show (DB.unitDuration u)]
-                    ++ concatMap (map show.V.toList.DB.toVector.DB.featureValue) fs
+                    ++ concatMap (map show.V.toList.DB.featureValue) fs
 
 cmd_insert :: FilePath -> String -> Int -> FilePath -> IO ()
 cmd_insert _ _ _ _ = return ()
