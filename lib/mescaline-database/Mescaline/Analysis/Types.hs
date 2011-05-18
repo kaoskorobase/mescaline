@@ -98,17 +98,6 @@ getFeature desc = do
     xs <- replicateM (degree desc) getDouble
     return (Feature desc xs)
 
--- type Segmentation = [Unit]
--- 
--- fromTimes :: [Double] -> Segmentation
--- fromTimes [] = []
--- fromTimes ts@(t0:_) =
---     if t0 <= 0
---         then zipWith f (0:tail ts) (tail ts)
---         else zipWith f (0:ts) ts
---     where
---         f t' t = Unit t (t - t')
-
 data Analysis = Analysis {
     soundFile :: SoundFile
   , units     :: [(Unit, [Feature])]
