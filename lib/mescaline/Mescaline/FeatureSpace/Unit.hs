@@ -14,7 +14,7 @@ module Mescaline.FeatureSpace.Unit (
   , getUnits
 ) where
 
-import           Control.Monad.IO.Class (MonadIO)
+import           Control.Monad.IO.Control (MonadControlIO)
 import           Data.Int (Int64)
 import qualified Data.Map as Map
 import           Data.Vector (Vector)
@@ -22,6 +22,7 @@ import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Storable as SV
 import qualified Database.Persist as DB
 import qualified Database.Persist.Base as DB
+import qualified Database.Persist.GenericSql as DB
 import qualified Mescaline.Database as DB
 import           Mescaline.Time (Duration, Time)
 import           Prelude hiding (id)
@@ -74,10 +75,10 @@ value i = DB.featureValue . feature i
 -- withValues :: Unit -> [Feature.Value] -> Unit
 -- withValues u vs = Unit (unit u) (V.zipWith Feature.setValue (V.fromList vs) (features u))
 
-getUnits :: (MonadIO m, DB.PersistBackend m) =>
+getUnits :: MonadControlIO m =>
     String
  -> [String]
- -> m [Unit]
+ -> DB.SqlPersist m [Unit]
 getUnits pattern features = do
     (sfs, us) <- DB.query pattern features
     return $ map (\(i, (u, fs)) -> cons sfs i u fs) (Map.toList us)
