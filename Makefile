@@ -15,12 +15,17 @@ upstream-persistent:
 
 .PHONY: mescaline-database mescaline-database-clean mescaline-database-configure mescaline-database-install
 mescaline-database:
+MESCALINE_DATABASE_ENTITY = lib/mescaline-database/Mescaline/Database/Entity.hs
+MESCALINE_DATABASE_DEPENDS = $(MESCALINE_DATABASE_ENTITY)
+$(MESCALINE_DATABASE_ENTITY): $(MESCALINE_DATABASE_ENTITY:.hs=Gen.hs)
+	runhaskell $? > $@
+mescaline-database: $(MESCALINE_DATABASE_DEPENDS)
 	cd lib/mescaline-database && $(CABAL) build
 mescaline-database-clean:
 	cd lib/mescaline-database && $(CABAL) clean
-mescaline-database-configure:
+mescaline-database-configure: $(MESCALINE_DATABASE_DEPENDS)
 	cd lib/mescaline-database && $(CABAL) configure
-mescaline-database-install:
+mescaline-database-install: $(MESCALINE_DATABASE_DEPENDS)
 	cd lib/mescaline-database && $(CABAL) install
 
 MESCALINE_CONFIGURE_ARGS = \
