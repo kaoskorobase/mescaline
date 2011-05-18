@@ -17,10 +17,10 @@ install:
 upstream: upstream-cabal-macosx upstream-persistent
 upstream-cabal-macosx:
 	cd upstream/cabal-macosx && $(CABAL) install
-upstream-persistent:
-	cd upstream/persistent && $(CABAL) install
-	cd upstream/persistent/backends/sqlite && $(CABAL) install
-	cd upstream/persistent/packages/template && $(CABAL) install
+upstream-persistent: install
+	$(CABAL) upstream/persistent $(ARGS)
+	$(CABAL) upstream/persistent/backends/sqlite $(ARGS)
+	$(CABAL) upstream/persistent/packages/template $(ARGS)
 .PHONY: upstream upstream-cabal-macosx upstream-persistent
 
 # mescaline-database
