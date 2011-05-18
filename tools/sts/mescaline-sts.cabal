@@ -1,0 +1,46 @@
+Name:               mescaline-sts
+Version:            0.0.1
+Synopsis:           Mescaline is a data-driven sequencer and synthesizer.
+Description:        Mescaline is a data-driven sequencer and synthesizer.
+Category:           Sound
+License:            GPL-3
+-- License-File:       COPYING
+Author:             puesnada.es
+Copyright:          (c) 2009-2011 puesnada.es
+Maintainer:         mescaline@puesnada.es
+Homepage:           http://mescaline.puesnada.es
+Bug-Reports:        https://github.com/kaoskorobase/mescaline/issues
+Cabal-Version:      >= 1.2
+Build-Type:         Simple
+
+Executable mescaline-sts
+    Main-Is:
+        Main.hs
+    Other-Modules:
+        Engine
+    Ghc-Options:
+        -W -threaded -funbox-strict-fields -rtsopts
+    Build-Depends:
+        base
+      , Chart
+      , cmdargs
+      , colour
+      , containers
+      , data-accessor
+      , data-accessor-template
+      , directory
+      , filepath
+      , FindBin
+      , glade
+      , glib
+      , gtk
+      , hosc
+      , hsc3-process
+      , hsc3-server
+      , mescaline
+      , mescaline-database
+      , mwc-random
+      , parallel
+      , random
+      , transformers
+      , vector
