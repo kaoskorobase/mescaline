@@ -2,6 +2,7 @@
 module Main where
 
 import           Control.Applicative
+import           Control.Arrow
 import           Control.Monad
 import           Control.Monad.IO.Class (liftIO)
 import           Data.Accessor
@@ -9,17 +10,16 @@ import           Data.Char ( toLower )
 import           Data.Colour
 import           Data.Colour.RGBSpace
 import           Data.Colour.SRGB
-import           Data.Colour.Names
 import           Data.IORef
 import           Data.Word (Word16)
 import           Data.List ( isPrefixOf )
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import           Data.Typeable (Typeable)
+import           Data.Typeable
 import qualified Data.Vector.Generic as V
-import           Graphics.Rendering.Chart
+import           Graphics.Rendering.Chart as C
 import           Graphics.Rendering.Chart.Gtk
-import           Graphics.UI.Gtk
+import           Graphics.UI.Gtk as G
 import           Graphics.UI.Gtk.Glade
 import           Mescaline.Application (AppT)
 import qualified Mescaline.Application as App
@@ -28,7 +28,6 @@ import qualified Mescaline.Database as DB
 import qualified Paths_mescaline_sts as Paths
 import           Reactive.Banana hiding (filter)
 import           System.FilePath
-import           System.Glib.Signals (on)
 
 newTextColumn f label model = do
     col <- treeViewColumnNew
@@ -50,7 +49,7 @@ colourToGdk c = Color (r2w (channelRed rgb)) (r2w (channelGreen rgb)) (r2w (chan
         rgb = toRGBUsingSpace sRGBSpace c
         r2w r = truncate (r * fromIntegral (maxBound :: Word16))
 
-chart sfMap units = toRenderable layout
+chart sfMap units = layout1ToRenderable layout
     where
         -- bars = plot_errbars_values ^= [symErrPoint x y dx dy | (x,y,dx,dy) <- vals]
         --      $ plot_errbars_title ^="test"
@@ -92,8 +91,30 @@ addHandler es k = do
 fire :: EventSource a -> (a -> IO ())
 fire es x = getHandler es >>= ($ x)
 
-redrawAfter :: WidgetClass self => self -> IO () -> IO ()
-redrawAfter w a = a >> widgetQueueDraw w
+data PickFunction a = NoPick | Pick (PickFn a) deriving (Typeable)
+
+instance Show (PickFunction a) where
+    show NoPick   = "NoPick"
+    show (Pick _) = "Pick"
+
+instance Functor PickFunction where
+    fmap _ NoPick    = NoPick
+    fmap f (Pick pf) = Pick (fmap f . pf)
+
+pick :: PickFunction a -> C.Point -> Maybe a
+pick NoPick    = const Nothing
+pick (Pick pf) = pf
+
+updateCanvas' :: G.DrawingArea -> (PickFunction a -> IO ()) -> Renderable a -> IO Bool
+updateCanvas' canvas pickFnSrc chart = do
+    win <- G.widgetGetDrawWindow canvas
+    (width, height) <- G.widgetGetSize canvas
+    let sz = (fromIntegral width,fromIntegral height)
+    pickf <- G.renderWithDrawable win $ runCRender (render chart sz) bitmapEnv
+    pickFnSrc (Pick pickf)
+    return True
+
+newtype L1P x y = L1P { unL1P :: Layout1Pick x y } deriving (Show, Typeable)
 
 appMain :: AppT IO ()
 appMain = do
@@ -149,7 +170,7 @@ appMain = do
         treeViewAppendColumn view col3
         treeViewAppendColumn view col4
 
-        -- update the model when the toggle buttons are activated
+        -- Update the model when the toggle buttons are activated
         on renderer4 cellToggled $ \pathStr -> do
             let (i:_) = stringToTreePath pathStr
             val <- listStoreGetValue model i
@@ -164,21 +185,30 @@ appMain = do
 
         -- Drawing area for plots
         canvas <- xmlGetWidget xml castToDrawingArea "plot"
+        widgetAddEvents canvas [Button1MotionMask]
+        pickFnSrc <- newEventSource
 
         -- Set up event network
         prepareEvents $ do
-            -- Event fired when sound files are marked or unmarked
-            soundFiles <- fromAddHandler $ \a -> void $ on renderer4 cellToggled $ \_ -> listStoreToList model >>= a
+            -- Event fired as sound files are marked or unmarked
+            soundFiles <- fromAddHandler $ \a -> void $ on renderer4 cellToggled $ const (listStoreToList model >>= a)
             -- Expose event for canvas
             expose <- fromAddHandler $ \a -> void $ on canvas exposeEvent $ liftIO (a ()) >> return True
+            -- Canvas button events
+            buttonPress <- fromAddHandler $ \a -> void $ on canvas buttonPressEvent $ eventCoordinates >>= liftIO . a >> return True
+            buttonMove <- fromAddHandler $ \a -> void $ on canvas motionNotifyEvent $ eventCoordinates >>= liftIO . a >> return True
+            -- The picks from the plot area ((Double,Double) -> Maybe Layout1Pick)
+            picks <- liftM (fmap ((uncurry Point >>>) . pick) . stepper NoPick) $ fromAddHandler $ addHandler pickFnSrc
             let plots = stepper (chart cmap us) $ flip fmap soundFiles $ \sfs ->
                             -- Filter units by IDs of marked sound files
                             let ids = Set.fromList (map fileId (filter marked sfs))
                             in chart cmap (Map.filter (flip Set.member ids . DB.unitSourceFile . fst) us)
             -- Schedule redraw when sound files change
             reactimate $ widgetQueueDraw canvas <$ soundFiles
-            -- Updated canvas with current plot on expose event
-            reactimate $ (const . void . flip updateCanvas canvas <$> plots) `apply` expose
+            -- Update canvas with current plot and feed back new pick function
+            reactimate (((const . void . updateCanvas' canvas (fire pickFnSrc . fmap L1P)) <$> plots) `apply` expose)
+            -- Print the picks when a button is pressed in the plot area
+            reactimate $ print <$> (picks `apply` (buttonPress `union` buttonMove))
 
         widgetShowAll win
         mainGUI
