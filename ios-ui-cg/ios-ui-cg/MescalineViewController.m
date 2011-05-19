@@ -28,7 +28,6 @@
     
 }
 
-
 - (NSArray *)getPoints:(FeatureSpace *)requestor
 {
     FakeModel* model =  [FakeModel sharedManager];
@@ -39,9 +38,6 @@
     FakeModel* model =  [FakeModel sharedManager];
     return model.regions;
 }
-
-
-
 
 - (BOOL)checkIfOverRegion:(CGPoint)currentPosition
 {
@@ -57,6 +53,7 @@
     while ((object = [e nextObject])) {
         CGPoint p = [object.location CGPointValue];
         double dist = sqrt(pow((p.x*width - currentPosition.x),2)  + pow((p.y*height - currentPosition.y),2));
+        NSLog(@"%f",object.rad);
         if (dist<=object.rad) {
             NSLog(@"%s\t%f\t%f","over circle, xvalue: ---> ",p.x*height,currentPosition.x);
             //NSLog(@"over circle");
@@ -73,8 +70,6 @@
 	return ret;
 }
 
-
-
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event{
 	for (UITouch *touch in touches){
         CGPoint startPoint = [touch locationInView:self.view];
@@ -87,7 +82,6 @@
     }    
 	
 }
-
 
 - (void)scaleRegion:(CGFloat)scale
 {
@@ -102,7 +96,6 @@
     }
 
 }
-
 
 - (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event{
     FakeModel* model =  [FakeModel sharedManager];
@@ -133,9 +126,7 @@
 
 - (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event{
     FakeModel* model =  [FakeModel sharedManager];
-    
 	NSArray *regionlist = model.regions;
-
     NSEnumerator *e = [regionlist objectEnumerator];
     Region * object;
     while ((object = [e nextObject])) {

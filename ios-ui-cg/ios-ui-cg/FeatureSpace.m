@@ -129,18 +129,24 @@
        (gesture.state == UIGestureRecognizerStateEnded)){
         self.scale *=gesture.scale;
         NSLog(@"%f", self.scale);
-        CGPoint p = [gesture locationInView:self];
-        if([self.delegate checkIfOverRegion:p] == NO){
-            CGAffineTransform t = CGAffineTransformMakeScale(gesture.scale, gesture.scale);
-            self.transform = t;
-            NSLog(@"zooming View");
-        }else{
-            NSLog(@"zooming Region");
-            [self.delegate scaleRegion:gesture.scale];
-            [self setNeedsDisplay];
-            gesture.scale = 1;
+        for (int i=0; i< gesture.numberOfTouches; i++) {
+            //CGPoint p = [gesture locationInView:self];
+            CGPoint p = [gesture locationOfTouch:(NSUInteger)i inView:(UIView *)self];
+            if([self.delegate checkIfOverRegion:p] == NO){
+                CGAffineTransform t = CGAffineTransformMakeScale(gesture.scale, gesture.scale);
+                self.transform = t;
+                NSLog(@"zooming View");
+            }else{
+                NSLog(@"zooming Region");
+                [self.delegate scaleRegion:gesture.scale];
+                [self setNeedsDisplay];
+                gesture.scale = 1;
+            }
+
+
         }
-     }    
+        
+      }    
 }
 
 
