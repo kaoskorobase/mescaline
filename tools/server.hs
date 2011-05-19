@@ -1,5 +1,7 @@
 import           Control.Applicative
 import           Control.Concurrent
+import           Control.Concurrent.STM
+import           Control.Concurrent.STM.TBChan
 import			 Control.Monad.IO.Class (MonadIO(..))
 import			 Control.Monad.IO.Control (MonadControlIO)
 import qualified Control.Monad.Trans.State as State
@@ -22,95 +24,107 @@ data Sound = Sound {
   }
 
 data RTState = RTState {
-    rt_time :: Double
+    rt_time :: Time
   , rt_featureSpace :: FeatureSpace.FeatureSpace
   , rt_sounds :: [(FeatureSpace.RegionId, Sound)]
-  , rt_output :: [Output]
+  , rt_output :: [RTOutput]
   }
 
-type Engine a = State.StateT RTState (ServerT IO) a
+type RTModel a = State.StateT RTState (ServerT IO) a
 
-time :: Engine Double
-time = State.gets s_time
+time :: RTModel Time
+time = State.gets rt_time
 
--- | Update regions from current feature space.
--- updateRegions :: Engine ()
--- updateRegions = do
---     rs <- fmap (\r -> (FeatureSpace.regionId r, r)) . FeatureSpace.regions <$> State.gets s_featureSpace
---     State.modify $ \s ->
---         s { s_sounds = fmap (\(rid, s) -> (rid, s { region = maybe (region s) id (lookup rid rs) })) (s_sounds s) }
---     return ()
-
-data Input = Input
-data Output =
+data RTInput = RTInput
+data RTOutput =
     Synth Time Event.Synth
 
-engine :: [Input] -> Engine ()
-engine = undefined
+rtEngine :: [RTInput] -> RTModel ()
+rtEngine = undefined
 
-runEngine :: ([Input] -> Engine ()) -> Double -> MVar [Input] -> RTState -> ServerT IO ()
-runEngine f dt mvar = loop
-    where
-        loop s = do
-            is <- tryTakeMVar
-            s' <- State.execStateT (f (maybe [] reverse is)) s
-            let t' = rt_time s' + dt
-            OSC.pauseThreadUntil t'
-            loop s' { rt_time = t' }
+data RTEngine = RTEngine {
+    rt_func :: [RTInput] -> RTModel ()
+  , rt_sampleInterval :: Double
+  , rt_inputChan :: TBChan RTInput
+  , rt_outputChan :: TChan RTOutput
+  }
+
+runRT :: RTEngine -> RTState -> ServerT IO ()
+runRT = undefined
+-- runRT e = loop
+--     where
+--         loop s = do
+--             is <- tryTakeMVar
+--             s' <- State.execStateT (f (maybe [] reverse is)) s
+--             let t' = rt_time s' + dt
+--             OSC.pauseThreadUntil t'
+--             loop s' { rt_time = t' }
 
 data NRTState = NRTState {
     nrt_featureSpace :: FeatureSpace
+  , nrt_output :: [NRTOutput]
+  , nrt_rtInput :: [RTInput]
   }
 
-type Model a = State.StateT NRTState IO a
+type NRTModel a = State.StateT NRTState IO a
 
-data NRTEvent =
+data NRTInput =
     LoadDatabase FilePath String
   | UpdateRegion FeatureSpace.Region
   deriving (Show)
 
-model :: NRTEvent -> Model ()
-model e =
+data NRTOutput = NRTOutput
+
+nrtEngine :: NRTInput -> NRTModel ()
+nrtEngine e =
     case e of
         LoadDatabase path pattern -> do
             us <- DB.withDatabase path
                     $ Unit.getUnits pattern [
                         "es.globero.mescaline.spectral" ]
-            State.modify (flip FeatureSpace.setUnits us)
+            liftIO $ print $ length us
+            State.modify $ \s -> s { nrt_featureSpace = FeatureSpace.setUnits (nrt_featureSpace s) us }
         UpdateRegion r ->
-            State.modify (FeatureSpace.updateRegion r)
+            State.modify $ \s -> s { nrt_featureSpace = FeatureSpace.updateRegion r (nrt_featureSpace s) }
 
-runModel :: (NRTEvent -> Model ()) -> NRTState -> Chan NRTEvent -> MVar Input -> IO ()
-runModel f 
+data NRTEngine = NRTEngine {
+    nrt_func :: NRTInput -> NRTModel ()
+  , nrt_inputChan :: TChan NRTInput
+  , nrt_outputChan :: TChan NRTOutput
+  , nrt_rtChan :: TBChan RTInput
+  }
 
-serverLoop :: Chan FeatureSpaceEvent -> IO ()
-serverLoop src = do
-    t <- liftIO $ OSC.udpServer "127.0.0.1" 7800
-    loop t src
+runNRT :: NRTEngine -> NRTState -> IO ()
+runNRT e = loop
     where
-        loop t src = do
-            msg <- OSC.recv t
-            let e = case msg of
-                        Message "/loadDatabase" [String path, String pattern] ->
-                            LoadDatabase path pattern
-                        Message "/updateRegion" [Int i, Float x, Float y, Float r] ->
-                            UpdateRegion (FeatureSpace.mkRegion i (x,y) r)
-            liftIO $ print e
-            writeChan src e
-            loop t src
+        loop s = do
+            x <- atomically $ readTChan (nrt_inputChan e)
+            s' <- State.execStateT (nrt_func e x) s
+            atomically $ mapM_ (writeTBChan (nrt_rtChan e)) (nrt_rtInput s')
+            atomically $ mapM_ (writeTChan (nrt_outputChan e)) (nrt_output s')
+            loop s' { nrt_output = [], nrt_rtInput = [] }
 
-mkServer :: Prepare m (Chan FeatureSpaceEvent, IO ())
-mkServer = do
-    src <- newChan
-    return (src, serverLoop src)
+mkServer :: String -> Int -> TChan NRTInput -> TBChan RTInput -> IO ()
+mkServer host port nrtChan rtChan = loop =<< OSC.udpServer host port
+    where
+        to_nrt = atomically . writeTChan nrtChan
+        to_rt = atomically . writeTBChan rtChan
+        loop t = do
+            msg <- OSC.recv t
+            case msg of
+                Message "/loadDatabase" [String path, String pattern] ->
+                    to_nrt $ LoadDatabase path pattern
+                Message "/updateRegion" [Int i, Float x, Float y, Float r] ->
+                    to_nrt $ UpdateRegion (FeatureSpace.mkRegion i (x,y) r)
+                _ -> putStrLn $ "Unknown command: " ++ show msg
+            loop t
 
 displayFeatureSpace :: FeatureSpace -> IO ()
 displayFeatureSpace fs = print (length $ FeatureSpace.units fs, FeatureSpace.regions fs)
 
 main = do
     putStrLn "Fuck that shit"
-    (server, loop) <- mkServer
-    forkIO loop
-    reactimate =<< R.map displayFeatureSpace =<< mkFeatureSpace FeatureSpace.empty server
-    withDefaultInternal $ do
-        
+    nrte <- atomically $ NRTEngine nrtEngine <$> newTChan <*> newTChan <*> newTBChan 256
+    let nrts = NRTState FeatureSpace.empty [] []
+    forkIO $ mkServer "127.0.0.1" 7800 (nrt_inputChan nrte) (nrt_rtChan nrte)
+    runNRT nrte nrts
