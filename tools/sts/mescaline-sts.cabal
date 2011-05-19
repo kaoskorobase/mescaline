@@ -37,6 +37,7 @@ Executable mescaline-sts
       , hosc
       , hsc3-process
       , hsc3-server
+      , ListZipper
       , mescaline
       , mescaline-database
       , mwc-random
