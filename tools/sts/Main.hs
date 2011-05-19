@@ -2,6 +2,7 @@
 module Main where
 
 import           Control.Applicative
+import           Control.Monad
 import           Control.Monad.IO.Class (liftIO)
 import           Data.Accessor
 import           Data.Char ( toLower )
@@ -161,18 +162,23 @@ appMain = do
             row <- listStoreGetValue model i
             return (map toLower str `isPrefixOf` map toLower (DB.sourceFileUrl . file $ row))
 
-        -- Create reference for storing current plot and register expose event handler
-        plotRef <- newIORef $ chart cmap us
+        -- Drawing area for plots
         canvas <- xmlGetWidget xml castToDrawingArea "plot"
-        canvas `on` exposeEvent $ liftIO $ readIORef plotRef >>= flip updateCanvas canvas
 
+        -- Set up event network
         prepareEvents $ do
-            soundFiles <- fromAddHandler $ \a -> on renderer4 cellToggled (\_ -> listStoreToList model >>= a) >> return ()
-            let plots = flip fmap soundFiles $ \sfs ->
+            -- Event fired when sound files are marked or unmarked
+            soundFiles <- fromAddHandler $ \a -> void $ on renderer4 cellToggled $ \_ -> listStoreToList model >>= a
+            -- Expose event for canvas
+            expose <- fromAddHandler $ \a -> void $ on canvas exposeEvent $ liftIO (a ()) >> return True
+            let plots = stepper (chart cmap us) $ flip fmap soundFiles $ \sfs ->
                             -- Filter units by IDs of marked sound files
                             let ids = Set.fromList (map fileId (filter marked sfs))
                             in chart cmap (Map.filter (flip Set.member ids . DB.unitSourceFile . fst) us)
-            reactimate $ redrawAfter canvas . writeIORef plotRef <$> plots
+            -- Schedule redraw when sound files change
+            reactimate $ widgetQueueDraw canvas <$ soundFiles
+            -- Updated canvas with current plot on expose event
+            reactimate $ (const . void . flip updateCanvas canvas <$> plots) `apply` expose
 
         widgetShowAll win
         mainGUI
