@@ -163,8 +163,8 @@ matchPattern (Just pattern) s = do
         handler :: MonadControlIO m => SomeException -> m (Maybe a)
         handler = const (return Nothing)
 
-queryI :: (MonadControlIO m) => Maybe Pattern -> [DescriptorId] -> E.Iteratee (SourceFileId, SourceFile) (SqlPersist m) (SourceFileMap, UnitMap)
-queryI pattern features = go Map.empty Map.empty
+queryI :: (MonadControlIO m) => ((SourceFileId, SourceFile) -> Bool) -> [DescriptorId] -> E.Iteratee (SourceFileId, SourceFile) (SqlPersist m) (SourceFileMap, UnitMap)
+queryI matchFile features = go Map.empty Map.empty
     where
         minMaxUnitId :: (Int64, Int64) -> UnitId -> (Int64, Int64)
         minMaxUnitId (!curMin, !curMax) (UnitId (PersistInt64 cur)) =
@@ -197,8 +197,7 @@ queryI pattern features = go Map.empty Map.empty
             case m of
                 Nothing -> return (sfs, um)
                 Just (sfi, sf) -> do
-                    isMatch <- liftIO $ matchPattern pattern (sourceFileUrl sf)
-                    if isMatch
+                    if curry matchFile sfi sf
                         then do
                             let sfs' = Map.insert sfi sf sfs
                             us <- lift $ selectList [UnitSourceFileEq sfi] [] 0 0
@@ -212,14 +211,15 @@ queryI pattern features = go Map.empty Map.empty
                             go sfs' (updateUnitMap us fs um)
                         else go sfs um
 
-queryFeatures :: (MonadControlIO m) => Maybe Pattern -> [DescriptorId] -> SqlPersist m (SourceFileMap, UnitMap)
-queryFeatures pattern ds = E.run_ $ selectEnum [] [] 0 0 $$ queryI pattern ds
+queryFeatures :: (MonadControlIO m) => ((SourceFileId, SourceFile) -> Bool) -> [DescriptorId] -> SqlPersist m (SourceFileMap, UnitMap)
+queryFeatures matchFile ds = E.run_ $ selectEnum [] [] 0 0 $$ queryI matchFile ds
 
 query :: (MonadControlIO m) => Pattern -> [String] -> SqlPersist m (SourceFileMap, UnitMap)
 query pattern features = do
     -- liftIO $ putStrLn "query: begin"
     ds <- mapM getDescriptorId features
-    r <- queryFeatures (Just pattern) ds
+    regex <- evaluate $ mkRegex pattern
+    r <- queryFeatures (isJust . matchRegex regex . sourceFileUrl . snd) ds
     -- liftIO $ putStrLn "query: done"
     return r
 
@@ -248,7 +248,7 @@ transformFeatureP (Transformation func) srcFeatures dstFeature = do
     (d, _) <- getDescriptor (Analysis.name dstFeature) (Analysis.degree dstFeature)
     -- liftIO $ print d
     deleteFeature d
-    (_, fs) <- queryFeatures Nothing srcFeatures
+    (_, fs) <- queryFeatures (const True) srcFeatures
     -- liftIO $ print (map (map (V.length.Vector.toVector.featureValue)) fs)
     let FeatureMap fs' = func (FeatureMap (fmap (V.concat . fmap featureValue . snd) fs))
     -- liftIO $ print xs'
