@@ -41,6 +41,7 @@ Executable mescaline-sts
       , mescaline-database
       , mwc-random
       , parallel
+      , reactive-banana
       , random
       , transformers
       , vector

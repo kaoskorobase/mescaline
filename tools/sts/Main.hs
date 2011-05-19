@@ -1,5 +1,7 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 module Main where
 
+import           Control.Applicative
 import           Control.Monad.IO.Class (liftIO)
 import           Data.Accessor
 import           Data.Char ( toLower )
@@ -7,9 +9,12 @@ import           Data.Colour
 import           Data.Colour.RGBSpace
 import           Data.Colour.SRGB
 import           Data.Colour.Names
+import           Data.IORef
 import           Data.Word (Word16)
 import           Data.List ( isPrefixOf )
 import qualified Data.Map as Map
+import qualified Data.Set as Set
+import           Data.Typeable (Typeable)
 import qualified Data.Vector.Generic as V
 import           Graphics.Rendering.Chart
 import           Graphics.Rendering.Chart.Gtk
@@ -20,6 +25,7 @@ import qualified Mescaline.Application as App
 import           Mescaline.ColourMap
 import qualified Mescaline.Database as DB
 import qualified Paths_mescaline_sts as Paths
+import           Reactive.Banana hiding (filter)
 import           System.FilePath
 import           System.Glib.Signals (on)
 
@@ -32,6 +38,7 @@ newTextColumn f label model = do
     return col
 
 data SoundFile = SoundFile { fileId :: DB.SourceFileId, file :: DB.SourceFile, marked :: Bool }
+                 deriving (Typeable)
 
 fileColour :: ColourMap DB.SourceFileId a -> SoundFile -> Colour a
 fileColour m s = m Map.! fileId s
@@ -59,6 +66,33 @@ chart sfMap units = toRenderable layout
         layout = layout1_title ^= "Units"
                $ layout1_plots ^= map (\(sf, c) -> Left (toPlot (points sf c))) (Map.toList sfMap)
                $ defaultLayout1
+
+{-----------------------------------------------------------------------------
+Event sources
+------------------------------------------------------------------------------}
+-- Event Sources - allows you to register event handlers
+-- Your GUI framework should provide something like this for you
+data EventSource a = EventSource {
+        setHandler :: (a -> IO ()) -> IO (),
+        getHandler :: IO (a -> IO ())
+        }
+
+newEventSource :: IO (EventSource a)
+newEventSource = do
+    ref <- newIORef (const $ return ())
+    return $
+        EventSource { setHandler = writeIORef ref, getHandler = readIORef ref}
+
+addHandler :: EventSource a -> AddHandler a
+addHandler es k = do
+    handler <- getHandler es
+    setHandler es (\x -> handler x >> k x)
+
+fire :: EventSource a -> (a -> IO ())
+fire es x = getHandler es >>= ($ x)
+
+redrawAfter :: WidgetClass self => self -> IO () -> IO ()
+redrawAfter w a = a >> widgetQueueDraw w
 
 appMain :: AppT IO ()
 appMain = do
@@ -91,7 +125,7 @@ appMain = do
         treeViewColumnSetResizable col1 True
         treeViewColumnSetTitle col2 "Channels"
         treeViewColumnSetTitle col3 "Sample rate"
-        treeViewColumnSetTitle col3 "Active"
+        treeViewColumnSetTitle col4 "Active"
 
         renderer1 <- cellRendererTextNew
         renderer2 <- cellRendererTextNew
@@ -127,8 +161,18 @@ appMain = do
             row <- listStoreGetValue model i
             return (map toLower str `isPrefixOf` map toLower (DB.sourceFileUrl . file $ row))
 
+        -- Create reference for storing current plot and register expose event handler
+        plotRef <- newIORef $ chart cmap us
         canvas <- xmlGetWidget xml castToDrawingArea "plot"
-        canvas `on` exposeEvent $ liftIO $ updateCanvas (chart cmap us) canvas
+        canvas `on` exposeEvent $ liftIO $ readIORef plotRef >>= flip updateCanvas canvas
+
+        prepareEvents $ do
+            soundFiles <- fromAddHandler $ \a -> on renderer4 cellToggled (\_ -> listStoreToList model >>= a) >> return ()
+            let plots = flip fmap soundFiles $ \sfs ->
+                            -- Filter units by IDs of marked sound files
+                            let ids = Set.fromList (map fileId (filter marked sfs))
+                            in chart cmap (Map.filter (flip Set.member ids . DB.unitSourceFile . fst) us)
+            reactimate $ redrawAfter canvas . writeIORef plotRef <$> plots
 
         widgetShowAll win
         mainGUI
