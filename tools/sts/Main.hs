@@ -241,35 +241,49 @@ appMain = do
             -- Expose event for canvas
             expose <- fromAddHandler $ \a -> void $ on canvas exposeEvent $ liftIO (a ()) >> return True
             -- Canvas button events
-            buttonPress <- fromAddHandler $ \a -> void $ on canvas buttonPressEvent $ eventCoordinates >>= liftIO . a >> return True
+            buttonPress <- fromAddHandler $ \a -> void $ on canvas buttonPressEvent $ do
+                x1 <- liftM fromEnum eventButton
+                x2 <- eventCoordinates
+                liftIO $ a (x1, x2)
+                return True
             buttonMove <- fromAddHandler $ \a -> void $ on canvas motionNotifyEvent $ eventCoordinates >>= liftIO . a >> return True
             -- The picks from the plot area ((Double,Double) -> Maybe Layout1Pick)
             picks <- liftM (fmap ((uncurry Point >>>) . pick) . stepper NoPick) $ fromAddHandler $ addHandler pickFnSrc
-            let buttonPressInAxisTitle = flip mapFilter (picks `apply` buttonPress)
-                                            $ \e -> case e of
-                                                Just (L1P (L1P_AxisTitle t)) -> Just t
+            let -- TODO: This should be a popup menu.
+                --       Unfortunately we don't get to know the axis when picking a label!
+                buttonPressInAxis = flip mapFilter (fmap second picks `apply` buttonPress)
+                                            $ \(b, e) -> case e of
+                                                Just (L1P (L1P_BottomAxis x)) -> Just (b, Left x)
+                                                Just (L1P (L1P_LeftAxis x)) -> Just (b, Right x)
                                                 _ -> Nothing
-                right' z = let z' = if Z.endp z then Z.start z else z
-                           in (Z.cursor z', Z.right z')
-                updateScatterPlotAxis t (sp, (xAxes, yAxes)) =
-                        if scatterPlotAxisTitle (scatterPlotX sp) == t
-                        then let (a, z) = right' xAxes in (sp { scatterPlotX = a }, (z, yAxes))
-                        else if scatterPlotAxisTitle (scatterPlotY sp) == t
-                             then let (a, z) = right' yAxes in (sp { scatterPlotY = a }, (xAxes, z))
-                             else (sp, (xAxes, yAxes))
+                left' z = let z' = if Z.beginp z then Z.left (Z.end z) else Z.left z
+                          in (Z.cursor z', z')
+                right' z = let z' = Z.right z
+                               z'' = if Z.endp z' then Z.start z else z'
+                           in (Z.cursor z'', z'')
+                updateScatterPlotAxis (button, click) (sp, (xAxes, yAxes)) =
+                    let inc = if button == 1
+                              then left'
+                              else if button == 3
+                                   then right'
+                                   else \z -> (Z.cursor z, z)
+                    in case click of
+                        Left _  -> let (a, z) = inc xAxes in (sp { scatterPlotX = a }, (z, yAxes))
+                        Right _ -> let (a, z) = inc yAxes in (sp { scatterPlotY = a }, (xAxes, z))
                 scatterPlot = fst <$> accumB ( ScatterPlot (head scatterPlotAxes) (head scatterPlotAxes)
                                              , (Z.fromList scatterPlotAxes, Z.fromList scatterPlotAxes) )
-                                             (updateScatterPlotAxis <$> buttonPressInAxisTitle)
+                                             (updateScatterPlotAxis <$> buttonPressInAxis)
                 plots = stepper (chart cmap us) $ flip fmap soundFiles $ \sfs ->
                             -- Filter units by IDs of marked sound files
                             let ids = Set.fromList (map fileId (filter marked sfs))
                             in chart cmap (Map.filter (flip Set.member ids . DB.unitSourceFile . fst) us)
                 plotsWithAxes = plots <*> scatterPlot
-                redraw = ignore soundFiles `union` ignore buttonPressInAxisTitle
+                redraw = ignore soundFiles `union` ignore buttonPressInAxis
             -- Update canvas with current plot and feed back new pick function
             reactimate $ ((const . void . updateCanvas' canvas (fire pickFnSrc . fmap L1P)) <$> plotsWithAxes) `apply` expose
             -- Print the picks when a button is pressed in the plot area
-            reactimate $ print <$> (picks `apply` (buttonPress `union` buttonMove))
+            reactimate $ print <$> (picks `apply` (fmap snd buttonPress `union` buttonMove))
+            reactimate $ print <$> buttonPressInAxis
             -- Schedule redraw
             reactimate $ widgetQueueDraw canvas <$ redraw
 
