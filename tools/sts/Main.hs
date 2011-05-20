@@ -1,4 +1,5 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable
+           , FlexibleContexts #-}
 module Main where
 
 import           Control.Applicative
@@ -13,13 +14,16 @@ import           Data.Colour.SRGB
 import           Data.IORef
 import qualified Data.List as List
 import qualified Data.List.Zipper as Z
+import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Maybe
 import qualified Data.Set as Set
 import           Data.Typeable
 import           Data.Word (Word16)
 import qualified Data.Vector.Generic as V
+import qualified Data.Vector.Unboxed as U
 import           Graphics.Rendering.Chart as C
+import           Graphics.Rendering.Chart.Grid
 import           Graphics.Rendering.Chart.Gtk
 import           Graphics.UI.Gtk as G
 import           Graphics.UI.Gtk.Glade
@@ -31,6 +35,9 @@ import qualified Paths_mescaline_sts as Paths
 import           Reactive.Banana hiding (filter)
 import qualified Reactive.Banana as R
 import qualified Reactive.Banana.Model as RM
+import           Statistics.Function (indexed)
+import           Statistics.KernelDensity (Points, epanechnikovPDF, fromPoints)
+import           Statistics.Types (Sample)
 import           System.FilePath
 
 data SoundFile = SoundFile { fileId :: DB.SourceFileId, file :: DB.SourceFile, marked :: Bool }
@@ -52,7 +59,7 @@ data ScatterPlotAxis = ScatterPlotAxis {
   } deriving (Show, Typeable)
 
 scatterPlotAxisTitle :: ScatterPlotAxis -> String
-scatterPlotAxisTitle x = DB.descriptorName (scatterPlotDescriptor x) ++ " (" ++ show (scatterPlotIndex x) ++ ")"
+scatterPlotAxisTitle x = descriptorShortName (scatterPlotDescriptor x) ++ " (" ++ show (scatterPlotIndex x) ++ ")"
 
 data ScatterPlot = ScatterPlot {
     scatterPlotX :: ScatterPlotAxis
@@ -83,7 +90,11 @@ scatterPlotAxisMenu descr action = do
             menuShellAppend menu item
             onActivateLeaf item (action axis)
 
-chart sfMap units sp = layout1ToRenderable layout
+getFeature :: DB.DescriptorId -> [DB.Feature] -> DB.Feature
+getFeature d = fromJust . List.find ((== d) . DB.featureDescriptor)
+
+renderScatterPlot :: ColourMap DB.SourceFileId Double -> DB.UnitMap -> ScatterPlot -> Renderable (Layout1Pick Double Double)
+renderScatterPlot sfMap units sp = layout1ToRenderable layout
     where
         -- bars = plot_errbars_values ^= [symErrPoint x y dx dy | (x,y,dx,dy) <- vals]
         --      $ plot_errbars_title ^="test"
@@ -93,8 +104,7 @@ chart sfMap units sp = layout1ToRenderable layout
             let us = Map.filter (\(u, _) -> sf == DB.unitSourceFile u) units
                 value axis = flip (V.!) (scatterPlotIndex axis)
                            . DB.featureValue
-                           . fromJust
-                           . List.find ((== scatterPlotDescriptorId axis) . DB.featureDescriptor)
+                           . getFeature (scatterPlotDescriptorId axis)
                 vs = map (\(_, fs) -> (value (scatterPlotX sp) fs, value (scatterPlotY sp) fs)) (Map.elems us)
             in plot_points_style ^= filledCircles 2 (opaque colour)
                $ plot_points_values ^= vs
@@ -106,6 +116,59 @@ chart sfMap units sp = layout1ToRenderable layout
                $ layout1_left_axis   ^= (laxis_title ^= scatterPlotAxisTitle (scatterPlotY sp) $ defaultLayoutAxis)
                $ layout1_bottom_axis ^= (laxis_title ^= scatterPlotAxisTitle (scatterPlotX sp) $ defaultLayoutAxis)
                $ defaultLayout1
+
+type Histogram = (Points, U.Vector Double)
+
+featurePDFs :: Map DB.DescriptorId DB.Descriptor -> DB.UnitMap -> Map DB.DescriptorId [Histogram]
+featurePDFs ds us = Map.mapWithKey (\di -> fmap (kde di) . indices) ds
+    where
+        indices d = [0..DB.descriptorDegree d - 1]
+        kde di i = estimate . V.fromList . map (flip (V.!) i . DB.featureValue . getFeature di . snd) . Map.elems $ us
+        estimate :: U.Vector Double -> Histogram
+        estimate = epanechnikovPDF 100
+
+renderKDE :: ScatterPlotAxis -> Map DB.DescriptorId [Histogram] -> Renderable (Layout1Pick Double Double)
+renderKDE axis pdfs = layout1ToRenderable layout
+    where
+        descr = scatterPlotAxisTitle axis
+        (points, pdf) = (pdfs Map.! scatterPlotDescriptorId axis) !! scatterPlotIndex axis
+
+        layout = layout1_title ^= "Densities for \"" ++ descr ++ "\""
+               $ layout1_plots ^= [ Left (toPlot info) ]
+               $ layout1_left_axis ^= leftAxis
+               $ layout1_bottom_axis ^= bottomAxis
+               $ defaultLayout1 :: Layout1 Double Double
+
+        leftAxis = laxis_title ^= "estimate of probability density"
+                 $ defaultLayoutAxis
+
+        bottomAxis = -- laxis_generate ^= semiAutoScaledAxis secAxis
+                     laxis_title ^= descr
+                   $ defaultLayoutAxis
+
+        -- semiAutoScaledAxis opts ps = autoScaledAxis opts (extremities ++ ps)
+        -- extremities = maybe [] (\(lo, hi) -> [lo, hi]) exs
+
+        info = plot_lines_values ^= [zip (V.toList (fromPoints points)) (V.toList spdf)]
+             $ defaultPlotLines
+
+        -- Normalise the PDF estimates into a semi-sane range.
+        spdf = V.map (/ V.sum pdf) pdf
+
+renderChart :: Renderable (Layout1Pick Double Double)
+            -> Renderable (Layout1Pick Double Double)
+            -> Renderable (Layout1Pick Double Double)
+            -> Renderable (Layout1Pick Double Double)
+renderChart a b c = gridToRenderable g
+    where
+        g = aboveN
+            [ tval a
+            , f b
+            -- , e
+            , f c
+            ]
+        f = tval . setPickFn (const Nothing)
+        e = tval $ spacer (20,20)
 
 {-----------------------------------------------------------------------------
 Event sources
@@ -205,9 +268,8 @@ appMain = do
         b <- DB.queryFeatures (const True) (Map.keys a)
         return (a, b)
     let colourMap = hsv (Map.keys sfs)
-        scatterPlotAxes = concatMap (\(di, d) -> map (ScatterPlotAxis di d) [0..DB.descriptorDegree d - 1]) (Map.toList descriptors)
-        scatterPlotAxes' = map (\(di, d) -> (descriptorShortName d, map (ScatterPlotAxis di d) [0..DB.descriptorDegree d - 1]))
-                               (Map.toList descriptors)
+        scatterPlotAxes = map (\(di, d) -> (descriptorShortName d, map (ScatterPlotAxis di d) [0..DB.descriptorDegree d - 1]))
+                              (Map.toList descriptors)
     liftIO $ do
         initGUI
         unsafeInitGUIForThreadedRTS
@@ -264,6 +326,7 @@ appMain = do
         prepareEvents $ do
             -- Event fired as sound files are marked or unmarked
             soundFiles <- fromAddHandler $ \a -> void $ on renderer4 cellToggled $ const (listStoreToList model >>= a)
+            soundFiles0 <- liftIO $ listStoreToList model
             -- Expose event for canvas
             expose <- fromAddHandler $ \a -> void $ on canvas exposeEvent $ liftIO (a ()) >> return True
             -- Canvas button events
@@ -296,18 +359,23 @@ appMain = do
                 --                              , (Z.fromList scatterPlotAxes, Z.fromList scatterPlotAxes) )
                 --                              (updateScatterPlotAxis <$> buttonPressInAxis)
             scatterPlotAxis <- fromAddHandler $ addHandler scatterPlotSrc
-            let plots = stepper (chart colourMap us) $ flip fmap soundFiles $ \sfs ->
+            let units = flip fmap (stepper soundFiles0 soundFiles) $ \sfs ->
                             -- Filter units by IDs of marked sound files
                             let ids = Set.fromList (map fileId (filter marked sfs))
-                            in chart colourMap (Map.filter (flip Set.member ids . DB.unitSourceFile . fst) us)
-                scatterPlot = accumB (ScatterPlot (head scatterPlotAxes) (head scatterPlotAxes))
+                            in Map.filter (flip Set.member ids . DB.unitSourceFile . fst) us
+                pdfs = featurePDFs descriptors <$> units
+                scatterPlotState = accumB (ScatterPlot (head . snd . head $ scatterPlotAxes) (head  . snd . head $ scatterPlotAxes))
                                      ((\e sp -> either (\x -> sp { scatterPlotX = x })
                                                        (\y -> sp { scatterPlotY = y }) e) <$> scatterPlotAxis)
-                popupAxisMenu e p = scatterPlotAxisMenu scatterPlotAxes' (fire scatterPlotSrc . either (const Left) (const Right) p) >>=
+                scatterPlot = renderScatterPlot colourMap <$> units <*> scatterPlotState
+                kdePlotX = ((renderKDE . scatterPlotX) <$> scatterPlotState <*> pdfs)
+                kdePlotY = ((renderKDE . scatterPlotY) <$> scatterPlotState <*> pdfs)
+                chart = renderChart <$> scatterPlot <*> kdePlotX <*> kdePlotY
+                popupAxisMenu e p = scatterPlotAxisMenu scatterPlotAxes (fire scatterPlotSrc . either (const Left) (const Right) p) >>=
                                     flip menuPopup (Just (toEnum (uiEventButton e), uiEventTime e))
                 redraw = ignore soundFiles `union` ignore scatterPlotAxis
             -- Update canvas with current plot and feed back new pick function
-            reactimate $ ((const . void . updateCanvas' canvas (fire pickFnSrc . fmap L1P)) <$> (plots <*> scatterPlot)) `apply` expose
+            reactimate $ ((const . void . updateCanvas' canvas (fire pickFnSrc . fmap L1P)) <$> chart) `apply` expose
             -- Display the axis popup menu if needed
             reactimate $ uncurry popupAxisMenu <$> (R.filter ((==3) . uiEventButton . fst) buttonPressInAxis)
             -- Schedule redraw
