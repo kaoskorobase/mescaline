@@ -33,14 +33,6 @@ import qualified Reactive.Banana as R
 import qualified Reactive.Banana.Model as RM
 import           System.FilePath
 
-newTextColumn f label model = do
-    col <- treeViewColumnNew
-    treeViewColumnSetTitle col label
-    renderer <- cellRendererTextNew
-    cellLayoutPackStart col renderer True
-    cellLayoutSetAttributes col renderer model $ \row -> [ cellText := f row ]
-    return col
-
 data SoundFile = SoundFile { fileId :: DB.SourceFileId, file :: DB.SourceFile, marked :: Bool }
                  deriving (Typeable)
 
@@ -189,6 +181,22 @@ motionEventHandler a = do
     MotionEvent <$> eventTime <*> eventCoordinates >>= liftIO . a
     return True
 
+newColumn :: ( CellRendererClass cell
+             , TreeModelClass (model row)
+             , TypedTreeModelClass model ) =>
+             model row
+          -> String
+          -> IO cell
+          -> (row -> [AttrOp cell])
+          -> IO (TreeViewColumn, cell)
+newColumn model label newRenderer attrs = do
+    col <- treeViewColumnNew
+    treeViewColumnSetTitle col label
+    renderer <- newRenderer
+    cellLayoutPackStart col renderer True
+    cellLayoutSetAttributes col renderer model attrs
+    return (col, renderer)
+
 appMain :: AppT IO ()
 appMain = do
     [gladeFile, dbFile] <- App.getArgs
@@ -216,36 +224,18 @@ appMain = do
         treeViewSetHeadersVisible view True
 
         -- add a couple columns
-        col1 <- treeViewColumnNew
-        col2 <- treeViewColumnNew
-        col3 <- treeViewColumnNew
-        col4 <- treeViewColumnNew
-
-        treeViewColumnSetTitle col1 "File"
+        (col1, _) <- newColumn model "File" cellRendererTextNew $ \row -> [ cellText := takeFileName . DB.sourceFileUrl . file $ row
+                                                                          , cellTextBackgroundColor := colourToGdk . fileColour colourMap $ row ]
         treeViewColumnSetResizable col1 True
-        treeViewColumnSetTitle col2 "Channels"
-        treeViewColumnSetTitle col3 "Sample rate"
-        treeViewColumnSetTitle col4 "Active"
-
-        renderer1 <- cellRendererTextNew
-        renderer2 <- cellRendererTextNew
-        renderer3 <- cellRendererTextNew
-        renderer4 <- cellRendererToggleNew
-
-        cellLayoutPackStart col1 renderer1 True
-        cellLayoutPackStart col2 renderer2 True
-        cellLayoutPackStart col3 renderer3 True
-        cellLayoutPackStart col4 renderer4 True
-
-        cellLayoutSetAttributes col1 renderer1 model $ \row -> [ cellText := takeFileName . DB.sourceFileUrl . file $ row
-                                                               , cellTextBackgroundColor := colourToGdk . fileColour colourMap $ row ]
-        cellLayoutSetAttributes col2 renderer2 model $ \row -> [ cellText := show . DB.sourceFileNumChannels . file $ row ]
-        cellLayoutSetAttributes col3 renderer3 model $ \row -> [ cellText := show . DB.sourceFileSampleRate . file $ row ]
-        cellLayoutSetAttributes col4 renderer4 model $ \row -> [ cellToggleActive := marked row ]
-
         treeViewAppendColumn view col1
+
+        (col2, _) <- newColumn model "Channels" cellRendererTextNew $ \row -> [ cellText := show . DB.sourceFileNumChannels . file $ row ]
         treeViewAppendColumn view col2
+
+        (col3, _) <- newColumn model "Sample rate" cellRendererTextNew $ \row -> [ cellText := show . DB.sourceFileSampleRate . file $ row ]
         treeViewAppendColumn view col3
+
+        (col4, renderer4) <- newColumn model "Active" cellRendererToggleNew $ \row -> [ cellToggleActive := marked row ]
         treeViewAppendColumn view col4
 
         -- Update the model when the toggle buttons are activated
@@ -264,6 +254,8 @@ appMain = do
         -- Drawing area for plots
         canvas <- xmlGetWidget xml castToDrawingArea "plot"
         widgetAddEvents canvas [Button1MotionMask]
+
+        -- Event sources
         pickFnSrc <- newEventSource
         scatterPlotSrc <- newEventSource
 
