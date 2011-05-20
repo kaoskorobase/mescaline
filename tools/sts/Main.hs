@@ -23,7 +23,7 @@ import           Data.Word (Word16)
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Unboxed as U
 import           Graphics.Rendering.Chart as C
-import           Graphics.Rendering.Chart.Grid
+import           Graphics.Rendering.Chart.Grid as C
 import           Graphics.Rendering.Chart.Gtk
 import           Graphics.UI.Gtk as G
 import           Graphics.UI.Gtk.Glade
@@ -108,13 +108,13 @@ renderScatterPlot sfMap units sp = layout1ToRenderable layout
                 vs = map (\(_, fs) -> (value (scatterPlotX sp) fs, value (scatterPlotY sp) fs)) (Map.elems us)
             in plot_points_style ^= filledCircles 2 (opaque colour)
                $ plot_points_values ^= vs
-               $ plot_points_title ^= "Test data"
+               -- $ plot_points_title ^= "Test data"
                $ defaultPlotPoints
 
-        layout = layout1_title ^= "Units"
-               $ layout1_plots ^= map (\(sf, c) -> Left (toPlot (points sf c))) (Map.toList sfMap)
-               $ layout1_left_axis   ^= (laxis_title ^= scatterPlotAxisTitle (scatterPlotY sp) $ defaultLayoutAxis)
-               $ layout1_bottom_axis ^= (laxis_title ^= scatterPlotAxisTitle (scatterPlotX sp) $ defaultLayoutAxis)
+        layout = -- layout1_title ^= "Units"
+                 layout1_plots ^= map (\(sf, c) -> Left (toPlot (points sf c))) (Map.toList sfMap)
+               -- $ layout1_left_axis   ^= (laxis_title ^= scatterPlotAxisTitle (scatterPlotY sp) $ defaultLayoutAxis)
+               -- $ layout1_bottom_axis ^= (laxis_title ^= scatterPlotAxisTitle (scatterPlotX sp) $ defaultLayoutAxis)
                $ defaultLayout1
 
 type Histogram = (Points, U.Vector Double)
@@ -127,45 +127,43 @@ featurePDFs ds us = Map.mapWithKey (\di -> fmap (kde di) . indices) ds
         estimate :: U.Vector Double -> Histogram
         estimate = epanechnikovPDF 100
 
-renderKDE :: ScatterPlotAxis -> Map DB.DescriptorId [Histogram] -> Renderable (Layout1Pick Double Double)
-renderKDE axis pdfs = layout1ToRenderable layout
+renderKDE :: Bool -> ScatterPlotAxis -> Map DB.DescriptorId [Histogram] -> Renderable (Layout1Pick Double Double)
+renderKDE flipped axis pdfs = layout1ToRenderable layout
     where
         descr = scatterPlotAxisTitle axis
         (points, pdf) = (pdfs Map.! scatterPlotDescriptorId axis) !! scatterPlotIndex axis
 
-        layout = layout1_title ^= "Densities for \"" ++ descr ++ "\""
-               $ layout1_plots ^= [ Left (toPlot info) ]
-               $ layout1_left_axis ^= leftAxis
-               $ layout1_bottom_axis ^= bottomAxis
+        layout = -- layout1_title ^= "Densities for \"" ++ descr ++ "\""
+                 layout1_plots ^= [ Left (toPlot info) ]
+               $ layout1_left_axis ^= (if flipped then featureAxis else pdfAxis)
+               $ layout1_bottom_axis ^= (if flipped then pdfAxis else featureAxis)
                $ defaultLayout1 :: Layout1 Double Double
 
-        leftAxis = laxis_title ^= "estimate of probability density"
-                 $ defaultLayoutAxis
+        pdfAxis = -- laxis_title ^= "estimate of probability density"
+                  defaultLayoutAxis
+        pdfValues = V.toList (fromPoints points)
 
-        bottomAxis = -- laxis_generate ^= semiAutoScaledAxis secAxis
-                     laxis_title ^= descr
-                   $ defaultLayoutAxis
+        featureAxis = -- laxis_generate ^= semiAutoScaledAxis secAxis
+                      laxis_title ^= descr
+                    $ defaultLayoutAxis
+        featureValues = V.toList (V.map (/ V.sum pdf) pdf)
 
         -- semiAutoScaledAxis opts ps = autoScaledAxis opts (extremities ++ ps)
         -- extremities = maybe [] (\(lo, hi) -> [lo, hi]) exs
 
-        info = plot_lines_values ^= [zip (V.toList (fromPoints points)) (V.toList spdf)]
+        info = plot_lines_values ^= [ zip (if flipped then featureValues else pdfValues)
+                                          (if flipped then pdfValues else featureValues) ]
              $ defaultPlotLines
-
-        -- Normalise the PDF estimates into a semi-sane range.
-        spdf = V.map (/ V.sum pdf) pdf
 
 renderChart :: Renderable (Layout1Pick Double Double)
             -> Renderable (Layout1Pick Double Double)
             -> Renderable (Layout1Pick Double Double)
             -> Renderable (Layout1Pick Double Double)
-renderChart a b c = gridToRenderable g
+renderChart a b c = gridToRenderable $ weights (1,1) $ g
     where
         g = aboveN
-            [ tval a
-            , f b
-            -- , e
-            , f c
+            [ f c     `beside` tval a
+            , C.empty `beside` f b
             ]
         f = tval . setPickFn (const Nothing)
         e = tval $ spacer (20,20)
@@ -368,8 +366,8 @@ appMain = do
                                      ((\e sp -> either (\x -> sp { scatterPlotX = x })
                                                        (\y -> sp { scatterPlotY = y }) e) <$> scatterPlotAxis)
                 scatterPlot = renderScatterPlot colourMap <$> units <*> scatterPlotState
-                kdePlotX = ((renderKDE . scatterPlotX) <$> scatterPlotState <*> pdfs)
-                kdePlotY = ((renderKDE . scatterPlotY) <$> scatterPlotState <*> pdfs)
+                kdePlotX = ((renderKDE False . scatterPlotX) <$> scatterPlotState <*> pdfs)
+                kdePlotY = ((renderKDE True  . scatterPlotY) <$> scatterPlotState <*> pdfs)
                 chart = renderChart <$> scatterPlot <*> kdePlotX <*> kdePlotY
                 popupAxisMenu e p = scatterPlotAxisMenu scatterPlotAxes (fire scatterPlotSrc . either (const Left) (const Right) p) >>=
                                     flip menuPopup (Just (toEnum (uiEventButton e), uiEventTime e))
