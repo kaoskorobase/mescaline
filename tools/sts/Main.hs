@@ -253,6 +253,7 @@ appMain = do
 
         -- Drawing area for plots
         canvas <- xmlGetWidget xml castToDrawingArea "plot"
+        set canvas [ widgetWidthRequest := 800, widgetHeightRequest := 800 ]
         widgetAddEvents canvas [Button1MotionMask]
 
         -- Event sources
