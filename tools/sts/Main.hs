@@ -57,7 +57,7 @@ data ScatterPlotAxis = ScatterPlotAxis {
     scatterPlotDescriptorId :: DB.DescriptorId
   , scatterPlotDescriptor :: DB.Descriptor
   , scatterPlotIndex :: Int
-  } deriving (Show)
+  } deriving (Show, Typeable)
 
 scatterPlotAxisTitle :: ScatterPlotAxis -> String
 scatterPlotAxisTitle x = DB.descriptorName (scatterPlotDescriptor x) ++ " (" ++ show (scatterPlotIndex x) ++ ")"
@@ -65,12 +65,16 @@ scatterPlotAxisTitle x = DB.descriptorName (scatterPlotDescriptor x) ++ " (" ++ 
 data ScatterPlot = ScatterPlot {
     scatterPlotX :: ScatterPlotAxis
   , scatterPlotY :: ScatterPlotAxis
-  } deriving (Show)
+  } deriving (Show, Typeable)
+
+descriptorShortName :: DB.Descriptor -> String
+descriptorShortName = takeFileName . DB.descriptorName
 
 scatterPlotAxisMenu :: [(String, [ScatterPlotAxis])] -> (ScatterPlotAxis -> IO ()) -> IO Menu
 scatterPlotAxisMenu descr action = do
     menu <- menuNew
     mapM_ (createMenuItem0 menu) descr
+    widgetShowAll menu
     return menu
     where
         createMenuItem0 menu (name, axes) = do
@@ -80,9 +84,11 @@ scatterPlotAxisMenu descr action = do
                 [] -> return ()
                 _ -> do
                     subMenu <- menuNew
+                    menuItemSetSubmenu item subMenu
                     mapM_ (createMenuItem1 subMenu) axes
         createMenuItem1 menu axis = do
-            item <- menuItemNewWithLabel (DB.descriptorName (scatterPlotDescriptor axis))
+            item <- menuItemNewWithLabel (show (scatterPlotIndex axis))
+            menuShellAppend menu item
             onActivateLeaf item (action axis)
 
 chart sfMap units sp = layout1ToRenderable layout
@@ -133,6 +139,7 @@ addHandler es k = do
 fire :: EventSource a -> a -> IO ()
 fire es x = getHandler es >>= ($x)
 
+-- | Pick function wrapper type.
 data PickFunction a = NoPick | Pick (PickFn a) deriving (Typeable)
 
 instance Show (PickFunction a) where
@@ -147,6 +154,7 @@ pick :: PickFunction a -> C.Point -> Maybe a
 pick NoPick    = const Nothing
 pick (Pick pf) = pf
 
+-- | A version opf updateCanvas that passes the pick function to a callback.
 updateCanvas' :: G.DrawingArea -> (PickFunction a -> IO ()) -> Renderable a -> IO Bool
 updateCanvas' canvas pickFnSrc chart = do
     win <- G.widgetGetDrawWindow canvas
@@ -158,6 +166,29 @@ updateCanvas' canvas pickFnSrc chart = do
 
 newtype L1P x y = L1P { unL1P :: Layout1Pick x y } deriving (Show, Typeable)
 
+-- | User interface event abstraction.
+data UIEvent =
+    MouseEvent {
+        uiEventTime :: TimeStamp
+      , uiEventCoordinates :: (Double,Double)
+      , uiEventButton :: Int
+      }
+  | MotionEvent {
+        uiEventTime :: TimeStamp
+      , uiEventCoordinates :: (Double,Double)
+      }
+    deriving (Show, Typeable)
+
+mouseEventHandler :: (UIEvent -> IO ()) -> EventM EButton Bool
+mouseEventHandler a = do
+    MouseEvent <$> eventTime <*> eventCoordinates <*> liftM fromEnum eventButton >>= liftIO . a
+    return True
+
+motionEventHandler :: (UIEvent -> IO ()) -> EventM EMotion Bool
+motionEventHandler a = do
+    MotionEvent <$> eventTime <*> eventCoordinates >>= liftIO . a
+    return True
+
 appMain :: AppT IO ()
 appMain = do
     [gladeFile, dbFile] <- App.getArgs
@@ -165,9 +196,10 @@ appMain = do
         a <- DB.descriptorMap
         b <- DB.queryFeatures (const True) (Map.keys a)
         return (a, b)
-    let cmap = hsv (Map.keys sfs)
-        Just d = List.find (\(_, d) -> DB.descriptorName d == "es.globero.mescaline.spectral") (Map.toList descriptors)
+    let colourMap = hsv (Map.keys sfs)
         scatterPlotAxes = concatMap (\(di, d) -> map (ScatterPlotAxis di d) [0..DB.descriptorDegree d - 1]) (Map.toList descriptors)
+        scatterPlotAxes' = map (\(di, d) -> (descriptorShortName d, map (ScatterPlotAxis di d) [0..DB.descriptorDegree d - 1]))
+                               (Map.toList descriptors)
     liftIO $ do
         initGUI
         unsafeInitGUIForThreadedRTS
@@ -206,7 +238,7 @@ appMain = do
         cellLayoutPackStart col4 renderer4 True
 
         cellLayoutSetAttributes col1 renderer1 model $ \row -> [ cellText := takeFileName . DB.sourceFileUrl . file $ row
-                                                               , cellTextBackgroundColor := colourToGdk . fileColour cmap $ row ]
+                                                               , cellTextBackgroundColor := colourToGdk . fileColour colourMap $ row ]
         cellLayoutSetAttributes col2 renderer2 model $ \row -> [ cellText := show . DB.sourceFileNumChannels . file $ row ]
         cellLayoutSetAttributes col3 renderer3 model $ \row -> [ cellText := show . DB.sourceFileSampleRate . file $ row ]
         cellLayoutSetAttributes col4 renderer4 model $ \row -> [ cellToggleActive := marked row ]
@@ -233,6 +265,7 @@ appMain = do
         canvas <- xmlGetWidget xml castToDrawingArea "plot"
         widgetAddEvents canvas [Button1MotionMask]
         pickFnSrc <- newEventSource
+        scatterPlotSrc <- newEventSource
 
         -- Set up event network
         prepareEvents $ do
@@ -241,51 +274,54 @@ appMain = do
             -- Expose event for canvas
             expose <- fromAddHandler $ \a -> void $ on canvas exposeEvent $ liftIO (a ()) >> return True
             -- Canvas button events
-            buttonPress <- fromAddHandler $ \a -> void $ on canvas buttonPressEvent $ do
-                x1 <- liftM fromEnum eventButton
-                x2 <- eventCoordinates
-                liftIO $ a (x1, x2)
-                return True
-            buttonMove <- fromAddHandler $ \a -> void $ on canvas motionNotifyEvent $ eventCoordinates >>= liftIO . a >> return True
+            buttonPress <- fromAddHandler $ void . on canvas buttonPressEvent . mouseEventHandler
+            buttonMove <- fromAddHandler $ void . on canvas motionNotifyEvent . motionEventHandler
             -- The picks from the plot area ((Double,Double) -> Maybe Layout1Pick)
             picks <- liftM (fmap ((uncurry Point >>>) . pick) . stepper NoPick) $ fromAddHandler $ addHandler pickFnSrc
-            let -- TODO: This should be a popup menu.
-                --       Unfortunately we don't get to know the axis when picking a label!
-                buttonPressInAxis = flip mapFilter (fmap second picks `apply` buttonPress)
-                                            $ \(b, e) -> case e of
-                                                Just (L1P (L1P_BottomAxis x)) -> Just (b, Left x)
-                                                Just (L1P (L1P_LeftAxis x)) -> Just (b, Right x)
+            let -- Unfortunately we don't get to know the axis when picking a label!
+                -- How to do more automatized Typeable wrapping/unwrapping?
+                buttonPressInAxis = flip mapFilter (((\f e -> (e, f (uiEventCoordinates e))) <$> picks) `apply` buttonPress)
+                                            $ \(e, p) -> case p of
+                                                Just (L1P (L1P_BottomAxis x)) -> Just (e, Left x)
+                                                Just (L1P (L1P_LeftAxis x)) -> Just (e, Right x)
                                                 _ -> Nothing
-                left' z = let z' = if Z.beginp z then Z.left (Z.end z) else Z.left z
-                          in (Z.cursor z', z')
-                right' z = let z' = Z.right z
-                               z'' = if Z.endp z' then Z.start z else z'
-                           in (Z.cursor z'', z'')
-                updateScatterPlotAxis (button, click) (sp, (xAxes, yAxes)) =
-                    let inc = if button == 1
-                              then left'
-                              else if button == 3
-                                   then right'
-                                   else \z -> (Z.cursor z, z)
-                    in case click of
-                        Left _  -> let (a, z) = inc xAxes in (sp { scatterPlotX = a }, (z, yAxes))
-                        Right _ -> let (a, z) = inc yAxes in (sp { scatterPlotY = a }, (xAxes, z))
-                scatterPlot = fst <$> accumB ( ScatterPlot (head scatterPlotAxes) (head scatterPlotAxes)
-                                             , (Z.fromList scatterPlotAxes, Z.fromList scatterPlotAxes) )
-                                             (updateScatterPlotAxis <$> buttonPressInAxis)
-                plots = stepper (chart cmap us) $ flip fmap soundFiles $ \sfs ->
+                -- left' z = let z' = if Z.beginp z then Z.left (Z.end z) else Z.left z
+                --           in (Z.cursor z', z')
+                -- right' z = let z' = Z.right z
+                --                z'' = if Z.endp z' then Z.start z else z'
+                --            in (Z.cursor z'', z'')
+                -- updateScatterPlotAxis (button, click) (sp, (xAxes, yAxes)) =
+                --     let inc = if button == 1
+                --               then left'
+                --               else if button == 3
+                --                    then right'
+                --                    else \z -> (Z.cursor z, z)
+                --     in case click of
+                --         Left _  -> let (a, z) = inc xAxes in (sp { scatterPlotX = a }, (z, yAxes))
+                --         Right _ -> let (a, z) = inc yAxes in (sp { scatterPlotY = a }, (xAxes, z))
+                -- scatterPlot = fst <$> accumB ( ScatterPlot (head scatterPlotAxes) (head scatterPlotAxes)
+                --                              , (Z.fromList scatterPlotAxes, Z.fromList scatterPlotAxes) )
+                --                              (updateScatterPlotAxis <$> buttonPressInAxis)
+            scatterPlotAxis <- fromAddHandler $ addHandler scatterPlotSrc
+            let plots = stepper (chart colourMap us) $ flip fmap soundFiles $ \sfs ->
                             -- Filter units by IDs of marked sound files
                             let ids = Set.fromList (map fileId (filter marked sfs))
-                            in chart cmap (Map.filter (flip Set.member ids . DB.unitSourceFile . fst) us)
-                plotsWithAxes = plots <*> scatterPlot
-                redraw = ignore soundFiles `union` ignore buttonPressInAxis
+                            in chart colourMap (Map.filter (flip Set.member ids . DB.unitSourceFile . fst) us)
+                scatterPlot = accumB (ScatterPlot (head scatterPlotAxes) (head scatterPlotAxes))
+                                     ((\e sp -> either (\x -> sp { scatterPlotX = x })
+                                                       (\y -> sp { scatterPlotY = y }) e) <$> scatterPlotAxis)
+                popupAxisMenu e p = scatterPlotAxisMenu scatterPlotAxes' (fire scatterPlotSrc . either (const Left) (const Right) p) >>=
+                                    flip menuPopup (Just (toEnum (uiEventButton e), uiEventTime e))
+                redraw = ignore soundFiles `union` ignore scatterPlotAxis
             -- Update canvas with current plot and feed back new pick function
-            reactimate $ ((const . void . updateCanvas' canvas (fire pickFnSrc . fmap L1P)) <$> plotsWithAxes) `apply` expose
-            -- Print the picks when a button is pressed in the plot area
-            reactimate $ print <$> (picks `apply` (fmap snd buttonPress `union` buttonMove))
-            reactimate $ print <$> buttonPressInAxis
+            reactimate $ ((const . void . updateCanvas' canvas (fire pickFnSrc . fmap L1P)) <$> (plots <*> scatterPlot)) `apply` expose
+            -- Display the axis popup menu if needed
+            reactimate $ uncurry popupAxisMenu <$> (R.filter ((==3) . uiEventButton . fst) buttonPressInAxis)
             -- Schedule redraw
             reactimate $ widgetQueueDraw canvas <$ redraw
+            -- Print the picks when a button is pressed in the plot area
+            reactimate $ print <$> (picks `apply` fmap uiEventCoordinates (buttonPress `union` buttonMove))
+            reactimate $ print <$> buttonPressInAxis
 
         widgetShowAll win
         mainGUI
