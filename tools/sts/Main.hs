@@ -93,8 +93,8 @@ scatterPlotAxisMenu descr action = do
 getFeature :: DB.DescriptorId -> [DB.Feature] -> DB.Feature
 getFeature d = fromJust . List.find ((== d) . DB.featureDescriptor)
 
-renderScatterPlot :: ColourMap DB.SourceFileId Double -> DB.UnitMap -> ScatterPlot -> Renderable (Layout1Pick Double Double)
-renderScatterPlot sfMap units sp = layout1ToRenderable layout
+layoutScatterPlot :: ColourMap DB.SourceFileId Double -> DB.UnitMap -> ScatterPlot -> Layout1 Double Double
+layoutScatterPlot sfMap units sp = layout
     where
         -- bars = plot_errbars_values ^= [symErrPoint x y dx dy | (x,y,dx,dy) <- vals]
         --      $ plot_errbars_title ^="test"
@@ -127,8 +127,8 @@ featurePDFs ds us = Map.mapWithKey (\di -> fmap (kde di) . indices) ds
         estimate :: U.Vector Double -> Histogram
         estimate = epanechnikovPDF 100
 
-renderKDE :: Bool -> ScatterPlotAxis -> Map DB.DescriptorId [Histogram] -> Renderable (Layout1Pick Double Double)
-renderKDE flipped axis pdfs = layout1ToRenderable layout
+layoutKDE :: Bool -> ScatterPlotAxis -> Map DB.DescriptorId [Histogram] -> Layout1 Double Double
+layoutKDE flipped axis pdfs = layout
     where
         descr = scatterPlotAxisTitle axis
         (points, pdf) = (pdfs Map.! scatterPlotDescriptorId axis) !! scatterPlotIndex axis
@@ -155,18 +155,16 @@ renderKDE flipped axis pdfs = layout1ToRenderable layout
                                           (if flipped then pdfValues else featureValues) ]
              $ defaultPlotLines
 
-renderChart :: Renderable (Layout1Pick Double Double)
+renderChart :: Layout1 Double Double
+            -> Layout1 Double Double
+            -> Layout1 Double Double
             -> Renderable (Layout1Pick Double Double)
-            -> Renderable (Layout1Pick Double Double)
-            -> Renderable (Layout1Pick Double Double)
-renderChart a b c = gridToRenderable $ weights (1,1) $ g
+renderChart scatterPlot xHist yHist = concatMapPickFn p r
     where
-        g = aboveN
-            [ f c     `beside` tval a
-            , C.empty `beside` f b
-            ]
-        f = tval . setPickFn (const Nothing)
-        e = tval $ spacer (20,20)
+        r = renderLayout1Matrix scatterPlot [ [ Just yHist, Just scatterPlot ]
+                                            , [ Nothing,    Just xHist       ] ]
+        p ((0, 1), l) = Just l
+        p _           = Nothing
 
 {-----------------------------------------------------------------------------
 Event sources
@@ -365,9 +363,9 @@ appMain = do
                 scatterPlotState = accumB (ScatterPlot (head . snd . head $ scatterPlotAxes) (head  . snd . head $ scatterPlotAxes))
                                      ((\e sp -> either (\x -> sp { scatterPlotX = x })
                                                        (\y -> sp { scatterPlotY = y }) e) <$> scatterPlotAxis)
-                scatterPlot = renderScatterPlot colourMap <$> units <*> scatterPlotState
-                kdePlotX = ((renderKDE False . scatterPlotX) <$> scatterPlotState <*> pdfs)
-                kdePlotY = ((renderKDE True  . scatterPlotY) <$> scatterPlotState <*> pdfs)
+                scatterPlot = layoutScatterPlot colourMap <$> units <*> scatterPlotState
+                kdePlotX = ((layoutKDE False . scatterPlotX) <$> scatterPlotState <*> pdfs)
+                kdePlotY = ((layoutKDE True  . scatterPlotY) <$> scatterPlotState <*> pdfs)
                 chart = renderChart <$> scatterPlot <*> kdePlotX <*> kdePlotY
                 popupAxisMenu e p = scatterPlotAxisMenu scatterPlotAxes (fire scatterPlotSrc . either (const Left) (const Right) p) >>=
                                     flip menuPopup (Just (toEnum (uiEventButton e), uiEventTime e))
