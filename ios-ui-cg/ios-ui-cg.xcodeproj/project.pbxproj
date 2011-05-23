@@ -37,6 +37,7 @@
 		19A508DF13793FE80060E5A9 /* data.db in Resources */ = {isa = PBXBuildFile; fileRef = 19A508DD13793FE80060E5A9 /* data.db */; };
 		19A508EB1379475C0060E5A9 /* FeatureSpace.m in Sources */ = {isa = PBXBuildFile; fileRef = 19A508EA1379475C0060E5A9 /* FeatureSpace.m */; };
 		19A508F113797B4A0060E5A9 /* libsqlite3.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 19A508F013797B4A0060E5A9 /* libsqlite3.dylib */; };
+		19BB3EB51389B50900E52E63 /* RegionView.m in Sources */ = {isa = PBXBuildFile; fileRef = 19BB3EB41389B50900E52E63 /* RegionView.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -90,6 +91,8 @@
 		19A508E91379475B0060E5A9 /* FeatureSpace.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FeatureSpace.h; sourceTree = "<group>"; };
 		19A508EA1379475C0060E5A9 /* FeatureSpace.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FeatureSpace.m; sourceTree = "<group>"; };
 		19A508F013797B4A0060E5A9 /* libsqlite3.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libsqlite3.dylib; path = Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator4.3.sdk/usr/lib/libsqlite3.dylib; sourceTree = DEVELOPER_DIR; };
+		19BB3EB31389B50900E52E63 /* RegionView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = RegionView.h; path = ../RegionView.h; sourceTree = "<group>"; };
+		19BB3EB41389B50900E52E63 /* RegionView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = RegionView.m; path = ../RegionView.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -154,6 +157,8 @@
 		19A508931379393D0060E5A9 /* ios-ui-cg */ = {
 			isa = PBXGroup;
 			children = (
+				19BB3EB31389B50900E52E63 /* RegionView.h */,
+				19BB3EB41389B50900E52E63 /* RegionView.m */,
 				199246DC137C10A300BB6CAE /* Region.h */,
 				199246DD137C10A300BB6CAE /* Region.m */,
 				19A508D613793F010060E5A9 /* FakeModel.h */,
@@ -360,6 +365,7 @@
 				19A508DB13793F010060E5A9 /* MescalineViewController.m in Sources */,
 				19A508EB1379475C0060E5A9 /* FeatureSpace.m in Sources */,
 				199246DE137C10A400BB6CAE /* Region.m in Sources */,
+				19BB3EB51389B50900E52E63 /* RegionView.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

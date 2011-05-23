@@ -8,11 +8,12 @@
 
 #import <UIKit/UIKit.h>
 #import "FeatureSpace.h"
-
-@interface MescalineViewController : UIViewController <FeatureSpaceDelegate>
+#import "RegionView.h"
+@interface MescalineViewController : UIViewController <RegionViewDelegate, FeatureSpaceDelegate, UIGestureRecognizerDelegate>
 {	
 	BOOL drag;
     FeatureSpace *fSpace;
+
 }
 
 @property (retain) IBOutlet FeatureSpace *fSpace;

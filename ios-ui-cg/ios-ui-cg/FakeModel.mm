@@ -76,7 +76,7 @@ static FakeModel* sharedManager = nil;
         r.rad=50.0;
         double xvalue = (0.5 + 0.3 * cos(M_PI * ((double)i / (double)3)));
         double yvalue = (0.5 + 0.3 * sin(M_PI * ((double)i / (double)3)));
-        NSLog(@"%f\t%f",xvalue,yvalue);
+        //NSLog(@"%f\t%f",xvalue,yvalue);
         CGPoint p = {xvalue,yvalue};
         NSValue* point = [NSValue valueWithCGPoint:p];
         r.location = point;
