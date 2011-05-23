@@ -1,4 +1,5 @@
-{-# LANGUAGE DeriveDataTypeable
+{-# LANGUAGE BangPatterns
+           , DeriveDataTypeable
            , FlexibleContexts #-}
 module Main where
 
@@ -13,7 +14,6 @@ import           Data.Colour.RGBSpace
 import           Data.Colour.SRGB
 import           Data.IORef
 import qualified Data.List as List
-import qualified Data.List.Zipper as Z
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Maybe
@@ -22,9 +22,9 @@ import           Data.Typeable
 import           Data.Word (Word16)
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Unboxed as U
+import           Debug.Trace
 import           Graphics.Rendering.Chart as C
 import           Graphics.Rendering.Chart.Grid as C
-import           Graphics.Rendering.Chart.Gtk
 import           Graphics.UI.Gtk as G
 import           Graphics.UI.Gtk.Glade
 import           Mescaline.Application (AppT)
@@ -93,12 +93,13 @@ scatterPlotAxisMenu descr action = do
 getFeature :: DB.DescriptorId -> [DB.Feature] -> DB.Feature
 getFeature d = fromJust . List.find ((== d) . DB.featureDescriptor)
 
-layoutScatterPlot :: ColourMap DB.SourceFileId Double -> DB.UnitMap -> ScatterPlot -> Layout1 Double Double
-layoutScatterPlot sfMap units sp = layout
+layoutScatterPlot :: ColourMap DB.SourceFileId Double -> PlotData -> ScatterPlot -> Layout1 Double Double
+layoutScatterPlot sfMap plotData sp = layout
     where
         -- bars = plot_errbars_values ^= [symErrPoint x y dx dy | (x,y,dx,dy) <- vals]
         --      $ plot_errbars_title ^="test"
         --      $ defaultPlotErrBars
+        units = unitMap plotData
 
         points sf colour =
             let us = Map.filter (\(u, _) -> sf == DB.unitSourceFile u) units
@@ -111,49 +112,81 @@ layoutScatterPlot sfMap units sp = layout
                -- $ plot_points_title ^= "Test data"
                $ defaultPlotPoints
 
+        xAxis = scatterPlotX sp
+
         layout = -- layout1_title ^= "Units"
                  layout1_plots ^= map (\(sf, c) -> Left (toPlot (points sf c))) (Map.toList sfMap)
                -- $ layout1_left_axis   ^= (laxis_title ^= scatterPlotAxisTitle (scatterPlotY sp) $ defaultLayoutAxis)
-               -- $ layout1_bottom_axis ^= (laxis_title ^= scatterPlotAxisTitle (scatterPlotX sp) $ defaultLayoutAxis)
+               $ layout1_bottom_axis ^= ( laxis_title ^= scatterPlotAxisTitle (scatterPlotX sp)
+                                        $ laxis_generate ^= autoAxis . (++featureExtremities (scatterPlotDescriptorId xAxis) (scatterPlotIndex xAxis) plotData)
+                                        $ defaultLayoutAxis )
                $ defaultLayout1
 
 type Histogram = (Points, U.Vector Double)
 
-featurePDFs :: Map DB.DescriptorId DB.Descriptor -> DB.UnitMap -> Map DB.DescriptorId [Histogram]
-featurePDFs ds us = Map.mapWithKey (\di -> fmap (kde di) . indices) ds
+histogramBounds :: Histogram -> (Double, Double)
+histogramBounds (_, ps) = (V.minimum ps, V.maximum ps)
+
+foldHistogramBounds :: [Histogram] -> (Double, Double)
+foldHistogramBounds = List.foldl' f (1, 0)
+    where
+        f (!curMin, !curMax) h =
+            let (newMin, newMax) = histogramBounds h
+            in (curMin `min` newMin, curMax `max` newMax)
+
+mkFeaturePDFs :: (DB.Unit -> Bool) -> DB.DescriptorMap -> DB.UnitMap -> Map DB.DescriptorId [Histogram]
+mkFeaturePDFs p ds us = Map.mapWithKey (\di -> fmap (kde di) . indices) ds
     where
         indices d = [0..DB.descriptorDegree d - 1]
-        kde di i = estimate . V.fromList . map (flip (V.!) i . DB.featureValue . getFeature di . snd) . Map.elems $ us
+        kde di i = estimate . V.fromList . map (flip (V.!) i . DB.featureValue . getFeature di . snd) . filter (p.fst) . Map.elems $ us
         estimate :: U.Vector Double -> Histogram
         estimate = epanechnikovPDF 100
 
-layoutKDE :: Bool -> ScatterPlotAxis -> Map DB.DescriptorId [Histogram] -> Layout1 Double Double
-layoutKDE flipped axis pdfs = layout
+layoutKDE :: ColourMap DB.SourceFileId Double
+          -> Bool
+          -> ScatterPlotAxis
+          -> DB.SourceFileId
+          -> PlotData
+          -> LayoutAxis Double
+          -> Layout1 Double Double
+layoutKDE colourMap flipped axis sf plotData dataAxis = layout
     where
         descr = scatterPlotAxisTitle axis
-        (points, pdf) = (pdfs Map.! scatterPlotDescriptorId axis) !! scatterPlotIndex axis
 
         layout = -- layout1_title ^= "Densities for \"" ++ descr ++ "\""
-                 layout1_plots ^= [ Left (toPlot info) ]
+                 layout1_plots ^= [ Left (toPlot (mkInfo featureLineStyle (featurePDFs plotData)))
+                                  , Left (toPlot (mkInfo fileLineStyle (filePDFs plotData Map.! sf))) ]
                $ layout1_left_axis ^= (if flipped then featureAxis else pdfAxis)
                $ layout1_bottom_axis ^= (if flipped then pdfAxis else featureAxis)
                $ defaultLayout1 :: Layout1 Double Double
 
-        pdfAxis = -- laxis_title ^= "estimate of probability density"
-                  defaultLayoutAxis
-        pdfValues = V.toList (fromPoints points)
+        pdfAxis = laxis_title ^= "estimate of probability density"
+                  -- laxis_generate ^= semiAutoScaledAxis defaultLinearAxis
+                  -- laxis_generate ^= autoScaledAxis defaultLinearAxis
+                $ defaultLayoutAxis
 
-        featureAxis = -- laxis_generate ^= semiAutoScaledAxis secAxis
-                      laxis_title ^= descr
+        featureAxis = laxis_title ^= descr
+                    -- $ laxis_generate ^= semiAutoScaledAxis defaultLinearAxis
+                    -- $ laxis_override ^= dataAxis ^. laxis_override
+                    -- $ defaultLayoutAxis
                     $ defaultLayoutAxis
-        featureValues = V.toList (V.map (/ V.sum pdf) pdf)
 
         -- semiAutoScaledAxis opts ps = autoScaledAxis opts (extremities ++ ps)
-        -- extremities = maybe [] (\(lo, hi) -> [lo, hi]) exs
+        -- featBounds = (featureBounds plotData Map.! scatterPlotDescriptorId axis) !! scatterPlotIndex axis
+        -- extremities = [ fst featBounds, snd featBounds ]
 
-        info = plot_lines_values ^= [ zip (if flipped then featureValues else pdfValues)
-                                          (if flipped then pdfValues else featureValues) ]
-             $ defaultPlotLines
+        featureLineStyle = line_color ^= opaque black $ defaultPlotLineStyle
+
+        fileLineStyle = line_color ^= opaque (colourMap Map.! sf) $ defaultPlotLineStyle
+
+        mkInfo ls pdfs = plot_lines_values ^= [ zip (if flipped then featureValues else pdfValues)
+                                                    (if flipped then pdfValues else featureValues) ]
+                       $ plot_lines_style ^= ls
+                       $ defaultPlotLines
+             where
+                 (points, pdf) = (pdfs Map.! scatterPlotDescriptorId axis) !! scatterPlotIndex axis
+                 pdfValues = V.toList (fromPoints points)
+                 featureValues = V.toList (V.map (/ V.sum pdf) pdf)
 
 renderChart :: Layout1 Double Double
             -> Layout1 Double Double
@@ -165,6 +198,33 @@ renderChart scatterPlot xHist yHist = concatMapPickFn p r
                                             , [ Nothing,    Just xHist       ] ]
         p ((0, 1), l) = Just l
         p _           = Nothing
+
+data PlotData = PlotData {
+    unitMap :: DB.UnitMap
+  , featurePDFs :: Map DB.DescriptorId [Histogram]
+  , filePDFs :: Map DB.SourceFileId (Map DB.DescriptorId [Histogram])
+  , featureBounds :: Map DB.DescriptorId [(Double, Double)]
+  , probBounds :: (Double, Double)
+  }
+
+featureExtremities :: DB.DescriptorId -> Int -> PlotData -> [Double]
+featureExtremities d i p = [l, h]
+    where (l, h) = (featureBounds p Map.! d) !! i
+
+mkPlotData :: DB.DescriptorMap -> DB.UnitMap -> [SoundFile] -> PlotData
+mkPlotData ds us sfs = PlotData us'
+                            featPDFs filePDFs
+                            (trace ("featureBounds: " ++ show featBounds) featBounds)
+                            (trace ("probBounds: " ++ show probBounds) probBounds)
+    where
+        -- Filter units by IDs of marked sound files
+        ids = Set.fromList (map fileId (filter marked sfs))
+        us' = Map.filter (flip Set.member ids . DB.unitSourceFile . fst) us
+        mkFilePDF sf = (fileId sf, mkFeaturePDFs ((== fileId sf) . DB.unitSourceFile) ds us')
+        featPDFs = mkFeaturePDFs (const True) ds us'
+        filePDFs = Map.fromList (map mkFilePDF sfs)
+        probBounds = foldHistogramBounds (concat (Map.elems featPDFs ++ concat (Map.elems (fmap Map.elems filePDFs))))
+        featBounds = fmap (fmap (\(ps, _) -> (V.minimum (fromPoints ps), V.maximum (fromPoints ps)))) featPDFs
 
 {-----------------------------------------------------------------------------
 Event sources
@@ -337,35 +397,15 @@ appMain = do
                                                 Just (L1P (L1P_BottomAxis x)) -> Just (e, Left x)
                                                 Just (L1P (L1P_LeftAxis x)) -> Just (e, Right x)
                                                 _ -> Nothing
-                -- left' z = let z' = if Z.beginp z then Z.left (Z.end z) else Z.left z
-                --           in (Z.cursor z', z')
-                -- right' z = let z' = Z.right z
-                --                z'' = if Z.endp z' then Z.start z else z'
-                --            in (Z.cursor z'', z'')
-                -- updateScatterPlotAxis (button, click) (sp, (xAxes, yAxes)) =
-                --     let inc = if button == 1
-                --               then left'
-                --               else if button == 3
-                --                    then right'
-                --                    else \z -> (Z.cursor z, z)
-                --     in case click of
-                --         Left _  -> let (a, z) = inc xAxes in (sp { scatterPlotX = a }, (z, yAxes))
-                --         Right _ -> let (a, z) = inc yAxes in (sp { scatterPlotY = a }, (xAxes, z))
-                -- scatterPlot = fst <$> accumB ( ScatterPlot (head scatterPlotAxes) (head scatterPlotAxes)
-                --                              , (Z.fromList scatterPlotAxes, Z.fromList scatterPlotAxes) )
-                --                              (updateScatterPlotAxis <$> buttonPressInAxis)
             scatterPlotAxis <- fromAddHandler $ addHandler scatterPlotSrc
-            let units = flip fmap (stepper soundFiles0 soundFiles) $ \sfs ->
-                            -- Filter units by IDs of marked sound files
-                            let ids = Set.fromList (map fileId (filter marked sfs))
-                            in Map.filter (flip Set.member ids . DB.unitSourceFile . fst) us
-                pdfs = featurePDFs descriptors <$> units
+            let plotData = fmap (mkPlotData descriptors us) (stepper soundFiles0 soundFiles)
                 scatterPlotState = accumB (ScatterPlot (head . snd . head $ scatterPlotAxes) (head  . snd . head $ scatterPlotAxes))
                                      ((\e sp -> either (\x -> sp { scatterPlotX = x })
                                                        (\y -> sp { scatterPlotY = y }) e) <$> scatterPlotAxis)
-                scatterPlot = layoutScatterPlot colourMap <$> units <*> scatterPlotState
-                kdePlotX = ((layoutKDE False . scatterPlotX) <$> scatterPlotState <*> pdfs)
-                kdePlotY = ((layoutKDE True  . scatterPlotY) <$> scatterPlotState <*> pdfs)
+                scatterPlot = layoutScatterPlot colourMap <$> plotData <*> scatterPlotState
+                currentFileId = fileId . head $ soundFiles0
+                kdePlotX = (layoutKDE colourMap False . scatterPlotX) <$> scatterPlotState <*> pure currentFileId <*> plotData <*> (layout1_bottom_axis_ <$> scatterPlot)
+                kdePlotY = (layoutKDE colourMap True  . scatterPlotY) <$> scatterPlotState <*> pure currentFileId <*> plotData <*> (layout1_left_axis_   <$> scatterPlot)
                 chart = renderChart <$> scatterPlot <*> kdePlotX <*> kdePlotY
                 popupAxisMenu e p = scatterPlotAxisMenu scatterPlotAxes (fire scatterPlotSrc . either (const Left) (const Right) p) >>=
                                     flip menuPopup (Just (toEnum (uiEventButton e), uiEventTime e))
