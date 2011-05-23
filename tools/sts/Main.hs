@@ -96,30 +96,33 @@ getFeature d = fromJust . List.find ((== d) . DB.featureDescriptor)
 layoutScatterPlot :: ColourMap DB.SourceFileId Double -> PlotData -> ScatterPlot -> Layout1 Double Double
 layoutScatterPlot sfMap plotData sp = layout
     where
-        -- bars = plot_errbars_values ^= [symErrPoint x y dx dy | (x,y,dx,dy) <- vals]
-        --      $ plot_errbars_title ^="test"
-        --      $ defaultPlotErrBars
         units = unitMap plotData
+
+        xAxis = scatterPlotX sp
+        yAxis = scatterPlotY sp
 
         points sf colour =
             let us = Map.filter (\(u, _) -> sf == DB.unitSourceFile u) units
                 value axis = flip (V.!) (scatterPlotIndex axis)
                            . DB.featureValue
                            . getFeature (scatterPlotDescriptorId axis)
-                vs = map (\(_, fs) -> (value (scatterPlotX sp) fs, value (scatterPlotY sp) fs)) (Map.elems us)
+                vs = map (\(_, fs) -> (value xAxis fs, value yAxis fs)) (Map.elems us)
             in plot_points_style ^= filledCircles 2 (opaque colour)
                $ plot_points_values ^= vs
                -- $ plot_points_title ^= "Test data"
                $ defaultPlotPoints
 
-        xAxis = scatterPlotX sp
-
+        scaledAxis axis = autoAxis . (++featureExtremities (scatterPlotDescriptorId axis)
+                                                           (scatterPlotIndex axis)
+                                                           plotData)
+        bottomAxis = -- laxis_title ^= scatterPlotAxisTitle xAxis $
+                     laxis_generate ^= scaledAxis xAxis $ defaultLayoutAxis
+        leftAxis = -- laxis_title ^= scatterPlotAxisTitle yAxis $
+                   laxis_generate ^= scaledAxis yAxis $ defaultLayoutAxis
         layout = -- layout1_title ^= "Units"
                  layout1_plots ^= map (\(sf, c) -> Left (toPlot (points sf c))) (Map.toList sfMap)
-               -- $ layout1_left_axis   ^= (laxis_title ^= scatterPlotAxisTitle (scatterPlotY sp) $ defaultLayoutAxis)
-               $ layout1_bottom_axis ^= ( laxis_title ^= scatterPlotAxisTitle (scatterPlotX sp)
-                                        $ laxis_generate ^= autoAxis . (++featureExtremities (scatterPlotDescriptorId xAxis) (scatterPlotIndex xAxis) plotData)
-                                        $ defaultLayoutAxis )
+               $ layout1_left_axis ^= leftAxis
+               $ layout1_bottom_axis ^= bottomAxis
                $ defaultLayout1
 
 type Histogram = (Points, U.Vector Double)
