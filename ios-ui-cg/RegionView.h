@@ -13,6 +13,7 @@
 
 @protocol RegionViewDelegate
 - (Region *)getRegion:(RegionView *)requestor withId:(int)regionId;
+- (void)updateRegion:(int)regionIndex withPoint:(CGPoint)newCenter;
 @end
 
 @interface RegionView : UIView 

@@ -8,6 +8,7 @@
 
 #import "RegionView.h"
 #import "Region.h"
+#import <QuartzCore/QuartzCore.h>
 
 @implementation RegionView
 
@@ -24,13 +25,51 @@
     self = [super initWithFrame:frame];
     if (self) {
         [self setup];
-        self.opaque = NO;
+        self.opaque = YES;
                
     }
     return self;
     
 }
 
+- (void)adjustAnchorPointForGestureRecognizer:(UIGestureRecognizer *)gestureRecognizer {
+    if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
+        UIView *regionView = gestureRecognizer.view;
+        CGPoint locationInView = [gestureRecognizer locationInView:regionView];
+        CGPoint locationInSuperview = [gestureRecognizer locationInView:regionView.superview];
+        
+        self.layer.anchorPoint = CGPointMake(locationInView.x / regionView.bounds.size.width, locationInView.y / regionView.bounds.size.height);
+        regionView.center = locationInSuperview;
+    }
+}
+
+- (void)panRegion:(UIPanGestureRecognizer *)gestureRecognizer
+{
+    UIView *regionView = [gestureRecognizer view];
+    [self adjustAnchorPointForGestureRecognizer:gestureRecognizer];
+    if ([gestureRecognizer state] == UIGestureRecognizerStateBegan || [gestureRecognizer state] == UIGestureRecognizerStateChanged) {
+        CGPoint translation = [gestureRecognizer translationInView:[regionView superview]];
+        [regionView setCenter:CGPointMake([regionView center].x + translation.x, [regionView center].y + translation.y)];
+        //CGPoint p = CGPointMake(([regionView center].x + translation.x )/self.superview.bounds.size.width, ([regionView center].y + translation.y) / self.superview.bounds.size.height);
+        [gestureRecognizer setTranslation:CGPointZero inView:[regionView superview]];
+        //CGPoint locationInSuperview = [gestureRecognizer locationInView:regionView.superview];
+        CGPoint p = CGPointMake(self.frame.origin.x/self.superview.bounds.size.width,self.frame.origin.y/self.superview.bounds.size.height);
+        NSLog(@"%f",self.frame.origin.x);
+        [self.delegate updateRegion:self.regionIndex withPoint:(CGPoint)p] ;
+
+    }
+}
+
+- (void)scaleRegion:(UIPinchGestureRecognizer *)gestureRecognizer
+{
+    [self adjustAnchorPointForGestureRecognizer:gestureRecognizer];
+    
+    if ([gestureRecognizer state] == UIGestureRecognizerStateBegan || [gestureRecognizer state] == UIGestureRecognizerStateChanged) {
+        [gestureRecognizer view].transform = CGAffineTransformScale([[gestureRecognizer view] transform], [gestureRecognizer scale], [gestureRecognizer scale]);
+        [gestureRecognizer setScale:1];
+        [[gestureRecognizer view] setNeedsDisplay];
+    }
+}
 
 - (void)drawRegionatPoint:(CGPoint)p withRadius:(CGFloat)radius andColor:(UIColor*)color inContext:(CGContextRef)context
 {
@@ -67,7 +106,7 @@
 //    NSLog(@"%i",self.regionIndex);
 
     [self drawRegion:context];
-    //NSLog(@"loading subview");
+    NSLog(@"drawing subview");
 }
 
 /*

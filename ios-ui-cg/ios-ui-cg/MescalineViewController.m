@@ -10,7 +10,6 @@
 #import "FakeModel.h"
 #import "Region.h"
 #import "RegionView.h"
-#import <QuartzCore/QuartzCore.h>
 
 
 @implementation MescalineViewController
@@ -40,43 +39,18 @@
 }
 
 
-
-- (void)adjustAnchorPointForGestureRecognizer:(UIGestureRecognizer *)gestureRecognizer {
-    if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
-        UIView *regionView = gestureRecognizer.view;
-        CGPoint locationInView = [gestureRecognizer locationInView:regionView];
-        CGPoint locationInSuperview = [gestureRecognizer locationInView:regionView.superview];
-        
-        regionView.layer.anchorPoint = CGPointMake(locationInView.x / regionView.bounds.size.width, locationInView.y / regionView.bounds.size.height);
-        regionView.center = locationInSuperview;
-    }
-}
-
-
-- (void)panRegion:(UIPanGestureRecognizer *)gestureRecognizer
+- (void)updateRegion:(int)regionIndex withPoint:(CGPoint)newCenter
 {
-    UIView *region = [gestureRecognizer view];
+    FakeModel* model =  [FakeModel sharedManager];
+    NSValue* point = [NSValue valueWithCGPoint:newCenter];
+    Region * object = [model.regions objectAtIndex:regionIndex];
+    object.location = point;
     
-    [self adjustAnchorPointForGestureRecognizer:gestureRecognizer];
-    
-    if ([gestureRecognizer state] == UIGestureRecognizerStateBegan || [gestureRecognizer state] == UIGestureRecognizerStateChanged) {
-        CGPoint translation = [gestureRecognizer translationInView:[region superview]];
-        
-        [region setCenter:CGPointMake([region center].x + translation.x, [region center].y + translation.y)];
-        [gestureRecognizer setTranslation:CGPointZero inView:[region superview]];
-    }
 }
 
-- (void)scaleRegion:(UIPinchGestureRecognizer *)gestureRecognizer
-{
-    [self adjustAnchorPointForGestureRecognizer:gestureRecognizer];
-    
-    if ([gestureRecognizer state] == UIGestureRecognizerStateBegan || [gestureRecognizer state] == UIGestureRecognizerStateChanged) {
-        [gestureRecognizer view].transform = CGAffineTransformScale([[gestureRecognizer view] transform], [gestureRecognizer scale], [gestureRecognizer scale]);
-        [gestureRecognizer setScale:1];
-        [[gestureRecognizer view] setNeedsDisplay];
-    }
-}
+
+
+
 
 
 
@@ -88,12 +62,12 @@
 //    [regionView addGestureRecognizer:rotationGesture];
 //    [rotationGesture release];
     
-    UIPinchGestureRecognizer *pinchGesture = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(scaleRegion:)];
+    UIPinchGestureRecognizer *pinchGesture = [[UIPinchGestureRecognizer alloc] initWithTarget:regionView action:@selector(scaleRegion:)];
     [pinchGesture setDelegate:self];
     [regionView addGestureRecognizer:pinchGesture];
     [pinchGesture release];
     
-    UIPanGestureRecognizer *panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(panRegion:)];
+    UIPanGestureRecognizer *panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:regionView action:@selector(panRegion:)];
     [panGesture setMaximumNumberOfTouches:2];
     [panGesture setDelegate:self];
     [regionView addGestureRecognizer:panGesture];
@@ -136,11 +110,6 @@
 //    }
 //	return ret;
 //}
-
-
-
-
-
 
 - (void)addRegionsToView
 {
