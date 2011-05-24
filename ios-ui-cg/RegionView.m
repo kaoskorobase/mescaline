@@ -52,6 +52,7 @@
         [regionView setCenter:CGPointMake([regionView center].x + translation.x, [regionView center].y + translation.y)];
         [gestureRecognizer setTranslation:CGPointZero inView:[regionView superview]];
         CGPoint p = CGPointMake(self.frame.origin.x/self.superview.bounds.size.width,self.frame.origin.y/self.superview.bounds.size.height);
+        [self.superview bringSubviewToFront:self];
         [self.delegate updateRegion:self.regionIndex withPoint:(CGPoint)p andSize:(CGFloat)self.frame.size.width/2] ;
 
     }
