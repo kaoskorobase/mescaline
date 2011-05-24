@@ -25,7 +25,7 @@
     self = [super initWithFrame:frame];
     if (self) {
         [self setup];
-        self.opaque = YES;
+        self.opaque = NO;
                
     }
     return self;
@@ -50,12 +50,9 @@
     if ([gestureRecognizer state] == UIGestureRecognizerStateBegan || [gestureRecognizer state] == UIGestureRecognizerStateChanged) {
         CGPoint translation = [gestureRecognizer translationInView:[regionView superview]];
         [regionView setCenter:CGPointMake([regionView center].x + translation.x, [regionView center].y + translation.y)];
-        //CGPoint p = CGPointMake(([regionView center].x + translation.x )/self.superview.bounds.size.width, ([regionView center].y + translation.y) / self.superview.bounds.size.height);
         [gestureRecognizer setTranslation:CGPointZero inView:[regionView superview]];
-        //CGPoint locationInSuperview = [gestureRecognizer locationInView:regionView.superview];
         CGPoint p = CGPointMake(self.frame.origin.x/self.superview.bounds.size.width,self.frame.origin.y/self.superview.bounds.size.height);
-        NSLog(@"%f",self.frame.origin.x);
-        [self.delegate updateRegion:self.regionIndex withPoint:(CGPoint)p] ;
+        [self.delegate updateRegion:self.regionIndex withPoint:(CGPoint)p andSize:(CGFloat)self.frame.size.width/2] ;
 
     }
 }
@@ -67,7 +64,9 @@
     if ([gestureRecognizer state] == UIGestureRecognizerStateBegan || [gestureRecognizer state] == UIGestureRecognizerStateChanged) {
         [gestureRecognizer view].transform = CGAffineTransformScale([[gestureRecognizer view] transform], [gestureRecognizer scale], [gestureRecognizer scale]);
         [gestureRecognizer setScale:1];
-        [[gestureRecognizer view] setNeedsDisplay];
+        CGPoint p = CGPointMake(self.frame.origin.x/self.superview.bounds.size.width,self.frame.origin.y/self.superview.bounds.size.height);
+        [self.delegate updateRegion:self.regionIndex withPoint:(CGPoint)p andSize:(CGFloat)self.frame.size.width/2] ;
+
     }
 }
 

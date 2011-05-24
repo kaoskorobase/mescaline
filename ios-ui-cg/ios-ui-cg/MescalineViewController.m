@@ -39,12 +39,13 @@
 }
 
 
-- (void)updateRegion:(int)regionIndex withPoint:(CGPoint)newCenter
+- (void)updateRegion:(int)regionIndex withPoint:(CGPoint)newCenter andSize:(CGFloat)size
 {
     FakeModel* model =  [FakeModel sharedManager];
     NSValue* point = [NSValue valueWithCGPoint:newCenter];
     Region * object = [model.regions objectAtIndex:regionIndex];
     object.location = point;
+    object.rad = size;
     
 }
 
