@@ -223,7 +223,7 @@ mkPlotData ds us sfs = PlotData us'
         -- Filter units by IDs of marked sound files
         ids = Set.fromList (map fileId (filter marked sfs))
         us' = Map.filter (flip Set.member ids . DB.unitSourceFile . fst) us
-        mkFilePDF sf = (fileId sf, mkFeaturePDFs ((== fileId sf) . DB.unitSourceFile) ds us')
+        mkFilePDF sf = (fileId sf, mkFeaturePDFs ((== fileId sf) . DB.unitSourceFile) ds us)
         featPDFs = mkFeaturePDFs (const True) ds us'
         filePDFs = Map.fromList (map mkFilePDF sfs)
         probBounds = foldHistogramBounds (concat (Map.elems featPDFs ++ concat (Map.elems (fmap Map.elems filePDFs))))
