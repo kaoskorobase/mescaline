@@ -65,6 +65,8 @@ data ScatterPlotAxis = ScatterPlotAxis {
 scatterPlotAxisTitle :: ScatterPlotAxis -> String
 scatterPlotAxisTitle x = descriptorShortName (scatterPlotDescriptor x) ++ " (" ++ show (scatterPlotIndex x) ++ ")"
 
+data AxisType = XAxis | YAxis deriving (Eq, Show)
+
 data ScatterPlot = ScatterPlot {
     scatterPlotX :: ScatterPlotAxis
   , scatterPlotY :: ScatterPlotAxis
@@ -97,6 +99,16 @@ scatterPlotAxisMenu descr action = do
 getFeature :: DB.DescriptorId -> Map DB.DescriptorId DB.Feature -> DB.Feature
 getFeature = flip (Map.!)
 
+meanPlot :: AxisType -> ScatterPlotAxis -> FeatureStatMap -> Plot Double Double
+meanPlot at a stats =
+    let label = "mean"
+        ls = line_color ^= opaque black $ defaultPlotLineStyle
+        m = featureMean (getStats a stats)
+        f = case at of
+                XAxis -> vlinePlot
+                YAxis -> hlinePlot
+    in f label ls m
+
 layoutScatterPlot :: ColourMap DB.SourceFileId Double -> PlotData -> ScatterPlot -> Layout1 Double Double
 layoutScatterPlot colourMap plotData sp = layout
     where
@@ -125,9 +137,10 @@ layoutScatterPlot colourMap plotData sp = layout
                    laxis_generate ^= axisFn plotData yAxis $
                    defaultLayoutAxis
 
-
         layout = -- layout1_title ^= "Units"
                  layout1_plots ^= map (Left . toPlot . points) (Set.toList (markedSoundFiles plotData))
+                                    ++ [ Left $ meanPlot XAxis xAxis (featureStats plotData)
+                                       , Left $ meanPlot YAxis yAxis (featureStats plotData) ]
                $ layout1_left_axis ^= leftAxis
                $ layout1_bottom_axis ^= bottomAxis
                $ defaultLayout1
@@ -143,10 +156,11 @@ layoutKDE colourMap flipped axis sf plotData = layout
         descr = scatterPlotAxisTitle axis
 
         layout = -- layout1_title ^= "Densities for \"" ++ descr ++ "\""
-                 layout1_plots ^= [ Left (toPlot (mkInfo featureLineStyle (featureStats plotData)))
-                                  , Left (toPlot (mkInfo fileLineStyle (fileStats plotData Map.! sf))) ]
-               $ layout1_left_axis ^= (if flipped then featureAxis else pdfAxis)
+                 layout1_plots ^= [ Left $ mkPlot featureLineStyle (featureStats plotData)
+                                  , Left $ mkPlot fileLineStyle (fileStats plotData Map.! sf)
+                                  , Left $ meanPlot (if flipped then YAxis else XAxis) axis (featureStats plotData) ]
                $ layout1_bottom_axis ^= (if flipped then pdfAxis else featureAxis)
+               $ layout1_left_axis ^= (if flipped then featureAxis else pdfAxis)
                $ defaultLayout1 :: Layout1 Double Double
 
         pdfAxis = laxis_title ^= "estimate of probability density"
@@ -160,14 +174,16 @@ layoutKDE colourMap flipped axis sf plotData = layout
 
         fileLineStyle = line_color ^= opaque (fileColour colourMap sf) $ defaultPlotLineStyle
 
-        mkInfo ls stats = plot_lines_values ^= [ zip (if flipped then featureValues else pdfValues)
-                                                     (if flipped then pdfValues else featureValues) ]
-                       $ plot_lines_style ^= ls
-                       $ defaultPlotLines
+        flipValues xs = if flipped then map (\(a, b) -> (b, a)) xs else xs
+
+        mkPlot lineStyle stats = pdfPlot
              where
                  (points, pdf) = featureHist (getStats axis stats)
-                 pdfValues = V.toList (fromPoints points)
-                 featureValues = V.toList (V.map (/ V.sum pdf) pdf)
+                 xValues = V.toList (fromPoints points)
+                 yValues = V.toList (V.map (/ V.sum pdf) pdf)
+                 pdfPlot = toPlot $ plot_lines_values ^= map flipValues [ zip xValues yValues ]
+                            $ plot_lines_style ^= lineStyle
+                            $ defaultPlotLines
 
 renderChart :: Layout1 Double Double
             -> Layout1 Double Double
