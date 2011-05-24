@@ -43,6 +43,8 @@ import           System.FilePath
 data SoundFile = SoundFile { fileId :: DB.SourceFileId, file :: DB.SourceFile, marked :: Bool }
                  deriving (Typeable)
 
+type UnitMap = Map DB.UnitId (DB.Unit, Map DB.DescriptorId DB.Feature)
+
 fileColour :: ColourMap DB.SourceFileId a -> SoundFile -> Colour a
 fileColour m s = m Map.! fileId s
 
@@ -90,19 +92,20 @@ scatterPlotAxisMenu descr action = do
             menuShellAppend menu item
             onActivateLeaf item (action axis)
 
-getFeature :: DB.DescriptorId -> [DB.Feature] -> DB.Feature
-getFeature d = fromJust . List.find ((== d) . DB.featureDescriptor)
+getFeature :: DB.DescriptorId -> Map DB.DescriptorId DB.Feature -> DB.Feature
+getFeature = flip (Map.!)
 
 layoutScatterPlot :: ColourMap DB.SourceFileId Double -> PlotData -> ScatterPlot -> Layout1 Double Double
-layoutScatterPlot sfMap plotData sp = layout
+layoutScatterPlot colourMap plotData sp = layout
     where
         units = unitMap plotData
 
         xAxis = scatterPlotX sp
         yAxis = scatterPlotY sp
 
-        points sf colour =
-            let us = Map.filter (\(u, _) -> sf == DB.unitSourceFile u) units
+        points sf =
+            let colour = colourMap Map.! sf
+                us = unitMap plotData Map.! sf
                 value axis = flip (V.!) (scatterPlotIndex axis)
                            . DB.featureValue
                            . getFeature (scatterPlotDescriptorId axis)
@@ -120,7 +123,7 @@ layoutScatterPlot sfMap plotData sp = layout
         leftAxis = -- laxis_title ^= scatterPlotAxisTitle yAxis $
                    laxis_generate ^= scaledAxis yAxis $ defaultLayoutAxis
         layout = -- layout1_title ^= "Units"
-                 layout1_plots ^= map (\(sf, c) -> Left (toPlot (points sf c))) (Map.toList sfMap)
+                 layout1_plots ^= map (Left . toPlot . points) (Set.toList (markedSoundFiles plotData))
                $ layout1_left_axis ^= leftAxis
                $ layout1_bottom_axis ^= bottomAxis
                $ defaultLayout1
@@ -137,11 +140,11 @@ foldHistogramBounds = List.foldl' f (1, 0)
             let (newMin, newMax) = histogramBounds h
             in (curMin `min` newMin, curMax `max` newMax)
 
-mkFeaturePDFs :: (DB.Unit -> Bool) -> DB.DescriptorMap -> DB.UnitMap -> Map DB.DescriptorId [Histogram]
-mkFeaturePDFs p ds us = Map.mapWithKey (\di -> fmap (kde di) . indices) ds
+mkFeaturePDFs :: DB.DescriptorMap -> UnitMap -> Map DB.DescriptorId [Histogram]
+mkFeaturePDFs ds us = Map.mapWithKey (\di -> fmap (kde di) . indices) ds
     where
         indices d = [0..DB.descriptorDegree d - 1]
-        kde di i = estimate . V.fromList . map (flip (V.!) i . DB.featureValue . getFeature di . snd) . filter (p.fst) . Map.elems $ us
+        kde di i = estimate . V.fromList . map (flip (V.!) i . DB.featureValue . getFeature di . snd) . Map.elems $ us
         estimate :: U.Vector Double -> Histogram
         estimate = epanechnikovPDF 100
 
@@ -203,11 +206,13 @@ renderChart scatterPlot xHist yHist = concatMapPickFn p r
         p _           = Nothing
 
 data PlotData = PlotData {
-    unitMap :: DB.UnitMap
-  , featurePDFs :: Map DB.DescriptorId [Histogram]
-  , filePDFs :: Map DB.SourceFileId (Map DB.DescriptorId [Histogram])
-  , featureBounds :: Map DB.DescriptorId [(Double, Double)]
-  , probBounds :: (Double, Double)
+    soundFiles       :: [SoundFile]
+  , markedSoundFiles :: Set.Set DB.SourceFileId
+  , unitMap          :: Map DB.SourceFileId UnitMap
+  , filePDFs         :: Map DB.SourceFileId (Map DB.DescriptorId [Histogram])
+  , featurePDFs      :: Map DB.DescriptorId [Histogram]
+  , featureBounds    :: Map DB.DescriptorId [(Double, Double)]
+  , probBounds       :: (Double, Double)
   }
 
 featureExtremities :: DB.DescriptorId -> Int -> PlotData -> [Double]
@@ -215,17 +220,20 @@ featureExtremities d i p = [l, h]
     where (l, h) = (featureBounds p Map.! d) !! i
 
 mkPlotData :: DB.DescriptorMap -> DB.UnitMap -> [SoundFile] -> PlotData
-mkPlotData ds us sfs = PlotData us'
-                            featPDFs filePDFs
-                            (trace ("featureBounds: " ++ show featBounds) featBounds)
-                            (trace ("probBounds: " ++ show probBounds) probBounds)
+mkPlotData ds us sfs = PlotData sfs ids um
+                                filePDFs featPDFs
+                                (trace ("featureBounds: " ++ show featBounds) featBounds)
+                                (trace ("probBounds: " ++ show probBounds) probBounds)
     where
-        -- Filter units by IDs of marked sound files
+        mkFeatureMap = Map.fromList . map (\f -> (DB.featureDescriptor f, f))
+        um = Map.foldrWithKey (\ui (u, fs) ->
+                                Map.alter (Just . maybe (Map.singleton ui (u, mkFeatureMap fs))
+                                                        (Map.insert ui (u, mkFeatureMap fs)))
+                                          (DB.unitSourceFile u))
+                              Map.empty us
         ids = Set.fromList (map fileId (filter marked sfs))
-        us' = Map.filter (flip Set.member ids . DB.unitSourceFile . fst) us
-        mkFilePDF sf = (fileId sf, mkFeaturePDFs ((== fileId sf) . DB.unitSourceFile) ds us)
-        featPDFs = mkFeaturePDFs (const True) ds us'
-        filePDFs = Map.fromList (map mkFilePDF sfs)
+        featPDFs = mkFeaturePDFs ds (Map.fold Map.union Map.empty (Map.filterWithKey (\k _ -> Set.member k ids) um))
+        filePDFs = fmap (mkFeaturePDFs ds) um
         probBounds = foldHistogramBounds (concat (Map.elems featPDFs ++ concat (Map.elems (fmap Map.elems filePDFs))))
         featBounds = fmap (fmap (\(ps, _) -> (V.minimum (fromPoints ps), V.maximum (fromPoints ps)))) featPDFs
 
@@ -374,7 +382,7 @@ appMain = do
 
         -- Drawing area for plots
         canvas <- xmlGetWidget xml castToDrawingArea "plot"
-        set canvas [ widgetWidthRequest := 800, widgetHeightRequest := 800 ]
+        set canvas [ widgetWidthRequest := 640, widgetHeightRequest := 640 ]
         widgetAddEvents canvas [Button1MotionMask]
 
         -- Event sources
@@ -386,6 +394,14 @@ appMain = do
             -- Event fired as sound files are marked or unmarked
             soundFiles <- fromAddHandler $ \a -> void $ on renderer4 cellToggled $ const (listStoreToList model >>= a)
             soundFiles0 <- liftIO $ listStoreToList model
+            -- Soundfile cursor
+            currentSoundFile <- fromAddHandler $ \a -> void $ on view cursorChanged $ do
+                p <- treeViewGetCursor view
+                case p of
+                    ([i], _) -> listStoreGetValue model i >>= a
+                    _ -> return ()
+            let selectedSoundFile = stepper (head soundFiles0) currentSoundFile
+                selectedSoundFileId = fileId <$> selectedSoundFile
             -- Expose event for canvas
             expose <- fromAddHandler $ \a -> void $ on canvas exposeEvent $ liftIO (a ()) >> return True
             -- Canvas button events
@@ -406,13 +422,12 @@ appMain = do
                                      ((\e sp -> either (\x -> sp { scatterPlotX = x })
                                                        (\y -> sp { scatterPlotY = y }) e) <$> scatterPlotAxis)
                 scatterPlot = layoutScatterPlot colourMap <$> plotData <*> scatterPlotState
-                currentFileId = fileId . head $ soundFiles0
-                kdePlotX = (layoutKDE colourMap False . scatterPlotX) <$> scatterPlotState <*> pure currentFileId <*> plotData <*> (layout1_bottom_axis_ <$> scatterPlot)
-                kdePlotY = (layoutKDE colourMap True  . scatterPlotY) <$> scatterPlotState <*> pure currentFileId <*> plotData <*> (layout1_left_axis_   <$> scatterPlot)
+                kdePlotX = (layoutKDE colourMap False . scatterPlotX) <$> scatterPlotState <*> selectedSoundFileId <*> plotData <*> (layout1_bottom_axis_ <$> scatterPlot)
+                kdePlotY = (layoutKDE colourMap True  . scatterPlotY) <$> scatterPlotState <*> selectedSoundFileId <*> plotData <*> (layout1_left_axis_   <$> scatterPlot)
                 chart = renderChart <$> scatterPlot <*> kdePlotX <*> kdePlotY
                 popupAxisMenu e p = scatterPlotAxisMenu scatterPlotAxes (fire scatterPlotSrc . either (const Left) (const Right) p) >>=
                                     flip menuPopup (Just (toEnum (uiEventButton e), uiEventTime e))
-                redraw = ignore soundFiles `union` ignore scatterPlotAxis
+                redraw = ignore soundFiles `union` ignore currentSoundFile `union` ignore scatterPlotAxis
             -- Update canvas with current plot and feed back new pick function
             reactimate $ ((const . void . updateCanvas' canvas (fire pickFnSrc . fmap L1P)) <$> chart) `apply` expose
             -- Display the axis popup menu if needed
