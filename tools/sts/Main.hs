@@ -20,6 +20,7 @@ import           Data.Maybe
 import qualified Data.Set as Set
 import           Data.Typeable
 import           Data.Word (Word16)
+import qualified Data.Vector as B
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Unboxed as U
 import           Debug.Trace
@@ -37,16 +38,17 @@ import qualified Reactive.Banana as R
 import qualified Reactive.Banana.Model as RM
 import           Statistics.Function (indexed)
 import           Statistics.KernelDensity (Points, epanechnikovPDF, fromPoints)
+import           Statistics.Sample
 import           Statistics.Types (Sample)
 import           System.FilePath
 
 data SoundFile = SoundFile { fileId :: DB.SourceFileId, file :: DB.SourceFile, marked :: Bool }
-                 deriving (Typeable)
+                 deriving (Show, Typeable)
 
 type UnitMap = Map DB.UnitId (DB.Unit, Map DB.DescriptorId DB.Feature)
 
-fileColour :: ColourMap DB.SourceFileId a -> SoundFile -> Colour a
-fileColour m s = m Map.! fileId s
+fileColour :: ColourMap DB.SourceFileId a -> DB.SourceFileId -> Colour a
+fileColour m s = m Map.! s
 
 colourToGdk :: (Floating a, Fractional a, RealFrac a) => Colour a -> Color
 colourToGdk c = Color (r2w (channelRed rgb)) (r2w (channelGreen rgb)) (r2w (channelBlue rgb))
@@ -104,93 +106,66 @@ layoutScatterPlot colourMap plotData sp = layout
         yAxis = scatterPlotY sp
 
         points sf =
-            let colour = colourMap Map.! sf
+            let colour = fileColour colourMap sf
                 us = unitMap plotData Map.! sf
                 value axis = flip (V.!) (scatterPlotIndex axis)
                            . DB.featureValue
                            . getFeature (scatterPlotDescriptorId axis)
                 vs = map (\(_, fs) -> (value xAxis fs, value yAxis fs)) (Map.elems us)
             in plot_points_style ^= filledCircles 2 (opaque colour)
-               $ plot_points_values ^= vs
-               -- $ plot_points_title ^= "Test data"
-               $ defaultPlotPoints
+             $ plot_points_values ^= vs
+             -- $ plot_points_title ^= "Test data"
+             $ defaultPlotPoints
 
-        scaledAxis axis = autoAxis . (++featureExtremities (scatterPlotDescriptorId axis)
-                                                           (scatterPlotIndex axis)
-                                                           plotData)
         bottomAxis = -- laxis_title ^= scatterPlotAxisTitle xAxis $
-                     laxis_generate ^= scaledAxis xAxis $ defaultLayoutAxis
+                     laxis_generate ^= axisFn plotData xAxis $
+                     defaultLayoutAxis
         leftAxis = -- laxis_title ^= scatterPlotAxisTitle yAxis $
-                   laxis_generate ^= scaledAxis yAxis $ defaultLayoutAxis
+                   -- laxis_generate ^= scaledAxis yAxis $
+                   laxis_generate ^= axisFn plotData yAxis $
+                   defaultLayoutAxis
+
+
         layout = -- layout1_title ^= "Units"
                  layout1_plots ^= map (Left . toPlot . points) (Set.toList (markedSoundFiles plotData))
                $ layout1_left_axis ^= leftAxis
                $ layout1_bottom_axis ^= bottomAxis
                $ defaultLayout1
 
-type Histogram = (Points, U.Vector Double)
-
-histogramBounds :: Histogram -> (Double, Double)
-histogramBounds (_, ps) = (V.minimum ps, V.maximum ps)
-
-foldHistogramBounds :: [Histogram] -> (Double, Double)
-foldHistogramBounds = List.foldl' f (1, 0)
-    where
-        f (!curMin, !curMax) h =
-            let (newMin, newMax) = histogramBounds h
-            in (curMin `min` newMin, curMax `max` newMax)
-
-mkFeaturePDFs :: DB.DescriptorMap -> UnitMap -> Map DB.DescriptorId [Histogram]
-mkFeaturePDFs ds us = Map.mapWithKey (\di -> fmap (kde di) . indices) ds
-    where
-        indices d = [0..DB.descriptorDegree d - 1]
-        kde di i = estimate . V.fromList . map (flip (V.!) i . DB.featureValue . getFeature di . snd) . Map.elems $ us
-        estimate :: U.Vector Double -> Histogram
-        estimate = epanechnikovPDF 100
-
 layoutKDE :: ColourMap DB.SourceFileId Double
           -> Bool
           -> ScatterPlotAxis
           -> DB.SourceFileId
           -> PlotData
-          -> LayoutAxis Double
           -> Layout1 Double Double
-layoutKDE colourMap flipped axis sf plotData dataAxis = layout
+layoutKDE colourMap flipped axis sf plotData = layout
     where
         descr = scatterPlotAxisTitle axis
 
         layout = -- layout1_title ^= "Densities for \"" ++ descr ++ "\""
-                 layout1_plots ^= [ Left (toPlot (mkInfo featureLineStyle (featurePDFs plotData)))
-                                  , Left (toPlot (mkInfo fileLineStyle (filePDFs plotData Map.! sf))) ]
+                 layout1_plots ^= [ Left (toPlot (mkInfo featureLineStyle (featureStats plotData)))
+                                  , Left (toPlot (mkInfo fileLineStyle (fileStats plotData Map.! sf))) ]
                $ layout1_left_axis ^= (if flipped then featureAxis else pdfAxis)
                $ layout1_bottom_axis ^= (if flipped then pdfAxis else featureAxis)
                $ defaultLayout1 :: Layout1 Double Double
 
         pdfAxis = laxis_title ^= "estimate of probability density"
-                  -- laxis_generate ^= semiAutoScaledAxis defaultLinearAxis
-                  -- laxis_generate ^= autoScaledAxis defaultLinearAxis
                 $ defaultLayoutAxis
 
         featureAxis = laxis_title ^= descr
-                    -- $ laxis_generate ^= semiAutoScaledAxis defaultLinearAxis
-                    -- $ laxis_override ^= dataAxis ^. laxis_override
-                    -- $ defaultLayoutAxis
+                    $ laxis_generate ^= axisFn plotData axis
                     $ defaultLayoutAxis
-
-        -- semiAutoScaledAxis opts ps = autoScaledAxis opts (extremities ++ ps)
-        -- featBounds = (featureBounds plotData Map.! scatterPlotDescriptorId axis) !! scatterPlotIndex axis
-        -- extremities = [ fst featBounds, snd featBounds ]
 
         featureLineStyle = line_color ^= opaque black $ defaultPlotLineStyle
 
-        fileLineStyle = line_color ^= opaque (colourMap Map.! sf) $ defaultPlotLineStyle
+        fileLineStyle = line_color ^= opaque (fileColour colourMap sf) $ defaultPlotLineStyle
 
-        mkInfo ls pdfs = plot_lines_values ^= [ zip (if flipped then featureValues else pdfValues)
-                                                    (if flipped then pdfValues else featureValues) ]
+        mkInfo ls stats = plot_lines_values ^= [ zip (if flipped then featureValues else pdfValues)
+                                                     (if flipped then pdfValues else featureValues) ]
                        $ plot_lines_style ^= ls
                        $ defaultPlotLines
              where
-                 (points, pdf) = (pdfs Map.! scatterPlotDescriptorId axis) !! scatterPlotIndex axis
+                 (points, pdf) = featureHist (getStats axis stats)
                  pdfValues = V.toList (fromPoints points)
                  featureValues = V.toList (V.map (/ V.sum pdf) pdf)
 
@@ -205,25 +180,52 @@ renderChart scatterPlot xHist yHist = concatMapPickFn p r
         p ((0, 1), l) = Just l
         p _           = Nothing
 
+type Histogram = (Points, U.Vector Double)
+
+data FeatureStatistics = FeatureStatistics {
+    featureMin  :: Double
+  , featureMax  :: Double
+  , featureMean :: Double
+  , featureVar  :: Double
+  , featureHist :: Histogram
+  } deriving (Show)
+
+type FeatureStatMap = Map DB.DescriptorId (B.Vector FeatureStatistics)
+
 data PlotData = PlotData {
     soundFiles       :: [SoundFile]
   , markedSoundFiles :: Set.Set DB.SourceFileId
   , unitMap          :: Map DB.SourceFileId UnitMap
-  , filePDFs         :: Map DB.SourceFileId (Map DB.DescriptorId [Histogram])
-  , featurePDFs      :: Map DB.DescriptorId [Histogram]
-  , featureBounds    :: Map DB.DescriptorId [(Double, Double)]
-  , probBounds       :: (Double, Double)
-  }
+  , fileStats        :: Map DB.SourceFileId FeatureStatMap
+  , featureStats     :: FeatureStatMap
+  } deriving (Show)
 
-featureExtremities :: DB.DescriptorId -> Int -> PlotData -> [Double]
-featureExtremities d i p = [l, h]
-    where (l, h) = (featureBounds p Map.! d) !! i
+getStats :: ScatterPlotAxis -> FeatureStatMap -> FeatureStatistics
+getStats a f = (f Map.! scatterPlotDescriptorId a) V.! scatterPlotIndex a
+
+axisFn :: PlotData -> ScatterPlotAxis -> AxisFn Double
+axisFn pd a = const $ autoAxis [featureMin s, featureMax s]
+    where s = getStats a (featureStats pd)
+
+mkFeatureStats :: DB.DescriptorMap -> UnitMap -> Map DB.DescriptorId (B.Vector FeatureStatistics)
+mkFeatureStats ds us = Map.mapWithKey (\di -> V.fromList . fmap (mkStats di) . indices) ds
+    where
+        indices d = [0..DB.descriptorDegree d - 1]
+        mkStats di i = stats . V.fromList . map (flip (V.!) i . DB.featureValue . getFeature di . snd) . Map.elems $ us
+        estimatePDF :: U.Vector Double -> Histogram
+        estimatePDF = epanechnikovPDF 100
+        stats :: U.Vector Double -> FeatureStatistics
+        stats v = let (μ, σ) = meanVariance v
+                  in FeatureStatistics {
+                        featureMin  = V.minimum v
+                      , featureMax  = V.maximum v
+                      , featureMean = μ
+                      , featureVar  = σ
+                      , featureHist = estimatePDF v
+                      }
 
 mkPlotData :: DB.DescriptorMap -> DB.UnitMap -> [SoundFile] -> PlotData
-mkPlotData ds us sfs = PlotData sfs ids um
-                                filePDFs featPDFs
-                                (trace ("featureBounds: " ++ show featBounds) featBounds)
-                                (trace ("probBounds: " ++ show probBounds) probBounds)
+mkPlotData ds us sfs = PlotData sfs ids um fileStats featStats
     where
         mkFeatureMap = Map.fromList . map (\f -> (DB.featureDescriptor f, f))
         um = Map.foldrWithKey (\ui (u, fs) ->
@@ -232,10 +234,8 @@ mkPlotData ds us sfs = PlotData sfs ids um
                                           (DB.unitSourceFile u))
                               Map.empty us
         ids = Set.fromList (map fileId (filter marked sfs))
-        featPDFs = mkFeaturePDFs ds (Map.fold Map.union Map.empty (Map.filterWithKey (\k _ -> Set.member k ids) um))
-        filePDFs = fmap (mkFeaturePDFs ds) um
-        probBounds = foldHistogramBounds (concat (Map.elems featPDFs ++ concat (Map.elems (fmap Map.elems filePDFs))))
-        featBounds = fmap (fmap (\(ps, _) -> (V.minimum (fromPoints ps), V.maximum (fromPoints ps)))) featPDFs
+        featStats = mkFeatureStats ds (Map.fold Map.union Map.empty (Map.filterWithKey (\k _ -> Set.member k ids) um))
+        fileStats = fmap (mkFeatureStats ds) um
 
 {-----------------------------------------------------------------------------
 Event sources
@@ -354,7 +354,7 @@ appMain = do
 
         -- add a couple columns
         (col1, _) <- newColumn model "File" cellRendererTextNew $ \row -> [ cellText := takeFileName . DB.sourceFileUrl . file $ row
-                                                                          , cellTextBackgroundColor := colourToGdk . fileColour colourMap $ row ]
+                                                                          , cellTextBackgroundColor := colourToGdk . fileColour colourMap . fileId $ row ]
         treeViewColumnSetResizable col1 True
         treeViewAppendColumn view col1
 
@@ -422,8 +422,8 @@ appMain = do
                                      ((\e sp -> either (\x -> sp { scatterPlotX = x })
                                                        (\y -> sp { scatterPlotY = y }) e) <$> scatterPlotAxis)
                 scatterPlot = layoutScatterPlot colourMap <$> plotData <*> scatterPlotState
-                kdePlotX = (layoutKDE colourMap False . scatterPlotX) <$> scatterPlotState <*> selectedSoundFileId <*> plotData <*> (layout1_bottom_axis_ <$> scatterPlot)
-                kdePlotY = (layoutKDE colourMap True  . scatterPlotY) <$> scatterPlotState <*> selectedSoundFileId <*> plotData <*> (layout1_left_axis_   <$> scatterPlot)
+                kdePlotX = (layoutKDE colourMap False . scatterPlotX) <$> scatterPlotState <*> selectedSoundFileId <*> plotData
+                kdePlotY = (layoutKDE colourMap True  . scatterPlotY) <$> scatterPlotState <*> selectedSoundFileId <*> plotData
                 chart = renderChart <$> scatterPlot <*> kdePlotX <*> kdePlotY
                 popupAxisMenu e p = scatterPlotAxisMenu scatterPlotAxes (fire scatterPlotSrc . either (const Left) (const Right) p) >>=
                                     flip menuPopup (Just (toEnum (uiEventButton e), uiEventTime e))
@@ -450,3 +450,6 @@ mapFilter f = fmap fromJust . R.filter isJust . fmap f
 
 ignore :: Functor f => f a -> f ()
 ignore = (<$) ()
+
+unzipF :: Functor f => f (a, b) -> (f a, f b)
+unzipF f = (fmap fst f, fmap snd f)
