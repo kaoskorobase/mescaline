@@ -13,7 +13,7 @@
 
 
 @interface FakeModel : NSObject {
-    sqlite3    *database;
+//    sqlite3    *database;
 @public
     NSArray *regions; 
     NSArray *points; 
@@ -24,7 +24,7 @@
 
 +(FakeModel*)sharedManager;
 
-- (void)getData;
+//- (void)getData;
 - (int)numRegions;
 
 @end
