@@ -1,8 +1,10 @@
 #!/usr/bin/env ruby
 
+CABAL = "cabal-dev"
+
 def cabal(cmd, args)
-  unless system("cabal", cmd, *args)
-    raise "`cabal #{cmd}` failed"
+  unless system(CABAL, cmd, *args)
+    raise "`#{CABAL} #{cmd}` failed"
   end
 end
 
@@ -12,7 +14,7 @@ end
 
 def build1(configuring, args)
   needs_configure = false
-  IO.popen("cabal build #{args.join(' ')} 2>&1") do |io|
+  IO.popen("#{CABAL} build #{args.join(' ')} 2>&1") do |io|
     io.each do |line|
       puts line
       if !line.grep(/<command line>: cannot satisfy/).empty? \
@@ -50,11 +52,11 @@ begin
   unless cmd
     raise "missing command"
   end
-  dir = ARGV.shift
-  unless dir
-    raise "missing directory"
-  end
-  Dir.chdir(dir)
+  # dir = ARGV.shift
+  # unless dir
+  #   raise "missing directory"
+  # end
+  # Dir.chdir(dir)
   case cmd
   when "build" then build
   when "clean" then clean

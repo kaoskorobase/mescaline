@@ -1,10 +1,14 @@
 SC_DIR = $(HOME)/dev/supercollider
 ACTION := build
 ARGS :=
-CABAL = ./tools/cabal-build.rb $(ACTION)
+CABAL = $(PWD)/tools/cabal-build.rb $(ACTION) -s $(PWD)/cabal-dev $(ARGS)
 
 all:
 	@echo Please specify a target.
+
+add-source:
+	cabal-dev add-source ~/dev/haskell/{hosc,hsc3,hsc3-process,hsc3-server}
+	cabal-dev add-source upstream/persistent{,/backends/sqlite,/packages/template}
 
 configure:
 	$(eval ACTION := configure)
@@ -18,9 +22,9 @@ upstream: upstream-cabal-macosx upstream-persistent
 upstream-cabal-macosx:
 	cd upstream/cabal-macosx && $(CABAL) install
 upstream-persistent: install
-	$(CABAL) upstream/persistent $(ARGS)
-	$(CABAL) upstream/persistent/backends/sqlite $(ARGS)
-	$(CABAL) upstream/persistent/packages/template $(ARGS)
+	cd upstream/persistent 			 $(CABAL)
+	cd upstream/persistent/backends/sqlite   $(CABAL)
+	cd upstream/persistent/packages/template $(CABAL)
 .PHONY: upstream upstream-cabal-macosx upstream-persistent
 
 # mescaline-database
@@ -29,7 +33,7 @@ MESCALINE_DATABASE_DEPENDS = $(MESCALINE_DATABASE_ENTITY)
 $(MESCALINE_DATABASE_ENTITY): $(MESCALINE_DATABASE_ENTITY:.hs=Gen.hs)
 	runhaskell $? > $@
 mescaline-database: $(MESCALINE_DATABASE_DEPENDS)
-	$(CABAL) lib/mescaline-database $(ARGS)
+	cd lib/mescaline-database && $(CABAL)
 .PHONY: mescaline-database
 
 # mescaline
@@ -38,15 +42,15 @@ MESCALINE_CONFIGURE_ARGS = \
 	--extra-include-dir=$(SC_DIR)/include/plugin_interface \
 
 mescaline:
-	$(CABAL) lib/mescaline $(MESCALINE_CONFIGURE_ARGS) $(ARGS)
+	cd lib/mescaline && $(CABAL) $(MESCALINE_CONFIGURE_ARGS)
 .PHONY: mescaline
 
 mescaline-tools:
-	$(CABAL) tools $(ARGS)
+	cd tools && $(CABAL)
 .PHONY: mescaline-tools
 
 mescaline-app:
-	$(CABAL) app
+	cd app && $(CABAL)
 # mescaline-app-dmg: mescaline-app-install
 # 	version = `grep '^version:' mescaline.cabal`.split[1]
 # 	osx_version = `sw_vers`.split("\n").collect { |x| x.split(":\t") }.find { |x| x[0] == "ProductVersion" }[1].sub(/\.[0-9]+$/, "")
@@ -61,7 +65,7 @@ mescaline-app:
 
 MESCALINE_STS = tools/sts
 mescaline-sts:
-	$(CABAL) $(MESCALINE_STS) $(ARGS)
+	cd $(MESCALINE_STS) && $(CABAL)
 .PHONY: mescaline-sts
 
 install-all: install mescaline-database mescaline mescaline-tools mescaline-app mescaline-sts
@@ -75,8 +79,8 @@ HADDOCK_ARGS = --hyperlink-source --html-location=$(HADDOCK_BASE_DOC)
 
 haddock:
 	$(eval ACTION := haddock)
-	$(CABAL) lib/mescaline-database $(HADDOCK_ARGS)
-	$(CABAL) lib/mescaline $(HADDOCK_ARGS)
+	cd lib/mescaline-database && $(CABAL) $(HADDOCK_ARGS)
+	cd lib/mescaline 	  && $(CABAL) $(HADDOCK_ARGS)
 	# rsync -av lib/mescaline/dist/doc n222@null2.net:html/sk/sites/mescaline.globero.es/
 .PHONY: haddock
 
