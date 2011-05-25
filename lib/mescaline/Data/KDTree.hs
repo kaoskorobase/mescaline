@@ -1,6 +1,6 @@
 {-# LANGUAGE BangPatterns, FlexibleContexts #-}
 -- | kd-Tree data structure for building multi-dimensional, real-valued
--- indices.
+--   indices.
 --
 -- /References/
 --
