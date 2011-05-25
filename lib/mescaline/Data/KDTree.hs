@@ -1,4 +1,10 @@
 {-# LANGUAGE BangPatterns, FlexibleContexts #-}
+-- | kd-Tree data structure for building multi-dimensional, real-valued
+-- indices.
+--
+-- /References/
+--
+-- (1) <http://en.wikipedia.org/wiki/Kdtree>
 module Data.KDTree (
     Tree
   , empty
