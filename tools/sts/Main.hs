@@ -65,6 +65,8 @@ data ScatterPlotAxis = ScatterPlotAxis {
 scatterPlotAxisTitle :: ScatterPlotAxis -> String
 scatterPlotAxisTitle x = descriptorShortName (scatterPlotDescriptor x) ++ " (" ++ show (scatterPlotIndex x) ++ ")"
 
+scatterPlotAxisValue :: V.Vector v a => ScatterPlotAxis -> Map DB.DescriptorId (v a) -> a
+scatterPlotAxisValue a m = (m Map.! scatterPlotDescriptorId a) V.! scatterPlotIndex a
 
 data AxisType = XAxis | YAxis
                 deriving (Eq, Show, Typeable)
@@ -105,7 +107,7 @@ meanPlot :: AxisType -> ScatterPlotAxis -> FeatureStatMap -> Plot Double Double
 meanPlot at a stats =
     let label = "mean"
         ls = line_color ^= opaque black $ defaultPlotLineStyle
-        m = featureMean (getStats a stats)
+        m = featureMean (scatterPlotAxisValue a stats)
         f = case at of
                 XAxis -> vlinePlot
                 YAxis -> hlinePlot
@@ -180,7 +182,7 @@ layoutKDE colourMap flipped axis sf plotData = layout
 
         mkPlot lineStyle stats = pdfPlot
              where
-                 (points, pdf) = featureHist (getStats axis stats)
+                 (points, pdf) = featureHist (scatterPlotAxisValue axis stats)
                  xValues = V.toList (fromPoints points)
                  yValues = V.toList (V.map (/ V.sum pdf) pdf)
                  pdfPlot = toPlot $ plot_lines_values ^= map flipValues [ zip xValues yValues ]
@@ -219,9 +221,6 @@ data PlotData = PlotData {
   , fileStats        :: Map DB.SourceFileId FeatureStatMap
   , featureStats     :: FeatureStatMap
   } deriving (Show)
-
-getStats :: ScatterPlotAxis -> FeatureStatMap -> FeatureStatistics
-getStats a f = (f Map.! scatterPlotDescriptorId a) V.! scatterPlotIndex a
 
 axisFn :: PlotData -> ScatterPlotAxis -> AxisFn Double
 axisFn pd a = const $ autoAxis [fMin - fPad, fMax + fPad]
