@@ -222,8 +222,12 @@ getStats :: ScatterPlotAxis -> FeatureStatMap -> FeatureStatistics
 getStats a f = (f Map.! scatterPlotDescriptorId a) V.! scatterPlotIndex a
 
 axisFn :: PlotData -> ScatterPlotAxis -> AxisFn Double
-axisFn pd a = const $ autoAxis [featureMin s, featureMax s]
-    where s = getStats a (featureStats pd)
+axisFn pd a = const $ autoAxis [fMin - fPad, fMax + fPad]
+    where
+        s = scatterPlotAxisValue a (featureStats pd)
+        fMin = featureMin s
+        fMax = featureMax s
+        fPad = (fMax - fMin) * 5e-3
 
 mkFeatureStats :: DB.DescriptorMap -> UnitMap -> Map DB.DescriptorId (B.Vector FeatureStatistics)
 mkFeatureStats ds us = Map.mapWithKey (\di -> V.fromList . fmap (mkStats di) . indices) ds
