@@ -313,7 +313,7 @@ updateCanvas' canvas pickFnSrc chart = do
 
 -- | User interface event abstraction.
 data UIEvent =
-    MouseEvent {
+    ButtonEvent {
         uiEventTime :: TimeStamp
       , uiEventCoordinates :: (Double,Double)
       , uiEventModifier :: [Modifier]
@@ -326,15 +326,17 @@ data UIEvent =
       }
     deriving (Show, Typeable)
 
-mouseEventHandler :: (UIEvent -> IO ()) -> EventM EButton Bool
-mouseEventHandler a = do
-    MouseEvent <$> eventTime <*> eventCoordinates <*> eventModifier <*> liftM fromEnum eventButton >>= liftIO . a
-    return True
+buttonEventHandler :: EventM EButton UIEvent
+buttonEventHandler = ButtonEvent <$> eventTime <*> eventCoordinates <*> eventModifier <*> liftM fromEnum eventButton
 
-motionEventHandler :: (UIEvent -> IO ()) -> EventM EMotion Bool
-motionEventHandler a = do
-    MotionEvent <$> eventTime <*> eventCoordinates <*> eventModifier >>= liftIO . a
-    return True
+motionEventHandler :: EventM EMotion UIEvent
+motionEventHandler = MotionEvent <$> eventTime <*> eventCoordinates <*> eventModifier
+
+fromSignal :: Typeable a => self -> Signal self handler -> ((a -> IO ()) -> handler) -> Prepare (Event a)
+fromSignal self signal handler = fromAddHandler (void . on self signal . handler)
+
+fromEvent :: (WidgetClass self, Typeable a) => self -> Signal self (EventM t Bool) -> EventM t a -> Prepare (Event a)
+fromEvent self signal handler = fromAddHandler $ void . on self signal . \a -> handler >>= liftIO . a >> return True
 
 newColumn :: ( CellRendererClass cell
              , TreeModelClass (model row)
@@ -417,10 +419,10 @@ appMain = do
         -- Set up event network
         prepareEvents $ do
             -- Event fired as sound files are marked or unmarked
-            soundFiles <- fromAddHandler $ \a -> void $ on renderer4 cellToggled $ const (listStoreToList model >>= a)
+            soundFiles <- fromSignal renderer4 cellToggled $ \a -> const (listStoreToList model >>= a)
             soundFiles0 <- liftIO $ listStoreToList model
             -- Soundfile cursor
-            currentSoundFile <- fromAddHandler $ \a -> void $ on view cursorChanged $ do
+            currentSoundFile <- fromSignal view cursorChanged $ \a -> do
                 p <- treeViewGetCursor view
                 case p of
                     ([i], _) -> listStoreGetValue model i >>= a
@@ -428,10 +430,11 @@ appMain = do
             let selectedSoundFile = stepper (head soundFiles0) currentSoundFile
                 selectedSoundFileId = fileId <$> selectedSoundFile
             -- Expose event for canvas
-            expose <- fromAddHandler $ \a -> void $ on canvas exposeEvent $ liftIO (a ()) >> return True
+            expose <- canvas `fromEvent` exposeEvent $ return ()
             -- Canvas button events
-            buttonPress <- fromAddHandler $ void . on canvas buttonPressEvent . mouseEventHandler
-            buttonMove <- fromAddHandler $ void . on canvas motionNotifyEvent . motionEventHandler
+            buttonPress <- canvas `fromEvent` buttonPressEvent $ buttonEventHandler
+            buttonRelease <- canvas `fromEvent` buttonReleaseEvent $ buttonEventHandler
+            buttonMove <- canvas `fromEvent` motionNotifyEvent $ motionEventHandler
             -- The picks from the plot area ((Double,Double) -> Maybe Layout1Pick)
             picks <- liftM (fmap ((uncurry Point >>>) . pick) . stepper noPick) $ fromAddHandler $ addHandler pickFnSrc
             let -- Unfortunately we don't get to know the axis when picking a label!
