@@ -70,11 +70,14 @@ install-all: install mescaline-database mescaline mescaline-tools mescaline-app 
 clean-all: clean mescaline-database mescaline mescaline-tools mescaline-app mescaline-sts
 .PHONY: clean-all
 
-HADDOCK_BASE_DOC = "http://www.haskell.org/ghc/docs/6.12.2/html/libraries/base-4.2.0.1/"
+HADDOCK_BASE_DOC = "http://hackage.haskell.org/packages/archive/latest/doc/html"
+HADDOCK_ARGS = --hyperlink-source --html-location=$(HADDOCK_BASE_DOC)
 
 haddock:
-	cd lib/mescaline && $(CABAL) haddock --hyperlink-source --html-location=#{base_doc}
-	rsync -av lib/mescaline/dist/doc n222@null2.net:html/sk/sites/mescaline.globero.es/
+	$(eval ACTION := haddock)
+	$(CABAL) lib/mescaline-database $(HADDOCK_ARGS)
+	$(CABAL) lib/mescaline $(HADDOCK_ARGS)
+	# rsync -av lib/mescaline/dist/doc n222@null2.net:html/sk/sites/mescaline.globero.es/
 .PHONY: haddock
 
 logo:

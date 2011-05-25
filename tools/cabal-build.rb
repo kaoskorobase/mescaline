@@ -1,9 +1,13 @@
 #!/usr/bin/env ruby
 
-def configure(*args)
-  unless system("cabal", "configure", *args)
-    raise "`cabal configure` failed"
+def cabal(cmd, args)
+  unless system("cabal", cmd, *args)
+    raise "`cabal #{cmd}` failed"
   end
+end
+
+def configure(*args)
+  cabal("configure", args)
 end
 
 def build1(configuring, args)
@@ -30,15 +34,15 @@ def build(*args)
 end
 
 def install(*args)
-  unless system("cabal", "install", *args)
-    raise "`cabal install` failed"
-  end
+  cabal("install", args)
 end
 
 def clean(*args)
-  unless system("cabal", "clean", *args)
-    raise "`cabal clean` failed"
-  end
+  cabal("clean", args)
+end
+
+def haddock(*args)
+  cabal("haddock", args)
 end
 
 begin
@@ -55,6 +59,7 @@ begin
   when "build" then build
   when "clean" then clean
   when "configure" then configure(*ARGV)
+  when "haddock" then haddock(*ARGV)
   when "install" then install(*ARGV)
   else raise "invalid command: #{cmd}"
   end
