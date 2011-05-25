@@ -19,6 +19,7 @@ module Data.KDTree (
 
 import           Control.Applicative (Applicative(..), (<$>))
 import           Control.Arrow
+import           Control.DeepSeq (NFData(..))
 import           Data.Foldable
 import qualified Data.List as List
 import           Data.Monoid
@@ -52,6 +53,11 @@ instance Traversable (Tree v) where
     traverse _ Empty = pure Empty
     traverse f (Leaf v x) = Leaf v <$> f x
     traverse f (Node i p l r) = Node i p <$> traverse f l <*> traverse f r
+
+instance NFData a => NFData (Tree v a) where
+    rnf Empty = ()
+    rnf (Leaf x1 x2) = x1 `seq` rnf x2 `seq` ()
+    rnf (Node x1 x2 x3 x4) = rnf x1 `seq` rnf x2 `seq` rnf x3 `seq` rnf x4 `seq` ()
 
 transposeV :: Vector v a => [v a] -> [v a]
 transposeV [] = []
