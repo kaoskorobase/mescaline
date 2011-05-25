@@ -316,22 +316,24 @@ data UIEvent =
     MouseEvent {
         uiEventTime :: TimeStamp
       , uiEventCoordinates :: (Double,Double)
+      , uiEventModifier :: [Modifier]
       , uiEventButton :: Int
       }
   | MotionEvent {
         uiEventTime :: TimeStamp
       , uiEventCoordinates :: (Double,Double)
+      , uiEventModifier :: [Modifier]
       }
     deriving (Show, Typeable)
 
 mouseEventHandler :: (UIEvent -> IO ()) -> EventM EButton Bool
 mouseEventHandler a = do
-    MouseEvent <$> eventTime <*> eventCoordinates <*> liftM fromEnum eventButton >>= liftIO . a
+    MouseEvent <$> eventTime <*> eventCoordinates <*> eventModifier <*> liftM fromEnum eventButton >>= liftIO . a
     return True
 
 motionEventHandler :: (UIEvent -> IO ()) -> EventM EMotion Bool
 motionEventHandler a = do
-    MotionEvent <$> eventTime <*> eventCoordinates >>= liftIO . a
+    MotionEvent <$> eventTime <*> eventCoordinates <*> eventModifier >>= liftIO . a
     return True
 
 newColumn :: ( CellRendererClass cell
