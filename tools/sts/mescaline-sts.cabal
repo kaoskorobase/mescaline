@@ -45,5 +45,6 @@ Executable mescaline-sts
       , reactive-banana
       , random
       , statistics
+      , stm
       , transformers
       , vector

@@ -5,6 +5,8 @@ module Main where
 
 import           Control.Applicative
 import           Control.Arrow
+import           Control.Concurrent
+import           Control.Concurrent.STM
 import           Control.Monad
 import           Control.Monad.IO.Class (liftIO)
 import           Data.Accessor
@@ -13,10 +15,11 @@ import           Data.Colour
 import           Data.Colour.RGBSpace
 import           Data.Colour.SRGB
 import           Data.IORef
+import qualified Data.KDTree as KD
 import qualified Data.List as List
 import           Data.Map (Map)
 import qualified Data.Map as Map
-import           Data.Maybe
+import           Data.Maybe (fromJust, isJust)
 import qualified Data.Set as Set
 import           Data.Typeable
 import           Data.Word (Word16)
@@ -32,10 +35,15 @@ import           Mescaline.Application (AppT)
 import qualified Mescaline.Application as App
 import           Mescaline.ColourMap
 import qualified Mescaline.Database as DB
+import qualified Mescaline.Synth.Sampler.Model as Sampler
+import qualified Mescaline.Pattern.Event as Event
 import qualified Paths_mescaline_sts as Paths
 import           Reactive.Banana hiding (filter)
 import qualified Reactive.Banana as R
 import qualified Reactive.Banana.Model as RM
+import           Sound.OpenSoundControl (utcr)
+import           Sound.SC3.Server.Monad
+import           Sound.SC3.Server.Process.Monad
 import           Statistics.Function (indexed)
 import           Statistics.KernelDensity (Points, epanechnikovPDF, fromPoints)
 import           Statistics.Sample
@@ -269,6 +277,21 @@ mkPlotData ds us sfs = PlotData sfs ids um fileStats featStats
         featStats = mkFeatureStats ds (Map.fold Map.union Map.empty (Map.filterWithKey (\k _ -> Set.member k ids) um))
         fileStats = fmap (mkFeatureStats ds) um
 
+-- ====================================================================
+-- kd-Tree for unit lookup
+
+type UnitTree = KD.Tree U.Vector DB.Unit
+
+mkUnitTree :: ScatterPlot -> PlotData -> UnitTree
+mkUnitTree sp = KD.fromList . map (uncurry point) . units
+    where
+        units :: PlotData -> [(DB.Unit, Map DB.DescriptorId DB.Feature)]
+        units = concat . Map.elems . fmap Map.elems . unitMap
+        coord fs = let fs' = fmap DB.featureValue fs
+                   in V.fromList [ scatterPlotAxisValue (scatterPlotX sp) fs'
+                                 , scatterPlotAxisValue (scatterPlotY sp) fs' ]
+        point u fs = (coord fs, u)
+
 {-----------------------------------------------------------------------------
 Event sources
 ------------------------------------------------------------------------------}
@@ -290,16 +313,22 @@ addHandler es k = do
     handler <- getHandler es
     setHandler es (\x -> handler x >> k x)
 
+fromEventSource :: Typeable a => EventSource a -> Prepare (Event a)
+fromEventSource = fromAddHandler . addHandler
+
 fire :: EventSource a -> a -> IO ()
 fire es x = getHandler es >>= ($x)
 
 -- | Pick function wrapper type.
-newtype PickFunction a = PickFunction { pick :: PickFn a }
+newtype PickFunction a = PickFunction (PickFn a)
                          deriving (Typeable)
 
 -- | A pick function that never returns a pick.
 noPick :: PickFunction a
 noPick = PickFunction (const Nothing)
+
+pick :: PickFunction a -> (Double, Double) -> Maybe a
+pick (PickFunction f) (x, y) = f (Point x y)
 
 -- | A version opf updateCanvas that passes the pick function to a callback.
 updateCanvas' :: G.DrawingArea -> (PickFunction a -> IO ()) -> Renderable a -> IO Bool
@@ -316,13 +345,13 @@ data UIEvent =
     ButtonEvent {
         uiEventTime :: TimeStamp
       , uiEventCoordinates :: (Double,Double)
-      , uiEventModifier :: [Modifier]
+      , uiEventModifiers :: [Modifier]
       , uiEventButton :: Int
       }
   | MotionEvent {
         uiEventTime :: TimeStamp
       , uiEventCoordinates :: (Double,Double)
-      , uiEventModifier :: [Modifier]
+      , uiEventModifiers :: [Modifier]
       }
     deriving (Show, Typeable)
 
@@ -412,39 +441,54 @@ appMain = do
         set canvas [ widgetWidthRequest := 640, widgetHeightRequest := 640 ]
         widgetAddEvents canvas [Button1MotionMask]
 
+        -- Synthesis processes
+        synthInput <- newTChanIO
+        forkIO $ withDefaultInternal $ do
+            synth <- Sampler.new (Sampler.Options "" Nothing Nothing True)
+            forever $ do
+                (t, e) <- liftIO $ atomically $ readTChan synthInput
+                fork $ Sampler.playUnit synth t e
+
+        playbackInput <- newTChanIO
+        let playUnit = atomically . writeTChan playbackInput
+        forkIO $ forever $ do
+            u <- atomically $ readTChan playbackInput
+            t <- utcr
+            let e = Event.defaultSynth u
+            atomically $ writeTChan synthInput (t + 0.02, e)
+
         -- Event sources
         pickFnSrc <- newEventSource
         scatterPlotSrc <- newEventSource
 
         -- Set up event network
         prepareEvents $ do
-            -- Event fired as sound files are marked or unmarked
+            -- Soundfile list model events
             soundFiles <- fromSignal renderer4 cellToggled $ \a -> const (listStoreToList model >>= a)
             soundFiles0 <- liftIO $ listStoreToList model
-            -- Soundfile cursor
             currentSoundFile <- fromSignal view cursorChanged $ \a -> do
                 p <- treeViewGetCursor view
                 case p of
                     ([i], _) -> listStoreGetValue model i >>= a
                     _ -> return ()
+            -- Soundfile list model behaviors
             let selectedSoundFile = stepper (head soundFiles0) currentSoundFile
                 selectedSoundFileId = fileId <$> selectedSoundFile
-            -- Expose event for canvas
-            expose <- canvas `fromEvent` exposeEvent $ return ()
-            -- Canvas button events
-            buttonPress <- canvas `fromEvent` buttonPressEvent $ buttonEventHandler
-            buttonRelease <- canvas `fromEvent` buttonReleaseEvent $ buttonEventHandler
-            buttonMove <- canvas `fromEvent` motionNotifyEvent $ motionEventHandler
-            -- The picks from the plot area ((Double,Double) -> Maybe Layout1Pick)
-            picks <- liftM (fmap ((uncurry Point >>>) . pick) . stepper noPick) $ fromAddHandler $ addHandler pickFnSrc
-            let -- Unfortunately we don't get to know the axis when picking a label!
-                -- How to do more automatized Typeable wrapping/unwrapping?
-                buttonPressInAxisTitle = flip mapFilter (((\f e -> (e, f (uiEventCoordinates e))) <$> picks) `apply` buttonPress)
+            -- Canvas events
+            expose        <- fromEvent canvas exposeEvent        (return ())
+            buttonPress   <- fromEvent canvas buttonPressEvent   buttonEventHandler
+            buttonRelease <- fromEvent canvas buttonReleaseEvent buttonEventHandler
+            buttonMove    <- fromEvent canvas motionNotifyEvent  motionEventHandler
+            -- The picks from the plot area ((Double,Double) -> Maybe Pick)
+            pickFunction <- liftM (fmap pick . stepper noPick) $ fromEventSource pickFnSrc
+            let applyPickFunction es = ((\f e -> (e, f (uiEventCoordinates e))) <$> pickFunction) `apply` es
+                -- Button press events occurring on the relevant axes
+                buttonPressInAxisTitle = flip mapMaybe (applyPickFunction buttonPress)
                                             $ \(e, p) -> case p of
                                                 Just (Pick XHistogramPick (L1P_BottomAxisTitle _)) -> Just (XAxis, e)
                                                 Just (Pick YHistogramPick (L1P_LeftAxisTitle _))   -> Just (YAxis, e)
                                                 _ -> Nothing
-            scatterPlotAxis <- fromAddHandler $ addHandler scatterPlotSrc
+            scatterPlotAxis <- fromEventSource scatterPlotSrc
             let plotData = fmap (mkPlotData descriptors us) (stepper soundFiles0 soundFiles)
                 scatterPlotState = accumB (ScatterPlot (head . snd . head $ scatterPlotAxes) (head  . snd . head $ scatterPlotAxes))
                                           ((\(at, a) sp ->
@@ -456,31 +500,46 @@ appMain = do
                 kdePlotX = (layoutKDE colourMap False . scatterPlotX) <$> scatterPlotState <*> selectedSoundFileId <*> plotData
                 kdePlotY = (layoutKDE colourMap True  . scatterPlotY) <$> scatterPlotState <*> selectedSoundFileId <*> plotData
                 chart = renderChart <$> scatterPlot <*> kdePlotX <*> kdePlotY
-                popupAxisMenu a e = scatterPlotAxisMenu scatterPlotAxes (fire scatterPlotSrc . ((,) a)) >>=
-                                        flip menuPopup (Just (toEnum (uiEventButton e), uiEventTime e))
                 redraw = ignore soundFiles `union` ignore currentSoundFile `union` ignore scatterPlotAxis
+                -- Synthesis
+                unitTree = mkUnitTree <$> scatterPlotState <*> plotData
+                scatterPlotCoord e = flip mapMaybe (applyPickFunction e) $ \(_, p) ->
+                                        case p of
+                                            Just (Pick ScatterPlotPick (L1P_PlotArea x y _)) -> Just (V.fromList [x, y])
+                                            _ -> Nothing
+                unit = mapMaybe (fmap $ \((_, u), _) -> u) $
+                        ((\t v -> KD.closest KD.sqrEuclidianDistance v t) <$> unitTree)
+                            `apply` scatterPlotCoord (R.filter ((== [Control]) . uiEventModifiers) buttonMove)
             -- Update canvas with current plot and feed back new pick function
             reactimate $ ((const . void . updateCanvas' canvas (fire pickFnSrc)) <$> chart) `apply` expose
             -- Display the axis popup menu if needed
+            let popupAxisMenu a e = scatterPlotAxisMenu scatterPlotAxes (fire scatterPlotSrc . ((,) a)) >>=
+                                        flip menuPopup (Just (toEnum (uiEventButton e), uiEventTime e))
             reactimate $ uncurry popupAxisMenu <$> (R.filter ((==3) . uiEventButton . snd) buttonPressInAxisTitle)
             -- Schedule redraw
             reactimate $ widgetQueueDraw canvas <$ redraw
             -- Print the picks when a button is pressed in the plot area
-            reactimate $ print <$> (picks `apply` fmap uiEventCoordinates (buttonPress `union` buttonMove))
-            reactimate $ print <$> buttonMove
+            -- reactimate $ print <$> (applyPickFunction (buttonPress `union` buttonMove))
+            reactimate $ print <$> unit
+            -- (R.filter (\(e, p) -> (uiEventModifiers p == [Control]) . uiEventModifiers)) 
 
         widgetShowAll win
         mainGUI
+
+-- type SynthProcess s = Time -> s -> (Synth, (Time, s))
 
 main :: IO ()
 main = App.runAppT appMain =<< App.mkApp "MescalineSTS" Paths.version Paths.getBinDir Paths.getDataDir App.defaultConfigFiles
 
 -- Reactive combinators
-mapFilter :: FRP f => (a -> Maybe b) -> RM.Event f a -> RM.Event f b
-mapFilter f = fmap fromJust . R.filter isJust . fmap f
+mapMaybe :: FRP f => (a -> Maybe b) -> RM.Event f a -> RM.Event f b
+mapMaybe f = fmap fromJust . R.filter isJust . fmap f
 
 ignore :: Functor f => f a -> f ()
 ignore = (<$) ()
 
 unzipF :: Functor f => f (a, b) -> (f a, f b)
 unzipF f = (fmap fst f, fmap snd f)
+
+zipA :: Applicative f => f a -> f b -> f (a, b)
+zipA a b = (,) <$> a <*> b
