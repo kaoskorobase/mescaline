@@ -116,8 +116,6 @@ meanPlot at a stats =
 layoutScatterPlot :: ColourMap DB.SourceFileId Double -> PlotData -> ScatterPlot -> Layout1 Double Double
 layoutScatterPlot colourMap plotData sp = layout
     where
-        units = unitMap plotData
-
         xAxis = scatterPlotX sp
         yAxis = scatterPlotY sp
 
