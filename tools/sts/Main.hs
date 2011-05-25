@@ -193,8 +193,10 @@ renderChart scatterPlot xHist yHist = mapMaybePickFn p r
     where
         r = renderLayout1Matrix scatterPlot [ [ Just yHist, Just scatterPlot ]
                                             , [ Nothing,    Just xHist       ] ]
-        p ((0, 1), l) = Just l
-        p _           = Nothing
+        p ((0, 1), l)                         = Just l
+        p ((1, 1), l@(L1P_BottomAxisTitle _)) = Just l
+        p ((0, 0), l@(L1P_LeftAxisTitle _))   = Just l
+        p _                                   = Nothing
 
 type Histogram = (Points, U.Vector Double)
 
@@ -427,10 +429,10 @@ appMain = do
             picks <- liftM (fmap ((uncurry Point >>>) . pick) . stepper NoPick) $ fromAddHandler $ addHandler pickFnSrc
             let -- Unfortunately we don't get to know the axis when picking a label!
                 -- How to do more automatized Typeable wrapping/unwrapping?
-                buttonPressInAxis = flip mapFilter (((\f e -> (e, f (uiEventCoordinates e))) <$> picks) `apply` buttonPress)
+                buttonPressInAxisTitle = flip mapFilter (((\f e -> (e, f (uiEventCoordinates e))) <$> picks) `apply` buttonPress)
                                             $ \(e, p) -> case p of
-                                                Just (L1P (L1P_BottomAxis x)) -> Just (e, Left x)
-                                                Just (L1P (L1P_LeftAxis x)) -> Just (e, Right x)
+                                                Just (L1P (L1P_BottomAxisTitle x)) -> Just (e, Left x)
+                                                Just (L1P (L1P_LeftAxisTitle x))   -> Just (e, Right x)
                                                 _ -> Nothing
             scatterPlotAxis <- fromAddHandler $ addHandler scatterPlotSrc
             let plotData = fmap (mkPlotData descriptors us) (stepper soundFiles0 soundFiles)
@@ -447,12 +449,12 @@ appMain = do
             -- Update canvas with current plot and feed back new pick function
             reactimate $ ((const . void . updateCanvas' canvas (fire pickFnSrc . fmap L1P)) <$> chart) `apply` expose
             -- Display the axis popup menu if needed
-            reactimate $ uncurry popupAxisMenu <$> (R.filter ((==3) . uiEventButton . fst) buttonPressInAxis)
+            reactimate $ uncurry popupAxisMenu <$> (R.filter ((==3) . uiEventButton . fst) buttonPressInAxisTitle)
             -- Schedule redraw
             reactimate $ widgetQueueDraw canvas <$ redraw
             -- Print the picks when a button is pressed in the plot area
             reactimate $ print <$> (picks `apply` fmap uiEventCoordinates (buttonPress `union` buttonMove))
-            reactimate $ print <$> buttonPressInAxis
+            reactimate $ print <$> buttonPressInAxisTitle
 
         widgetShowAll win
         mainGUI
