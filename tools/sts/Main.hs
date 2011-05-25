@@ -187,18 +187,29 @@ layoutKDE colourMap flipped axis sf plotData = layout
                             $ plot_lines_style ^= lineStyle
                             $ defaultPlotLines
 
+data PickType =
+    ScatterPlotPick
+  | XHistogramPick
+  | YHistogramPick
+  deriving (Eq, Show, Typeable)
+
+data Pick = Pick {
+    pickType :: PickType
+  , pickData :: (Layout1Pick Double Double)
+  } deriving (Show, Typeable)
+
 renderChart :: Layout1 Double Double
             -> Layout1 Double Double
             -> Layout1 Double Double
-            -> Renderable (Layout1Pick Double Double)
+            -> Renderable Pick
 renderChart scatterPlot xHist yHist = mapMaybePickFn p r
     where
         r = renderLayout1Matrix scatterPlot [ [ Just yHist, Just scatterPlot ]
                                             , [ Nothing,    Just xHist       ] ]
-        p ((0, 1), l)                         = Just l
-        p ((1, 1), l@(L1P_BottomAxisTitle _)) = Just l
-        p ((0, 0), l@(L1P_LeftAxisTitle _))   = Just l
-        p _                                   = Nothing
+        p ((0, 1), l) = Just (Pick ScatterPlotPick l)
+        p ((1, 1), l) = Just (Pick XHistogramPick l)
+        p ((0, 0), l) = Just (Pick YHistogramPick l)
+        p _          = Nothing
 
 type Histogram = (Points, U.Vector Double)
 
@@ -283,19 +294,12 @@ fire :: EventSource a -> a -> IO ()
 fire es x = getHandler es >>= ($x)
 
 -- | Pick function wrapper type.
-data PickFunction a = NoPick | Pick (PickFn a) deriving (Typeable)
+newtype PickFunction a = PickFunction { pick :: PickFn a }
+                         deriving (Typeable)
 
-instance Show (PickFunction a) where
-    show NoPick   = "NoPick"
-    show (Pick _) = "Pick"
-
-instance Functor PickFunction where
-    fmap _ NoPick    = NoPick
-    fmap f (Pick pf) = Pick (fmap f . pf)
-
-pick :: PickFunction a -> C.Point -> Maybe a
-pick NoPick    = const Nothing
-pick (Pick pf) = pf
+-- | A pick function that never returns a pick.
+noPick :: PickFunction a
+noPick = PickFunction (const Nothing)
 
 -- | A version opf updateCanvas that passes the pick function to a callback.
 updateCanvas' :: G.DrawingArea -> (PickFunction a -> IO ()) -> Renderable a -> IO Bool
@@ -304,10 +308,8 @@ updateCanvas' canvas pickFnSrc chart = do
     (width, height) <- G.widgetGetSize canvas
     let sz = (fromIntegral width,fromIntegral height)
     pickf <- G.renderWithDrawable win $ runCRender (render chart sz) bitmapEnv
-    pickFnSrc (Pick pickf)
+    pickFnSrc (PickFunction pickf)
     return True
-
-newtype L1P x y = L1P { unL1P :: Layout1Pick x y } deriving (Show, Typeable)
 
 -- | User interface event abstraction.
 data UIEvent =
@@ -429,35 +431,38 @@ appMain = do
             buttonPress <- fromAddHandler $ void . on canvas buttonPressEvent . mouseEventHandler
             buttonMove <- fromAddHandler $ void . on canvas motionNotifyEvent . motionEventHandler
             -- The picks from the plot area ((Double,Double) -> Maybe Layout1Pick)
-            picks <- liftM (fmap ((uncurry Point >>>) . pick) . stepper NoPick) $ fromAddHandler $ addHandler pickFnSrc
+            picks <- liftM (fmap ((uncurry Point >>>) . pick) . stepper noPick) $ fromAddHandler $ addHandler pickFnSrc
             let -- Unfortunately we don't get to know the axis when picking a label!
                 -- How to do more automatized Typeable wrapping/unwrapping?
                 buttonPressInAxisTitle = flip mapFilter (((\f e -> (e, f (uiEventCoordinates e))) <$> picks) `apply` buttonPress)
                                             $ \(e, p) -> case p of
-                                                Just (L1P (L1P_BottomAxisTitle x)) -> Just (e, Left x)
-                                                Just (L1P (L1P_LeftAxisTitle x))   -> Just (e, Right x)
+                                                Just (Pick XHistogramPick (L1P_BottomAxisTitle _)) -> Just (XAxis, e)
+                                                Just (Pick YHistogramPick (L1P_LeftAxisTitle _))   -> Just (YAxis, e)
                                                 _ -> Nothing
             scatterPlotAxis <- fromAddHandler $ addHandler scatterPlotSrc
             let plotData = fmap (mkPlotData descriptors us) (stepper soundFiles0 soundFiles)
                 scatterPlotState = accumB (ScatterPlot (head . snd . head $ scatterPlotAxes) (head  . snd . head $ scatterPlotAxes))
-                                     ((\e sp -> either (\x -> sp { scatterPlotX = x })
-                                                       (\y -> sp { scatterPlotY = y }) e) <$> scatterPlotAxis)
+                                          ((\(at, a) sp ->
+                                            case at of
+                                                XAxis -> sp { scatterPlotX = a }
+                                                YAxis -> sp { scatterPlotY = a }) <$> scatterPlotAxis)
+                -- Display
                 scatterPlot = layoutScatterPlot colourMap <$> plotData <*> scatterPlotState
                 kdePlotX = (layoutKDE colourMap False . scatterPlotX) <$> scatterPlotState <*> selectedSoundFileId <*> plotData
                 kdePlotY = (layoutKDE colourMap True  . scatterPlotY) <$> scatterPlotState <*> selectedSoundFileId <*> plotData
                 chart = renderChart <$> scatterPlot <*> kdePlotX <*> kdePlotY
-                popupAxisMenu e p = scatterPlotAxisMenu scatterPlotAxes (fire scatterPlotSrc . either (const Left) (const Right) p) >>=
-                                    flip menuPopup (Just (toEnum (uiEventButton e), uiEventTime e))
+                popupAxisMenu a e = scatterPlotAxisMenu scatterPlotAxes (fire scatterPlotSrc . ((,) a)) >>=
+                                        flip menuPopup (Just (toEnum (uiEventButton e), uiEventTime e))
                 redraw = ignore soundFiles `union` ignore currentSoundFile `union` ignore scatterPlotAxis
             -- Update canvas with current plot and feed back new pick function
-            reactimate $ ((const . void . updateCanvas' canvas (fire pickFnSrc . fmap L1P)) <$> chart) `apply` expose
+            reactimate $ ((const . void . updateCanvas' canvas (fire pickFnSrc)) <$> chart) `apply` expose
             -- Display the axis popup menu if needed
-            reactimate $ uncurry popupAxisMenu <$> (R.filter ((==3) . uiEventButton . fst) buttonPressInAxisTitle)
+            reactimate $ uncurry popupAxisMenu <$> (R.filter ((==3) . uiEventButton . snd) buttonPressInAxisTitle)
             -- Schedule redraw
             reactimate $ widgetQueueDraw canvas <$ redraw
             -- Print the picks when a button is pressed in the plot area
             reactimate $ print <$> (picks `apply` fmap uiEventCoordinates (buttonPress `union` buttonMove))
-            reactimate $ print <$> buttonPressInAxisTitle
+            reactimate $ print <$> buttonMove
 
         widgetShowAll win
         mainGUI
