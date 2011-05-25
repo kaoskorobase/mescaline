@@ -189,7 +189,7 @@ renderChart :: Layout1 Double Double
             -> Layout1 Double Double
             -> Layout1 Double Double
             -> Renderable (Layout1Pick Double Double)
-renderChart scatterPlot xHist yHist = concatMapPickFn p r
+renderChart scatterPlot xHist yHist = mapMaybePickFn p r
     where
         r = renderLayout1Matrix scatterPlot [ [ Just yHist, Just scatterPlot ]
                                             , [ Nothing,    Just xHist       ] ]
