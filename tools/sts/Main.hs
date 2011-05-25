@@ -65,7 +65,9 @@ data ScatterPlotAxis = ScatterPlotAxis {
 scatterPlotAxisTitle :: ScatterPlotAxis -> String
 scatterPlotAxisTitle x = descriptorShortName (scatterPlotDescriptor x) ++ " (" ++ show (scatterPlotIndex x) ++ ")"
 
-data AxisType = XAxis | YAxis deriving (Eq, Show)
+
+data AxisType = XAxis | YAxis
+                deriving (Eq, Show, Typeable)
 
 data ScatterPlot = ScatterPlot {
     scatterPlotX :: ScatterPlotAxis
