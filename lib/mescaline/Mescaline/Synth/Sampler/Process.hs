@@ -23,6 +23,7 @@ import qualified Mescaline.FeatureSpace.Unit as Unit
 import           Mescaline.Pattern.Event (Synth)
 import qualified Mescaline.Pattern.Event as Event
 import qualified Mescaline.Synth.Sampler.Model as Model
+import qualified Mescaline.Synth.Sampler.Params as P
 import qualified Sound.OpenSoundControl as OSC
 import           Sound.SC3 (dumpOSC, PrintLevel(..))
 import qualified Sound.SC3.Server.Process as Server
@@ -153,8 +154,27 @@ new = do
                         let u = s ^. Event.unit
                         io $ notifyListeners h $ UnitStarted t u
                         io $ Log.debugM logger $ "PlayUnit: " ++ show (t, s)
-                        Model.playUnit sampler t s
+                        Model.playUnit sampler t (fromSynth s)
                         io $ Log.debugM logger $ "StopUnit: " ++ show (t, s)
                         io $ notifyListeners h $ UnitStopped t u
                     loop h chan sampler
                 _ -> loop h chan sampler
+
+fromSynth :: Synth -> P.Params
+fromSynth s =
+    P.Params {
+        P.file         = Unit.sourceFile (s ^. Event.unit)
+      , P.unit         = Unit.unit (s ^. Event.unit)
+      , P.offset       = s ^. Event.offset
+      , P.duration     = Unit.duration (s ^. Event.unit)
+      , P.rate         = s ^. Event.rate
+      , P.pan          = s ^. Event.pan
+      , P.attackTime   = s ^. Event.attackTime
+      , P.releaseTime  = s ^. Event.releaseTime
+      , P.sustainLevel = s ^. Event.sustainLevel
+      , P.gateLevel    = s ^. Event.gateLevel
+      , P.sendLevel1   = s ^. Event.sendLevel1
+      , P.sendLevel2   = s ^. Event.sendLevel2
+      , P.fxParam1     = s ^. Event.fxParam1
+      , P.fxParam2     = s ^. Event.fxParam2
+      }

@@ -115,6 +115,7 @@ library
         Mescaline.Synth.BufferCache.Server
         Mescaline.Synth.OSCServer
         Mescaline.Synth.Sampler.Model
+        Mescaline.Synth.Sampler.Params
         Mescaline.Synth.Sampler.Process
         -- Mescaline.Synth.SSF
         -- Mescaline.Synth.SSF.BufferCache
