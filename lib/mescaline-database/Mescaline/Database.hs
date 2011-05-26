@@ -4,6 +4,7 @@
            , GeneralizedNewtypeDeriving #-}
 module Mescaline.Database (
     module Mescaline.Database.Entity
+  , sourceFileDuration
   , Feature(..)
   , DescriptorMap
   , SourceFileMap
@@ -59,6 +60,10 @@ import           Numeric.LinearAlgebra as H
 #endif
 import           Text.Regex
 import           Prelude hiding (and)
+
+-- | File duration in seconds.
+sourceFileDuration :: SourceFile -> Double
+sourceFileDuration sf = fromIntegral (sourceFileFrames sf) / sourceFileSampleRate sf
 
 data Feature = Feature {
     featureUnit :: UnitId
