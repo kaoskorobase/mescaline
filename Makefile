@@ -1,7 +1,11 @@
 SC_DIR = $(HOME)/dev/supercollider
 ACTION := build
 ARGS :=
-CABAL = $(PWD)/tools/cabal-build.rb $(ACTION) -s $(PWD)/cabal-dev $(ARGS)
+CABAL_CMD := cabal
+CABAL_CMD_ARGS :=
+# CABAL_CMD := cabal-dev
+# CABAL_CMD_ARGS := -s $(PWD)/cabal-dev $(ARGS)
+CABAL = $(PWD)/tools/cabal-build.rb $(CABAL_CMD) $(ACTION) $(CABAL_CMD_ARGS) $(ARGS)
 
 all:
 	@echo Please specify a target.
