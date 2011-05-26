@@ -8,6 +8,7 @@ import           Control.Arrow
 import           Control.Concurrent
 import           Control.Concurrent.STM
 import           Control.Monad
+import           Control.Monad.Fix (fix)
 import           Control.Monad.IO.Class (liftIO)
 import           Data.Accessor
 import           Data.Char ( toLower )
@@ -29,6 +30,7 @@ import qualified Data.Vector.Unboxed as U
 import           Debug.Trace
 import           Graphics.Rendering.Chart as C
 import           Graphics.Rendering.Chart.Grid as C
+import           Graphics.UI.Gtk.Cairo as G
 import           Graphics.UI.Gtk as G
 import           Graphics.UI.Gtk.Glade
 import           Mescaline.Application (AppT)
@@ -41,7 +43,7 @@ import qualified Paths_mescaline_sts as Paths
 import           Reactive.Banana hiding (filter)
 import qualified Reactive.Banana as R
 import qualified Reactive.Banana.Model as RM
-import           Sound.OpenSoundControl (utcr)
+import           Sound.OpenSoundControl (pauseThread, utcr)
 import           Sound.SC3.Server.Monad
 import           Sound.SC3.Server.Process.Monad
 import           Statistics.KernelDensity (Points, epanechnikovPDF, fromPoints)
@@ -341,7 +343,9 @@ updateCanvas' canvas pickFnSrc chart = do
     win <- G.widgetGetDrawWindow canvas
     (width, height) <- G.widgetGetSize canvas
     let sz = (fromIntegral width,fromIntegral height)
-    pickf <- G.renderWithDrawable win $ runCRender (render chart sz) bitmapEnv
+    pickf <- G.renderWithDrawable win $
+        runCRender (render chart sz) bitmapEnv
+        
     pickFnSrc (PickFunction pickf)
     return True
 
@@ -360,11 +364,14 @@ data UIEvent =
       }
     deriving (Show, Typeable)
 
-buttonEventHandler :: EventM EButton UIEvent
-buttonEventHandler = ButtonEvent <$> eventTime <*> eventCoordinates <*> eventModifier <*> liftM fromEnum eventButton
+hasModifiers :: [Modifier] -> UIEvent -> Bool
+hasModifiers ms = (== ms) . uiEventModifiers
 
-motionEventHandler :: EventM EMotion UIEvent
-motionEventHandler = MotionEvent <$> eventTime <*> eventCoordinates <*> eventModifier
+hasButton :: Int -> UIEvent -> Bool
+hasButton b = (== b) . uiEventButton
+
+satisfies :: [(a -> Bool)] -> a -> Bool
+satisfies ps a = all ($a) ps
 
 fromSignal :: Typeable a => self -> Signal self handler -> ((a -> IO ()) -> handler) -> Prepare (Event a)
 fromSignal self signal handler = fromAddHandler (void . on self signal . handler)
@@ -372,6 +379,29 @@ fromSignal self signal handler = fromAddHandler (void . on self signal . handler
 fromEvent :: (WidgetClass self, Typeable a) => self -> Signal self (EventM t Bool) -> EventM t a -> Prepare (Event a)
 fromEvent self signal handler = fromAddHandler $ void . on self signal . \a -> handler >>= liftIO . a >> return True
 
+buttonEventHandler :: EventM EButton UIEvent
+buttonEventHandler = ButtonEvent <$> eventTime <*> eventCoordinates <*> eventModifier <*> liftM fromEnum eventButton
+
+buttonPress :: (WidgetClass self) => self -> Prepare (Event UIEvent)
+buttonPress self = fromEvent self buttonPressEvent buttonEventHandler
+
+buttonRelease :: (WidgetClass self) => self -> Prepare (Event UIEvent)
+buttonRelease self = fromEvent self buttonReleaseEvent buttonEventHandler
+
+motionEventHandler :: EventM EMotion UIEvent
+motionEventHandler = MotionEvent <$> eventTime <*> eventCoordinates <*> eventModifier
+
+motion :: (WidgetClass self) => self -> Prepare (Event UIEvent)
+motion self = fromEvent self motionNotifyEvent motionEventHandler
+
+-- buttonMotion :: (WidgetClass self) => Int -> [Modifier] -> self -> Prepare (Behavior (Maybe (Double, Double)))
+-- buttonMotion b ms self = do
+--     p <- liftM (R.filter f) $ buttonPress self
+--     m <-                      motion self
+--     r <- liftM (R.filter f) $ buttonRelease self
+--     stepper Nothing ((Just . uiEventCoordinates) <$> (p `union` m) `union` Nothing <$ r)
+--     where f = satisfies [hasButton b, hasModifiers ms]
+    
 newColumn :: ( CellRendererClass cell
              , TreeModelClass (model row)
              , TypedTreeModelClass model ) =>
@@ -454,20 +484,32 @@ appMain = do
         forkIO $ withDefaultInternal $ do
             synth <- Sampler.new (Sampler.Options "" Nothing Nothing True)
             forever $ do
-                (t, e) <- liftIO $ atomically $ readTChan synthInput
-                fork $ Sampler.playUnit synth t e
+                (t, e, a) <- liftIO $ atomically $ readTChan synthInput
+                fork $ Sampler.playUnit synth t e >> a
 
-        playbackInput <- newTChanIO
-        let playUnit = atomically . writeTChan playbackInput
+        playbackControl <- newTChanIO
+        playbackData <- newTVarIO Nothing
+        let setUnit x = atomically $ writeTVar playbackData x
+            setPlayback b = atomically $ writeTChan playbackControl b
         forkIO $ forever $ do
-            (sf, u) <- atomically $ readTChan playbackInput
-            t <- utcr
-            let e = Sampler.defaultParams sf u
-            atomically $ writeTChan synthInput (t + 0.2, e)
+            b <- atomically $ readTChan playbackControl
+            when b $ do
+                fix $ \loop -> do
+                    e <- atomically ((Left <$> readTChan playbackControl) `orElse` (Right <$> readTVar playbackData))
+                    case e of
+                        Left b -> if b then loop else return ()
+                        Right (Just (sf, u)) -> do
+                            t <- utcr
+                            let e = Sampler.defaultParams sf u
+                            atomically $ writeTChan synthInput (t + 0.2, e, return ())
+                            pauseThread $ DB.unitDuration u
+                            loop
+                        _ -> loop
 
         -- Event sources
         pickFnSrc <- newEventSource
         scatterPlotSrc <- newEventSource
+        unitFinishedSrc <- newEventSource
 
         -- Set up event network
         prepareEvents $ do
@@ -487,6 +529,7 @@ appMain = do
             buttonPress   <- fromEvent canvas buttonPressEvent   buttonEventHandler
             buttonRelease <- fromEvent canvas buttonReleaseEvent buttonEventHandler
             buttonMove    <- fromEvent canvas motionNotifyEvent  motionEventHandler
+            -- motion        <- buttonMotion 1 [Control] canvas
             -- The picks from the plot area ((Double,Double) -> Maybe Pick)
             pickFunction <- liftM (fmap pick . stepper noPick) $ fromEventSource pickFnSrc
             let applyPickFunction es = ((\f e -> (e, f (uiEventCoordinates e))) <$> pickFunction) `apply` es
@@ -511,13 +554,16 @@ appMain = do
                 redraw = ignore soundFiles `union` ignore currentSoundFile `union` ignore scatterPlotAxis
                 -- Synthesis
                 unitTree = mkUnitTree <$> scatterPlotState <*> plotData
-                scatterPlotCoord e = flip mapMaybe (applyPickFunction e) $ \(_, p) ->
-                                        case p of
-                                            Just (Pick ScatterPlotPick (L1P_PlotArea x y _)) -> Just (V.fromList [x, y])
-                                            _ -> Nothing
-                closest = mapMaybe id $
-                        ((\t v -> KD.closest KD.sqrEuclidianDistance v t) <$> unitTree)
-                            `apply` scatterPlotCoord (R.filter ((== [Control]) . uiEventModifiers) buttonMove)
+                filterPlayback = R.filter (satisfies [hasButton 1])
+                playbackStart = filterPlayback buttonPress
+                playbackPos = uiEventCoordinates <$> playbackStart `union` buttonMove
+                playback = (True <$ playbackStart) `union` (False <$ filterPlayback buttonRelease)
+                scatterPlotCoord = flip mapMaybe (pickFunction `apply` playbackPos) $ \p ->
+                                    case p of
+                                        Just (Pick ScatterPlotPick (L1P_PlotArea x y _)) -> Just (V.fromList [x, y])
+                                        _ -> Nothing
+                closest = filterMaybe $ ((\t v -> KD.closest KD.sqrEuclidianDistance v t) <$> unitTree)
+                                            `apply` scatterPlotCoord
                 unit = (\((_, u), _) -> u) <$> closest
             -- Update canvas with current plot and feed back new pick function
             reactimate $ ((const . void . updateCanvas' canvas (fire pickFnSrc)) <$> chart) `apply` expose
@@ -530,7 +576,8 @@ appMain = do
             -- Print the picks when a button is pressed in the plot area
             -- reactimate $ print <$> (applyPickFunction (buttonPress `union` buttonMove))
             reactimate $ print <$> closest
-            reactimate $ (\x -> playUnit x) <$> unit
+            reactimate $ setUnit . Just <$> unit
+            reactimate $ setPlayback <$> playback
             -- (R.filter (\(e, p) -> (uiEventModifiers p == [Control]) . uiEventModifiers)) 
 
         widgetShowAll win
@@ -544,6 +591,9 @@ main = App.runAppT appMain =<< App.mkApp "MescalineSTS" Paths.version Paths.getB
 -- Reactive combinators
 mapMaybe :: FRP f => (a -> Maybe b) -> RM.Event f a -> RM.Event f b
 mapMaybe f = fmap fromJust . R.filter isJust . fmap f
+
+filterMaybe :: FRP f => RM.Event f (Maybe a) -> RM.Event f a
+filterMaybe = mapMaybe id
 
 ignore :: Functor f => f a -> f ()
 ignore = (<$) ()
