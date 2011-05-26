@@ -108,40 +108,40 @@ static FakeModel* sharedManager = nil;
     return result;
 }
 
-- (void)getData {
-
-    if (sqlite3_open([[self dataFilePath] UTF8String], &database)
-        != SQLITE_OK) {
-        sqlite3_close(database);
-        NSAssert(0, @"Failed to open database");
-        NSLog(@"Failed to open database");
-
-    }
-    NSString *query = @"SELECT sf.id, sf.url, u.id as uid, f.value FROM (SourceFile sf  join Unit u on u.sourceFile=sf.id)  join Feature f on u.id = f.unit where f.descriptor =3";
-    sqlite3_stmt *statement;
-
-    if (sqlite3_prepare_v2( database, [query UTF8String],
-                           -1, &statement, nil) == SQLITE_OK) {
-        NSLog(@"database query fired");
-
-        while (sqlite3_step(statement) == SQLITE_ROW) {
-
-            //sqlite3_int64 row = sqlite3_column_int64(statement, 0);
-            //int *rowData = sqlite3_column_text(statement, 2);
-            //char *rowData = (char *)sqlite3_column_text(statement, 1);
-            //NSString *aUrl = [NSString stringWithUTF8String:(char *)sqlite3_column_text(statement, 1)];
-            //NSLog(@"s id = %i", row);
-            //float x = rand()/(float)RAND_MAX;
-            //float y = rand()/(float)RAND_MAX;
-            NSLog(@"database record fetched");
-  //          ps.push_back(Mescaline::Point(x, y));
-
-           
-        }
-        sqlite3_finalize(statement);
-    } 
-	//return ps;
-}
+//- (void)getData {
+//
+//    if (sqlite3_open([[self dataFilePath] UTF8String], &database)
+//        != SQLITE_OK) {
+//        sqlite3_close(database);
+//        NSAssert(0, @"Failed to open database");
+//        NSLog(@"Failed to open database");
+//
+//    }
+//    NSString *query = @"SELECT sf.id, sf.url, u.id as uid, f.value FROM (SourceFile sf  join Unit u on u.sourceFile=sf.id)  join Feature f on u.id = f.unit where f.descriptor =3";
+//    sqlite3_stmt *statement;
+//
+//    if (sqlite3_prepare_v2( database, [query UTF8String],
+//                           -1, &statement, nil) == SQLITE_OK) {
+//        NSLog(@"database query fired");
+//
+//        while (sqlite3_step(statement) == SQLITE_ROW) {
+//
+//            //sqlite3_int64 row = sqlite3_column_int64(statement, 0);
+//            //int *rowData = sqlite3_column_text(statement, 2);
+//            //char *rowData = (char *)sqlite3_column_text(statement, 1);
+//            //NSString *aUrl = [NSString stringWithUTF8String:(char *)sqlite3_column_text(statement, 1)];
+//            //NSLog(@"s id = %i", row);
+//            //float x = rand()/(float)RAND_MAX;
+//            //float y = rand()/(float)RAND_MAX;
+//            NSLog(@"database record fetched");
+//  //          ps.push_back(Mescaline::Point(x, y));
+//
+//           
+//        }
+//        sqlite3_finalize(statement);
+//    } 
+//	//return ps;
+//}
 
 -(id)init {
     self = [super init];
