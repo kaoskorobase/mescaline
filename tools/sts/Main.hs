@@ -36,7 +36,7 @@ import qualified Mescaline.Application as App
 import           Mescaline.ColourMap
 import qualified Mescaline.Database as DB
 import qualified Mescaline.Synth.Sampler.Model as Sampler
-import qualified Mescaline.Pattern.Event as Event
+import qualified Mescaline.Synth.Sampler.Params as Sampler
 import qualified Paths_mescaline_sts as Paths
 import           Reactive.Banana hiding (filter)
 import qualified Reactive.Banana as R
@@ -44,10 +44,8 @@ import qualified Reactive.Banana.Model as RM
 import           Sound.OpenSoundControl (utcr)
 import           Sound.SC3.Server.Monad
 import           Sound.SC3.Server.Process.Monad
-import           Statistics.Function (indexed)
 import           Statistics.KernelDensity (Points, epanechnikovPDF, fromPoints)
 import           Statistics.Sample
-import           Statistics.Types (Sample)
 import           System.FilePath
 
 data SoundFile = SoundFile { fileId :: DB.SourceFileId, file :: DB.SourceFile, marked :: Bool }
@@ -239,6 +237,9 @@ data PlotData = PlotData {
   , featureStats     :: FeatureStatMap
   } deriving (Show)
 
+getSoundFile :: DB.SourceFileId -> PlotData -> SoundFile
+getSoundFile sf = fromJust . List.find ((== sf) . fileId) . soundFiles
+
 axisFn :: PlotData -> ScatterPlotAxis -> AxisFn Double
 axisFn pd a = const $ autoAxis [fMin - fPad, fMax + fPad]
     where
@@ -280,17 +281,21 @@ mkPlotData ds us sfs = PlotData sfs ids um fileStats featStats
 -- ====================================================================
 -- kd-Tree for unit lookup
 
-type UnitTree = KD.Tree U.Vector DB.Unit
+type UnitTree = KD.Tree U.Vector (DB.SourceFile, DB.Unit)
 
 mkUnitTree :: ScatterPlot -> PlotData -> UnitTree
-mkUnitTree sp = KD.fromList . map (uncurry point) . units
+mkUnitTree sp pd = KD.fromList $ map point units
     where
-        units :: PlotData -> [(DB.Unit, Map DB.DescriptorId DB.Feature)]
-        units = concat . Map.elems . fmap Map.elems . unitMap
+        units :: [(DB.SourceFile, (DB.Unit, Map DB.DescriptorId DB.Feature))]
+        units = concat
+              $ fmap (\sf -> let f = file (getSoundFile sf pd) in map ((,)f) (Map.elems (unitMap pd Map.! sf)))
+              $ Set.toList (markedSoundFiles pd)
+        -- units :: PlotData -> [((DB.SourceFile, DB.Unit), Map DB.DescriptorId DB.Feature)]
+        -- units pd = concat . Map.elems . fmap Map.elems . unitMap . 
         coord fs = let fs' = fmap DB.featureValue fs
                    in V.fromList [ scatterPlotAxisValue (scatterPlotX sp) fs'
                                  , scatterPlotAxisValue (scatterPlotY sp) fs' ]
-        point u fs = (coord fs, u)
+        point (sf, (u, fs)) = (coord fs, (sf, u))
 
 {-----------------------------------------------------------------------------
 Event sources
@@ -452,10 +457,10 @@ appMain = do
         playbackInput <- newTChanIO
         let playUnit = atomically . writeTChan playbackInput
         forkIO $ forever $ do
-            u <- atomically $ readTChan playbackInput
+            (sf, u) <- atomically $ readTChan playbackInput
             t <- utcr
-            let e = Event.defaultSynth u
-            atomically $ writeTChan synthInput (t + 0.02, e)
+            let e = Sampler.defaultParams sf u
+            atomically $ writeTChan synthInput (t + 0.2, e)
 
         -- Event sources
         pickFnSrc <- newEventSource
@@ -507,9 +512,10 @@ appMain = do
                                         case p of
                                             Just (Pick ScatterPlotPick (L1P_PlotArea x y _)) -> Just (V.fromList [x, y])
                                             _ -> Nothing
-                unit = mapMaybe (fmap $ \((_, u), _) -> u) $
+                closest = mapMaybe id $
                         ((\t v -> KD.closest KD.sqrEuclidianDistance v t) <$> unitTree)
                             `apply` scatterPlotCoord (R.filter ((== [Control]) . uiEventModifiers) buttonMove)
+                unit = (\((_, u), _) -> u) <$> closest
             -- Update canvas with current plot and feed back new pick function
             reactimate $ ((const . void . updateCanvas' canvas (fire pickFnSrc)) <$> chart) `apply` expose
             -- Display the axis popup menu if needed
@@ -520,7 +526,8 @@ appMain = do
             reactimate $ widgetQueueDraw canvas <$ redraw
             -- Print the picks when a button is pressed in the plot area
             -- reactimate $ print <$> (applyPickFunction (buttonPress `union` buttonMove))
-            reactimate $ print <$> unit
+            reactimate $ print <$> closest
+            reactimate $ (\x -> playUnit x) <$> unit
             -- (R.filter (\(e, p) -> (uiEventModifiers p == [Control]) . uiEventModifiers)) 
 
         widgetShowAll win
