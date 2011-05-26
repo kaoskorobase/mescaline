@@ -14,7 +14,7 @@ import           Mescaline.Application (AppT)
 import qualified Mescaline.Application as App
 import qualified Mescaline.Application.Config as Config
 import qualified Mescaline.Application.Logger as Log
-import qualified Mescaline.Database.Entity as DB
+import qualified Mescaline.Database as DB
 import           Mescaline.Synth.BufferCache.Server (Buffer, BufferCache)
 import qualified Mescaline.Synth.BufferCache.Server as BC
 import           Mescaline.Synth.Sampler.Params (Params)

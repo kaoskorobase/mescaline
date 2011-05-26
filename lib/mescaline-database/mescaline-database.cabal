@@ -52,11 +52,12 @@ library
       , vector >= 0.5
     exposed-modules:
         Mescaline.Database
-        Mescaline.Database.Entity
         Mescaline.Database.Hash
         -- Mescaline.Database.Vector
         Mescaline.Util
         Sound.File.Sndfile.Util
+    other-modules:
+        Mescaline.Database.Entity
     if flag(analysis)
         build-depends:
             hmatrix >= 0.11.0.1
