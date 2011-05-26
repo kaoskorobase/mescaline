@@ -419,14 +419,17 @@ appMain = do
         treeViewColumnSetResizable col1 True
         treeViewAppendColumn view col1
 
+        (col4, renderer4) <- newColumn model "Active" cellRendererToggleNew $ \row -> [ cellToggleActive := marked row ]
+        treeViewAppendColumn view col4
+
         (col2, _) <- newColumn model "Channels" cellRendererTextNew $ \row -> [ cellText := show . DB.sourceFileNumChannels . file $ row ]
         treeViewAppendColumn view col2
 
         (col3, _) <- newColumn model "Sample rate" cellRendererTextNew $ \row -> [ cellText := show . DB.sourceFileSampleRate . file $ row ]
         treeViewAppendColumn view col3
 
-        (col4, renderer4) <- newColumn model "Active" cellRendererToggleNew $ \row -> [ cellToggleActive := marked row ]
-        treeViewAppendColumn view col4
+        (col5, _) <- newColumn model "Duration" cellRendererTextNew $ \row -> [ cellText := show . DB.sourceFileDuration . file $ row ]
+        treeViewAppendColumn view col5
 
         -- Update the model when the toggle buttons are activated
         on renderer4 cellToggled $ \pathStr -> do
