@@ -5,7 +5,7 @@ module Mescaline.Util (
 ) where
 
 import           Control.Monad
-import           Control.Monad.Trans (MonadIO, liftIO)
+import           Control.Monad.IO.Class (MonadIO, liftIO)
 import           Data.Enumerator (($$), (>>==))
 import qualified Data.Enumerator as E
 import           Data.Char

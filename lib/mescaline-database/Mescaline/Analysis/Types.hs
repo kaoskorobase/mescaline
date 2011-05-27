@@ -19,8 +19,7 @@ module Mescaline.Analysis.Types (
 
 import           Control.Exception
 import           Control.Monad
-import qualified Control.Monad.Writer as Writer
--- import           Control.Monad.Error
+import qualified Control.Monad.Trans.Writer as Writer
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Lex.Double as Lex

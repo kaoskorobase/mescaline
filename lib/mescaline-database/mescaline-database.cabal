@@ -39,7 +39,6 @@ library
       , hmeap >= 0.10
       , hsndfile >= 0.4
       , monad-control
-      , mtl >= 2
       , persistent >= 0.5
       , persistent-sqlite >= 0.5
       , process >= 1.0
