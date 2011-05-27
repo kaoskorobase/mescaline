@@ -14,7 +14,6 @@ module Data.KDTree (
   , sqrEuclidianDistance
   , closest
   , withinRadius
-  , samples
 ) where
 
 import           Control.Applicative (Applicative(..), (<$>))
@@ -166,17 +165,3 @@ withinRadius dist point radius tree = map (second sqrt) (loop tree [])
                                    then loop farChild result'
                                    else result'
                     in result''
-
-samples :: [(UV.Vector Double, Int)]
-samples = zip [
-    V.fromList [0, 0]
-  , V.fromList [1, 1]
-  -- , V.fromList [1, 1]
-  , V.fromList [0, 1]
-  , V.fromList [1, 0]
-  , V.fromList [0.5, 0.5]
-  , V.fromList [0.25, 0.5]
-  , V.fromList [0.25, 0.75]
-  , V.fromList [0.25, 0.25]
-  ]
-  [0..]
