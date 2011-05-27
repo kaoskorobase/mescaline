@@ -88,6 +88,10 @@ haddock:
 	# rsync -av lib/mescaline/dist/doc n222@null2.net:html/sk/sites/mescaline.globero.es/
 .PHONY: haddock
 
+test:
+	runhaskell -ilib/mescaline -ilib/mescaline/tests lib/mescaline/runtests.hs
+	runhaskell -ilib/mescaline-database lib/mescaline-database/runtests.hs
+
 logo:
 	inkscape doc/logo/mescaline_layers.svg --export-png=doc/logo/mescaline_layers.png
 	makeicns -in doc/logo/mescaline_layers.png -out app/mescaline.icns
