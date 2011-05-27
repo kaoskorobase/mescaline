@@ -16,7 +16,7 @@ import qualified Data.ByteString.Char8 as BSC
 import           Data.Char (isDigit, isSpace)
 import           Data.Enumerator (($$))
 import qualified Data.Enumerator as E
-import qualified Data.Enumerator.IO as E
+import qualified Data.Enumerator.Binary as E
 import qualified Data.List as L
 import qualified Data.Map as Map
 import           Data.Ord

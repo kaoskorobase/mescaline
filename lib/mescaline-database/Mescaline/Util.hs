@@ -8,6 +8,7 @@ import           Control.Monad
 import           Control.Monad.IO.Class (MonadIO, liftIO)
 import           Data.Enumerator (($$), (>>==))
 import qualified Data.Enumerator as E
+import qualified Data.Enumerator.List as EL
 import           Data.Char
 import           System.Directory
 import           System.FilePath
@@ -42,7 +43,7 @@ findFilesEnum exts paths = loop paths
         loop _ step = E.returnI step
 
 findFiles :: [String] -> [FilePath] -> IO [FilePath]
-findFiles exts paths = E.run_ (findFilesEnum exts paths $$ E.consume)
+findFiles exts paths = E.run_ (findFilesEnum exts paths $$ EL.consume)
 
 withTempFile :: String -> (FilePath -> Handle -> IO a) -> IO a
 withTempFile s f = do

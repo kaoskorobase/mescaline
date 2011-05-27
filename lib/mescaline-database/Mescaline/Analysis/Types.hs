@@ -24,6 +24,7 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Lex.Double as Lex
 import qualified Data.Enumerator as E
+import qualified Data.Enumerator.List as EL
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import           Data.Typeable (Typeable)
@@ -64,7 +65,7 @@ instance Exception Error
 
 next :: Monad m => String -> E.Iteratee b m b
 next context = do
-    m <- E.head
+    m <- EL.head
     case m of
         Nothing -> E.throwError $ ParseError $ "EOF while parsing " ++ context
         Just x -> return x
