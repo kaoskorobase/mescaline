@@ -49,13 +49,6 @@
     
 }
 
-
-
-
-
-
-
-
 // adds a set of gesture recognizers to one of our region subviews
 - (void)addGestureRecognizersToRegionView:(UIView *)regionView
 {
@@ -73,7 +66,12 @@
     [panGesture setDelegate:self];
     [regionView addGestureRecognizer:panGesture];
     [panGesture release];
-    
+    UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:regionView action:@selector(tapRegion:)];
+    tapGesture.numberOfTapsRequired = 2;
+    [tapGesture setDelegate:self];
+    [regionView addGestureRecognizer:tapGesture];
+    [tapGesture release];
+
 //    UILongPressGestureRecognizer *longPressGesture = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(showResetMenu:)];
 //    [regionView addGestureRecognizer:longPressGesture];
 //    [longPressGesture release];

@@ -36,8 +36,7 @@
     if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
         UIView *regionView = gestureRecognizer.view;
         CGPoint locationInView = [gestureRecognizer locationInView:regionView];
-        CGPoint locationInSuperview = [gestureRecognizer locationInView:regionView.superview];
-        
+        CGPoint locationInSuperview = [gestureRecognizer locationInView:regionView.superview];        
         self.layer.anchorPoint = CGPointMake(locationInView.x / regionView.bounds.size.width, locationInView.y / regionView.bounds.size.height);
         regionView.center = locationInSuperview;
     }
@@ -60,6 +59,31 @@
 
     }
 }
+
+- (void)tapRegion:(UITapGestureRecognizer *)gestureRecognizer
+{
+ //   if ([gestureRecognizer state] == UIGestureRecognizerStateBegan || [gestureRecognizer state] == UIGestureRecognizerStateChanged) {
+        
+
+        CGFloat s = 3;
+        CGAffineTransform tr = CGAffineTransformScale(self.superview.transform, 3, 3);
+        CGFloat h = self.superview.frame.size.height;
+        CGFloat w = self.superview.frame.size.width;
+        CGPoint location = [gestureRecognizer locationInView:self];
+        [UIView animateWithDuration:2.5 delay:0 options:0 animations:^{
+            self.superview.transform = tr;
+            self.superview.center = CGPointMake(0,0);
+            //self.superview.center = self.center;
+            //self.superview.center = location;
+
+
+
+        } completion:^(BOOL finished) {}];
+//        [self adjustAnchorPointForGestureRecognizer:gestureRecognizer];
+   // }
+}
+
+
 
 - (void)scaleRegion:(UIPinchGestureRecognizer *)gestureRecognizer
 {
