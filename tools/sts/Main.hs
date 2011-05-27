@@ -589,6 +589,9 @@ main :: IO ()
 main = App.runAppT appMain =<< App.mkApp "MescalineSTS" Paths.version Paths.getBinDir Paths.getDataDir App.defaultConfigFiles
 
 -- Reactive combinators
+merge :: FRP f => RM.Event f a -> RM.Event f b -> RM.Event f (Either a b)
+merge a b = union (Left <$> a) (Right <$> b)
+
 mapMaybe :: FRP f => (a -> Maybe b) -> RM.Event f a -> RM.Event f b
 mapMaybe f = fmap fromJust . R.filter isJust . fmap f
 
