@@ -15,6 +15,7 @@ import           Data.Char ( toLower )
 import           Data.Colour
 import           Data.Colour.RGBSpace
 import           Data.Colour.SRGB
+import qualified Data.Foldable as Fold
 import           Data.IORef
 import qualified Data.KDTree as KD
 import qualified Data.List as List
@@ -30,7 +31,6 @@ import qualified Data.Vector.Unboxed as U
 import           Debug.Trace
 import           Graphics.Rendering.Chart as C
 import           Graphics.Rendering.Chart.Grid as C
-import           Graphics.UI.Gtk.Cairo as G
 import           Graphics.UI.Gtk as G
 import           Graphics.UI.Gtk.Glade
 import           Mescaline.Application (AppT)
@@ -133,11 +133,22 @@ layoutScatterPlot colourMap plotData sp = layout
                 value axis = flip (V.!) (scatterPlotIndex axis)
                            . DB.featureValue
                            . getFeature (scatterPlotDescriptorId axis)
-                vs = map (\(_, fs) -> (value xAxis fs, value yAxis fs)) (Map.elems us)
-            in plot_points_style ^= filledCircles 2 (opaque colour)
-             $ plot_points_values ^= vs
-             -- $ plot_points_title ^= "Test data"
-             $ defaultPlotPoints
+                (xs, as) = List.foldl' (\(!vs, !as) (ui, (_, fs)) ->
+                                        let p = (value xAxis fs, value yAxis fs)
+                                        in (p:vs, if Set.member ui (activeUnits plotData) then p:as else as))
+                                       ([], [])
+                                       (Map.assocs us)
+            in [ -- Plot units
+                 plot_points_style ^= filledCircles 2 (opaque colour)
+                 $ plot_points_values ^= xs
+                 -- $ plot_points_title ^= "Test data"
+                 $ defaultPlotPoints
+                 -- Highlight active units
+               , plot_points_style ^= hollowCircles 4 2 (opaque black)
+                 $ plot_points_values ^= as
+                 -- $ plot_points_title ^= "Test data"
+                 $ defaultPlotPoints
+               ]
 
         bottomAxis = -- laxis_title ^= scatterPlotAxisTitle xAxis $
                      laxis_generate ^= axisFn plotData xAxis $
@@ -148,7 +159,7 @@ layoutScatterPlot colourMap plotData sp = layout
                    defaultLayoutAxis
 
         layout = -- layout1_title ^= "Units"
-                 layout1_plots ^= map (Left . toPlot . points) (Set.toList (markedSoundFiles plotData))
+                 layout1_plots ^= concatMap (map (Left . toPlot) . points) (Set.toList (markedSoundFiles plotData))
                                     ++ [ Left $ meanPlot XAxis xAxis (featureStats plotData)
                                        , Left $ meanPlot YAxis yAxis (featureStats plotData) ]
                $ layout1_left_axis ^= leftAxis
@@ -235,6 +246,7 @@ data PlotData = PlotData {
     soundFiles       :: [SoundFile]
   , markedSoundFiles :: Set.Set DB.SourceFileId
   , unitMap          :: Map DB.SourceFileId UnitMap
+  , activeUnits      :: Set.Set DB.UnitId
   , fileStats        :: Map DB.SourceFileId FeatureStatMap
   , featureStats     :: FeatureStatMap
   } deriving (Show)
@@ -267,8 +279,8 @@ mkFeatureStats ds us = Map.mapWithKey (\di -> V.fromList . fmap (mkStats di) . i
                       , featureHist = estimatePDF v
                       }
 
-mkPlotData :: DB.DescriptorMap -> DB.UnitMap -> [SoundFile] -> PlotData
-mkPlotData ds us sfs = PlotData sfs ids um fileStats featStats
+mkPlotData :: DB.DescriptorMap -> DB.UnitMap -> Set.Set DB.UnitId -> [SoundFile] -> PlotData
+mkPlotData ds us aus sfs = PlotData sfs ids um aus fileStats featStats
     where
         mkFeatureMap = Map.fromList . map (\f -> (DB.featureDescriptor f, f))
         um = Map.foldrWithKey (\ui (u, fs) ->
@@ -283,21 +295,21 @@ mkPlotData ds us sfs = PlotData sfs ids um fileStats featStats
 -- ====================================================================
 -- kd-Tree for unit lookup
 
-type UnitTree = KD.Tree U.Vector (DB.SourceFile, DB.Unit)
+type UnitTree = KD.Tree U.Vector (DB.UnitId, (DB.SourceFile, DB.Unit))
 
 mkUnitTree :: ScatterPlot -> PlotData -> UnitTree
 mkUnitTree sp pd = KD.fromList $ map point units
     where
-        units :: [(DB.SourceFile, (DB.Unit, Map DB.DescriptorId DB.Feature))]
+        units :: [(DB.SourceFile, (DB.UnitId, (DB.Unit, Map DB.DescriptorId DB.Feature)))]
         units = concat
-              $ fmap (\sf -> let f = file (getSoundFile sf pd) in map ((,)f) (Map.elems (unitMap pd Map.! sf)))
+              $ fmap (\sf -> let f = file (getSoundFile sf pd) in map ((,)f) (Map.assocs (unitMap pd Map.! sf)))
               $ Set.toList (markedSoundFiles pd)
         -- units :: PlotData -> [((DB.SourceFile, DB.Unit), Map DB.DescriptorId DB.Feature)]
         -- units pd = concat . Map.elems . fmap Map.elems . unitMap . 
         coord fs = let fs' = fmap DB.featureValue fs
                    in V.fromList [ scatterPlotAxisValue (scatterPlotX sp) fs'
                                  , scatterPlotAxisValue (scatterPlotY sp) fs' ]
-        point (sf, (u, fs)) = (coord fs, (sf, u))
+        point (sf, (ui, (u, fs))) = (coord fs, (ui, (sf, u)))
 
 {-----------------------------------------------------------------------------
 Event sources
@@ -343,9 +355,7 @@ updateCanvas' canvas pickFnSrc chart = do
     win <- G.widgetGetDrawWindow canvas
     (width, height) <- G.widgetGetSize canvas
     let sz = (fromIntegral width,fromIntegral height)
-    pickf <- G.renderWithDrawable win $
-        runCRender (render chart sz) bitmapEnv
-        
+    pickf <- G.renderWithDrawable win $ runCRender (render chart sz) bitmapEnv
     pickFnSrc (PickFunction pickf)
     return True
 
@@ -401,7 +411,9 @@ motion self = fromEvent self motionNotifyEvent motionEventHandler
 --     r <- liftM (R.filter f) $ buttonRelease self
 --     stepper Nothing ((Just . uiEventCoordinates) <$> (p `union` m) `union` Nothing <$ r)
 --     where f = satisfies [hasButton b, hasModifiers ms]
-    
+
+newtype UnitIdT = UnitIdT { unUnitIdT :: DB.UnitId } deriving (Show, Typeable)
+
 newColumn :: ( CellRendererClass cell
              , TreeModelClass (model row)
              , TypedTreeModelClass model ) =>
@@ -484,8 +496,8 @@ appMain = do
         forkIO $ withDefaultInternal $ do
             synth <- Sampler.new (Sampler.Options "" Nothing Nothing True)
             forever $ do
-                (t, e, a) <- liftIO $ atomically $ readTChan synthInput
-                fork $ Sampler.playUnit synth t e >> a
+                (t, e, a1, a2) <- liftIO $ atomically $ readTChan synthInput
+                fork $ a1 >> Sampler.playUnit synth t e >> a2
 
         playbackControl <- newTChanIO
         playbackData <- newTVarIO Nothing
@@ -498,10 +510,10 @@ appMain = do
                     e <- atomically ((Left <$> readTChan playbackControl) `orElse` (Right <$> readTVar playbackData))
                     case e of
                         Left b -> if b then loop else return ()
-                        Right (Just (sf, u)) -> do
+                        Right (Just ((sf, u), (whenStarting, whenFinished))) -> do
                             t <- utcr
                             let e = Sampler.defaultParams sf u
-                            atomically $ writeTChan synthInput (t + 0.2, e, return ())
+                            atomically $ writeTChan synthInput (t + 0.2, e, liftIO whenStarting, liftIO whenFinished)
                             pauseThread $ DB.unitDuration u
                             loop
                         _ -> loop
@@ -509,7 +521,7 @@ appMain = do
         -- Event sources
         pickFnSrc <- newEventSource
         scatterPlotSrc <- newEventSource
-        unitFinishedSrc <- newEventSource
+        unitPlayingSrc <- newEventSource
 
         -- Set up event network
         prepareEvents $ do
@@ -540,7 +552,8 @@ appMain = do
                                                 Just (Pick YHistogramPick (L1P_LeftAxisTitle _))   -> Just (YAxis, e)
                                                 _ -> Nothing
             scatterPlotAxis <- fromEventSource scatterPlotSrc
-            let plotData = fmap (mkPlotData descriptors us) (stepper soundFiles0 soundFiles)
+            unitPlaying <- fromEventSource unitPlayingSrc
+            let plotData = (mkPlotData descriptors us) <$> activeUnits <*> (stepper soundFiles0 soundFiles)
                 scatterPlotState = accumB (ScatterPlot (head . snd . head $ scatterPlotAxes) (head  . snd . head $ scatterPlotAxes))
                                           ((\(at, a) sp ->
                                             case at of
@@ -551,7 +564,7 @@ appMain = do
                 kdePlotX = (layoutKDE colourMap False . scatterPlotX) <$> scatterPlotState <*> selectedSoundFileId <*> plotData
                 kdePlotY = (layoutKDE colourMap True  . scatterPlotY) <$> scatterPlotState <*> selectedSoundFileId <*> plotData
                 chart = renderChart <$> scatterPlot <*> kdePlotX <*> kdePlotY
-                redraw = ignore soundFiles `union` ignore currentSoundFile `union` ignore scatterPlotAxis
+                redraw = ignore soundFiles `union` ignore currentSoundFile `union` ignore scatterPlotAxis `union` ignore unitPlaying
                 -- Synthesis
                 unitTree = mkUnitTree <$> scatterPlotState <*> plotData
                 filterPlayback = R.filter (satisfies [hasButton 1])
@@ -565,6 +578,7 @@ appMain = do
                 closest = filterMaybe $ ((\t v -> KD.closest KD.sqrEuclidianDistance v t) <$> unitTree)
                                             `apply` scatterPlotCoord
                 unit = (\((_, u), _) -> u) <$> closest
+                activeUnits = accumB Set.empty (either (Set.insert . unUnitIdT) (Set.delete . unUnitIdT) <$> unitPlaying)
             -- Update canvas with current plot and feed back new pick function
             reactimate $ ((const . void . updateCanvas' canvas (fire pickFnSrc)) <$> chart) `apply` expose
             -- Display the axis popup menu if needed
@@ -575,9 +589,10 @@ appMain = do
             reactimate $ widgetQueueDraw canvas <$ redraw
             -- Print the picks when a button is pressed in the plot area
             -- reactimate $ print <$> (applyPickFunction (buttonPress `union` buttonMove))
-            reactimate $ print <$> closest
-            reactimate $ setUnit . Just <$> unit
+            -- reactimate $ print <$> activeUnits
+            reactimate $ (\(ui, u) -> setUnit (Just (u, (fire unitPlayingSrc (Left (UnitIdT ui)), fire unitPlayingSrc (Right (UnitIdT ui)))))) <$> unit
             reactimate $ setPlayback <$> playback
+            reactimate $ (const . print <$> activeUnits) `apply` unitPlaying
             -- (R.filter (\(e, p) -> (uiEventModifiers p == [Control]) . uiEventModifiers)) 
 
         widgetShowAll win
