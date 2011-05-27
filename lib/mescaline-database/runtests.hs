@@ -35,7 +35,7 @@ test_insertQueryIdentity = withDatabase ":memory:" $ do
     -- Insert features
     mapM_ (\(_, fs) -> mapM_ insertFeature fs) us
     -- Query features
-    (_, um) <- queryFeatures Nothing ds
+    (_, um) <- queryFeatures (const True) ds
     -- Create mappings (UnitId, [[Double]]) for the input and the query
     let um0 = fmap (map (V.toList . featureValue)) (Map.fromList us)
         um' = fmap (\(_, fs) -> map (V.toList . featureValue) fs) um
@@ -63,7 +63,7 @@ test_transformIdentity = withDatabase ":memory:" $ do
     -- Transform features
     transformFeatureP (Transformation id) ds (Analysis.Descriptor (descriptorName d) (descriptorDegree d))
     -- Query features
-    (_, um) <- queryFeatures Nothing [di]
+    (_, um) <- queryFeatures (const True) [di]
     -- Create mappings (UnitId, [Double]) for the input and the transformation
     let um0 = fmap (concatMap (V.toList . featureValue)) (Map.fromList us)
         um' = fmap (\(_, fs) -> concatMap (V.toList . featureValue) fs) um

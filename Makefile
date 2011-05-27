@@ -90,7 +90,7 @@ haddock:
 
 test:
 	runhaskell -ilib/mescaline -ilib/mescaline/tests lib/mescaline/runtests.hs
-	runhaskell -ilib/mescaline-database lib/mescaline-database/runtests.hs
+	runhaskell -DUSE_ANALYSIS=1 -ilib/mescaline-database lib/mescaline-database/runtests.hs
 
 logo:
 	inkscape doc/logo/mescaline_layers.svg --export-png=doc/logo/mescaline_layers.png
