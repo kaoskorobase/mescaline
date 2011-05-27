@@ -20,9 +20,6 @@ import qualified Data.Map as Map
 import           Data.Vector (Vector)
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Storable as SV
-import qualified Database.Persist as DB
-import qualified Database.Persist.Base as DB
-import qualified Database.Persist.GenericSql as DB
 import qualified Mescaline.Database as DB
 import           Mescaline.Time (Duration, Time)
 import           Prelude hiding (id)
@@ -39,10 +36,8 @@ instance Eq (Unit) where
     (==) a b = id a == id b
 
 cons :: DB.SourceFileMap -> DB.UnitId -> DB.Unit -> [DB.Feature] -> Unit
-cons sfs i u fs = Unit sf i' u (V.fromList fs)
-    where
-        DB.PersistInt64 i' = DB.toPersistValue i
-        Just sf = Map.lookup (DB.unitSourceFile u) sfs
+cons sfs i u fs = Unit sf (DB.hashUnitId i) u (V.fromList fs)
+    where sf = sfs Map.! DB.unitSourceFile u
 
 -- {-# INLINE id #-}
 -- id :: Unit -> Unique.Id

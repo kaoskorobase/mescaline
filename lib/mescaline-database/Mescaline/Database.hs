@@ -3,7 +3,8 @@
            , FlexibleContexts
            , GeneralizedNewtypeDeriving #-}
 module Mescaline.Database (
-    module Mescaline.Database.Entity
+    SqlPersist
+  , module Mescaline.Database.Entity
   , sourceFileDuration
   , Feature(..)
   , DescriptorMap
