@@ -9,12 +9,13 @@ import           Control.Concurrent
 import           Control.Concurrent.STM
 import           Control.Monad
 import           Control.Monad.Fix (fix)
-import           Control.Monad.IO.Class (liftIO)
+import           Control.Monad.IO.Class (MonadIO, liftIO)
 import           Data.Accessor
 import           Data.Char ( toLower )
 import           Data.Colour
 import           Data.Colour.RGBSpace
 import           Data.Colour.SRGB
+import           Data.Colour.Names (white)
 import qualified Data.Foldable as Fold
 import           Data.IORef
 import qualified Data.KDTree as KD
@@ -29,6 +30,8 @@ import qualified Data.Vector as B
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Unboxed as U
 import           Debug.Trace
+import qualified Graphics.Rendering.Cairo as C
+import qualified Graphics.Rendering.Cairo.Matrix as M
 import           Graphics.Rendering.Chart as C
 import           Graphics.Rendering.Chart.Grid as C
 import           Graphics.UI.Gtk as G
@@ -84,6 +87,8 @@ data ScatterPlot = ScatterPlot {
   , scatterPlotY :: ScatterPlotAxis
   } deriving (Show, Typeable)
 
+data ScatterPlotLayer = ScatterPlotForeground | ScatterPlotBackground deriving (Show)
+
 descriptorShortName :: DB.Descriptor -> String
 descriptorShortName = takeFileName . DB.descriptorName
 
@@ -121,8 +126,8 @@ meanPlot at a stats =
                 YAxis -> hlinePlot
     in f label ls m
 
-layoutScatterPlot :: ColourMap DB.SourceFileId Double -> PlotData -> ScatterPlot -> Layout1 Double Double
-layoutScatterPlot colourMap plotData sp = layout
+layoutScatterPlot :: ScatterPlotLayer -> ColourMap DB.SourceFileId Double -> PlotData -> ScatterPlot -> Layout1 Double Double
+layoutScatterPlot layer colourMap plotData sp = layout
     where
         xAxis = scatterPlotX sp
         yAxis = scatterPlotY sp
@@ -138,17 +143,19 @@ layoutScatterPlot colourMap plotData sp = layout
                                         in (p:vs, if Set.member ui (activeUnits plotData) then p:as else as))
                                        ([], [])
                                        (Map.assocs us)
-            in [ -- Plot units
-                 plot_points_style ^= filledCircles 2 (opaque colour)
-                 $ plot_points_values ^= xs
-                 -- $ plot_points_title ^= "Test data"
-                 $ defaultPlotPoints
-                 -- Highlight active units
-               , plot_points_style ^= hollowCircles 4 2 (opaque black)
-                 $ plot_points_values ^= as
-                 -- $ plot_points_title ^= "Test data"
-                 $ defaultPlotPoints
-               ]
+            in case layer of
+                ScatterPlotForeground ->
+                    [ -- Highlight active units
+                      plot_points_style ^= hollowCircles 4 2 (opaque black)
+                    $ plot_points_values ^= as
+                    -- $ plot_points_title ^= "Test data"
+                    $ defaultPlotPoints ]
+                ScatterPlotBackground ->
+                    [ -- Plot units
+                      plot_points_style ^= filledCircles 2 (opaque colour)
+                    $ plot_points_values ^= xs
+                    -- $ plot_points_title ^= "Test data"
+                    $ defaultPlotPoints ]
 
         bottomAxis = -- laxis_title ^= scatterPlotAxisTitle xAxis $
                      laxis_generate ^= axisFn plotData xAxis $
@@ -158,12 +165,17 @@ layoutScatterPlot colourMap plotData sp = layout
                    laxis_generate ^= axisFn plotData yAxis $
                    defaultLayoutAxis
 
+        background = case layer of
+                        ScatterPlotForeground -> transparent
+                        ScatterPlotBackground -> opaque white
+
         layout = -- layout1_title ^= "Units"
                  layout1_plots ^= concatMap (map (Left . toPlot) . points) (Set.toList (markedSoundFiles plotData))
                                     ++ [ Left $ meanPlot XAxis xAxis (featureStats plotData)
                                        , Left $ meanPlot YAxis yAxis (featureStats plotData) ]
                $ layout1_left_axis ^= leftAxis
                $ layout1_bottom_axis ^= bottomAxis
+               $ layout1_background ^= solidFillStyle background
                $ defaultLayout1
 
 layoutKDE :: ColourMap DB.SourceFileId Double
@@ -176,10 +188,12 @@ layoutKDE colourMap flipped axis sf plotData = layout
     where
         descr = scatterPlotAxisTitle axis
 
+        plots = [ Left $ mkPlot featureLineStyle (featureStats plotData)
+                , Left $ mkPlot fileLineStyle (fileStats plotData Map.! sf)
+                , Left $ meanPlot (if flipped then YAxis else XAxis) axis (featureStats plotData) ]
+
         layout = -- layout1_title ^= "Densities for \"" ++ descr ++ "\""
-                 layout1_plots ^= [ Left $ mkPlot featureLineStyle (featureStats plotData)
-                                  , Left $ mkPlot fileLineStyle (fileStats plotData Map.! sf)
-                                  , Left $ meanPlot (if flipped then YAxis else XAxis) axis (featureStats plotData) ]
+                 layout1_plots ^= plots
                $ layout1_bottom_axis ^= (if flipped then pdfAxis else featureAxis)
                $ layout1_left_axis ^= (if flipped then featureAxis else pdfAxis)
                $ defaultLayout1 :: Layout1 Double Double
@@ -217,11 +231,11 @@ data Pick = Pick {
   , pickData :: (Layout1Pick Double Double)
   } deriving (Show, Typeable)
 
-renderChart :: Layout1 Double Double
-            -> Layout1 Double Double
-            -> Layout1 Double Double
-            -> Renderable Pick
-renderChart scatterPlot xHist yHist = mapMaybePickFn p r
+mkChart :: Layout1 Double Double
+        -> Layout1 Double Double
+        -> Layout1 Double Double
+        -> Renderable Pick
+mkChart scatterPlot xHist yHist = mapMaybePickFn p r
     where
         r = renderLayout1Matrix scatterPlot [ [ Just yHist, Just scatterPlot ]
                                             , [ Nothing,    Just xHist       ] ]
@@ -279,8 +293,8 @@ mkFeatureStats ds us = Map.mapWithKey (\di -> V.fromList . fmap (mkStats di) . i
                       , featureHist = estimatePDF v
                       }
 
-mkPlotData :: DB.DescriptorMap -> DB.UnitMap -> Set.Set DB.UnitId -> [SoundFile] -> PlotData
-mkPlotData ds us aus sfs = PlotData sfs ids um aus fileStats featStats
+mkPlotData :: DB.DescriptorMap -> DB.UnitMap -> [SoundFile] -> PlotData
+mkPlotData ds us sfs = PlotData sfs ids um Set.empty fileStats featStats
     where
         mkFeatureMap = Map.fromList . map (\f -> (DB.featureDescriptor f, f))
         um = Map.foldrWithKey (\ui (u, fs) ->
@@ -291,6 +305,9 @@ mkPlotData ds us aus sfs = PlotData sfs ids um aus fileStats featStats
         ids = Set.fromList (map fileId (filter marked sfs))
         featStats = mkFeatureStats ds (Map.fold Map.union Map.empty (Map.filterWithKey (\k _ -> Set.member k ids) um))
         fileStats = fmap (mkFeatureStats ds) um
+
+setActiveUnits :: Set.Set DB.UnitId -> PlotData -> PlotData
+setActiveUnits s p = p { activeUnits = s }
 
 -- ====================================================================
 -- kd-Tree for unit lookup
@@ -350,14 +367,15 @@ pick :: PickFunction a -> (Double, Double) -> Maybe a
 pick (PickFunction f) (x, y) = f (Point x y)
 
 -- | A version opf updateCanvas that passes the pick function to a callback.
-updateCanvas' :: G.DrawingArea -> (PickFunction a -> IO ()) -> Renderable a -> IO Bool
-updateCanvas' canvas pickFnSrc chart = do
+updateCanvas' :: G.DrawingArea -> (PickFunction a -> IO ()) -> C.Render (PickFunction a) -> IO Bool
+updateCanvas' canvas pickFnSrc render = do
     win <- G.widgetGetDrawWindow canvas
     (width, height) <- G.widgetGetSize canvas
-    let sz = (fromIntegral width,fromIntegral height)
-    pickf <- G.renderWithDrawable win $ runCRender (render chart sz) bitmapEnv
-    pickFnSrc (PickFunction pickf)
+    G.renderWithDrawable win render >>= pickFnSrc
     return True
+
+renderChart :: Renderable a -> (Int, Int) -> C.Render (PickFunction a)
+renderChart r (w,h) = liftM PickFunction $ runCRender (render r (fromIntegral w, fromIntegral h)) bitmapEnv 
 
 -- | User interface event abstraction.
 data UIEvent =
@@ -386,23 +404,29 @@ satisfies ps a = all ($a) ps
 fromSignal :: Typeable a => self -> Signal self handler -> ((a -> IO ()) -> handler) -> Prepare (Event a)
 fromSignal self signal handler = fromAddHandler (void . on self signal . handler)
 
-fromEvent :: (WidgetClass self, Typeable a) => self -> Signal self (EventM t Bool) -> EventM t a -> Prepare (Event a)
-fromEvent self signal handler = fromAddHandler $ void . on self signal . \a -> handler >>= liftIO . a >> return True
+fromEvent :: (WidgetClass self, Typeable a) => self -> Signal self (EventM t Bool) -> EventM t (a, Bool) -> Prepare (Event a)
+fromEvent self signal handler = fromAddHandler $ void . on self signal . \action -> do { (a, b) <- handler ; liftIO (action a) ; return b }
+
+fromEvent_ :: (WidgetClass self, Typeable a) => self -> Signal self (EventM t Bool) -> EventM t a -> Bool -> Prepare (Event a)
+fromEvent_ self signal handler override = fromEvent self signal (fmap (flip (,) override) handler)
 
 buttonEventHandler :: EventM EButton UIEvent
 buttonEventHandler = ButtonEvent <$> eventTime <*> eventCoordinates <*> eventModifier <*> liftM fromEnum eventButton
 
-buttonPress :: (WidgetClass self) => self -> Prepare (Event UIEvent)
-buttonPress self = fromEvent self buttonPressEvent buttonEventHandler
+buttonPress :: (WidgetClass self) => self -> Bool -> Prepare (Event UIEvent)
+buttonPress self = fromEvent_ self buttonPressEvent buttonEventHandler
 
-buttonRelease :: (WidgetClass self) => self -> Prepare (Event UIEvent)
-buttonRelease self = fromEvent self buttonReleaseEvent buttonEventHandler
+buttonRelease :: (WidgetClass self) => self -> Bool -> Prepare (Event UIEvent)
+buttonRelease self = fromEvent_ self buttonReleaseEvent buttonEventHandler
 
 motionEventHandler :: EventM EMotion UIEvent
 motionEventHandler = MotionEvent <$> eventTime <*> eventCoordinates <*> eventModifier
 
-motion :: (WidgetClass self) => self -> Prepare (Event UIEvent)
-motion self = fromEvent self motionNotifyEvent motionEventHandler
+motion :: (WidgetClass self) => self -> Bool -> Prepare (Event UIEvent)
+motion self = fromEvent_ self motionNotifyEvent motionEventHandler
+
+resizeEvent :: (WidgetClass self) => self -> Bool -> Prepare (Event (Int, Int))
+resizeEvent self = fromEvent_ self configureEvent eventSize
 
 -- buttonMotion :: (WidgetClass self) => Int -> [Modifier] -> self -> Prepare (Behavior (Maybe (Double, Double)))
 -- buttonMotion b ms self = do
@@ -413,6 +437,14 @@ motion self = fromEvent self motionNotifyEvent motionEventHandler
 --     where f = satisfies [hasButton b, hasModifiers ms]
 
 newtype UnitIdT = UnitIdT { unUnitIdT :: DB.UnitId } deriving (Show, Typeable)
+
+data BackgroundSurface = BackgroundSurface {
+    backgroundSurfaceSize :: (Int,Int)
+  , backgroundSurface :: C.Surface
+  } deriving (Typeable)
+
+mkBackgroundSurface :: MonadIO m => Int -> Int -> m BackgroundSurface
+mkBackgroundSurface w h = liftIO (liftM (BackgroundSurface (w,h)) (C.createImageSurface C.FormatRGB24 w h))
 
 newColumn :: ( CellRendererClass cell
              , TreeModelClass (model row)
@@ -522,6 +554,7 @@ appMain = do
         pickFnSrc <- newEventSource
         scatterPlotSrc <- newEventSource
         unitPlayingSrc <- newEventSource
+        bgSurfaceSrc <- newEventSource
 
         -- Set up event network
         prepareEvents $ do
@@ -537,11 +570,14 @@ appMain = do
             let selectedSoundFile = stepper (head soundFiles0) currentSoundFile
                 selectedSoundFileId = fileId <$> selectedSoundFile
             -- Canvas events
-            expose        <- fromEvent canvas exposeEvent        (return ())
-            buttonPress   <- fromEvent canvas buttonPressEvent   buttonEventHandler
-            buttonRelease <- fromEvent canvas buttonReleaseEvent buttonEventHandler
-            buttonMove    <- fromEvent canvas motionNotifyEvent  motionEventHandler
-            -- motion        <- buttonMotion 1 [Control] canvas
+            canvasResized <- resizeEvent canvas False
+            bgSurface     <- liftM2 stepper 
+                                    (mkBackgroundSurface 0 0)
+                                    (fromEventSource bgSurfaceSrc)
+            expose        <- fromEvent_ canvas exposeEvent        (return ())        False
+            buttonPress   <- fromEvent_ canvas buttonPressEvent   buttonEventHandler False
+            buttonRelease <- fromEvent_ canvas buttonReleaseEvent buttonEventHandler False
+            buttonMove    <- fromEvent_ canvas motionNotifyEvent  motionEventHandler False
             -- The picks from the plot area ((Double,Double) -> Maybe Pick)
             pickFunction <- liftM (fmap pick . stepper noPick) $ fromEventSource pickFnSrc
             let applyPickFunction es = ((\f e -> (e, f (uiEventCoordinates e))) <$> pickFunction) `apply` es
@@ -553,17 +589,28 @@ appMain = do
                                                 _ -> Nothing
             scatterPlotAxis <- fromEventSource scatterPlotSrc
             unitPlaying <- fromEventSource unitPlayingSrc
-            let plotData = (mkPlotData descriptors us) <$> activeUnits <*> (stepper soundFiles0 soundFiles)
+            let plotData = setActiveUnits <$> activeUnits <*> (mkPlotData descriptors us <$> stepper soundFiles0 soundFiles)
                 scatterPlotState = accumB (ScatterPlot (head . snd . head $ scatterPlotAxes) (head  . snd . head $ scatterPlotAxes))
                                           ((\(at, a) sp ->
                                             case at of
                                                 XAxis -> sp { scatterPlotX = a }
                                                 YAxis -> sp { scatterPlotY = a }) <$> scatterPlotAxis)
                 -- Display
-                scatterPlot = layoutScatterPlot colourMap <$> plotData <*> scatterPlotState
+                scatterPlotFG = layoutScatterPlot ScatterPlotForeground colourMap <$> plotData <*> scatterPlotState
+                scatterPlotBG = layoutScatterPlot ScatterPlotBackground colourMap <$> plotData <*> scatterPlotState
                 kdePlotX = (layoutKDE colourMap False . scatterPlotX) <$> scatterPlotState <*> selectedSoundFileId <*> plotData
                 kdePlotY = (layoutKDE colourMap True  . scatterPlotY) <$> scatterPlotState <*> selectedSoundFileId <*> plotData
-                chart = renderChart <$> scatterPlot <*> kdePlotX <*> kdePlotY
+                chartFG = mkChart <$> scatterPlotFG <*> kdePlotX <*> kdePlotY
+                chartBG = mkChart <$> scatterPlotBG <*> kdePlotX <*> kdePlotY
+                fgRender = renderChart <$> chartFG <*> (backgroundSurfaceSize <$> bgSurface)
+                render = (\fg bg -> do
+                            C.save
+                            C.setSourceSurface (backgroundSurface bg) 0 0
+                            C.paint
+                            C.restore
+                            fg)
+                            <$> fgRender
+                            <*> bgSurface
                 redraw = ignore soundFiles `union` ignore currentSoundFile `union` ignore scatterPlotAxis `union` ignore unitPlaying
                 -- Synthesis
                 unitTree = mkUnitTree <$> scatterPlotState <*> plotData
@@ -580,7 +627,13 @@ appMain = do
                 unit = (\((_, u), _) -> u) <$> closest
                 activeUnits = accumB Set.empty (either (Set.insert . unUnitIdT) (Set.delete . unUnitIdT) <$> unitPlaying)
             -- Update canvas with current plot and feed back new pick function
-            reactimate $ ((const . void . updateCanvas' canvas (fire pickFnSrc)) <$> chart) `apply` expose
+            reactimate $ ((\chart (w,h) -> do
+                            bg <- mkBackgroundSurface w h
+                            pf <- C.renderWith (backgroundSurface bg) (renderChart chart (backgroundSurfaceSize bg))
+                            fire bgSurfaceSrc bg
+                            fire pickFnSrc pf)
+                         <$> chartBG) `apply` canvasResized
+            reactimate $ ((const . void . updateCanvas' canvas ({- fire pickFnSrc -} const (return ()))) <$> render) `apply` expose
             -- Display the axis popup menu if needed
             let popupAxisMenu a e = scatterPlotAxisMenu scatterPlotAxes (fire scatterPlotSrc . ((,) a)) >>=
                                         flip menuPopup (Just (toEnum (uiEventButton e), uiEventTime e))

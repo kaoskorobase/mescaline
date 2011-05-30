@@ -20,8 +20,11 @@ Executable mescaline-sts
         Engine
     Ghc-Options:
         -W -threaded -funbox-strict-fields -rtsopts
+    Ghc-Prof-Options:
+        -W -threaded -funbox-strict-fields -rtsopts -auto-all
     Build-Depends:
         base
+      , cairo
       , Chart
       , cmdargs
       , colour
