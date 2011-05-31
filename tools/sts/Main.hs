@@ -45,6 +45,7 @@ import qualified Mescaline.Synth.Sampler.Params as Sampler
 import qualified Paths_mescaline_sts as Paths
 import           Reactive.Banana hiding (filter)
 import qualified Reactive.Banana as R
+import           Reactive.Banana.EventSource
 import qualified Reactive.Banana.Model as RM
 import           Sound.OpenSoundControl (pauseThread, utcr)
 import           Sound.SC3.Server.Monad
@@ -327,33 +328,6 @@ mkUnitTree sp pd = KD.fromList $ map point units
                    in V.fromList [ scatterPlotAxisValue (scatterPlotX sp) fs'
                                  , scatterPlotAxisValue (scatterPlotY sp) fs' ]
         point (sf, (ui, (u, fs))) = (coord fs, (ui, (sf, u)))
-
-{-----------------------------------------------------------------------------
-Event sources
-------------------------------------------------------------------------------}
--- Event Sources - allows you to register event handlers
--- Your GUI framework should provide something like this for you 
-data EventSource a = EventSource {
-    setHandler :: (a -> IO ()) -> IO ()
-  , getHandler :: IO (a -> IO ())
-  }
-
-newEventSource :: IO (EventSource a)
-newEventSource = do
-    ref <- newIORef (const $ return ())
-    return EventSource { setHandler = writeIORef ref
-                       , getHandler = readIORef ref }
-
-addHandler :: EventSource a -> AddHandler a
-addHandler es k = do
-    handler <- getHandler es
-    setHandler es (\x -> handler x >> k x)
-
-fromEventSource :: Typeable a => EventSource a -> Prepare (Event a)
-fromEventSource = fromAddHandler . addHandler
-
-fire :: EventSource a -> a -> IO ()
-fire es x = getHandler es >>= ($x)
 
 -- | Pick function wrapper type.
 newtype PickFunction a = PickFunction (PickFn a)
