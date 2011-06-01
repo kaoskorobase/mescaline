@@ -53,6 +53,10 @@ import           Sound.SC3.Server.Process.Monad
 import           Statistics.KernelDensity (Points, epanechnikovPDF, fromPoints)
 import           Statistics.Sample
 import           System.FilePath
+-- import           System.Glib.MainLoop
+
+debugPrint :: Show a => String -> a -> IO ()
+debugPrint tag a = putStrLn $ tag ++ " " ++ show a
 
 data SoundFile = SoundFile { fileId :: DB.SourceFileId, file :: DB.SourceFile, marked :: Bool }
                  deriving (Show, Typeable)
@@ -179,18 +183,19 @@ layoutScatterPlot layer colourMap plotData sp = layout
                $ layout1_background ^= solidFillStyle background
                $ defaultLayout1
 
-layoutKDE :: ColourMap DB.SourceFileId Double
+layoutKDE :: ScatterPlotLayer
+          -> ColourMap DB.SourceFileId Double
           -> Bool
           -> ScatterPlotAxis
           -> DB.SourceFileId
           -> PlotData
           -> Layout1 Double Double
-layoutKDE colourMap flipped axis sf plotData = layout
+layoutKDE layer colourMap flipped axis sf plotData = layout
     where
         descr = scatterPlotAxisTitle axis
 
-        plots = [ Left $ mkPlot featureLineStyle (featureStats plotData)
-                , Left $ mkPlot fileLineStyle (fileStats plotData Map.! sf)
+        plots = [ Left $ mkPlot ScatterPlotBackground featureLineStyle (featureStats plotData)
+                , Left $ mkPlot ScatterPlotBackground fileLineStyle (fileStats plotData Map.! sf)
                 , Left $ meanPlot (if flipped then YAxis else XAxis) axis (featureStats plotData) ]
 
         layout = -- layout1_title ^= "Densities for \"" ++ descr ++ "\""
@@ -212,14 +217,19 @@ layoutKDE colourMap flipped axis sf plotData = layout
 
         flipValues xs = if flipped then map (\(a, b) -> (b, a)) xs else xs
 
-        mkPlot lineStyle stats = pdfPlot
+        mkPlot layer lineStyle stats = pdfPlot
              where
                  (points, pdf) = featureHist (scatterPlotAxisValue axis stats)
                  xValues = V.toList (fromPoints points)
                  yValues = V.toList (V.map (/ V.sum pdf) pdf)
-                 pdfPlot = toPlot $ plot_lines_values ^= map flipValues [ zip xValues yValues ]
-                            $ plot_lines_style ^= lineStyle
-                            $ defaultPlotLines
+                 pdfPlot = -- This doesn't work as expected and produces slightly out-of-tune plots
+                           case layer of
+                            ScatterPlotForeground ->
+                                toPlot $ PlotHidden xValues yValues
+                            ScatterPlotBackground ->
+                                toPlot $ plot_lines_values ^= map flipValues [ zip xValues yValues ]
+                                       $ plot_lines_style ^= lineStyle
+                                       $ defaultPlotLines
 
 data PickType =
     ScatterPlotPick
@@ -341,12 +351,11 @@ pick :: PickFunction a -> (Double, Double) -> Maybe a
 pick (PickFunction f) (x, y) = f (Point x y)
 
 -- | A version opf updateCanvas that passes the pick function to a callback.
-updateCanvas' :: G.DrawingArea -> (PickFunction a -> IO ()) -> C.Render (PickFunction a) -> IO Bool
-updateCanvas' canvas pickFnSrc render = do
+updateDrawingArea :: G.DrawingArea -> ((Int, Int) -> C.Render ()) -> IO ()
+updateDrawingArea canvas render = do
     win <- G.widgetGetDrawWindow canvas
-    (width, height) <- G.widgetGetSize canvas
-    G.renderWithDrawable win render >>= pickFnSrc
-    return True
+    size <- G.widgetGetSize canvas
+    G.renderWithDrawable win (render size)
 
 renderChart :: Renderable a -> (Int, Int) -> C.Render (PickFunction a)
 renderChart r (w,h) = liftM PickFunction $ runCRender (render r (fromIntegral w, fromIntegral h)) bitmapEnv 
@@ -409,6 +418,12 @@ resizeEvent self = fromEvent_ self configureEvent eventSize
 --     r <- liftM (R.filter f) $ buttonRelease self
 --     stepper Nothing ((Just . uiEventCoordinates) <$> (p `union` m) `union` Nothing <$ r)
 --     where f = satisfies [hasButton b, hasModifiers ms]
+
+defer :: Typeable a => Priority -> Event a -> Prepare (Event a)
+defer prio e = do
+    src <- liftIO newEventSource
+    reactimate $ (\a -> idleAdd (fire src a >> return False) prio >> return ()) <$> e
+    fromEventSource src
 
 newtype UnitIdT = UnitIdT { unUnitIdT :: DB.UnitId } deriving (Show, Typeable)
 
@@ -544,10 +559,11 @@ appMain = do
             let selectedSoundFile = stepper (head soundFiles0) currentSoundFile
                 selectedSoundFileId = fileId <$> selectedSoundFile
             -- Canvas events
-            canvasResized <- resizeEvent canvas False
-            bgSurface     <- liftM2 stepper 
+            canvasResized <- resizeEvent canvas True
+            bgChanged     <- fromEventSource bgSurfaceSrc
+            bgSurface     <- liftM2 stepper
                                     (mkBackgroundSurface 0 0)
-                                    (fromEventSource bgSurfaceSrc)
+                                    (return bgChanged)
             expose        <- fromEvent_ canvas exposeEvent        (return ())        False
             buttonPress   <- fromEvent_ canvas buttonPressEvent   buttonEventHandler False
             buttonRelease <- fromEvent_ canvas buttonReleaseEvent buttonEventHandler False
@@ -570,22 +586,19 @@ appMain = do
                                                 XAxis -> sp { scatterPlotX = a }
                                                 YAxis -> sp { scatterPlotY = a }) <$> scatterPlotAxis)
                 -- Display
+                canvasSize = stepper (0,0) canvasResized
                 scatterPlotFG = layoutScatterPlot ScatterPlotForeground colourMap <$> plotData <*> scatterPlotState
                 scatterPlotBG = layoutScatterPlot ScatterPlotBackground colourMap <$> plotData <*> scatterPlotState
-                kdePlotX = (layoutKDE colourMap False . scatterPlotX) <$> scatterPlotState <*> selectedSoundFileId <*> plotData
-                kdePlotY = (layoutKDE colourMap True  . scatterPlotY) <$> scatterPlotState <*> selectedSoundFileId <*> plotData
-                chartFG = mkChart <$> scatterPlotFG <*> kdePlotX <*> kdePlotY
-                chartBG = mkChart <$> scatterPlotBG <*> kdePlotX <*> kdePlotY
-                fgRender = renderChart <$> chartFG <*> (backgroundSurfaceSize <$> bgSurface)
-                render = (\fg bg -> do
-                            C.save
+                kdePlotX l = (layoutKDE l colourMap False . scatterPlotX) <$> scatterPlotState <*> selectedSoundFileId <*> plotData
+                kdePlotY l = (layoutKDE l colourMap True  . scatterPlotY) <$> scatterPlotState <*> selectedSoundFileId <*> plotData
+                chartFG = mkChart <$> scatterPlotFG <*> kdePlotX ScatterPlotForeground <*> kdePlotY ScatterPlotForeground
+                chartBG = mkChart <$> scatterPlotBG <*> kdePlotX ScatterPlotBackground <*> kdePlotY ScatterPlotBackground
+                render = (\fg bg _ -> do
                             C.setSourceSurface (backgroundSurface bg) 0 0
                             C.paint
-                            C.restore
-                            fg)
-                            <$> fgRender
+                            void $ renderChart fg (backgroundSurfaceSize bg))
+                            <$> chartFG
                             <*> bgSurface
-                redraw = ignore soundFiles `union` ignore currentSoundFile `union` ignore scatterPlotAxis `union` ignore unitPlaying
                 -- Synthesis
                 unitTree = mkUnitTree <$> scatterPlotState <*> plotData
                 filterPlayback = R.filter (satisfies [hasButton 1])
@@ -600,20 +613,20 @@ appMain = do
                                             `apply` scatterPlotCoord
                 unit = (\((_, u), _) -> u) <$> closest
                 activeUnits = accumB Set.empty (either (Set.insert . unUnitIdT) (Set.delete . unUnitIdT) <$> unitPlaying)
-            -- Update canvas with current plot and feed back new pick function
-            reactimate $ ((\chart (w,h) -> do
+            -- Update background plot and feed back new background surface and pick function
+            redrawBG <- defer priorityDefault $ ignore soundFiles `union` ignore currentSoundFile `union` ignore scatterPlotAxis `union` ignore canvasResized
+            reactimate $ ((\chart (w,h) _ -> do
                             bg <- mkBackgroundSurface w h
                             pf <- C.renderWith (backgroundSurface bg) (renderChart chart (backgroundSurfaceSize bg))
                             fire bgSurfaceSrc bg
-                            fire pickFnSrc pf)
-                         <$> chartBG) `apply` canvasResized
-            reactimate $ ((const . void . updateCanvas' canvas ({- fire pickFnSrc -} const (return ()))) <$> render) `apply` expose
-            -- Display the axis popup menu if needed
+                            fire pickFnSrc pf) <$> chartBG <*> canvasSize)
+                         `apply` redrawBG
+            reactimate $ widgetQueueDraw canvas <$ (ignore bgChanged `union` ignore unitPlaying)
+            reactimate $ (updateDrawingArea canvas <$> render) `apply_` expose
+            -- Display the axis popup menu
             let popupAxisMenu a e = scatterPlotAxisMenu scatterPlotAxes (fire scatterPlotSrc . ((,) a)) >>=
                                         flip menuPopup (Just (toEnum (uiEventButton e), uiEventTime e))
             reactimate $ uncurry popupAxisMenu <$> (R.filter ((==3) . uiEventButton . snd) buttonPressInAxisTitle)
-            -- Schedule redraw
-            reactimate $ widgetQueueDraw canvas <$ redraw
             -- Print the picks when a button is pressed in the plot area
             -- reactimate $ print <$> (applyPickFunction (buttonPress `union` buttonMove))
             -- reactimate $ print <$> activeUnits
@@ -621,7 +634,8 @@ appMain = do
             reactimate $ setPlayback <$> playback
             reactimate $ (const . print <$> activeUnits) `apply` unitPlaying
             -- (R.filter (\(e, p) -> (uiEventModifiers p == [Control]) . uiEventModifiers)) 
-
+            -- reactimate $ ((\s1 s2 -> debugPrint "canvasResized" (s1, s2)) <$> canvasSize) `apply` canvasResized
+            -- reactimate $ debugPrint "bgSurfaceE" . backgroundSurfaceSize <$> bgChanged
         widgetShowAll win
         mainGUI
 
@@ -648,3 +662,6 @@ unzipF f = (fmap fst f, fmap snd f)
 
 zipA :: Applicative f => f a -> f b -> f (a, b)
 zipA a b = (,) <$> a <*> b
+
+apply_ :: FRP f => RM.Behavior f a -> RM.Event f b -> RM.Event f a
+apply_ b = apply (fmap const b)
