@@ -21,8 +21,10 @@
 @interface FeatureSpace : UIView {
     id <FeatureSpaceDelegate> delegate;
     CGFloat scale;
+    BOOL regionZoomed;
 }
 @property CGFloat scale;
 @property (assign) id <FeatureSpaceDelegate> delegate;
+@property BOOL regionZoomed;
 - (void)pinch:(UIPinchGestureRecognizer *)gesture;
 @end

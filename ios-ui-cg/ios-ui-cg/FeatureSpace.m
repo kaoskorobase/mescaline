@@ -8,11 +8,13 @@
 
 #import "FeatureSpace.h"
 #import "Region.h"
+#import <QuartzCore/QuartzCore.h>
 
 
 @implementation FeatureSpace
 
 @synthesize delegate;
+@synthesize regionZoomed;
 //@synthesize scale;
 
 - (void)setup
@@ -116,68 +118,49 @@
 }
 
 
-- (void)pinch:(UIPinchGestureRecognizer *)gesture
-{
-    if((gesture.state == UIGestureRecognizerStateChanged) ||
-       (gesture.state == UIGestureRecognizerStateEnded)){
-        //self.scale *=gesture.scale;
-        self.scale += gesture.scale;
-        NSLog(@"%f", self.scale);
-        CGAffineTransform t = CGAffineTransformMakeScale(gesture.scale, gesture.scale);
-        self.transform = t;
 
-//        BOOL over;
-//        for (int i=0; i< gesture.numberOfTouches; i++) {
-//            //CGPoint p = [gesture locationInView:self];
-//            CGPoint p = [gesture locationOfTouch:(NSUInteger)i inView:(UIView *)self];
-//            if([self.delegate checkIfOverRegion:p]){
-//                over = YES; 
-//            } else {
-//                over = NO;
-//                break;
-//            }
-//        }
-//        if(!over){
-//            CGAffineTransform t = CGAffineTransformMakeScale(gesture.scale, gesture.scale);
-//            self.transform = t;
-//            //NSLog(@"zooming View");
-//        }else{
-//            //NSLog(@"zooming Region");
-////            [self.delegate scaleRegion:gesture.scale];
-////            [self setNeedsDisplay];
-//            gesture.scale = 1;
-//        }
-        
-    }    
+- (void)adjustAnchorPointForGestureRecognizer:(UIGestureRecognizer *)gestureRecognizer {
+    if (gestureRecognizer.state == UIGestureRecognizerStateBegan) {
+        UIView *fSpace = gestureRecognizer.view;
+        CGPoint locationInView = [gestureRecognizer locationInView:fSpace];
+        CGPoint locationInSuperview = [gestureRecognizer locationInView:fSpace.superview];        
+        self.layer.anchorPoint = CGPointMake(locationInView.x / fSpace.bounds.size.width, locationInView.y / fSpace.bounds.size.height);
+        fSpace.center = locationInSuperview;
+    }
 }
 
-- (void)pan:(UIPanGestureRecognizer *)gesture
+- (void)panFeatureSpace:(UIPanGestureRecognizer *)gestureRecognizer
 {
-    CGPoint startPoint = [gesture locationInView:self];
-    BOOL drag;
-    //int tappedRegionIndex;
-    if (gesture.state == UIGestureRecognizerStateBegan) {
-//        if ([self.delegate checkIfOverRegion:(startPoint)]){
-//            NSLog(@"i start drawing");
-//            drag = YES;
-//            
-//        } else {
-//            drag = NO;
-//        }
+    UIView *fSpace = [gestureRecognizer view];
+    [self adjustAnchorPointForGestureRecognizer:gestureRecognizer];
+    if ([gestureRecognizer state] == UIGestureRecognizerStateBegan) 
+    {
+//        [self.superview bringSubviewToFront:self];
     }
-    if(gesture.state == UIGestureRecognizerStateChanged) {
-//        NSLog(@"panning has begun");
+
+    if ([gestureRecognizer state] == UIGestureRecognizerStateBegan || [gestureRecognizer state] == UIGestureRecognizerStateChanged) {
+        CGPoint translation = [gestureRecognizer translationInView:fSpace];
+        [fSpace setCenter:CGPointMake([fSpace center].x + translation.x, [fSpace center].y + translation.y)];
+        [gestureRecognizer setTranslation:CGPointZero inView:fSpace];
+        //CGPoint p = CGPointMake(self.frame.origin.x/self.superview.bounds.size.width,self.frame.origin.y/self.superview.bounds.size.height);
+      //  [self.delegate updateRegion:self.regionIndex withPoint:(CGPoint)p andSize:(CGFloat)self.frame.size.width/2] ;
         
-        if (drag){
-//            NSLog(@"i start drawing");
-//            [self.delegate moveRegion:[gesture locationInView:self]];
-        } 
-    }
-    if(gesture.state == UIGestureRecognizerStateEnded) {
     }
 }
 
 
+- (void)scaleFeatureSpace:(UIPinchGestureRecognizer *)gestureRecognizer
+{
+    [self adjustAnchorPointForGestureRecognizer:gestureRecognizer];
+    
+    if ([gestureRecognizer state] == UIGestureRecognizerStateBegan || [gestureRecognizer state] == UIGestureRecognizerStateChanged) {
+        [gestureRecognizer view].transform = CGAffineTransformScale([[gestureRecognizer view] transform], [gestureRecognizer scale], [gestureRecognizer scale]);
+        [gestureRecognizer setScale:1];
+        //CGPoint p = CGPointMake(self.frame.origin.x/self.superview.bounds.size.width,self.frame.origin.y/self.superview.bounds.size.height);
+        //[self.delegate updateRegion:self.regionIndex withPoint:(CGPoint)p andSize:(CGFloat)self.frame.size.width/2] ;
+        
+    }
+}
 
 - (void)dealloc
 {

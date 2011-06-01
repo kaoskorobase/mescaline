@@ -46,11 +46,22 @@
 {
     UIView *regionView = [gestureRecognizer view];
     [self adjustAnchorPointForGestureRecognizer:gestureRecognizer];
+    if ([gestureRecognizer state] == UIGestureRecognizerStateEnded){
+        for(UIGestureRecognizer * rec in self.superview.gestureRecognizers){
+            rec.enabled = YES;
+        }
+
+    }
     if ([gestureRecognizer state] == UIGestureRecognizerStateBegan) 
     {
         [self.superview bringSubviewToFront:self];
+        for(UIGestureRecognizer * rec in self.superview.gestureRecognizers){
+            rec.enabled = NO;
+        }
+
     }
     if ([gestureRecognizer state] == UIGestureRecognizerStateBegan || [gestureRecognizer state] == UIGestureRecognizerStateChanged) {
+
         CGPoint translation = [gestureRecognizer translationInView:[regionView superview]];
         [regionView setCenter:CGPointMake([regionView center].x + translation.x, [regionView center].y + translation.y)];
         [gestureRecognizer setTranslation:CGPointZero inView:[regionView superview]];
@@ -63,23 +74,38 @@
 - (void)tapRegion:(UITapGestureRecognizer *)gestureRecognizer
 {
  //   if ([gestureRecognizer state] == UIGestureRecognizerStateBegan || [gestureRecognizer state] == UIGestureRecognizerStateChanged) {
-        
+    [self adjustAnchorPointForGestureRecognizer:gestureRecognizer];
 
-        CGFloat s = 3;
-        CGAffineTransform tr = CGAffineTransformScale(self.superview.transform, 3, 3);
+    UIView *regionView = [gestureRecognizer view];
+
+        CGFloat s = 5;
+        CGAffineTransform tr = CGAffineTransformScale(self.superview.transform, s, s);
+
         CGFloat h = self.superview.frame.size.height;
         CGFloat w = self.superview.frame.size.width;
-        CGPoint location = [gestureRecognizer locationInView:self];
-        [UIView animateWithDuration:2.5 delay:0 options:0 animations:^{
+        CGPoint location = [gestureRecognizer locationInView:nil];
+        //self.superview.layer.anchorPoint = CGPointMake(location.x/w, location.y/h);
+    //self.superview.layer.anchorPoint = CGPointMake((w/3)/w, (h/2)/h);
+                self.superview.layer.anchorPoint = CGPointMake(location.x/w, location.y/h);
+        //self.delegate.regionZoomed = YES;
+        [UIView animateWithDuration:0.5 delay:0 options:0 animations:^{
+            //self.superview.center = CGPointMake(0,0);
+//            self.superview.layer.anchorPoint = CGPointMake(location.x/w, location.y/h);
+//            [self.superview.layer setTransform:CATransform3DMakeScale( 3.0, 3.0, 1.0 )];
             self.superview.transform = tr;
-            self.superview.center = CGPointMake(0,0);
+            //
+            //self.superview.center = CGPointMake(location.x-location.x*s/2,location.y*s/2);
+
             //self.superview.center = self.center;
-            //self.superview.center = location;
-
-
+            //self.superview.center = CGPointMake(location.x*s, location.y*s);
+            //CGPoint c = CGPointMake(w*s/2,h-h*s/2);
+//            CGPoint c = CGPointMake(w-w*s/2,h*s/2);
+            //self.superview.center = c;
+            //NSLog(@"%f", c.x);
+            
 
         } completion:^(BOOL finished) {}];
-//        [self adjustAnchorPointForGestureRecognizer:gestureRecognizer];
+        //[self adjustAnchorPointForGestureRecognizer:gestureRecognizer];
    // }
 }
 
@@ -88,13 +114,20 @@
 - (void)scaleRegion:(UIPinchGestureRecognizer *)gestureRecognizer
 {
     [self adjustAnchorPointForGestureRecognizer:gestureRecognizer];
-    
+    if ([gestureRecognizer state] == UIGestureRecognizerStateEnded){
+        for(UIGestureRecognizer * rec in self.superview.gestureRecognizers){
+            rec.enabled = YES;
+        }
+        
+    }
     if ([gestureRecognizer state] == UIGestureRecognizerStateBegan || [gestureRecognizer state] == UIGestureRecognizerStateChanged) {
+        for(UIGestureRecognizer * rec in self.superview.gestureRecognizers){
+            rec.enabled = NO;
+        }
         [gestureRecognizer view].transform = CGAffineTransformScale([[gestureRecognizer view] transform], [gestureRecognizer scale], [gestureRecognizer scale]);
         [gestureRecognizer setScale:1];
         CGPoint p = CGPointMake(self.frame.origin.x/self.superview.bounds.size.width,self.frame.origin.y/self.superview.bounds.size.height);
         [self.delegate updateRegion:self.regionIndex withPoint:(CGPoint)p andSize:(CGFloat)self.frame.size.width/2] ;
-//        [self.superview setNeedsDisplay];
 
     }
 }
@@ -131,8 +164,6 @@
 {
     // Drawing code
     CGContextRef context = UIGraphicsGetCurrentContext();
-//    NSLog(@"%i",self.regionIndex);
-
     [self drawRegion:context];
     NSLog(@"drawing subview");
 }

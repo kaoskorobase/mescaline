@@ -77,38 +77,38 @@
 //    [longPressGesture release];
 }
 
-//- (BOOL)checkIfOverRegion:(CGPoint)currentPosition
-//{
-//	
-//	CGRect bounds = [self.view bounds];
-//	int width = bounds.size.width;
-//	int height = bounds.size.height;
-//	BOOL ret;
-//    FakeModel* model =  [FakeModel sharedManager];
-//	NSArray *regionlist = model.regions;
-////    NSEnumerator *e = [regionlist objectEnumerator];
-//    Region * object;
-//    //while ((object = [e nextObject])) {
-//    for (int i=0; i< [regionlist count]; i++) {
-//        object = [regionlist objectAtIndex:i];
-//        CGPoint p = [object.location CGPointValue];
-//        double dist = sqrt(pow((p.x*width - currentPosition.x),2)  + pow((p.y*height - currentPosition.y),2));
-////        NSLog(@"%f",object.rad);
-//        if (dist<=object.rad) {
-//            NSLog(@"%s\t%f\t%f","over circle, xvalue: ---> ",p.x*height,currentPosition.x);
-//            //NSLog(@"over circle");
-//            object.touched = YES;
-//                ret = YES;
-//                break;
-//            } else {
-//                //NSLog(@"NOT over circle number:");
-//                object.touched = NO;
-//                ret = NO;
-//         }
-//
-//    }
-//	return ret;
-//}
+- (void)addGestureRecognizersToFeatureSpaceView:(UIView *)FeatureSpaceView
+{
+    //    UIRotationGestureRecognizer *rotationGesture = [[UIRotationGestureRecognizer alloc] initWithTarget:self action:@selector(rotateRegion:)];
+    //    [regionView addGestureRecognizer:rotationGesture];
+    //    [rotationGesture release];
+    
+
+    
+    UIPinchGestureRecognizer *pinchGesture = [[UIPinchGestureRecognizer alloc] initWithTarget:FeatureSpaceView action:@selector(scaleFeatureSpace:)];
+    [pinchGesture setDelegate:self];
+    [FeatureSpaceView addGestureRecognizer:pinchGesture];
+    [pinchGesture release];
+    
+    UIPanGestureRecognizer *panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:FeatureSpaceView action:@selector(panFeatureSpace:)];
+    [panGesture setMaximumNumberOfTouches:2];
+    [panGesture setDelegate:self];
+    [FeatureSpaceView addGestureRecognizer:panGesture];
+    [panGesture release];
+//    UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:FeatureSpaceView action:@selector(tapRegion:)];
+//    tapGesture.numberOfTapsRequired = 2;
+//    [tapGesture setDelegate:self];
+//    [FeatureSpaceView addGestureRecognizer:tapGesture];
+//    [tapGesture release];
+    
+    //    UILongPressGestureRecognizer *longPressGesture = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(showResetMenu:)];
+    //    [regionView addGestureRecognizer:longPressGesture];
+    //    [longPressGesture release];
+}
+
+
+
+
 
 - (void)addRegionsToView
 {
@@ -143,16 +143,28 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.fSpace.delegate = self;
-    UIGestureRecognizer *pinchgr = [[UIPinchGestureRecognizer alloc] initWithTarget:self.fSpace action:@selector(pinch:)];
+    [self addGestureRecognizersToFeatureSpaceView:fSpace];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(updateRegions:) name:@"regionUpdate" object:nil];
+
+    //UIGestureRecognizer *pinchgr = [[UIPinchGestureRecognizer alloc] initWithTarget:self.fSpace action:@selector(pinch:)];
 //    UIGestureRecognizer *pangr = [[UIPanGestureRecognizer alloc] initWithTarget:self.fSpace action:@selector(pan:)];
 //    
-    [self.fSpace addGestureRecognizer:pinchgr];
+//    [self.fSpace addGestureRecognizer:pinchgr];
 //    [self.fSpace addGestureRecognizer:pangr];
     [self addRegionsToView];
     
-    [pinchgr release];
+    
+//    [pinchgr release];
 //    [pangr release];
     
+}
+
+- (void)updateRegions:(NSNotification *)notification
+{
+    NSLog(@"notification recieved");
+    for(UIView *view in self.fSpace.subviews){
+        [view setNeedsDisplay];
+    }
 }
 
 - (void)viewDidUnload {
@@ -167,6 +179,10 @@
     [super dealloc];
 }
 
-
+//- (id)init
+//{
+//    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(updateRegions:) name:@"regioUpdate" object:nil];
+//    [super init];
+//}
 
 @end
