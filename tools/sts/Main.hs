@@ -335,8 +335,11 @@ mkUnitTree sp pd = KD.fromList $ map point units
         -- units :: PlotData -> [((DB.SourceFile, DB.Unit), Map DB.DescriptorId DB.Feature)]
         -- units pd = concat . Map.elems . fmap Map.elems . unitMap . 
         coord fs = let fs' = fmap DB.featureValue fs
-                   in V.fromList [ scatterPlotAxisValue (scatterPlotX sp) fs'
-                                 , scatterPlotAxisValue (scatterPlotY sp) fs' ]
+                       xAxis = scatterPlotX sp
+                       xValue = scatterPlotAxisValue xAxis fs'
+                       yAxis = scatterPlotY sp
+                       yValue = scatterPlotAxisValue yAxis fs'
+                   in V.fromList [ xValue, yValue ]
         point (sf, (ui, (u, fs))) = (coord fs, (ui, (sf, u)))
 
 -- | Pick function wrapper type.
@@ -611,7 +614,7 @@ appMain = do
                                         _ -> Nothing
                 closest = filterMaybe $ ((\t v -> KD.closest KD.sqrEuclidianDistance v t) <$> unitTree)
                                             `apply` scatterPlotCoord
-                unit = (\((_, u), _) -> u) <$> closest
+                unit = (snd.fst) <$> closest
                 activeUnits = accumB Set.empty (either (Set.insert . unUnitIdT) (Set.delete . unUnitIdT) <$> unitPlaying)
             -- Update background plot and feed back new background surface and pick function
             redrawBG <- defer priorityDefault $ ignore soundFiles `union` ignore currentSoundFile `union` ignore scatterPlotAxis `union` ignore canvasResized
@@ -628,14 +631,16 @@ appMain = do
                                         flip menuPopup (Just (toEnum (uiEventButton e), uiEventTime e))
             reactimate $ uncurry popupAxisMenu <$> (R.filter ((==3) . uiEventButton . snd) buttonPressInAxisTitle)
             -- Print the picks when a button is pressed in the plot area
-            -- reactimate $ print <$> (applyPickFunction (buttonPress `union` buttonMove))
+            reactimate $ debugPrint "event" <$> (applyPickFunction (buttonPress `union` buttonMove))
+            -- reactimate $ print <$> scatterPlotAxis
             -- reactimate $ print <$> activeUnits
             reactimate $ (\(ui, u) -> setUnit (Just (u, (fire unitPlayingSrc (Left (UnitIdT ui)), fire unitPlayingSrc (Right (UnitIdT ui)))))) <$> unit
             reactimate $ setPlayback <$> playback
-            reactimate $ (const . print <$> activeUnits) `apply` unitPlaying
+            -- reactimate $ (const . print <$> activeUnits) `apply` unitPlaying
             -- (R.filter (\(e, p) -> (uiEventModifiers p == [Control]) . uiEventModifiers)) 
             -- reactimate $ ((\s1 s2 -> debugPrint "canvasResized" (s1, s2)) <$> canvasSize) `apply` canvasResized
             -- reactimate $ debugPrint "bgSurfaceE" . backgroundSurfaceSize <$> bgChanged
+            reactimate $ debugPrint "closest" . fst . fst <$> closest
         widgetShowAll win
         mainGUI
 
