@@ -7,7 +7,7 @@ import           Data.Ord (comparing)
 import           Data.Vector.Generic (Vector, (!))
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Unboxed as U
-import qualified Data.List as List
+import qualified Data.Set as Set
 
 import           Test.Framework (Test)
 import           Test.Framework (testGroup)
@@ -66,31 +66,22 @@ prop_closest es =
     in closest sqrEuclidianDistance v (fromList xs) == proto_closest v xs
 
 proto_withinRadius :: Vector v Double => v Double -> Double -> [(v Double, a)] -> [((v Double, a), Double)]
-proto_withinRadius = go []
+proto_withinRadius v = go [] v . abs
     where
         go rs _ _ [] = rs
         go rs v r ((x, a):xs) =
-            let d = v `euclidianDistance` x
+            let d = v `proto_euclidianDistance` x
                 rs' = if d < r
                       then ((x, a), d):rs
                       else rs
             in go rs' v r xs
-
-prop_withinRadiusNeg :: Elems Int -> Double -> Bool
-prop_withinRadiusNeg es r =
-    let (xs, v) = unElems es
-        r' = negate (abs r)
-        rs1 = withinRadius sqrEuclidianDistance v r' (fromList xs)
-        rs2 = proto_withinRadius v r' xs
-    in null rs1 && null rs2
 
 prop_withinRadius :: Elems Int -> Double -> Bool
 prop_withinRadius es r =
     let (xs, v) = unElems es
         rs1 = withinRadius sqrEuclidianDistance v r (fromList xs)
         rs2 = proto_withinRadius v r xs
-        sort = List.sortBy (comparing (\((_, a), d) -> (d, a)))
-    in sort rs1 == sort rs2
+    in Set.fromList rs1 == Set.fromList rs2
 
 tests :: [Test]
 tests =
@@ -98,7 +89,6 @@ tests =
         [ testProperty "euclidianDistance" prop_euclidianDistance
         , testProperty "sqrEuclidianDistance" prop_sqrEuclidianDistance
         , testProperty "closest" prop_closest
-        , testProperty "withinRadiusNeg" prop_withinRadiusNeg
-        , testProperty "withRadius" prop_withinRadius
+        , testProperty "withinRadius" prop_withinRadius
         ]
     ]

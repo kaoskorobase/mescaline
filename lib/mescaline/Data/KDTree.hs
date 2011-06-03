@@ -163,14 +163,11 @@ closest dist p Empty       = Nothing
 closest dist p (Tree node) = Just $ second sqrt $ closest' dist p node (findBest p node) (1/0)
 
 withinRadius :: Vector v Double => Distance v -> v Double -> Double -> Tree v a -> [((v Double, a), Double)]
-{-# INLINE withinRadius #-}
-withinRadius dist point radius tree =
-    case tree of
-        Empty     -> []
-        Tree node -> loop node []
+withinRadius _ _ _ Empty = []
+withinRadius dist point radius (Tree node) = go node []
     where
-        sqrRadius = signum radius * sqr radius
-        loop node result =
+        sqrRadius = sqr radius
+        go node result =
             case node of
                 Leaf v a ->
                     let d = point `dist` v
@@ -179,8 +176,7 @@ withinRadius dist point radius tree =
                        else result
                 Node dim dimValue left right ->
                     let (nearChild, farChild) = if point ! dim < dimValue then (left, right) else (right, left)
-                        result' = loop nearChild result
-                        result'' = if sqrAxisDistance dim dimValue point < sqrRadius
-                                   then loop farChild result'
-                                   else result'
-                    in result''
+                        result' = go nearChild result
+                    in if sqrAxisDistance dim dimValue point < sqrRadius
+                       then go farChild result'
+                       else result'
