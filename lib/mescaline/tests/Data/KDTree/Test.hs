@@ -27,15 +27,15 @@ instance Arbitrary a => Arbitrary (Elems a) where
         v <- vector' k
         return $ Elems (es, v)
 
-euclidianDistance :: (Floating a, Vector v a) => v a -> v a -> a
-euclidianDistance a b = sqrt (V.sum (V.map (\x -> x * x) (V.zipWith (-) a b)))
+proto_euclidianDistance :: (Floating a, Vector v a) => v a -> v a -> a
+proto_euclidianDistance a b = sqrt (V.sum (V.map (\x -> x * x) (V.zipWith (-) a b)))
 
 prop_euclidianDistance :: Gen Bool
 prop_euclidianDistance = do
     k <- choose (1, 32)
     a <- vector' k :: Gen (U.Vector Double)
     b <- vector' k
-    return $ euclidianDistance a b == euclidianDistance b a
+    return $ proto_euclidianDistance a b == proto_euclidianDistance b a
 
 prop_sqrEuclidianDistance :: Gen Bool
 prop_sqrEuclidianDistance = do
@@ -43,7 +43,7 @@ prop_sqrEuclidianDistance = do
     a <- vector' k :: Gen (U.Vector Double)
     b <- vector' k
     let d1 = sqrEuclidianDistance a b
-        d2 = euclidianDistance a b
+        d2 = proto_euclidianDistance a b
     return $ (sqrt d1 == d2) && (d1 >= 0) && (d2 >= 0)
 
 proto_closest :: Vector v Double => v Double -> [(v Double, a)] -> Maybe ((v Double, a), Double)
@@ -53,10 +53,10 @@ proto_closest = go Nothing
         go r v ((x, a):xs) =
             case r of
                 Nothing ->
-                    let r = ((x, a), v `euclidianDistance` x)
+                    let r = ((x, a), v `proto_euclidianDistance` x)
                     in go (Just r) v xs 
                 Just r@(_, d) ->
-                    let d' = v `euclidianDistance` x
+                    let d' = v `proto_euclidianDistance` x
                         r' = if d' < d then ((x, a), d') else r
                     in go (Just r') v xs
 
