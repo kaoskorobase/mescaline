@@ -117,14 +117,6 @@ elems = toList
 
 type Distance v = v Double -> v Double -> Double
 
-findBest :: Vector v Double => v Double -> Node v a -> (v Double, a)
-{-# INLINE findBest #-}
-findBest _ (Leaf v a) = (v, a)
-findBest p (Node dim dimValue left right) =
-    if p ! dim < dimValue
-        then findBest p left
-        else findBest p right
-
 sqr :: Double -> Double
 {-# INLINE sqr #-}
 sqr x = x * x
@@ -141,26 +133,23 @@ sqrEuclidianDistance a b = loop 0 0 (V.length a `min` V.length b)
             | i >= n = acc
             | otherwise = let x = (a V.! i) - (b V.! i) in loop (acc + x*x) (i+1) n
 
-closest' :: Vector v Double => Distance v -> v Double -> Node v a -> (v Double, a) -> Double -> ((v Double, a), Double)
-{-# INLINE closest' #-}
-closest' dist point node best bestDist =
-    case node of
-        Leaf v a ->
-            let bestDist' = point `dist` v
-            in if bestDist' < bestDist
-               then ((v, a), bestDist')
-               else (best, bestDist)
-        Node dim dimValue left right ->
-            let (nearChild, farChild) = if point ! dim < dimValue then (left, right) else (right, left)
-                (best', bestDist') = closest' dist point nearChild best bestDist
-            in if sqrAxisDistance dim dimValue point < bestDist'
-               then closest' dist point farChild best' bestDist'
-               else (best', bestDist')
-
 closest :: Vector v Double => Distance v -> v Double -> Tree v a -> Maybe ((v Double, a), Double)
-{-# INLINE closest #-}
-closest dist p Empty       = Nothing
-closest dist p (Tree node) = Just $ second sqrt $ closest' dist p node (findBest p node) (1/0)
+closest _ _ Empty              = Nothing
+closest dist point (Tree node) = Just $ second sqrt $ go node (error "closest: current best node uninitialized") (1/0)
+    where
+        go node best bestDist =
+            case node of
+                Leaf v a ->
+                    let bestDist' = point `dist` v
+                    in if bestDist' < bestDist
+                       then ((v, a), bestDist')
+                       else (best, bestDist)
+                Node dim dimValue left right ->
+                    let (nearChild, farChild) = if point ! dim < dimValue then (left, right) else (right, left)
+                        (best', bestDist') = go nearChild best bestDist
+                    in if sqrAxisDistance dim dimValue point < bestDist'
+                       then go farChild best' bestDist'
+                       else (best', bestDist')
 
 withinRadius :: Vector v Double => Distance v -> v Double -> Double -> Tree v a -> [((v Double, a), Double)]
 withinRadius _ _ _ Empty = []
