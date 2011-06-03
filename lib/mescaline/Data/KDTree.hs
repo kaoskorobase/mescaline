@@ -61,14 +61,10 @@ instance Functor (Tree v) where
 instance Foldable (Tree v) where
     foldMap _ Empty    = mempty
     foldMap f (Tree n) = foldMap f n
-    -- foldMap f (Leaf v a) = f a
-    -- foldMap f (Node _ _ l r) = foldMap f l `mappend` foldMap f r
 
 instance Traversable (Tree v) where
     traverse _ Empty    = pure Empty
     traverse f (Tree n) = Tree <$> traverse f n
-    -- traverse f (Leaf v x) = Leaf v <$> f x
-    -- traverse f (Node i p l r) = Node i p <$> traverse f l <*> traverse f r
 
 instance NFData a => NFData (Tree v a) where
     rnf Empty     = ()
