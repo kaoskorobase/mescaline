@@ -323,24 +323,38 @@ setActiveUnits s p = p { activeUnits = s }
 -- ====================================================================
 -- kd-Tree for unit lookup
 
-type UnitTree = KD.Tree U.Vector (DB.UnitId, (DB.SourceFile, DB.Unit))
+data UnitTree = UnitTree {
+    units :: KD.Tree U.Vector (DB.UnitId, (DB.SourceFile, DB.Unit))
+  , closestUnit :: U.Vector Double -> Maybe (DB.UnitId, (DB.SourceFile, DB.Unit))
+  }
 
 mkUnitTree :: ScatterPlot -> PlotData -> UnitTree
-mkUnitTree sp pd = KD.fromList $ map point units
+mkUnitTree sp pd = UnitTree
+                    tree
+                    (fmap (snd . fst) . flip (KD.closest dist) tree)
     where
+        xAxis = scatterPlotX sp
+        yAxis = scatterPlotY sp
         units :: [(DB.SourceFile, (DB.UnitId, (DB.Unit, Map DB.DescriptorId DB.Feature)))]
         units = concat
               $ fmap (\sf -> let f = file (getSoundFile sf pd) in map ((,)f) (Map.assocs (unitMap pd Map.! sf)))
               $ Set.toList (markedSoundFiles pd)
-        -- units :: PlotData -> [((DB.SourceFile, DB.Unit), Map DB.DescriptorId DB.Feature)]
-        -- units pd = concat . Map.elems . fmap Map.elems . unitMap . 
         coord fs = let fs' = fmap DB.featureValue fs
-                       xAxis = scatterPlotX sp
                        xValue = scatterPlotAxisValue xAxis fs'
-                       yAxis = scatterPlotY sp
                        yValue = scatterPlotAxisValue yAxis fs'
                    in V.fromList [ xValue, yValue ]
         point (sf, (ui, (u, fs))) = (coord fs, (ui, (sf, u)))
+        tree :: KD.Tree U.Vector (DB.UnitId, (DB.SourceFile, DB.Unit))
+        tree = KD.fromList (map point units)
+        mkNorm axis = let s = scatterPlotAxisValue axis (featureStats pd)
+                          m = featureMin s
+                          r = featureMax s - m
+                      in (negate m, if r == 0 then 1 else recip r)
+        norm = (first V.fromList >>> second V.fromList)
+                    (unzip [ mkNorm xAxis, mkNorm yAxis ])
+        -- norm = (V.fromList [0, 0], V.fromList [1, 1])
+        normalize = V.zipWith (*) (snd norm) . V.zipWith (+) (fst norm)
+        dist a b = KD.sqrEuclidianDistance (normalize a) (normalize b)
 
 -- | Pick function wrapper type.
 newtype PickFunction a = PickFunction (PickFn a)
@@ -612,9 +626,10 @@ appMain = do
                                     case p of
                                         Just (Pick ScatterPlotPick (L1P_PlotArea x y _)) -> Just (V.fromList [x, y])
                                         _ -> Nothing
-                closest = filterMaybe $ ((\t v -> KD.closest KD.sqrEuclidianDistance v t) <$> unitTree)
-                                            `apply` scatterPlotCoord
-                unit = (snd.fst) <$> closest
+                -- closest = filterMaybe $ ((\t v -> KD.closest KD.sqrEuclidianDistance v t) <$> unitTree)
+                --                             `apply` scatterPlotCoord
+                -- unit = (snd.fst) <$> closest
+                unit = filterMaybe $ (closestUnit <$> unitTree) `apply` scatterPlotCoord
                 activeUnits = accumB Set.empty (either (Set.insert . unUnitIdT) (Set.delete . unUnitIdT) <$> unitPlaying)
             -- Update background plot and feed back new background surface and pick function
             redrawBG <- defer priorityDefault $ ignore soundFiles `union` ignore currentSoundFile `union` ignore scatterPlotAxis `union` ignore canvasResized
@@ -631,7 +646,7 @@ appMain = do
                                         flip menuPopup (Just (toEnum (uiEventButton e), uiEventTime e))
             reactimate $ uncurry popupAxisMenu <$> (R.filter ((==3) . uiEventButton . snd) buttonPressInAxisTitle)
             -- Print the picks when a button is pressed in the plot area
-            reactimate $ debugPrint "event" <$> (applyPickFunction (buttonPress `union` buttonMove))
+            -- reactimate $ debugPrint "event" <$> (applyPickFunction (buttonPress `union` buttonMove))
             -- reactimate $ print <$> scatterPlotAxis
             -- reactimate $ print <$> activeUnits
             reactimate $ (\(ui, u) -> setUnit (Just (u, (fire unitPlayingSrc (Left (UnitIdT ui)), fire unitPlayingSrc (Right (UnitIdT ui)))))) <$> unit
@@ -640,7 +655,7 @@ appMain = do
             -- (R.filter (\(e, p) -> (uiEventModifiers p == [Control]) . uiEventModifiers)) 
             -- reactimate $ ((\s1 s2 -> debugPrint "canvasResized" (s1, s2)) <$> canvasSize) `apply` canvasResized
             -- reactimate $ debugPrint "bgSurfaceE" . backgroundSurfaceSize <$> bgChanged
-            reactimate $ debugPrint "closest" . fst . fst <$> closest
+            -- reactimate $ debugPrint "closest" <$> closest
         widgetShowAll win
         mainGUI
 
