@@ -90,25 +90,7 @@ library
         Mescaline.FeatureSpace.Model
         Mescaline.FeatureSpace.Process
         Mescaline.FeatureSpace.Unit
-        Mescaline.Hugs
         Mescaline.Math
-        Mescaline.Pattern
-        Mescaline.Pattern.AST
-        Mescaline.Pattern.AST.Library
-        Mescaline.Pattern.Base
-        Mescaline.Pattern.Binding
-        Mescaline.Pattern.Compiler
-        Mescaline.Pattern.Environment
-        Mescaline.Pattern.Event
-        Mescaline.Pattern.Interpreter
-        Mescaline.Pattern.Library
-        Mescaline.Pattern.Patch
-        Mescaline.Pattern.Patch.Default
-        Mescaline.Pattern.Patch.Version_0_0_1
-        Mescaline.Pattern.Ppar
-        Mescaline.Pattern.Player
-        Mescaline.Pattern.Process
-        Mescaline.Pattern.Sequencer
         Mescaline.Synth.BufferCache
         Mescaline.Synth.BufferCache.Alloc
         Mescaline.Synth.BufferCache.Server

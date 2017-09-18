@@ -7,10 +7,11 @@ module Mescaline.Hugs (
 ) where
 
 import           Data.List (intercalate)
-import           Mescaline.Util (readMaybe, withTempFile)
 import           System.Exit (ExitCode(..))
 import           System.IO
+import           System.IO.Temp (withSystemTempFile)
 import           System.Process (readProcessWithExitCode)
+import           Text.Read (readMaybe)
 
 -- | Hugs commandline options.
 data Option =
@@ -43,7 +44,7 @@ modToString (Module m (Qual q))    = "import qualified " ++ m ++ " as " ++ q
 modToString (Module m (Hiding xs)) = "import " ++ m ++ " hiding (" ++ intercalate "," xs ++ ")"
 
 run :: FilePath -> [Option] -> [Module] -> String -> IO (Either String String)
-run runhugs opts mods src = withTempFile "Mescaline.Hugs.run.XXXX.hs" $ \f h -> do
+run runhugs opts mods src = withSystemTempFile "Mescaline.Hugs.run.XXXX.hs" $ \f h -> do
     hPutStr h src' >> hClose h
     (e, sout, serr) <- readProcessWithExitCode runhugs (map optionToString opts ++ [f]) ""
     case e of

@@ -5,12 +5,12 @@ module Mescaline.Pattern.Base where
 import qualified Control.Applicative as A
 import qualified Control.Monad as M
 import qualified Data.Array as A
-import qualified Data.HashTable as H
+import qualified Data.Hashable as H
 import qualified Data.IntMap as M
 import qualified Data.List as L
 import qualified Data.Maybe as M
 import qualified Data.Monoid as M
-import qualified Sound.SC3.Lang.Math.Pitch as S
+-- import qualified Sound.SC3.Lang.Math.Pitch as S
 import qualified System.Random as R
 
 data P s a
@@ -79,7 +79,7 @@ evalP = pfoldr' () (:) []
 
 evalR :: String -> P R.StdGen a -> [a]
 evalR s =
-    let g = R.mkStdGen (fromIntegral (H.hashString s))
+    let g = R.mkStdGen (fromIntegral (H.hash s))
     in pfoldr' g (:) []
 
 instance (Show a) => Show (P s a) where
@@ -267,8 +267,8 @@ pclutch p = pclutch' p . pbool
 pcollect :: (a -> b) -> P s a -> P s b
 pcollect = fmap
 
-pdegreeToKey :: (RealFrac a) => P s a -> P s [a] -> P s a -> P s a
-pdegreeToKey = pzipWith3 S.degree_to_key
+-- pdegreeToKey :: (RealFrac a) => P s a -> P s [a] -> P s a -> P s a
+-- pdegreeToKey = pzipWith3 S.degree_to_key
 
 pfin :: P s Int -> P s a -> P s a
 pfin = ptake

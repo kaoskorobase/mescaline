@@ -1,6 +1,7 @@
 dist/
 /resources/hugs/bin/runhugs
 /supercollider
+.stack-work/
 *.hi
 *.mode1v3
 *.o
