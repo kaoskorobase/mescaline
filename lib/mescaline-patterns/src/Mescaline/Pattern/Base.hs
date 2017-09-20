@@ -86,8 +86,8 @@ pfoldr' g f i p =
       Done _ -> i
       Result g' a p' -> f a (pfoldr' g' f i p')
 
-evalP :: P () a -> [a]
-evalP = pfoldr' () (:) []
+evalP :: s -> P s a -> [a]
+evalP s = pfoldr' s (:) []
 
 evalR :: String -> P R.StdGen a -> [a]
 evalR s =
