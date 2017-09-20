@@ -1,9 +1,12 @@
 {-# LANGUAGE ExistentialQuantification #-}
-
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Mescaline.Pattern.Base where
 
 import qualified Control.Applicative as A
 import qualified Control.Monad as M
+import           Control.Monad.Reader.Class (MonadReader(..))
+import           Control.Monad.State.Class (MonadState(..))
 import qualified Data.Array as A
 import qualified Data.Hashable as H
 import qualified Data.IntMap as M
@@ -22,6 +25,15 @@ data P s a
     | forall x . Continue (P s x) (x -> P s x -> P s a)
     | forall x . Apply (P s (x -> a)) (P s x)
     | forall x y . Scan (x -> y -> (x, a)) (Maybe (x -> a)) x (P s y)
+
+instance MonadReader s (P s) where
+    ask       = prp $ \s -> (pcons s ask, s)
+    -- FIXME: Is this correct?!
+    local f p = prp $ \s -> (p, f s)
+
+instance MonadState s (P s) where
+    get   = ask
+    put s = prp $ const (return (), s)
 
 data Result s a 
     = Result s a (P s a)
