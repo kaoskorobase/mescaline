@@ -17,6 +17,7 @@ Extra-Source-Files:
     include/Accessor.h
 
 library
+    hs-source-dirs: src
     ghc-options:    -Wall
     include-dirs:   include
     build-depends:
