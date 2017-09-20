@@ -13,13 +13,9 @@ Bug-Reports:        https://github.com/kaoskorobase/mescaline/issues
 Cabal-Version:      >= 1.2
 Build-Type:         Simple
 
-Extra-Source-Files:
-    include/Accessor.h
-
 library
     hs-source-dirs: src
     ghc-options:    -Wall
-    include-dirs:   include
     build-depends:
         base
       -- , aeson >= 0.2
@@ -32,8 +28,6 @@ library
       -- -- , CCA >= 0.1.3 && < 0.2
       , containers
       -- , ConfigFile >= 1.0
-      , data-accessor
-      , data-accessor-mtl
       -- , data-ivar >= 0.30
       -- , deepseq >= 1.1
       -- , directory
@@ -50,10 +44,11 @@ library
       -- , hsc3-lang >= 0.9
       -- , hsc3-process >= 0.6
       -- , hsc3-server >= 0.3
+      , lens
       -- , mescaline-database >= 0.0 && < 0.1
       -- , monad-control
       -- -- , MonadCatchIO-mtl >= 0.3
-      -- , MonadRandom >= 0.1
+      , MonadRandom
       , mtl >= 2
       -- , old-time
       -- , parallel >= 3
@@ -67,7 +62,7 @@ library
     exposed-modules:
         Mescaline.Data.PriorityQueue
         Mescaline.Hugs
-        -- Mescaline.Pattern
+        Mescaline.Pattern
         -- Mescaline.Pattern.AST
         -- Mescaline.Pattern.AST.Library
         Mescaline.Pattern.Base

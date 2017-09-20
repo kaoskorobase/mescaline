@@ -2,7 +2,7 @@ module Mescaline.Pattern.Ppar (
     ppar
 ) where
 
-import           Data.Accessor
+import           Control.Lens
 import           Data.List (foldl')
 import qualified Mescaline.Data.PriorityQueue as PQ
 import           Mescaline.Pattern.Base
@@ -23,5 +23,5 @@ ppar ps = punfoldr f x0
                         Result s' a p' ->
                             let pq'' = PQ.insert (t' + a ^. delta) p' pq'
                                 dt   = maybe 0 (\t_next -> t_next - t') (PQ.minKey pq'')
-                                a'   = delta ^= dt $ a
+                                a'   = a & delta .~ dt
                             in (s', Just (a', (t', pq'')))
