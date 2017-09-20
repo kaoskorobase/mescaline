@@ -61,7 +61,6 @@ library
       -- , vector >= 0.5
     exposed-modules:
         Mescaline.Data.PriorityQueue
-        Mescaline.Hugs
         Mescaline.Pattern
         -- Mescaline.Pattern.AST
         -- Mescaline.Pattern.AST.Library
@@ -70,7 +69,6 @@ library
         -- Mescaline.Pattern.Compiler
         -- Mescaline.Pattern.Environment
         -- Mescaline.Pattern.Event
-        -- Mescaline.Pattern.Interpreter
         -- Mescaline.Pattern.Library
         -- Mescaline.Pattern.Patch
         -- Mescaline.Pattern.Patch.Default
