@@ -1,4 +1,10 @@
 resolver: lts-9.5
 packages:
 - .
+- location: packages/hosc
+  extra-dep: true
+- location: packages/hsc3
+  extra-dep: true
+- location: packages/hsc3-lang
+  extra-dep: true
 extra-deps: []

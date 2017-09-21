@@ -38,10 +38,7 @@ library
       , fingertree
       -- -- , hmeap >= 0.8
       , hashable
-      -- , hosc >= 0.8
-      -- , hslogger >= 1.1
-      -- , hsc3 >= 0.8
-      -- , hsc3-lang >= 0.9
+      , hsc3-lang
       -- , hsc3-process >= 0.6
       -- , hsc3-server >= 0.3
       , lens
@@ -64,7 +61,7 @@ library
         Mescaline.Pattern
         -- Mescaline.Pattern.AST
         -- Mescaline.Pattern.AST.Library
-        Mescaline.Pattern.Base
+        -- Mescaline.Pattern.Base
         -- Mescaline.Pattern.Binding
         -- Mescaline.Pattern.Compiler
         -- Mescaline.Pattern.Environment
