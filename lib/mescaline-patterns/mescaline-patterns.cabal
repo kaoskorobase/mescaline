@@ -10,7 +10,7 @@ Copyright:          Copyright (c) 2009 Stefan Kersten
 Maintainer:         kaoskorobase@gmail.com
 Homepage:           http://mescaline.puesnada.es
 Bug-Reports:        https://github.com/kaoskorobase/mescaline/issues
-Cabal-Version:      >= 1.2
+Cabal-Version:      >= 1.8
 Build-Type:         Simple
 
 library
@@ -38,6 +38,7 @@ library
       , fingertree
       -- -- , hmeap >= 0.8
       , hashable
+      , hint
       , hsc3-lang
       -- , hsc3-process >= 0.6
       -- , hsc3-server >= 0.3
@@ -75,3 +76,16 @@ library
         -- Mescaline.Pattern.Process
         -- Mescaline.Pattern.Sequencer
         Mescaline.Time
+
+executable mescaline-pattern-machine
+    hs-source-dirs: app
+    main-is: Main.hs
+    ghc-options: -Wall
+    build-depends:
+        base
+      , fsnotify
+      , hint
+      , hosc >= 0.16
+      , filepath
+      , mescaline-patterns
+      , reactive-banana
