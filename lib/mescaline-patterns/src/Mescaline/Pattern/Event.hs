@@ -1,133 +1,110 @@
-{-# LANGUAGE CPP, DeriveDataTypeable #-}
-
-#include "Accessor.h"
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Mescaline.Pattern.Event (
-    Event
-  , Cursor
-  , rest
-  , synthEvent
-  , delta
-  , cursor
-  , synth
+    Event(..)
+  , fields
+  , lookup
   , isRest
-  , withSynth
-  , Synth
-  , defaultSynth
-  , unit
-  , offset
-  , duration
-  , rate
-  , pan
-  , attackTime
-  , releaseTime
-  , sustainLevel
-  , gateLevel
-  , sendLevel1
-  , sendLevel2
-  , fxParam1
-  , fxParam2
-  , latency
+  , Field
+  , f_double
+  , f_vector
+  , f_string
+  , f_ctrl
+  , sound
 ) where
 
-import           Data.Accessor
+import           Control.Lens
+import qualified Data.Map as Map
+import           Data.Maybe (isJust)
+import           Data.String (IsString(..))
+import GHC.Exts (IsList(..))
 import           Mescaline.Time (Duration)
 import qualified Mescaline.Time as Time
-import           Mescaline.FeatureSpace.Model ()
-import qualified Mescaline.FeatureSpace.Unit as Unit
+import           Prelude hiding (lookup)
+import           Sound.SC3.Lang.Pattern.P
 
-data Synth = Synth {
-    _unit         :: Unit.Unit
-  , _offset       :: Duration
-  , _duration     :: Duration
-  , _rate         :: Double
-  , _pan          :: Double
-  , _attackTime   :: Double
-  , _releaseTime  :: Double
-  , _sustainLevel :: Double
-  , _gateLevel    :: Double
-  , _sendLevel1   :: Double
-  , _sendLevel2   :: Double
-  , _fxParam1     :: Double
-  , _fxParam2     :: Double
-  , _latency      :: Double
-  } deriving (Eq, Show)
+data Field =
+    F_Double { _f_double :: Double }
+  | F_String { _f_string :: String }
+  | F_Vector { _f_vector :: [Field] }
+  | F_Controller { _f_ctrl :: Int }
+  deriving (Eq, Show)
 
-defaultSynth :: Unit.Unit -> Synth
-defaultSynth u =
-    Synth {
-        _unit         = u
-      , _offset       = 0
-      , _duration     = Unit.duration u
-      , _rate         = 1
-      , _pan          = 0
-      , _attackTime   = 0
-      , _releaseTime  = 0
-      , _sustainLevel = 1
-      , _gateLevel    = 0
-      , _sendLevel1   = 0
-      , _sendLevel2   = 0
-      , _fxParam1     = 0
-      , _fxParam2     = 0
-      , _latency      = 0.2
-      }
+makeLenses ''Field
 
-ACCESSOR(unit,          _unit,          Synth, Unit.Unit)
-ACCESSOR(offset,        _offset,        Synth, Duration)
-ACCESSOR(duration,      _duration,      Synth, Duration)
-ACCESSOR(rate,          _rate,          Synth, Double)
-ACCESSOR(pan,           _pan,           Synth, Double)
-ACCESSOR(attackTime,    _attackTime,    Synth, Double)
-ACCESSOR(releaseTime,   _releaseTime,   Synth, Double)
-ACCESSOR(sustainLevel,  _sustainLevel,  Synth, Double)
-ACCESSOR(gateLevel,     _gateLevel,     Synth, Double)
-ACCESSOR(sendLevel1,    _sendLevel1,    Synth, Double)
-ACCESSOR(sendLevel2,    _sendLevel2,    Synth, Double)
-ACCESSOR(fxParam1,      _fxParam1,      Synth, Double)
-ACCESSOR(fxParam2,      _fxParam2,      Synth, Double)
-ACCESSOR(latency,       _latency,       Synth, Double)
+class ToField a where
+  toField :: a -> Field
 
--- data Cursor =
---     NoCursor
---   | Cursor {
---         cursorId       :: Int
---       , cursorPosition :: (Int,Int)
---       , cursorValue    :: Double
---       }
---     deriving (Eq, Read, Show)
+instance ToField Bool where toField = F_Double . fromIntegral . fromEnum
+instance ToField Int where toField = F_Double . fromIntegral
+instance ToField Double where toField = F_Double
+instance ToField [Char] where toField = F_String
+instance ToField Field where toField = id
 
-type Cursor = Int
+instance IsString Field where
+  fromString = F_String
+
+instance IsList Field where
+  type Item Field = Field
+  fromList = F_Vector
+  toList f = f ^. f_vector
+
+check1 :: Show a => a -> Maybe b -> b
+check1 a Nothing = error $ "Type mismatch: " ++ show a
+check1 _ (Just b) = b
+
+f_unop :: (Double -> Double) -> Field -> Field
+f_unop f a = F_Double . check1 a $ f <$> (a ^? f_double)
+
+check2 :: Show a => a -> a -> Maybe b -> b
+check2 a1 a2 Nothing = error $ "Type mismatch: " ++ show a1 ++ ", " ++ show a2
+check2 _ _ (Just b) = b
+
+f_binop :: (Double -> Double -> Double) -> Field -> Field -> Field
+f_binop f a b = F_Double . check2 a b $ f <$> (a ^? f_double) <*> (b ^? f_double)
+
+instance Num Field where
+  (*) = f_binop (*)
+  (+) = f_binop (+)
+  (-) = f_binop (-)
+  negate = f_unop negate
+  abs = f_unop abs
+  signum = f_unop signum
+  fromInteger = F_Double . fromInteger
 
 data Event =
-    Event {
-        _delta      :: Duration
-      , _cursor     :: Cursor
-      , _synth      :: Maybe Synth
-      }
-    deriving (Eq, Show)
+  Event {
+    _fields :: Map.Map String Field
+  } deriving (Eq, Show)
 
-ACCESSOR(delta,  _delta,  Event, Double)
-ACCESSOR(cursor, _cursor, Event, Cursor)
-ACCESSOR(synth,  _synth,  Event, Maybe Synth)
+makeLenses ''Event
 
-rest :: Cursor -> Duration -> Event
-rest c d = Event d c Nothing
-
-synthEvent :: Cursor -> Unit.Unit -> Event
-synthEvent c u = Event d c (Just (defaultSynth u))
-    where d = Unit.duration u
-
-isRest :: Event -> Bool
-isRest (Event _ _ Nothing) = True
-isRest _                   = False
-
-withSynth :: a -> (Synth -> a) -> Event -> a
-withSynth a0 f e = case _synth e of
-                    Nothing -> a0
-                    Just s  -> f s
+instance IsList Event where
+  type Item Event = (String, Field)
+  fromList = Event . Map.fromList
+  toList = Map.toList . view fields
 
 instance Time.HasDelta (Event) where
-    delta = delta
+  delta = lens (\e -> maybe 1 id $ e ^? (fields . at "delta" . non 1 . f_double))
+               (\e d -> e & fields . at "delta" .~ Just (F_Double d))
 
--- instance Time.HasDuration (Event) where
---     duration = duration
+lookup :: String -> Event -> Maybe Field
+lookup key = view (fields . at key)
+
+isRest :: Event -> Bool
+isRest e = maybe False (/= 0) $ do
+  f <- lookup "rest" e
+  f ^? f_double
+
+sound :: String -> Event
+sound s = Event $ Map.fromList [("sound", toField s)]
+
+instance IsString Event where
+  fromString = sound
+
+instance IsString (P Event) where
+  fromString = return . sound
+

@@ -66,7 +66,7 @@ library
         -- Mescaline.Pattern.Binding
         -- Mescaline.Pattern.Compiler
         -- Mescaline.Pattern.Environment
-        -- Mescaline.Pattern.Event
+        Mescaline.Pattern.Event
         -- Mescaline.Pattern.Library
         -- Mescaline.Pattern.Patch
         -- Mescaline.Pattern.Patch.Default
