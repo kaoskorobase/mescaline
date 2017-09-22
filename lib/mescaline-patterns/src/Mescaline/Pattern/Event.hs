@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Mescaline.Pattern.Event (
@@ -20,7 +20,7 @@ import           Control.Lens
 import qualified Data.Map as Map
 import           Data.Maybe (isJust)
 import           Data.String (IsString(..))
-import GHC.Exts (IsList(..))
+import           GHC.Exts (IsList(..))
 import           Mescaline.Time (Duration)
 import qualified Mescaline.Time as Time
 import           Prelude hiding (lookup)
@@ -104,7 +104,4 @@ sound s = Event $ Map.fromList [("sound", toField s)]
 
 instance IsString Event where
   fromString = sound
-
-instance IsString (P Event) where
-  fromString = return . sound
 
