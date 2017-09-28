@@ -16,8 +16,8 @@ import           Control.Concurrent.STM.TMQueue
 import           Control.Lens ((^.))
 import           Control.Monad (unless)
 import           Data.Default (Default(..))
+import qualified Data.OrdPSQ as PQ
 import           Mescaline.Time (HasDelta(..))
-import qualified Mescaline.Data.PriorityQueue as PQ
 import           Mescaline.Pattern (Event, Pattern)
 import qualified Mescaline.Pattern as P
 import qualified Reactive.Banana as R
@@ -68,7 +68,7 @@ setLogical b c = c { logical = Time (beatsToSeconds c b) b }
 setElapsed :: Seconds -> Clock -> Clock
 setElapsed s c = c { elapsed = Time s (secondsToBeats c s) }
 
-type Scheduler e = PQ.PriorityQueue Beats (Int, [e])
+type Scheduler e = PQ.OrdPSQ Int Beats [e]
 
 data Player e = Player {
     clock    :: !Clock
@@ -103,13 +103,13 @@ data Process = Process {
 
 next :: HasDelta e => Clock -> Scheduler e -> (Scheduler e, Maybe e)
 next c pq =
-  case PQ.minViewWithKey pq of
+  case PQ.minView pq of
     Nothing -> (pq, Nothing)
-    Just ((nextBeat, (i, p)), pq') ->
+    Just (i, nextBeat, p, pq') ->
       case p of
         [] -> (pq', Nothing)
         (e:p') ->
-            let pq'' = PQ.insert (nextBeat + Beats (e ^. delta)) (i, p') pq'
+            let pq'' = PQ.insert i (nextBeat + Beats (e ^. delta)) p' pq'
             in (pq'', Just e)
 
 -- registerDelayUntil :: Clock -> Seconds -> IO (TVar Bool)
@@ -131,7 +131,7 @@ handleInput :: Input -> Player P.Event -> Player P.Event
 handleInput (Slot i q (Just p)) state =
   -- TODO: Quantization
   let t = beats . elapsed . clock $ state
-  in state { patterns = PQ.insert t (i, P.unPE p) (patterns state) }
+  in state { patterns = PQ.insert i t (P.unPE p) (patterns state) }
 handleInput _ state = state
 
 loop :: TMQueue Input -> Player Event -> IO ()
@@ -139,9 +139,9 @@ loop commands !state = do
   let clk = clock state
       pq = patterns state
   -- Get next input event
-  evt <- case PQ.minKey pq of
+  evt <- case PQ.findMin pq of
           Nothing -> Right <$> atomically (readTMQueue commands)
-          Just b -> do
+          Just (_, b, _) -> do
             dt <- (beatsToSeconds clk b -) <$> currentTime
             readTMQueueWithTimeout b (floor (dt * 1e6)) commands
   -- Update clock

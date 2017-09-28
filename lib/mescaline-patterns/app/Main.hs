@@ -28,19 +28,23 @@ compilePattern code =
     setImportsQ [("Prelude", Nothing), ("Mescaline.Pattern", Nothing)]
     interpret code (undefined :: P.Pattern P.Event)
 
-compileFile player event = do
-  let path = case event of
-                FSN.Added p _ -> Just p
-                FSN.Modified p _ -> Just p
-                FSN.Removed _ _ -> Nothing
-  case path of
+fsEventExistingPath event =
+  case event of
+    FSN.Added p _ -> Just p
+    FSN.Modified p _ -> Just p
+    FSN.Removed _ _ -> Nothing
+
+compileFile player path = do
+  case readMaybe (dropExtension . takeFileName $ path) of
     Nothing -> return ()
-    Just path -> do
+    Just slot -> do
       code <- readFile path
       r <- compilePattern code
       case r of
         Left err -> putStrLn $ errorString err
-        Right p -> Player.assign player 0 def (Just p)
+        Right p -> do
+          putStrLn $ "New pattern for slot " ++ show slot
+          Player.assign player slot def (Just p)
 
 sourceFiles = [show x ++ ".hs" | x <- [1..4]]
 isSourceFile (FSN.Added path _) = takeFileName path `elem` sourceFiles
@@ -80,7 +84,7 @@ main = do
         oscMsg <- fromAddHandler oscMsgSource
         playerEvents <- Player.events player
         reactimate $ print <$> oscMsg
-        reactimate $ compileFile player <$> fsEvents
+        reactimate $ compileFile player <$> filterJust (fsEventExistingPath <$> fsEvents)
         reactimate $ uncurry (dirty dirt) <$> playerEvents
       actuate network
 
