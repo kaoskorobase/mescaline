@@ -67,5 +67,6 @@ executable mescaline-pattern-machine
       , hint
       , hosc >= 0.16
       , filepath
+      , lens
       , mescaline-patterns
       , reactive-banana

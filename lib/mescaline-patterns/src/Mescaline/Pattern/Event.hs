@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -9,6 +10,8 @@ module Mescaline.Pattern.Event (
   , lookup
   , isRest
   , Field
+  , ToField(..)
+  , FromField(..)
   , f_double
   , f_vector
   , f_string
@@ -44,6 +47,13 @@ instance ToField Double where toField = F_Double
 instance ToField [Char] where toField = F_String
 instance ToField Field where toField = id
 
+class FromField a where
+  fromField :: Field -> Maybe a
+
+instance FromField String where
+  fromField (F_String s) = Just s
+  fromField _ = Nothing
+
 instance IsString Field where
   fromString = F_String
 
@@ -75,10 +85,14 @@ instance Num Field where
   signum = f_unop signum
   fromInteger = F_Double . fromInteger
 
-data Event =
+newtype Event =
   Event {
     _fields :: Map.Map String Field
   } deriving (Eq, Show)
+
+-- TODO: Instances for Ixed and At
+type instance Index Event = String
+type instance IxValue Event = Field
 
 makeLenses ''Event
 

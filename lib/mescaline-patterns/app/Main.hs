@@ -1,14 +1,17 @@
+import           Control.Concurrent (threadDelay)
+import           Control.Lens
+import           Control.Monad (forever)
 import           Data.Default (def)
 import           Data.List
-import           Language.Haskell.Interpreter
+import           Language.Haskell.Interpreter as Interp
 import qualified Mescaline.Pattern as P
+import qualified Mescaline.Pattern.Event as E
 import qualified Mescaline.Pattern.Player as Player
 import qualified System.FSNotify as FSN
-import           Control.Concurrent (threadDelay)
-import           Control.Monad (forever)
 import           Reactive.Banana hiding (interpret)
 import           Reactive.Banana.Frameworks
 import           Sound.OSC
+import qualified Sound.OSC.Transport.FD as FD
 import           System.FilePath
 
 errorString :: InterpreterError -> String
@@ -21,7 +24,7 @@ errorString e = show e
 compilePattern :: String -> IO (Either InterpreterError (P.Pattern P.Event))
 compilePattern code =
   runInterpreter $ do
-    set [ languageExtensions := [ OverloadedLists, OverloadedStrings ] ]
+    Interp.set [ languageExtensions := [ OverloadedLists, OverloadedStrings ] ]
     setImportsQ [("Prelude", Nothing), ("Mescaline.Pattern", Nothing)]
     interpret code (undefined :: P.Pattern P.Event)
 
@@ -57,22 +60,32 @@ serverLoop snk = do
         "/quit" -> return ()
         _ -> serverLoop snk
 
+dirty dirt time evt =
+  let msg = do {
+    snd <- E.fromField =<< evt ^. E.fields . at "sound" ;
+    return $ Message "/play2" [string "sound", string snd] }
+  in maybe (return ()) (FD.sendMessage dirt) msg
+ 
 main :: IO ()
 main = do
   (oscMsgSource, oscMsgSink) <- newAddHandler
 
   player <- Player.start
 
-  FSN.withManager $ \mgr -> do
-    network <- compile $ do
-      fsEvents <- watchDir mgr "patterns" isSourceFile
-      oscMsg <- fromAddHandler oscMsgSource
-      playerEvents <- Player.events player
-      reactimate $ print <$> oscMsg
-      reactimate $ compileFile player <$> fsEvents
-      reactimate $ print <$> playerEvents
-    actuate network
+  FD.withTransport (openUDP "127.0.0.1" 57120) $ \dirt -> do
+  -- localhost 57120 /play2 ss sound sd:6
+    FSN.withManager $ \mgr -> do
+      network <- compile $ do
+        fsEvents <- watchDir mgr "patterns" isSourceFile
+        oscMsg <- fromAddHandler oscMsgSource
+        playerEvents <- Player.events player
+        reactimate $ print <$> oscMsg
+        reactimate $ compileFile player <$> fsEvents
+        reactimate $ uncurry (dirty dirt) <$> playerEvents
+      actuate network
 
-    withTransport (udpServer "127.0.0.1" 3000) $
-      serverLoop oscMsgSink
+      putStrLn "Starting the fabulous Mescaline pattern machine on 127.0.0.1:3000"
+
+      withTransport (udpServer "127.0.0.1" 3000) $
+        serverLoop oscMsgSink
 

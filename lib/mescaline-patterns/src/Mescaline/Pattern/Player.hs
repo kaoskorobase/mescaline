@@ -112,14 +112,20 @@ next c pq =
             let pq'' = PQ.insert (nextBeat + Beats (e ^. delta)) (i, p') pq'
             in (pq'', Just e)
 
-registerDelayUntil :: Clock -> Seconds -> IO (TVar Bool)
-registerDelayUntil c s = do
-  let dt = s - seconds (elapsed c)
-  print c
-  print dt
-  if dt > 0
-    then registerDelay (floor (dt * 1e6))
-    else newTVarIO True
+-- registerDelayUntil :: Clock -> Seconds -> IO (TVar Bool)
+-- registerDelayUntil c s = do
+--   let dt = s - seconds (elapsed c)
+--   print c
+--   print dt
+--   if dt > 0
+--     then registerDelay (floor (dt * 1e6))
+--     else newTVarIO True
+
+readTMQueueWithTimeout :: b -> Int -> TMQueue a -> IO (Either b (Maybe a))
+readTMQueueWithTimeout b usec queue = do
+  delay <- if usec > 0 then registerDelay usec else newTVarIO True
+  let wait = readTVar delay >>= \done -> if done then return (Left b) else retry
+  atomically $ Right <$> readTMQueue queue <|> wait
 
 handleInput :: Input -> Player P.Event -> Player P.Event
 handleInput (Slot i q (Just p)) state =
@@ -130,28 +136,30 @@ handleInput _ state = state
 
 loop :: TMQueue Input -> Player Event -> IO ()
 loop commands !state = do
-  -- Update clock
-  clock' <- setElapsed <$> currentTime <*> pure (clock state)
-  let readInput = Left <$> readTMQueue commands
+  let clk = clock state
+      pq = patterns state
   -- Get next input event
-  evt <- case PQ.minKey (patterns state) of
-          Nothing -> atomically readInput
+  evt <- case PQ.minKey pq of
+          Nothing -> Right <$> atomically (readTMQueue commands)
           Just b -> do
-            delay <- registerDelayUntil clock' (beatsToSeconds clock' b)
-            let wait = readTVar delay >>= \done -> if done then return b else retry
-            atomically $ readInput <|> Right <$> wait
-  let (state', action)
-        = case evt of
-            Left Nothing -> (Nothing, return ())
-            Left (Just i) -> (Just (handleInput i state), return ())
-            Right nextBeat ->
-              let (pq', e) = next clock' (patterns state)
-                  clock'' = setLogical nextBeat clock'
-              in ( Just (state { clock = clock''
-                               , patterns = pq' })
-                 , maybe (return ()) (produceEvent state (logical clock'')) e )
-  action
-  maybe (return ()) (loop commands) state'
+            dt <- (beatsToSeconds clk b -) <$> currentTime
+            readTMQueueWithTimeout b (floor (dt * 1e6)) commands
+  -- Update clock
+  clk' <- setElapsed <$> currentTime <*> pure clk
+  -- Dispatch event
+  case evt of
+    Left b' -> do
+      let clk'' = setLogical b' clk'
+          (pq', e) = next clk'' pq
+          state' = state { clock = clk''
+                         , patterns = pq' }
+      maybe (return ()) (produceEvent state (logical clk'')) e
+      loop commands state'
+    Right (Just i) -> do
+      let state' = state { clock = clk' }
+      loop commands (handleInput i state')
+    Right Nothing ->
+      return ()
 
 start :: IO Process
 start = do

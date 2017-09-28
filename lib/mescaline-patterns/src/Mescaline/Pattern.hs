@@ -13,7 +13,6 @@ module Mescaline.Pattern (
   , module Sound.SC3.Lang.Pattern.P
     -- *Events
   , module Mescaline.Pattern.Event
-, loop
 ) where
 
 import           GHC.Exts (IsList(..))
@@ -26,19 +25,16 @@ import qualified Debug.Trace as Debug
 ptrace :: Show a => String -> P a -> P a
 ptrace tag = fmap (\a -> Debug.trace (tag ++ show a) a)
 
-newtype Pattern a = Pattern (P a) deriving (Eq, Functor, Monoid, Show)
+type Pattern a = P a
 
 instance IsString (Pattern Event) where
-  fromString = Pattern . return . sound
+  fromString = return . sound
 
 instance IsList (Pattern Event) where
   type Item (Pattern Event) = Event
-  fromList = Pattern . toP
-  toList (Pattern p) = unP p
+  fromList = toP
+  toList = unP
 
 unPE :: Pattern Event -> [Event]
 unPE = toList
-
-loop :: Pattern Event -> Pattern Event
-loop (Pattern p) = Pattern (pcycle p)
 
