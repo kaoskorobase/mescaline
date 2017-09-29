@@ -84,7 +84,7 @@ data Quant = Quant {
 instance Default Quant where
   def = Quant 0 0
 
-data Input =
+data Command =
     Slot Int Quant (Maybe (Pattern Event))
   | StartTransport
   | StopTransport
@@ -97,7 +97,7 @@ data Output =
 
 data Process = Process {
     handle :: Async ()
-  , channel :: TMQueue Input
+  , channel :: TMQueue Command
   , eventSource :: R.AddHandler (Time, Event)
   }
 
@@ -127,14 +127,14 @@ readTMQueueWithTimeout b usec queue = do
   let wait = readTVar delay >>= \done -> if done then return (Left b) else retry
   atomically $ Right <$> readTMQueue queue <|> wait
 
-handleInput :: Input -> Player P.Event -> Player P.Event
-handleInput (Slot i q (Just p)) state =
+handleCommand :: Command -> Player P.Event -> Player P.Event
+handleCommand (Slot i q (Just p)) state =
   -- TODO: Quantization
   let t = beats . elapsed . clock $ state
   in state { patterns = PQ.insert i t (P.unPE p) (patterns state) }
-handleInput _ state = state
+handleCommand _ state = state
 
-loop :: TMQueue Input -> Player Event -> IO ()
+loop :: TMQueue Command -> Player Event -> IO ()
 loop commands !state = do
   let clk = clock state
       pq = patterns state
@@ -157,7 +157,7 @@ loop commands !state = do
       loop commands state'
     Right (Just i) -> do
       let state' = state { clock = clk' }
-      loop commands (handleInput i state')
+      loop commands (handleCommand i state')
     Right Nothing ->
       return ()
 
@@ -173,7 +173,7 @@ stop p = atomically $ do
   closeTMQueue (channel p)
   waitSTM (handle p)
 
-send :: Process -> Input -> IO ()
+send :: Process -> Command -> IO ()
 send p = atomically . writeTMQueue (channel p)
 
 assign :: Process -> Int -> Quant -> Maybe (Pattern Event) -> IO ()
