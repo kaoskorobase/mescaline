@@ -44,10 +44,6 @@ data Command =
   | SetTempo Double
   deriving (Eq, Show)
 
-data Output =
-    Realize Event
-  deriving (Eq, Show)
-
 data Process = Process {
     handle :: Async ()
   , channel :: TMQueue Command
