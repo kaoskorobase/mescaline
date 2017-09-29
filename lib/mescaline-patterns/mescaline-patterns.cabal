@@ -38,7 +38,6 @@ library
       , stm-chans
       , temporary
     exposed-modules:
-        Mescaline.Data.PriorityQueue
         Mescaline.Pattern
         -- Mescaline.Pattern.AST
         -- Mescaline.Pattern.AST.Library
