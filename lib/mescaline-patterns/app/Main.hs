@@ -1,11 +1,12 @@
 import           Control.Concurrent (threadDelay)
+import           Control.Exception (displayException)
 import           Control.Lens
 import           Control.Monad (forever)
 import           Data.Default (def)
 import           Data.List
-import           Language.Haskell.Interpreter as Interp
 import qualified Mescaline.Pattern as P
 import qualified Mescaline.Pattern.Event as E
+import qualified Mescaline.Pattern.Interpreter as Interp
 import qualified Mescaline.Pattern.Player as Player
 import qualified System.FSNotify as FSN
 import           Reactive.Banana hiding (interpret)
@@ -13,20 +14,6 @@ import           Reactive.Banana.Frameworks
 import           Sound.OSC
 import qualified Sound.OSC.Transport.FD as FD
 import           System.FilePath
-
-errorString :: InterpreterError -> String
-errorString (WontCompile es) = intercalate "\n" (header : map unbox es)
-  where
-    header = "ERROR: Won't compile:"
-    unbox (GhcError e) = e
-errorString e = show e
-
-compilePattern :: String -> IO (Either InterpreterError (P.Pattern P.Event))
-compilePattern code =
-  runInterpreter $ do
-    Interp.set [ languageExtensions := [ OverloadedLists, OverloadedStrings ] ]
-    setImportsQ [("Prelude", Nothing), ("Mescaline.Pattern", Nothing)]
-    interpret code (undefined :: P.Pattern P.Event)
 
 fsEventExistingPath event =
   case event of
@@ -39,9 +26,9 @@ compileFile player path = do
     Nothing -> return ()
     Just slot -> do
       code <- readFile path
-      r <- compilePattern code
+      r <- Interp.compilePattern code
       case r of
-        Left err -> putStrLn $ errorString err
+        Left err -> putStrLn $ displayException err
         Right p -> do
           putStrLn $ "New pattern for slot " ++ show slot
           Player.assign player slot def (Just p)

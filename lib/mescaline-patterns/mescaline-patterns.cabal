@@ -46,6 +46,7 @@ library
         -- Mescaline.Pattern.Compiler
         -- Mescaline.Pattern.Environment
         Mescaline.Pattern.Event
+        Mescaline.Pattern.Interpreter
         -- Mescaline.Pattern.Library
         -- Mescaline.Pattern.Patch
         -- Mescaline.Pattern.Patch.Default
@@ -64,7 +65,6 @@ executable mescaline-pattern-machine
         base
       , data-default
       , fsnotify
-      , hint
       , hosc >= 0.16
       , filepath
       , lens
