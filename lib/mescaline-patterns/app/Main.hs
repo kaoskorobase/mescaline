@@ -31,7 +31,7 @@ compileFile player path = do
         Left err -> putStrLn $ displayException err
         Right p -> do
           putStrLn $ "New pattern for slot " ++ show slot
-          Player.assign player slot def (Just p)
+          Player.setSlot player slot def (Just p)
 
 sourceFiles = [show x ++ ".hs" | x <- [1..4]]
 isSourceFile (FSN.Added path _) = takeFileName path `elem` sourceFiles

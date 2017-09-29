@@ -1,6 +1,8 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Mescaline.Time (
-    Time
-  , Duration
+    Duration
+  , Seconds(..)
+  , Beats(..)
   , HasDelta(..)
   , HasDuration(..)
   , ToRest(..)
@@ -8,11 +10,11 @@ module Mescaline.Time (
 
 import Control.Lens
 
-type Time     = Double -- ^ Absolute or relative time stamp
+-- type Time     = Double -- ^ Absolute or relative time stamp
 type Duration = Double -- ^ Difference of times
 
-class HasTime a where
-    time :: Lens' a Time
+newtype Seconds = Seconds Double deriving (Eq, Num, Ord, Show)
+newtype Beats = Beats Double deriving (Eq, Num, Ord, Show)
 
 class HasDelta a where
     delta :: Lens' a Duration

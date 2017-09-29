@@ -7,7 +7,7 @@ import           Control.Lens
 import qualified Data.IntPSQ as PQ
 import           Data.List (foldl', unfoldr)
 import           Sound.SC3.Lang.Pattern.P
-import           Mescaline.Time
+import           Mescaline.Time (HasDelta(..))
 
 minPrio :: Ord p => PQ.IntPSQ p a -> Maybe p
 minPrio pq = do
@@ -15,7 +15,7 @@ minPrio pq = do
   return p
 
 -- | Parallel pattern composition
-ptpar :: HasDelta a => [(Time, P a)] -> P a
+ptpar :: HasDelta a => [(Double, P a)] -> P a
 ptpar ps = toP $ unfoldr f x0
   where
     x0 = (0, foldl' (\pq (i, (t, p)) -> PQ.insert i t (unP p) pq)

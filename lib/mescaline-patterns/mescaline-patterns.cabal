@@ -38,6 +38,7 @@ library
       , stm-chans
       , temporary
     exposed-modules:
+        Mescaline.Clock
         Mescaline.Pattern
         -- Mescaline.Pattern.AST
         -- Mescaline.Pattern.AST.Library

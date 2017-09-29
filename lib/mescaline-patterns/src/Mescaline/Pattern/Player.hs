@@ -1,11 +1,11 @@
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Mescaline.Pattern.Player (
     Process
   , start
   , stop
   , send
-  , assign
+  , setSlot
+  , setTempo
   , events
 ) where
 
@@ -14,66 +14,26 @@ import           Control.Concurrent.Async
 import           Control.Concurrent.STM
 import           Control.Concurrent.STM.TMQueue
 import           Control.Lens ((^.))
-import           Control.Monad (unless)
 import           Data.Default (Default(..))
 import qualified Data.IntPSQ as PQ
-import           Mescaline.Time (HasDelta(..))
+import           Mescaline.Clock (Clock, beats, elapsed, logical)
+import qualified Mescaline.Clock as Clock
+import           Mescaline.Time (Beats(..), Seconds(..), HasDelta(..))
 import           Mescaline.Pattern (Event, Pattern)
 import qualified Mescaline.Pattern as P
 import qualified Reactive.Banana as R
 import qualified Reactive.Banana.Frameworks as R
 import qualified Sound.OSC.Time as OSC
 
-newtype Seconds = Seconds Double deriving (Eq, Fractional, Num, Ord, Real, RealFrac, Show)
-newtype Beats = Beats Double deriving (Eq, Fractional, Num, Ord, Real, RealFrac, Show)
-
 currentTime :: IO Seconds
 currentTime = Seconds <$> OSC.time
-
-data Time = Time {
-    seconds :: !Seconds
-  , beats :: !Beats
-  } deriving (Eq, Show)
-
-data Tempo = Tempo {
-    beatsPerSecond :: Double
-  , secondsPerBeat :: Double
-  } deriving (Eq, Show)
-
-mkTempo :: Double -> Tempo
-mkTempo bps = Tempo bps (recip bps)
-
-data Clock = Clock {
-    tempo :: !Tempo
-  , base :: !Time
-  , elapsed :: !Time
-  , logical :: !Time
-  } deriving (Eq, Show)
-
-mkClock :: Double -> Seconds -> Clock
-mkClock bps s@(Seconds t) = Clock (mkTempo bps) base base base
-  where base = Time s (Beats t)
-
-beatsToSeconds :: Clock -> Beats -> Seconds
-beatsToSeconds c b = seconds (base c) + Seconds (b' * secondsPerBeat (tempo c))
-  where (Beats b') = b - beats (base c)
-
-secondsToBeats :: Clock -> Seconds -> Beats
-secondsToBeats c s = beats (base c) + Beats (s' * beatsPerSecond (tempo c))
-  where (Seconds s') = s - seconds (base c)
-
-setLogical :: Beats -> Clock -> Clock
-setLogical b c = c { logical = Time (beatsToSeconds c b) b }
-
-setElapsed :: Seconds -> Clock -> Clock
-setElapsed s c = c { elapsed = Time s (secondsToBeats c s) }
 
 type Scheduler e = PQ.IntPSQ Beats [e]
 
 data Player e = Player {
     clock    :: !Clock
   , patterns :: !(Scheduler e)
-  , produceEvent :: Time -> Event -> IO ()
+  , produceEvent :: Clock.Time -> Event -> IO ()
   }
 
 data Quant = Quant {
@@ -85,9 +45,9 @@ instance Default Quant where
   def = Quant 0 0
 
 data Command =
-    Slot Int Quant (Maybe (Pattern Event))
-  | StartTransport
+    StartTransport
   | StopTransport
+  | SetSlot Int Quant (Maybe (Pattern Event))
   | SetTempo Double
   deriving (Eq, Show)
 
@@ -98,7 +58,7 @@ data Output =
 data Process = Process {
     handle :: Async ()
   , channel :: TMQueue Command
-  , eventSource :: R.AddHandler (Time, Event)
+  , eventSource :: R.AddHandler (Clock.Time, Event)
   }
 
 next :: HasDelta e => Clock -> Scheduler e -> (Scheduler e, Maybe e)
@@ -128,10 +88,12 @@ readTMQueueWithTimeout b usec queue = do
   atomically $ Right <$> readTMQueue queue <|> wait
 
 handleCommand :: Command -> Player P.Event -> Player P.Event
-handleCommand (Slot i q (Just p)) state =
+handleCommand (SetSlot i q (Just p)) state =
   -- TODO: Quantization
   let t = beats . elapsed . clock $ state
   in state { patterns = PQ.insert i t (P.unPE p) (patterns state) }
+handleCommand (SetTempo t) state =
+  state { clock = Clock.setTempo (Clock.fromBps t) (clock state) }
 handleCommand _ state = state
 
 loop :: TMQueue Command -> Player Event -> IO ()
@@ -142,14 +104,14 @@ loop commands !state = do
   evt <- case PQ.findMin pq of
           Nothing -> Right <$> atomically (readTMQueue commands)
           Just (_, b, _) -> do
-            dt <- (beatsToSeconds clk b -) <$> currentTime
+            Seconds dt <- (Clock.beatsToSeconds clk b -) <$> currentTime
             readTMQueueWithTimeout b (floor (dt * 1e6)) commands
   -- Update clock
-  clk' <- setElapsed <$> currentTime <*> pure clk
+  clk' <- Clock.setElapsed <$> currentTime <*> pure clk
   -- Dispatch event
   case evt of
     Left b' -> do
-      let clk'' = setLogical b' clk'
+      let clk'' = Clock.setLogical b' clk'
           (pq', e) = next clk'' pq
           state' = state { clock = clk''
                          , patterns = pq' }
@@ -165,7 +127,9 @@ start :: IO Process
 start = do
   commands <- newTMQueueIO
   (addHandler, fire) <- R.newAddHandler
-  state <- Player <$> (mkClock 1 <$> currentTime) <*> pure PQ.empty <*> pure (curry fire)
+  state <- Player <$> (Clock.mkClock (Clock.fromBps 1) <$> currentTime)
+                  <*> pure PQ.empty
+                  <*> pure (curry fire)
   Process <$> asyncBound (loop commands state) <*> pure commands <*> pure addHandler
 
 stop :: Process -> IO ()
@@ -176,9 +140,12 @@ stop p = atomically $ do
 send :: Process -> Command -> IO ()
 send p = atomically . writeTMQueue (channel p)
 
-assign :: Process -> Int -> Quant -> Maybe (Pattern Event) -> IO ()
-assign player i q p = send player (Slot i q p)
+setSlot :: Process -> Int -> Quant -> Maybe (Pattern Event) -> IO ()
+setSlot player i q p = send player (SetSlot i q p)
 
-events :: Process -> R.MomentIO (R.Event (Time, Event))
+setTempo :: Process -> Double -> IO ()
+setTempo p t = send p (SetTempo t)
+
+events :: Process -> R.MomentIO (R.Event (Clock.Time, Event))
 events = R.fromAddHandler . eventSource
 
