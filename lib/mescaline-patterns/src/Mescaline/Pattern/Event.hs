@@ -8,6 +8,8 @@
 module Mescaline.Pattern.Event (
     Event(..)
   , field
+  , f_dur
+  , f_rest
   , isRest
   , Field
   , ToField(..)
@@ -139,8 +141,14 @@ instance Time.HasDelta (Event) where
   delta = lens (\e -> e ^. field "delta" . non 1)
                (\e d -> e & field "delta" .~ Just d)
 
+f_dur :: Lens' Event Duration
+f_dur = field "dur" . non 1
+
+f_rest :: Lens' Event Bool
+f_rest = field "rest" . non False
+
 isRest :: Event -> Bool
-isRest e = e ^. field "rest" . non False
+isRest = view f_rest
 
 sound :: String -> Event
 sound s = fromList [("sound", toField s)]
