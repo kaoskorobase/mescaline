@@ -20,6 +20,7 @@ module Mescaline.Pattern.Event (
 ) where
 
 import           Control.Lens
+import           Data.Default (Default(..))
 import qualified Data.Map as Map
 import           Data.Maybe (isJust)
 import           Data.String (IsString(..))
@@ -129,6 +130,9 @@ instance IsList Event where
   type Item Event = (Key, Field)
   fromList = Event . Map.fromList
   toList = Map.toList . view fields
+
+instance Default Event where
+  def = fromList []
 
 instance Time.HasDelta (Event) where
   -- FIXME: How to define delta by composing lenses?
