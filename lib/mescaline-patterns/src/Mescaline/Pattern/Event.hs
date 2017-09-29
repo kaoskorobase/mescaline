@@ -26,16 +26,13 @@ module Mescaline.Pattern.Event (
 ) where
 
 import           Control.Lens
-import           Control.Applicative (Alternative(..))
 import           Data.Default (Default(..))
 import qualified Data.Map as Map
-import           Data.Maybe (fromMaybe, isJust)
+import           Data.Maybe (fromMaybe)
 import           Data.String (IsString(..))
 import           GHC.Exts (IsList(..))
 import           Mescaline.Time (Duration)
 import qualified Mescaline.Time as Time
-import           Prelude hiding (lookup)
-import           Sound.SC3.Lang.Pattern.P
 
 data Field =
     F_Double { _f_double :: Double }
