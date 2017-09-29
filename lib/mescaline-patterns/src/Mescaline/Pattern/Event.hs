@@ -122,7 +122,7 @@ instance Ixed Event where
 instance At Event where
   at k = fields . at k
 
--- FIXME: Make this an Iso'?
+-- FIXME: Is this an Iso'?
 fieldish :: (FromField a, ToField a) => Lens' (Maybe Field) (Maybe a)
 fieldish = lens (>>= fromField) (\_ a -> toField <$> a)
 
