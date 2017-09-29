@@ -56,6 +56,7 @@ library
         Mescaline.Pattern.Player
         -- Mescaline.Pattern.Process
         -- Mescaline.Pattern.Sequencer
+        Mescaline.Quant
         Mescaline.Time
 
 executable mescaline-pattern-machine

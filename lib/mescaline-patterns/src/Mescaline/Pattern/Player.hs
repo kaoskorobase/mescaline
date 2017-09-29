@@ -21,6 +21,7 @@ import qualified Mescaline.Clock as Clock
 import           Mescaline.Time (Beats(..), Seconds(..), HasDelta(..))
 import           Mescaline.Pattern (Event, Pattern)
 import qualified Mescaline.Pattern as P
+import           Mescaline.Quant (Quant)
 import qualified Reactive.Banana as R
 import qualified Reactive.Banana.Frameworks as R
 import qualified Sound.OSC.Time as OSC
@@ -35,14 +36,6 @@ data Player e = Player {
   , patterns :: !(Scheduler e)
   , produceEvent :: Clock.Time -> Event -> IO ()
   }
-
-data Quant = Quant {
-    quant :: Double
-  , phase :: Double
-  } deriving (Eq, Show)
-
-instance Default Quant where
-  def = Quant 0 0
 
 data Command =
     StartTransport
