@@ -11,6 +11,7 @@ module Mescaline.Pattern.Event (
   , f_dur
   , f_rest
   , isRest
+  , r
   , Field
   , ToField(..)
   , FromField(..)
@@ -152,6 +153,9 @@ isRest = view f_rest
 
 sound :: String -> Event
 sound s = fromList [("sound", toField s)]
+
+r :: Duration -> Event
+r d = def & f_rest .~ True & f_dur .~ d
 
 instance IsString Event where
   fromString = sound
