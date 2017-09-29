@@ -66,7 +66,7 @@ serverLoop snk = do
 
 dirty dirt time evt =
   let msg = do {
-    snd <- E.fromField =<< evt ^. E.fields . at "sound" ;
+    snd <- evt ^. E.field "sound" ;
     return $ Message "/play2" [string "sound", string snd] }
   in maybe (return ()) (FD.sendMessage dirt) msg
  

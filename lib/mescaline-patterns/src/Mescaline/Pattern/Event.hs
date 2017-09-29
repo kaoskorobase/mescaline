@@ -1,13 +1,13 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Mescaline.Pattern.Event (
     Event(..)
-  , fields
-  , lookup
+  , field
   , isRest
   , Field
   , ToField(..)
@@ -44,15 +44,30 @@ class ToField a where
 instance ToField Bool where toField = F_Double . fromIntegral . fromEnum
 instance ToField Int where toField = F_Double . fromIntegral
 instance ToField Double where toField = F_Double
-instance ToField [Char] where toField = F_String
+instance ToField String where toField = F_String
 instance ToField Field where toField = id
 
 class FromField a where
   fromField :: Field -> Maybe a
 
+instance FromField Bool where
+  fromField (F_Double d) = Just (d /= 0)
+  fromField _ = Nothing
+
+instance FromField Int where
+  fromField (F_Double d) = Just (truncate d)
+  fromField _ = Nothing
+
+instance FromField Double where
+  fromField (F_Double d) = Just d
+  fromField _ = Nothing
+
 instance FromField String where
   fromField (F_String s) = Just s
   fromField _ = Nothing
+
+instance FromField Field where
+  fromField = Just
 
 instance IsString Field where
   fromString = F_String
@@ -85,36 +100,45 @@ instance Num Field where
   signum = f_unop signum
   fromInteger = F_Double . fromInteger
 
+type Key = String
+
 newtype Event =
   Event {
-    _fields :: Map.Map String Field
+    _fields :: Map.Map Key Field
   } deriving (Eq, Show)
-
--- TODO: Instances for Ixed and At
-type instance Index Event = String
-type instance IxValue Event = Field
 
 makeLenses ''Event
 
+type instance Index Event = Key
+type instance IxValue Event = Field
+
+instance Ixed Event where
+  ix i f (Event m) = fmap Event (ix i f m)
+
+instance At Event where
+  at k = fields . at k
+
+fieldish :: (FromField a, ToField a) => Lens' (Maybe Field) (Maybe a)
+fieldish = lens (>>= fromField) (\f a -> f >>= \_ -> toField <$> a)
+
+field :: (FromField a, ToField a) => Key -> Lens' Event (Maybe a)
+field key = at key . fieldish
+
 instance IsList Event where
-  type Item Event = (String, Field)
+  type Item Event = (Key, Field)
   fromList = Event . Map.fromList
   toList = Map.toList . view fields
 
 instance Time.HasDelta (Event) where
-  delta = lens (\e -> maybe 1 id $ e ^? (fields . at "delta" . non 1 . f_double))
-               (\e d -> e & fields . at "delta" .~ Just (F_Double d))
-
-lookup :: String -> Event -> Maybe Field
-lookup key = view (fields . at key)
+  -- FIXME: How to define delta by composing lenses?
+  delta = lens (\e -> e ^. field "delta" . non 1)
+               (\e d -> e & field "delta" .~ Just d)
 
 isRest :: Event -> Bool
-isRest e = maybe False (/= 0) $ do
-  f <- lookup "rest" e
-  f ^? f_double
+isRest e = e ^. field "rest" . non False
 
 sound :: String -> Event
-sound s = Event $ Map.fromList [("sound", toField s)]
+sound s = fromList [("sound", toField s)]
 
 instance IsString Event where
   fromString = sound
