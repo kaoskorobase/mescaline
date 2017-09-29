@@ -6,10 +6,13 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Mescaline.Pattern.Event (
-    Event(..)
+    Event
   , field
-  , f_dur
   , f_rest
+  , f_dur
+  , f_stretch
+  , f_legato
+  , f_sustain
   , isRest
   , r
   , Field
@@ -23,9 +26,10 @@ module Mescaline.Pattern.Event (
 ) where
 
 import           Control.Lens
+import           Control.Applicative (Alternative(..))
 import           Data.Default (Default(..))
 import qualified Data.Map as Map
-import           Data.Maybe (isJust)
+import           Data.Maybe (fromMaybe, isJust)
 import           Data.String (IsString(..))
 import           GHC.Exts (IsList(..))
 import           Mescaline.Time (Duration)
@@ -137,16 +141,30 @@ instance IsList Event where
 instance Default Event where
   def = fromList []
 
-instance Time.HasDelta (Event) where
-  -- FIXME: How to define delta by composing lenses?
-  delta = lens (\e -> e ^. field "delta" . non 1)
+instance Time.HasDelta Event where
+  delta = lens (\e -> fromMaybe (e ^. f_dur * e ^. f_stretch)
+                                (e ^. field "delta"))
                (\e d -> e & field "delta" .~ Just d)
+
+instance Time.HasDuration Event where
+  duration = lens (\e -> fromMaybe (e ^. Time.delta * e ^. f_legato)
+                                   (e ^. f_sustain))
+                  (\e d -> e & f_sustain .~ Just d)
+
+f_rest :: Lens' Event Bool
+f_rest = field "rest" . non False
 
 f_dur :: Lens' Event Duration
 f_dur = field "dur" . non 1
 
-f_rest :: Lens' Event Bool
-f_rest = field "rest" . non False
+f_stretch :: Lens' Event Double
+f_stretch = field "stretch" . non 1
+
+f_legato :: Lens' Event Double
+f_legato = field "legato" . non 1
+
+f_sustain :: Lens' Event (Maybe Double)
+f_sustain = field "sustain"
 
 isRest :: Event -> Bool
 isRest = view f_rest
