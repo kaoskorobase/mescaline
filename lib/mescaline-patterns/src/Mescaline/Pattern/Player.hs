@@ -16,7 +16,7 @@ import           Control.Concurrent.STM.TMQueue
 import           Control.Lens ((^.))
 import           Control.Monad (unless)
 import           Data.Default (Default(..))
-import qualified Data.OrdPSQ as PQ
+import qualified Data.IntPSQ as PQ
 import           Mescaline.Time (HasDelta(..))
 import           Mescaline.Pattern (Event, Pattern)
 import qualified Mescaline.Pattern as P
@@ -68,7 +68,7 @@ setLogical b c = c { logical = Time (beatsToSeconds c b) b }
 setElapsed :: Seconds -> Clock -> Clock
 setElapsed s c = c { elapsed = Time s (secondsToBeats c s) }
 
-type Scheduler e = PQ.OrdPSQ Int Beats [e]
+type Scheduler e = PQ.IntPSQ Beats [e]
 
 data Player e = Player {
     clock    :: !Clock
