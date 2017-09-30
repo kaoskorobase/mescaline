@@ -78,7 +78,7 @@ readTMQueueWithTimeout b usec queue = do
 handleCommand :: Command -> Player P.Event -> Player P.Event
 handleCommand (SetSlot i q (Just p)) state =
   let t = quantize 4 q . beats . elapsed . clock $ state
-  in state { patterns = PQ.insert i t (P.unPE p) (patterns state) }
+  in state { patterns = PQ.insert i t (P.unP p) (patterns state) }
 handleCommand (SetTempo t) state =
   state { clock = Clock.setTempo (Clock.fromBps t) (clock state) }
 handleCommand _ state = state

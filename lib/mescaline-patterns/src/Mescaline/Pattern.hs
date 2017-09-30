@@ -8,7 +8,6 @@ module Mescaline.Pattern (
     Pattern
   , module Mescaline.Pattern.Ppar
   , ptrace
-  , unPE
     -- *Base module
   , module Sound.SC3.Lang.Pattern.P
     -- Re-exports from base
@@ -37,7 +36,4 @@ instance IsList (Pattern Event) where
   type Item (Pattern Event) = Event
   fromList = toP
   toList = unP
-
-unPE :: Pattern Event -> [Event]
-unPE = toList
 
