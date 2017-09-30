@@ -10,7 +10,8 @@ module Mescaline.Pattern.Player (
 ) where
 
 import           Control.Applicative ((<|>))
-import           Control.Concurrent.Async
+import           Control.Concurrent.Async (Async)
+import qualified Control.Concurrent.Async as Async
 import           Control.Concurrent.STM
 import           Control.Concurrent.STM.TMQueue
 import           Control.Lens ((^.))
@@ -28,11 +29,11 @@ import qualified Sound.OSC.Time as OSC
 currentTime :: IO Seconds
 currentTime = realToFrac <$> OSC.time
 
-type Scheduler e = PQ.IntPSQ Beats [e]
+type Scheduler = PQ.IntPSQ Beats [Event]
 
-data Player e = Player {
+data Player = Player {
     clock    :: !Clock
-  , patterns :: !(Scheduler e)
+  , patterns :: !Scheduler
   , produceEvent :: Clock.Time -> Event -> IO ()
   }
 
@@ -49,8 +50,8 @@ data Process = Process {
   , eventSource :: R.AddHandler (Clock.Time, Event)
   }
 
-next :: HasDelta e => Clock -> Scheduler e -> (Scheduler e, Maybe e)
-next c pq =
+next :: Clock -> Scheduler -> (Scheduler, Maybe Event)
+next _ pq =
   case PQ.minView pq of
     Nothing -> (pq, Nothing)
     Just (i, nextBeat, p, pq') ->
@@ -75,7 +76,7 @@ readTMQueueWithTimeout b usec queue = do
   let wait = readTVar delay >>= \done -> if done then return (Left b) else retry
   atomically $ Right <$> readTMQueue queue <|> wait
 
-handleCommand :: Command -> Player P.Event -> Player P.Event
+handleCommand :: Command -> Player -> Player
 handleCommand (SetSlot i q (Just p)) state =
   let t = quantize 4 q . beats . elapsed . clock $ state
   in state { patterns = PQ.insert i t (P.unP p) (patterns state) }
@@ -83,7 +84,7 @@ handleCommand (SetTempo t) state =
   state { clock = Clock.setTempo (Clock.fromBps t) (clock state) }
 handleCommand _ state = state
 
-loop :: TMQueue Command -> Player Event -> IO ()
+loop :: TMQueue Command -> Player -> IO ()
 loop commands !state = do
   let clk = clock state
       pq = patterns state
@@ -117,12 +118,12 @@ start = do
   state <- Player <$> (Clock.mkClock (Clock.fromBps 1) <$> currentTime)
                   <*> pure PQ.empty
                   <*> pure (curry fire)
-  Process <$> asyncBound (loop commands state) <*> pure commands <*> pure addHandler
+  Process <$> Async.asyncBound (loop commands state) <*> pure commands <*> pure addHandler
 
 stop :: Process -> IO ()
 stop p = atomically $ do
   closeTMQueue (channel p)
-  waitSTM (handle p)
+  Async.waitSTM (handle p)
 
 send :: Process -> Command -> IO ()
 send p = atomically . writeTMQueue (channel p)
