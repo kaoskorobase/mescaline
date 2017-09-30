@@ -33,7 +33,6 @@ instance IsString (Pattern Event) where
   fromString = return . sound
 
 instance IsList (Pattern Event) where
-  type Item (Pattern Event) = Event
-  fromList = toP
-  toList = unP
-
+  type Item (Pattern Event) = Pattern Event
+  fromList = pconcat
+  toList = (:[])
