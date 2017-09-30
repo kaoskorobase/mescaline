@@ -17,7 +17,7 @@ import           Control.Lens ((^.))
 import qualified Data.IntPSQ as PQ
 import           Mescaline.Clock (Clock, beats, elapsed, logical)
 import qualified Mescaline.Clock as Clock
-import           Mescaline.Time (Beats(..), Seconds(..), HasDelta(..))
+import           Mescaline.Time (Beats, Seconds, HasDelta(..))
 import           Mescaline.Pattern (Event, Pattern)
 import qualified Mescaline.Pattern as P
 import           Mescaline.Quant (Quant, quantize)
