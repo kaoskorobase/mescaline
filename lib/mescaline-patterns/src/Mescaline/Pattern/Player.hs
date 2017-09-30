@@ -14,20 +14,19 @@ import           Control.Concurrent.Async
 import           Control.Concurrent.STM
 import           Control.Concurrent.STM.TMQueue
 import           Control.Lens ((^.))
-import           Data.Default (Default(..))
 import qualified Data.IntPSQ as PQ
 import           Mescaline.Clock (Clock, beats, elapsed, logical)
 import qualified Mescaline.Clock as Clock
 import           Mescaline.Time (Beats(..), Seconds(..), HasDelta(..))
 import           Mescaline.Pattern (Event, Pattern)
 import qualified Mescaline.Pattern as P
-import           Mescaline.Quant (Quant)
+import           Mescaline.Quant (Quant, quantize)
 import qualified Reactive.Banana as R
 import qualified Reactive.Banana.Frameworks as R
 import qualified Sound.OSC.Time as OSC
 
 currentTime :: IO Seconds
-currentTime = Seconds <$> OSC.time
+currentTime = realToFrac <$> OSC.time
 
 type Scheduler e = PQ.IntPSQ Beats [e]
 
@@ -58,7 +57,7 @@ next c pq =
       case p of
         [] -> (pq', Nothing)
         (e:p') ->
-            let pq'' = PQ.insert i (nextBeat + Beats (e ^. delta)) p' pq'
+            let pq'' = PQ.insert i (nextBeat + realToFrac (e ^. delta)) p' pq'
             in (pq'', Just e)
 
 -- registerDelayUntil :: Clock -> Seconds -> IO (TVar Bool)
@@ -78,8 +77,7 @@ readTMQueueWithTimeout b usec queue = do
 
 handleCommand :: Command -> Player P.Event -> Player P.Event
 handleCommand (SetSlot i q (Just p)) state =
-  -- TODO: Quantization
-  let t = beats . elapsed . clock $ state
+  let t = quantize 4 q . beats . elapsed . clock $ state
   in state { patterns = PQ.insert i t (P.unPE p) (patterns state) }
 handleCommand (SetTempo t) state =
   state { clock = Clock.setTempo (Clock.fromBps t) (clock state) }
@@ -93,7 +91,7 @@ loop commands !state = do
   evt <- case PQ.findMin pq of
           Nothing -> Right <$> atomically (readTMQueue commands)
           Just (_, b, _) -> do
-            Seconds dt <- (Clock.beatsToSeconds clk b -) <$> currentTime
+            dt <- (Clock.beatsToSeconds clk b -) <$> currentTime
             readTMQueueWithTimeout b (floor (dt * 1e6)) commands
   -- Update clock
   clk' <- Clock.setElapsed <$> currentTime <*> pure clk

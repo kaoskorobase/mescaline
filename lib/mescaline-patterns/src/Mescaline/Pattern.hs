@@ -11,10 +11,13 @@ module Mescaline.Pattern (
   , unPE
     -- *Base module
   , module Sound.SC3.Lang.Pattern.P
+    -- Re-exports from base
+  , (<>)
     -- *Events
   , module Mescaline.Pattern.Event
 ) where
 
+import           Data.Monoid ((<>))
 import           GHC.Exts (IsList(..))
 import           Mescaline.Pattern.Event
 import           Mescaline.Pattern.Ppar

@@ -35,3 +35,6 @@ ptpar ps = toP $ unfoldr f x0
 
 ppar :: HasDelta a => [P a] -> P a
 ppar = ptpar . zip (repeat 0)
+
+-- pcut :: HasDelta a => Beats -> Beats -> P a -> P a
+-- pcut t0 dt p =

@@ -37,16 +37,16 @@ data Clock = Clock {
   } deriving (Eq, Show)
 
 mkClock :: Tempo -> Seconds -> Clock
-mkClock t (Seconds s0) = Clock t t0 t0 t0
-  where t0 = Time (Seconds s0) (Beats s0)
+mkClock t s0 = Clock t t0 t0 t0
+  where t0 = Time s0 (realToFrac s0)
 
 beatsToSeconds :: Clock -> Beats -> Seconds
-beatsToSeconds c b = seconds (base c) + Seconds (b' * secondsPerBeat (tempo c))
-  where (Beats b') = b - beats (base c)
+beatsToSeconds c b = seconds (base c) + realToFrac (realToFrac b' * secondsPerBeat (tempo c))
+  where b' = b - beats (base c)
 
 secondsToBeats :: Clock -> Seconds -> Beats
-secondsToBeats c s = beats (base c) + Beats (s' * beatsPerSecond (tempo c))
-  where (Seconds s') = s - seconds (base c)
+secondsToBeats c s = beats (base c) + realToFrac (realToFrac s' * beatsPerSecond (tempo c))
+  where s' = s - seconds (base c)
 
 setLogical :: Beats -> Clock -> Clock
 setLogical b c = c { logical = Time (beatsToSeconds c b) b }

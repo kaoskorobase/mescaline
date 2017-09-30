@@ -1,26 +1,28 @@
-import           Control.Concurrent (threadDelay)
 import           Control.Exception (displayException)
 import           Control.Lens
-import           Control.Monad (forever)
 import           Data.Default (def)
-import           Data.List
-import qualified Mescaline.Pattern as P
+import           Mescaline.Clock (Time(..))
 import qualified Mescaline.Pattern.Event as E
 import qualified Mescaline.Pattern.Interpreter as Interp
 import qualified Mescaline.Pattern.Player as Player
+import           Mescaline.Quant (Quant(..))
 import qualified System.FSNotify as FSN
 import           Reactive.Banana hiding (interpret)
 import           Reactive.Banana.Frameworks
-import           Sound.OSC
+import           Sound.OSC (Bundle(..), Message(..), RecvOSC, string)
+import qualified Sound.OSC as OSC
 import qualified Sound.OSC.Transport.FD as FD
 import           System.FilePath
+import           Text.Read (readMaybe)
 
+fsEventExistingPath :: FSN.Event -> Maybe FilePath
 fsEventExistingPath event =
   case event of
     FSN.Added p _ -> Just p
     FSN.Modified p _ -> Just p
     FSN.Removed _ _ -> Nothing
 
+compileFile :: Player.Process -> FilePath -> IO ()
 compileFile player path = do
   case readMaybe (dropExtension . takeFileName $ path) of
     Nothing -> return ()
@@ -31,9 +33,12 @@ compileFile player path = do
         Left err -> putStrLn $ displayException err
         Right p -> do
           putStrLn $ "New pattern for slot " ++ show slot
-          Player.setSlot player slot def (Just p)
+          Player.setSlot player slot def { quant = 4 } (Just p)
 
-sourceFiles = [show x ++ ".hs" | x <- [1..4]]
+sourceFiles :: [FilePath]
+sourceFiles = [show x ++ ".hs" | x <- [1..4::Int]]
+
+isSourceFile :: FSN.Event -> Bool
 isSourceFile (FSN.Added path _) = takeFileName path `elem` sourceFiles
 isSourceFile _ = False
 
@@ -42,7 +47,7 @@ watchDir mgr dir predicate = fromAddHandler $ AddHandler (FSN.watchDir mgr dir p
  
 serverLoop :: (MonadIO m, RecvOSC m) => (Message -> IO ()) -> m ()
 serverLoop snk = do
-  m <- recvMessage
+  m <- OSC.recvMessage
   case m of
     Nothing -> serverLoop snk
     Just msg -> do
@@ -51,11 +56,12 @@ serverLoop snk = do
         "/quit" -> return ()
         _ -> serverLoop snk
 
+dirty :: FD.Transport t => t -> Mescaline.Clock.Time -> E.Event -> IO ()
 dirty dirt time evt =
   let msg = do {
-    snd <- evt ^. E.field "sound" ;
-    return $ Message "/play2" [string "sound", string snd] }
-  in maybe (return ()) (FD.sendMessage dirt) msg
+    sound <- evt ^. E.field "sound" ;
+    return $ Bundle (realToFrac . seconds $ time) [Message "/play2" [string "sound", string sound]] }
+  in maybe (return ()) (FD.sendBundle dirt) msg
  
 main :: IO ()
 main = do
@@ -63,7 +69,7 @@ main = do
 
   player <- Player.start
 
-  FD.withTransport (openUDP "127.0.0.1" 57120) $ \dirt -> do
+  FD.withTransport (OSC.openUDP "127.0.0.1" 57120) $ \dirt -> do
   -- localhost 57120 /play2 ss sound sd:6
     FSN.withManager $ \mgr -> do
       network <- compile $ do
@@ -77,6 +83,6 @@ main = do
 
       putStrLn "Starting the fabulous Mescaline pattern machine on 127.0.0.1:3000"
 
-      withTransport (udpServer "127.0.0.1" 3000) $
+      OSC.withTransport (OSC.udpServer "127.0.0.1" 3000) $
         serverLoop oscMsgSink
 
