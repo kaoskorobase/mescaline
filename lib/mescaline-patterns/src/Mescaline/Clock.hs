@@ -14,7 +14,7 @@ module Mescaline.Clock (
   , setLogical
 ) where
 
-import Mescaline.Time (Beats(..), Seconds(..))
+import Mescaline.Time (Beats, Seconds)
 
 data Tempo = Tempo {
     beatsPerSecond :: Double
