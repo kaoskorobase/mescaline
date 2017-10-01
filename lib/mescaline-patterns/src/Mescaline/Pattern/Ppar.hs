@@ -1,13 +1,15 @@
 module Mescaline.Pattern.Ppar (
     ptpar
   , ppar
+  , takeBeats
 ) where
 
 import           Control.Lens
 import qualified Data.IntPSQ as PQ
 import           Data.List (foldl', unfoldr)
 import           Sound.SC3.Lang.Pattern.P
-import           Mescaline.Time (HasDelta(..))
+import           Mescaline.Time (Beats, HasDelta(..))
+import           Mescaline.Pattern.Event (Event)
 
 minPrio :: Ord p => PQ.IntPSQ p a -> Maybe p
 minPrio pq = do
@@ -36,5 +38,18 @@ ptpar ps = toP $ unfoldr f x0
 ppar :: HasDelta a => [P a] -> P a
 ppar = ptpar . zip (repeat 0)
 
--- pcut :: HasDelta a => Beats -> Beats -> P a -> P a
--- pcut t0 dt p =
+-- |
+-- >>> :set -XOverloadedStrings -XOverloadedLists
+-- >>> unP $ takeBeats 1.5 ["bd", "sd"]
+-- []
+takeBeats :: Beats -> P Event -> P Event
+takeBeats b = toP . f 0 . unP
+  where
+    f t _ | t >= b = []
+    f _ [] = []
+    f t (a:as) =
+      let t' = t + realToFrac (a ^. delta)
+          a' = if t' >= b
+               then a & delta .~ realToFrac (t' - b)
+               else a
+      in a' : f t' as

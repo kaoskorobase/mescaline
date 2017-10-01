@@ -16,6 +16,8 @@ import           Control.Concurrent.STM
 import           Control.Concurrent.STM.TMQueue
 import           Control.Lens ((^.))
 import qualified Data.IntPSQ as PQ
+import           Data.Maybe (fromMaybe)
+import           Data.Monoid ((<>), mempty)
 import           Mescaline.Clock (Clock, beats, elapsed, logical)
 import qualified Mescaline.Clock as Clock
 import           Mescaline.Time (Beats, Seconds, HasDelta(..))
@@ -77,9 +79,21 @@ readTMQueueWithTimeout b usec queue = do
   atomically $ Right <$> readTMQueue queue <|> wait
 
 handleCommand :: Command -> Player -> Player
-handleCommand (SetSlot i q (Just p)) state =
+handleCommand (SetSlot i q s) state =
   let t = quantize 4 q . beats . elapsed . clock $ state
-  in state { patterns = PQ.insert i t (P.unP p) (patterns state) }
+      pq = patterns state
+  in case PQ.lookup i pq of
+      Nothing ->
+        case s of
+          Nothing -> state
+          Just p -> state { patterns = PQ.insert i t (P.unP p) pq }
+      Just (tOld, pOld) ->
+        if t <= tOld
+        then case s of
+              Nothing -> state { patterns = PQ.delete i pq }
+              Just p -> state { patterns = PQ.insert i t (P.unP p) pq }
+        else let p' = P.takeBeats (t - tOld) (P.toP pOld) <> fromMaybe mempty s
+             in state { patterns = PQ.insert i tOld (P.unP p') pq }
 handleCommand (SetTempo t) state =
   state { clock = Clock.setTempo (Clock.fromBps t) (clock state) }
 handleCommand _ state = state
@@ -105,9 +119,9 @@ loop commands !state = do
                          , patterns = pq' }
       maybe (return ()) (produceEvent state (logical clk'')) e
       loop commands state'
-    Right (Just i) -> do
+    Right (Just cmd) -> do
       let state' = state { clock = clk' }
-      loop commands (handleCommand i state')
+      loop commands (handleCommand cmd state')
     Right Nothing ->
       return ()
 
