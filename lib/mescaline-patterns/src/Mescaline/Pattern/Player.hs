@@ -118,7 +118,9 @@ start = do
   state <- Player <$> (Clock.mkClock (Clock.fromBps 1) <$> currentTime)
                   <*> pure PQ.empty
                   <*> pure (curry fire)
-  Process <$> Async.asyncBound (loop commands state) <*> pure commands <*> pure addHandler
+  Process <$> Async.asyncBound (loop commands state)
+          <*> pure commands
+          <*> pure addHandler
 
 stop :: Process -> IO ()
 stop p = atomically $ do
